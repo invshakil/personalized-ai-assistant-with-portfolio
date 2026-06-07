@@ -1,0 +1,204 @@
+// Prisma schema for sshakil.com
+// Stack: PostgreSQL, NextAuth v5, App Router
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Auth (NextAuth) ──────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  role          Role      @default(ADMIN)
+  accounts      Account[]
+  sessions      Session[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+enum Role {
+  ADMIN
+  VIEWER
+}
+
+// ─── Portfolio Settings (admin-editable) ─────────────────────────────────────
+
+model SiteSettings {
+  id                String   @id @default("singleton")
+  availableForWork  Boolean  @default(true)
+  heroTagline       String   @default("Tech Lead & Full-Stack Engineer")
+  heroBio           String   @db.Text
+  metaDescription   String   @db.Text
+  metaKeywords      String   @db.Text
+  cvUrl             String   @default("https://drive.google.com/file/d/15jSzTm3iaj_ghVqgC_t1Wk9bKnsIfGIA/view?usp=sharing")
+  updatedAt         DateTime @updatedAt
+}
+
+// ─── Property Management ──────────────────────────────────────────────────────
+
+model Unit {
+  id          String    @id @default(cuid())
+  unitNumber  String    @unique   // e.g. "2A", "3B"
+  floor       Int
+  monthlyRent Decimal   @db.Decimal(10, 2)
+  isOccupied  Boolean   @default(false)
+  notes       String?
+  tenant      Tenant?
+  payments    Payment[]
+  expenses    Expense[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Tenant {
+  id          String   @id @default(cuid())
+  name        String
+  phone       String?
+  email       String?
+  nidNumber   String?
+  moveInDate  DateTime
+  moveOutDate DateTime?
+  isActive    Boolean  @default(true)
+  unit        Unit     @relation(fields: [unitId], references: [id])
+  unitId      String   @unique
+  payments    Payment[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  tenant      Tenant        @relation(fields: [tenantId], references: [id])
+  tenantId    String
+  unit        Unit          @relation(fields: [unitId], references: [id])
+  unitId      String
+  amount      Decimal       @db.Decimal(10, 2)
+  month       Int           // 1–12
+  year        Int
+  paidDate    DateTime?
+  status      PaymentStatus @default(PENDING)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([unitId, month, year])
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  PARTIAL
+  OVERDUE
+}
+
+// ─── Income & Expenses ────────────────────────────────────────────────────────
+
+model Income {
+  id          String      @id @default(cuid())
+  source      String      // e.g. "Savannah Group", "Christopher - AI Project"
+  amount      Decimal     @db.Decimal(10, 2)
+  currency    String      @default("BDT")
+  month       Int
+  year        Int
+  category    IncomeCategory
+  notes       String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+enum IncomeCategory {
+  SALARY
+  FREELANCE
+  RENTAL
+  OTHER
+}
+
+model Expense {
+  id          String          @id @default(cuid())
+  description String
+  amount      Decimal         @db.Decimal(10, 2)
+  currency    String          @default("BDT")
+  category    ExpenseCategory
+  month       Int
+  year        Int
+  unitId      String?
+  unit        Unit?           @relation(fields: [unitId], references: [id])
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+enum ExpenseCategory {
+  MAINTENANCE
+  UTILITY
+  SALARY         // employee
+  SUBSCRIPTION
+  CONSTRUCTION
+  OTHER
+}
+
+// ─── Renovation Tracker ───────────────────────────────────────────────────────
+
+model RenovationItem {
+  id          String            @id @default(cuid())
+  title       String
+  category    String            // e.g. "Materials", "Constructor", "Services"
+  subCategory String?
+  amount      Decimal           @db.Decimal(10, 2)
+  vendor      String?
+  date        DateTime?
+  status      RenovationStatus  @default(PLANNED)
+  notes       String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+}
+
+enum RenovationStatus {
+  PLANNED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
