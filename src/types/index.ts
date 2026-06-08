@@ -21,11 +21,7 @@ export type ExpenseCategory =
   | "SUBSCRIPTION"
   | "CONSTRUCTION"
   | "OTHER";
-export type RenovationStatus =
-  | "PLANNED"
-  | "IN_PROGRESS"
-  | "COMPLETED"
-  | "CANCELLED";
+export type RenovationStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
 export interface DashboardStats {
   totalUnits: number;

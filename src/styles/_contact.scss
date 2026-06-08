@@ -1,5 +1,5 @@
-@use 'variables' as v;
-@use 'mixins' as m;
+@use "variables" as v;
+@use "mixins" as m;
 
 #contact {
   background: v.$c-contact;
@@ -62,7 +62,9 @@
   padding: 17px 20px;
   background: rgba(255, 255, 255, 0.07);
   text-decoration: none;
-  transition: background v.$transition-fast, transform v.$transition-fast;
+  transition:
+    background v.$transition-fast,
+    transform v.$transition-fast;
 
   &:hover {
     background: rgba(255, 255, 255, 0.12);

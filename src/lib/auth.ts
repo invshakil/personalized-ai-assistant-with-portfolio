@@ -17,10 +17,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const adminEmail = process.env.ADMIN_EMAIL;
         const adminPassword = process.env.ADMIN_PASSWORD;
 
-        if (
-          credentials?.email === adminEmail &&
-          credentials?.password === adminPassword
-        ) {
+        if (credentials?.email === adminEmail && credentials?.password === adminPassword) {
           return {
             id: "1",
             email: adminEmail,
