@@ -26,7 +26,7 @@ A single Next.js application serving two purposes:
 | Framework | Next.js 16 App Router | SSR for portfolio SEO; server components reduce client JS |
 | Auth | NextAuth v5 credentials | Single admin user — no need for OAuth complexity |
 | Database | PostgreSQL + Prisma | Relational data (units→tenants→payments); Prisma gives type safety |
-| Styling | Tailwind CSS v4 | Already in stack; utility-first keeps components portable |
+| Styling | SCSS modules + Tailwind CSS v4 | SCSS for portfolio (variables, mixins, section partials); Tailwind for dashboard utilities |
 | AI | Claude Sonnet 4 via Anthropic API | Tool use for structured data queries against DB |
 | Hosting | DigitalOcean Basic droplet (~$12/mo) | Full control, PM2 + Nginx + Certbot for SSL |
 | Session | JWT (not DB sessions) | Simpler for single-user setup; no session table needed |
@@ -59,11 +59,13 @@ Currency: **BDT (Bangladeshi Taka ৳)** throughout. All `Decimal` fields are BD
 sshakil-app/
 ├── prisma/
 │   └── schema.prisma              ✅ complete
+├── public/
+│   └── shakil-profile.jpg         ✅ profile photo (used by Hero)
 ├── src/
 │   ├── app/
 │   │   ├── (portfolio)/
-│   │   │   ├── layout.tsx         ✅ scaffolded
-│   │   │   └── page.tsx           ✅ scaffolded (imports component stubs)
+│   │   │   ├── layout.tsx         ✅ complete (Nav, Footer, 3× JSON-LD scripts)
+│   │   │   └── page.tsx           ✅ complete (renders all 7 section components)
 │   │   ├── (dashboard)/
 │   │   │   ├── layout.tsx         ✅ scaffolded (auth check + sidebar)
 │   │   │   └── dashboard/
@@ -79,28 +81,46 @@ sshakil-app/
 │   │   │   ├── finance/           🔲 not built
 │   │   │   └── ai/                🔲 not built
 │   │   ├── login/page.tsx         ✅ complete (credentials form)
-│   │   ├── layout.tsx             ✅ complete (fonts, metadata)
-│   │   ├── globals.css            ✅ complete (colour tokens, font vars)
+│   │   ├── layout.tsx             ✅ complete (fonts, full SEO metadata, geo tags)
 │   │   └── page.tsx               ✅ root → re-exports portfolio page
 │   ├── components/
 │   │   ├── portfolio/
-│   │   │   ├── Hero.tsx           🔲 stub — needs porting from portfolio.html
-│   │   │   ├── Skills.tsx         🔲 stub
-│   │   │   ├── Experience.tsx     🔲 stub
-│   │   │   ├── Projects.tsx       🔲 stub
-│   │   │   ├── Testimonials.tsx   🔲 stub
-│   │   │   ├── Education.tsx      🔲 stub
-│   │   │   └── Contact.tsx        🔲 stub
+│   │   │   ├── Hero.tsx           ✅ complete (photo, badge, stats, CTAs)
+│   │   │   ├── Skills.tsx         ✅ complete (5 skill groups, tag pills)
+│   │   │   ├── Experience.tsx     ✅ complete (full-time + freelance columns)
+│   │   │   ├── Projects.tsx       ✅ complete (4 cards, icons, GitHub link)
+│   │   │   ├── Testimonials.tsx   ✅ complete (2 Upwork reviews, stars)
+│   │   │   ├── Education.tsx      ✅ complete (3 entries, flat flex layout)
+│   │   │   └── Contact.tsx        ✅ complete (5 links, SVG icons, dark bg)
 │   │   ├── dashboard/
 │   │   │   └── Sidebar.tsx        ✅ complete
 │   │   ├── ui/                    🔲 empty — shared primitives go here
-│   │   └── shared/                🔲 empty
+│   │   └── shared/
+│   │       ├── Nav.tsx            ✅ complete ("use client", hamburger menu)
+│   │       └── Footer.tsx         ✅ complete (server component)
+│   ├── styles/
+│   │   ├── _variables.scss        ✅ colors, fonts, breakpoints, spacing
+│   │   ├── _functions.scss        ✅ rem(), alpha()
+│   │   ├── _mixins.scss           ✅ respond-to, section-padding, gradient-rule, btn-base
+│   │   ├── _base.scss             ✅ reset, :root, keyframes, animation classes
+│   │   ├── _sections.scss         ✅ .sec, .sec-in, .lbl
+│   │   ├── _nav.scss              ✅ navigation styles
+│   │   ├── _hero.scss             ✅ hero section
+│   │   ├── _skills.scss           ✅ skills section
+│   │   ├── _experience.scss       ✅ experience section
+│   │   ├── _projects.scss         ✅ projects section
+│   │   ├── _education.scss        ✅ education section
+│   │   ├── _testimonials.scss     ✅ testimonials section
+│   │   ├── _contact.scss          ✅ contact + footer
+│   │   ├── globals.scss           ✅ @use orchestrator (replaces globals.css)
+│   │   └── tailwind.css           ✅ isolated Tailwind @import
 │   ├── lib/
 │   │   ├── auth.ts                ✅ complete
 │   │   └── db.ts                  ✅ complete
 │   ├── middleware.ts               ✅ complete (protects /dashboard/*)
-│   └── types/index.ts             ✅ complete
-├── .env.local                     ✅ template (fill in values locally)
+│   └── types/index.ts             ✅ complete (+ portfolio types added)
+├── .env                           ✅ Prisma CLI env (DATABASE_URL only)
+├── .env.local                     ✅ Next.js runtime env (not committed)
 ├── .env.example                   ✅ safe to commit
 ├── CLAUDE.md                      ✅ coding standards + conventions
 └── PROJECT_PLANNING.md            ✅ this file
@@ -257,6 +277,8 @@ This project is also the **capstone project** for Syful's AI engineering learnin
 |------|--------------|
 | 2026-06-07 | Portfolio HTML completed (8.5/10), CV PDF + DOCX created, SEO implemented, all reference markdown files created |
 | 2026-06-08 | Next.js project scaffolded — App Router, Prisma schema, NextAuth credentials, middleware, dashboard layout + sidebar, portfolio component stubs, login page, CLAUDE.md + PROJECT_PLANNING.md written |
+| 2026-06-08 | Local PostgreSQL set up (`local_personalized_ai_assistant` DB), `.env` + `.env.local` configured, `npx prisma db push` verified |
+| 2026-06-08 | **Portfolio fully ported** — `sass` installed; 13-file SCSS architecture built (variables, mixins, functions, 9 section partials); all 7 portfolio components implemented from `portfolio.html`; Nav + Footer added; root layout updated with full SEO metadata + geo tags; portfolio layout updated with 3× JSON-LD structured data scripts; `npm run build` passes zero errors |
 
 ---
 
@@ -264,8 +286,8 @@ This project is also the **capstone project** for Syful's AI engineering learnin
 
 In priority order:
 
-1. **Set up local PostgreSQL** → fill `.env.local` → run `npx prisma db push` → verify `npm run dev` starts cleanly
-2. **Port portfolio components** — start with `Hero.tsx`, follow `PROJECT_PLANNING.md` portfolio section reference
-3. **Connect to GitHub** → push initial scaffold → set up DigitalOcean droplet
-4. **Lesson 1.4 — tool use** → build AI assistant API route with Claude tool calls querying the DB
-5. **Property dashboard** — units list, payment tracker, due tracker
+1. **sitemap.xml + robots.txt** — add `src/app/sitemap.ts` and `src/app/robots.ts` using Next.js metadata conventions (user mentioned these are coming)
+2. **Connect to GitHub** → push all commits → set up DigitalOcean droplet
+3. **Lesson 1.4 — tool use** → build AI assistant API route with Claude tool calls querying the DB
+4. **Property dashboard** — units list, payment tracker, due tracker
+5. **Finance dashboard** — income/expense entries, monthly P&L
