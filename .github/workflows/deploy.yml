@@ -12,11 +12,12 @@ concurrency:
 
 jobs:
   # ─────────────────────────────────────────────────────────────
-  # Job 1: Verify — lint, format, types, build
+  # Job 1: Verify — lint, format check, TypeScript.
   # Runs on every push to main AND on every PR targeting main.
+  # No env vars needed — these checks are pure static analysis.
   # ─────────────────────────────────────────────────────────────
   verify:
-    name: Lint · Format · Types · Build
+    name: Lint · Format · Types
     runs-on: ubuntu-latest
 
     steps:
@@ -41,21 +42,12 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
-      - name: Production build
-        run: npm run build
-        env:
-          # Prisma needs a valid DATABASE_URL to generate the client.
-          # The CI build does not connect to the DB; a well-formed URL is enough.
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          AUTH_SECRET: ${{ secrets.AUTH_SECRET }}
-          AUTH_URL: ${{ secrets.AUTH_URL }}
-          NEXT_PUBLIC_SITE_URL: ${{ secrets.NEXT_PUBLIC_SITE_URL }}
-          NEXT_PUBLIC_CV_URL: ${{ secrets.NEXT_PUBLIC_CV_URL }}
-
   # ─────────────────────────────────────────────────────────────
-  # Job 2: Deploy — SSH into the DigitalOcean droplet,
-  # pull latest code, migrate, rebuild, restart PM2.
-  # Only runs on push to main (not on PRs).
+  # Job 2: Deploy — SSH into the DigitalOcean droplet.
+  # The server already has .env.local with all real credentials,
+  # so build and migrate run there with zero secrets in GitHub
+  # beyond the SSH key itself.
+  # Only runs on push to main (never on PRs).
   # ─────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to DigitalOcean
@@ -71,12 +63,8 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: ${{ secrets.SSH_PORT }}
-          # Every command runs as a single session on the server.
-          # `set -e` stops on first failure so PM2 is never restarted
-          # with a broken build.
           script: |
             set -e
-
             cd ${{ secrets.DEPLOY_PATH }}
 
             echo "==> Pulling latest code"
@@ -91,10 +79,8 @@ jobs:
             echo "==> Building for production"
             npm run build
 
-            echo "==> Restarting PM2 process"
+            echo "==> Restarting application"
             pm2 restart sshakil --update-env || pm2 start npm --name "sshakil" -- start
-
-            echo "==> Saving PM2 process list"
             pm2 save
 
-            echo "==> Done. Deploy complete."
+            echo "==> Deploy complete"
