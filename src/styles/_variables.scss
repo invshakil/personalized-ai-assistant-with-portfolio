@@ -1,0 +1,33 @@
+// ── Colors ──
+$ink:        #151513;
+$ink-2:      #46463f;
+$ink-3:      #96958e;
+$accent:     #1e6b45;
+$accent-lt:  #d6ebe0;
+
+$c-hero:         #f5f4ef;
+$c-skills:       #edf3ef;
+$c-exp:          #eff2f6;
+$c-proj:         #f4f1f7;
+$c-edu:          #eef3f0;
+$c-testimonials: #f2f0eb;
+$c-contact:      #192c20;
+
+// ── Typography ──
+$serif: 'DM Serif Display', Georgia, serif;
+$sans:  'DM Sans', system-ui, sans-serif;
+
+// ── Layout ──
+$max-width:  860px;
+$nav-height: 60px;
+$px-desktop: 40px;
+$px-mobile:  20px;
+
+// ── Breakpoints ──
+$bp-tablet: 768px;
+$bp-mobile: 480px;
+
+// ── Animation ──
+$transition-fast:   0.2s;
+$transition-normal: 0.25s;
+$transition-slow:   0.3s;

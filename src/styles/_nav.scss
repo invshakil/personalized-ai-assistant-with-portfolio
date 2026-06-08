@@ -1,0 +1,114 @@
+@use 'variables' as v;
+@use 'mixins' as m;
+
+nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 200;
+  background: rgba(245, 244, 239, 0.91);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.nav-inner {
+  max-width: v.$max-width;
+  margin: 0 auto;
+  padding: 0 v.$px-desktop;
+  height: v.$nav-height;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+
+  @include m.respond-to(v.$bp-tablet) {
+    padding: 0 v.$px-mobile;
+  }
+}
+
+.nav-logo {
+  font-family: v.$serif;
+  font-size: 18px;
+  color: v.$ink;
+  text-decoration: none;
+  margin-right: auto;
+}
+
+.nav-links {
+  display: flex;
+  gap: 32px;
+  list-style: none;
+
+  a {
+    @include m.label-text(11px, 0.12em);
+    color: v.$ink-2;
+    text-decoration: none;
+    transition: color v.$transition-fast;
+
+    &:hover {
+      color: v.$accent;
+    }
+  }
+
+  @include m.respond-to(v.$bp-tablet) {
+    display: none;
+  }
+}
+
+.nav-toggle {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px;
+
+  span {
+    display: block;
+    width: 22px;
+    height: 1.5px;
+    background: v.$ink;
+    transition: all 0.25s;
+    transform-origin: center;
+  }
+
+  &.open {
+    span:nth-child(1) { transform: translateY(6.5px) rotate(45deg); }
+    span:nth-child(2) { opacity: 0; }
+    span:nth-child(3) { transform: translateY(-6.5px) rotate(-45deg); }
+  }
+
+  @include m.respond-to(v.$bp-tablet) {
+    display: flex;
+  }
+}
+
+.nav-mobile {
+  display: none;
+  flex-direction: column;
+  background: v.$c-hero;
+  padding: 8px v.$px-mobile 24px;
+
+  &.open {
+    display: flex;
+  }
+
+  a {
+    @include m.label-text(13px, 0.08em);
+    color: v.$ink-2;
+    text-decoration: none;
+    padding: 14px 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    transition: color v.$transition-fast;
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    &:hover {
+      color: v.$accent;
+    }
+  }
+}

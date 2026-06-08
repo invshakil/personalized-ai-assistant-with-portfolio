@@ -1,0 +1,109 @@
+@use 'variables' as v;
+@use 'mixins' as m;
+
+#experience {
+  background: v.$c-exp;
+}
+
+.exp-rule {
+  @include m.gradient-rule(#506eb4, 0.14);
+}
+
+.exp-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+
+  @include m.respond-to(v.$bp-tablet) {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+}
+
+.exp-col-label {
+  @include m.label-text(10px, 0.18em);
+  color: v.$ink-3;
+  margin-bottom: 32px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(0, 0, 0, 0.1);
+  }
+
+  &.freelance {
+    color: v.$accent;
+
+    &::after {
+      background: rgba(v.$accent, 0.2);
+    }
+  }
+}
+
+.exp-entry {
+  margin-bottom: 36px;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.exp-badge {
+  display: inline-block;
+  @include m.label-text(10px, 0.1em);
+  color: v.$ink-3;
+  background: rgba(0, 0, 0, 0.06);
+  padding: 3px 9px;
+  margin-bottom: 10px;
+
+  &.current {
+    color: v.$accent;
+    background: v.$accent-lt;
+  }
+}
+
+.exp-role {
+  font-family: v.$serif;
+  font-size: 20px;
+  color: v.$ink;
+  margin-bottom: 2px;
+  line-height: 1.2;
+}
+
+.exp-company {
+  @include m.label-text(12px, 0.07em);
+  color: v.$accent;
+  margin-bottom: 12px;
+}
+
+.exp-desc {
+  font-size: 14px;
+  color: v.$ink-2;
+  line-height: 1.72;
+
+  ul {
+    margin-top: 10px;
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  li {
+    padding-left: 16px;
+    position: relative;
+    font-size: 13.5px;
+
+    &::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: v.$accent;
+      opacity: 0.5;
+    }
+  }
+}

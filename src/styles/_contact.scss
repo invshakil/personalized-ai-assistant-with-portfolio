@@ -1,0 +1,146 @@
+@use 'variables' as v;
+@use 'mixins' as m;
+
+#contact {
+  background: v.$c-contact;
+
+  .lbl {
+    color: rgba(255, 255, 255, 0.35);
+
+    &::before {
+      background: rgba(255, 255, 255, 0.25);
+    }
+  }
+}
+
+.contact-rule {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  z-index: 1;
+}
+
+.contact-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 72px;
+  align-items: start;
+
+  @include m.respond-to(v.$bp-tablet) {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+}
+
+.contact-heading {
+  font-family: v.$serif;
+  font-size: clamp(30px, 5vw, 50px);
+  color: #fff;
+  line-height: 1.15;
+  margin-bottom: 20px;
+}
+
+.contact-sub {
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.78;
+}
+
+.contact-links {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.c-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 17px 20px;
+  background: rgba(255, 255, 255, 0.07);
+  text-decoration: none;
+  transition: background v.$transition-fast, transform v.$transition-fast;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateX(4px);
+
+    .c-arr {
+      color: rgba(255, 255, 255, 0.7);
+    }
+  }
+}
+
+.c-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.c-icon {
+  @include m.flex-center;
+  width: 34px;
+  height: 34px;
+  background: rgba(255, 255, 255, 0.1);
+  flex-shrink: 0;
+
+  svg {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+.c-lbl {
+  @include m.label-text(10px, 0.12em);
+  color: rgba(255, 255, 255, 0.35);
+  margin-bottom: 2px;
+}
+
+.c-val {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.c-arr {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 16px;
+  transition: color v.$transition-fast;
+}
+
+// ── Footer ──
+footer {
+  background: v.$c-contact;
+}
+
+.foot-in {
+  max-width: v.$max-width;
+  margin: 0 auto;
+  padding: 22px v.$px-desktop 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+
+  @include m.respond-to(v.$bp-tablet) {
+    padding: 22px v.$px-mobile 44px;
+    flex-direction: column;
+    gap: 6px;
+    align-items: flex-start;
+  }
+}
+
+.foot-name {
+  font-family: v.$serif;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.3);
+  font-style: italic;
+}
+
+.foot-copy {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.22);
+  letter-spacing: 0.05em;
+}

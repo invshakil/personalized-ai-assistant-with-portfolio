@@ -1,0 +1,11 @@
+@use 'variables' as v;
+
+// Convert px to rem
+@function rem($px, $base: 16) {
+  @return calc(#{$px} / #{$base} * 1rem);
+}
+
+// Shorthand rgba with opacity
+@function alpha($color, $a) {
+  @return rgba($color, $a);
+}

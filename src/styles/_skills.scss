@@ -1,0 +1,47 @@
+@use 'variables' as v;
+@use 'mixins' as m;
+
+#skills {
+  background: v.$c-skills;
+}
+
+.skills-rule {
+  @include m.gradient-rule(v.$accent, 0.18);
+}
+
+.skills-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px 40px;
+
+  @include m.respond-to(v.$bp-tablet) {
+    grid-template-columns: 1fr 1fr;
+    gap: 24px 20px;
+  }
+
+  @include m.respond-to(v.$bp-mobile) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.sg-name {
+  @include m.label-text(10px, 0.18em);
+  color: v.$accent;
+  margin-bottom: 14px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid rgba(v.$accent, 0.2);
+}
+
+.sg-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.sg-tag {
+  font-size: 13px;
+  font-weight: 300;
+  color: v.$ink-2;
+  background: rgba(255, 255, 255, 0.68);
+  padding: 5px 12px;
+}

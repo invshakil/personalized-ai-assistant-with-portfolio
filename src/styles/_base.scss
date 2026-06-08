@@ -1,0 +1,91 @@
+@use 'variables' as v;
+@use 'mixins' as m;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  // Portfolio section backgrounds
+  --c-hero:     #{v.$c-hero};
+  --c-skills:   #{v.$c-skills};
+  --c-exp:      #{v.$c-exp};
+  --c-proj:     #{v.$c-proj};
+  --c-edu:      #{v.$c-edu};
+  --c-contact:  #{v.$c-contact};
+
+  // Colors
+  --ink:       #{v.$ink};
+  --ink-2:     #{v.$ink-2};
+  --ink-3:     #{v.$ink-3};
+  --accent:    #{v.$accent};
+  --accent-lt: #{v.$accent-lt};
+
+  // Layout
+  --max:        #{v.$max-width};
+  --px:         #{v.$px-desktop};
+  --nav-height: #{v.$nav-height};
+
+  // Existing tokens kept for dashboard compatibility
+  --color-linen:        #f5f0e8;
+  --color-sage:         #8faa8b;
+  --color-sage-light:   #e8f0e7;
+  --color-sage-dark:    #2d5a27;
+  --color-slate:        #3d5a80;
+  --color-slate-light:  #e8eef5;
+  --color-purple:       #6b4d8f;
+  --color-purple-light: #f0eaf8;
+  --color-forest:       #1a3a2a;
+  --color-forest-light: #2d5a3d;
+
+  @include m.respond-to(v.$bp-tablet) {
+    --px: #{v.$px-mobile};
+  }
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  font-size: 16px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  color: v.$ink;
+}
+
+// ── Fade-up animation ──
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.4; transform: scale(0.65); }
+}
+
+.fu {
+  opacity: 0;
+  animation: fadeUp 0.7s cubic-bezier(0.22, 0.68, 0, 1.1) both;
+}
+
+.d1 { animation-delay: 0.05s; }
+.d2 { animation-delay: 0.18s; }
+.d3 { animation-delay: 0.31s; }
+.d4 { animation-delay: 0.44s; }
+.d5 { animation-delay: 0.57s; }
+.d6 { animation-delay: 0.70s; }

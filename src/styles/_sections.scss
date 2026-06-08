@@ -1,0 +1,25 @@
+@use 'variables' as v;
+@use 'mixins' as m;
+
+// ── Shared section shell ──
+.sec {
+  position: relative;
+  overflow: hidden;
+}
+
+.sec-in {
+  position: relative;
+  z-index: 2;
+  max-width: v.$max-width;
+  margin: 0 auto;
+  padding: 96px v.$px-desktop;
+
+  @include m.respond-to(v.$bp-tablet) {
+    padding: 72px v.$px-mobile;
+  }
+}
+
+// ── Section label ──
+.lbl {
+  @include m.section-label;
+}

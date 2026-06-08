@@ -1,0 +1,23 @@
+// ── Core (no dependencies) — must come before any other rules ──
+@use 'variables';
+@use 'functions';
+
+// ── Tools (depend on variables) ──
+@use 'mixins';
+
+// ── Foundation ──
+@use 'base';
+@use 'sections';
+
+// ── Layout components ──
+@use 'nav';
+
+// ── Portfolio sections ──
+@use 'hero';
+@use 'skills';
+@use 'experience';
+@use 'projects';
+@use 'education';
+@use 'testimonials';
+@use 'contact';
+

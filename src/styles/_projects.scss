@@ -1,0 +1,133 @@
+@use 'variables' as v;
+@use 'mixins' as m;
+
+#projects {
+  background: v.$c-proj;
+}
+
+.proj-rule {
+  @include m.gradient-rule(#8250a0, 0.12);
+}
+
+.proj-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+
+  @include m.respond-to(v.$bp-tablet) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.proj-card {
+  background: rgba(255, 255, 255, 0.55);
+  padding: 34px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+  position: relative;
+  overflow: hidden;
+  transition: transform v.$transition-normal ease, background v.$transition-fast;
+
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: v.$accent;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform v.$transition-slow ease;
+  }
+
+  &:hover {
+    transform: translateY(-4px);
+    background: rgba(255, 255, 255, 0.82);
+
+    &::after {
+      transform: scaleX(1);
+    }
+  }
+}
+
+.proj-num {
+  font-family: v.$serif;
+  font-size: 12px;
+  font-style: italic;
+  color: v.$ink-3;
+}
+
+.proj-title {
+  font-family: v.$serif;
+  font-size: 20px;
+  color: v.$ink;
+  line-height: 1.25;
+}
+
+.proj-desc {
+  font-size: 14px;
+  color: v.$ink-2;
+  line-height: 1.7;
+  flex: 1;
+}
+
+.proj-tech {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.tech-pill {
+  @include m.label-text(10px, 0.1em);
+  color: v.$accent;
+  background: v.$accent-lt;
+  padding: 3px 10px;
+}
+
+.proj-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 6px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.proj-private {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  @include m.label-text(10px, 0.08em);
+  color: v.$ink-3;
+
+  svg {
+    width: 11px;
+    height: 11px;
+    opacity: 0.55;
+  }
+}
+
+.proj-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  @include m.label-text(10px, 0.08em);
+  color: v.$ink-2;
+  text-decoration: none;
+  padding: 5px 11px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  transition: color v.$transition-fast, border-color v.$transition-fast;
+
+  svg {
+    width: 12px;
+    height: 12px;
+  }
+
+  &:hover {
+    color: v.$accent;
+    border-color: v.$accent;
+  }
+}
