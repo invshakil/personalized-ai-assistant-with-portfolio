@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, DM_Serif_Display } from "next/font/google";
-import "./globals.css";
+import "../styles/tailwind.css";
+import "../styles/globals.scss";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -42,6 +43,22 @@ export const metadata: Metadata = {
     description: "Tech Lead and Full-Stack Engineer based in Comilla, Bangladesh.",
   },
   robots: { index: true, follow: true },
+  twitter: {
+    card: "summary_large_image",
+    title: "Syful Islam Shakil — Software Engineer & Tech Lead",
+    description: "10+ years building full-stack products. Available for freelance as Tech Lead with a delivery team.",
+    images: ["https://sshakil.com/og-preview.jpg"],
+  },
+  other: {
+    "geo.region": "BD-B",
+    "geo.placename": "Comilla, Bangladesh",
+    "geo.position": "23.4607;91.1809",
+    "ICBM": "23.4607, 91.1809",
+    "language": "English",
+    "revisit-after": "7 days",
+    "coverage": "Bangladesh, South Asia, Worldwide",
+    "distribution": "Global",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
