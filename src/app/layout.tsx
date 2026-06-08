@@ -46,27 +46,26 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Syful Islam Shakil — Software Engineer & Tech Lead",
-    description: "10+ years building full-stack products. Available for freelance as Tech Lead with a delivery team.",
+    description:
+      "10+ years building full-stack products. Available for freelance as Tech Lead with a delivery team.",
     images: ["https://sshakil.com/og-preview.jpg"],
   },
   other: {
     "geo.region": "BD-B",
     "geo.placename": "Comilla, Bangladesh",
     "geo.position": "23.4607;91.1809",
-    "ICBM": "23.4607, 91.1809",
-    "language": "English",
+    ICBM: "23.4607, 91.1809",
+    language: "English",
     "revisit-after": "7 days",
-    "coverage": "Bangladesh, South Asia, Worldwide",
-    "distribution": "Global",
+    coverage: "Bangladesh, South Asia, Worldwide",
+    distribution: "Global",
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${dmSans.variable} ${dmSerifDisplay.variable}`}>
-      <body className="font-sans antialiased bg-white text-gray-900">
-        {children}
-      </body>
+      <body className="font-sans antialiased bg-white text-gray-900">{children}</body>
     </html>
   );
 }

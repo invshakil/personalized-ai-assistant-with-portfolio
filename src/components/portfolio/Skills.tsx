@@ -3,7 +3,16 @@ import type { SkillGroup } from "@/types";
 const SKILL_GROUPS: SkillGroup[] = [
   {
     name: "Frontend",
-    tags: ["React", "Next.js", "TypeScript", "JavaScript", "Vue.js", "jQuery", "HTML / CSS", "Tailwind"],
+    tags: [
+      "React",
+      "Next.js",
+      "TypeScript",
+      "JavaScript",
+      "Vue.js",
+      "jQuery",
+      "HTML / CSS",
+      "Tailwind",
+    ],
   },
   {
     name: "Backend",
@@ -11,15 +20,41 @@ const SKILL_GROUPS: SkillGroup[] = [
   },
   {
     name: "DevOps & Infra",
-    tags: ["Docker", "Linux VPS", "CI/CD", "Nginx", "Amazon EC2", "Google App Engine", "Plesk", "Git / GitHub"],
+    tags: [
+      "Docker",
+      "Linux VPS",
+      "CI/CD",
+      "Nginx",
+      "Amazon EC2",
+      "Google App Engine",
+      "Plesk",
+      "Git / GitHub",
+    ],
   },
   {
     name: "Product & Leadership",
-    tags: ["Figma", "Product Planning", "Team Leadership", "Code Review", "Jira", "Confluence", "Agile / Scrum"],
+    tags: [
+      "Figma",
+      "Product Planning",
+      "Team Leadership",
+      "Code Review",
+      "Jira",
+      "Confluence",
+      "Agile / Scrum",
+    ],
   },
   {
     name: "AI & Automation",
-    tags: ["Claude API", "Claude Code", "LLM Tool Use", "AI-assisted Dev", "Prompt Engineering", "Cursor", "v0", "Google Apps Script"],
+    tags: [
+      "Claude API",
+      "Claude Code",
+      "LLM Tool Use",
+      "AI-assisted Dev",
+      "Prompt Engineering",
+      "Cursor",
+      "v0",
+      "Google Apps Script",
+    ],
   },
 ];
 

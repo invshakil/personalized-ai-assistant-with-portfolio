@@ -1,13 +1,7 @@
-import { auth } from "@/lib/auth";
-
-export default async function DashboardPage() {
-  const session = await auth();
-
+export default function DashboardPage() {
   return (
     <div>
-      <h1 className="text-3xl font-serif text-gray-900 mb-2">
-        Welcome back, Shakil
-      </h1>
+      <h1 className="text-3xl font-serif text-gray-900 mb-2">Welcome back, Shakil</h1>
       <p className="text-gray-500 mb-8">Here&apos;s your overview for today.</p>
 
       {/* Stats grid — to be populated with real data */}

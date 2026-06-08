@@ -1,5 +1,5 @@
-@use 'variables' as v;
-@use 'mixins' as m;
+@use "variables" as v;
+@use "mixins" as m;
 
 #experience {
   background: v.$c-exp;
@@ -29,7 +29,7 @@
   gap: 10px;
 
   &::after {
-    content: '';
+    content: "";
     flex: 1;
     height: 1px;
     background: rgba(0, 0, 0, 0.1);
@@ -99,7 +99,7 @@
     font-size: 13.5px;
 
     &::before {
-      content: '—';
+      content: "—";
       position: absolute;
       left: 0;
       color: v.$accent;

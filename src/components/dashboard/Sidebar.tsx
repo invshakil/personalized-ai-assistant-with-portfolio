@@ -20,7 +20,10 @@ export default function DashboardSidebar() {
     <aside className="w-56 min-h-screen bg-white border-r border-gray-100 flex flex-col">
       {/* Logo */}
       <div className="p-5 border-b border-gray-100">
-        <Link href="/" className="text-lg font-serif text-gray-900 hover:text-green-700 transition-colors">
+        <Link
+          href="/"
+          className="text-lg font-serif text-gray-900 hover:text-green-700 transition-colors"
+        >
           sshakil.com
         </Link>
         <p className="text-xs text-gray-400 mt-0.5">Admin Dashboard</p>

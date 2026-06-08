@@ -12,11 +12,11 @@ Then read **PROJECT_PLANNING.md** for architecture, progress, and what to build 
 A Next.js application for **sshakil.com** — Syful Islam Shakil's personal domain.
 Two distinct surfaces:
 
-| Route | Audience | Auth |
-|-------|----------|------|
-| `/` | Public — portfolio website | None |
+| Route          | Audience                           | Auth     |
+| -------------- | ---------------------------------- | -------- |
+| `/`            | Public — portfolio website         | None     |
 | `/dashboard/*` | Private — personal admin dashboard | Required |
-| `/login` | Auth gate | None |
+| `/login`       | Auth gate                          | None     |
 
 ---
 
@@ -34,6 +34,7 @@ Two distinct surfaces:
 ## Coding standards
 
 ### General
+
 - **TypeScript strict mode** — no `any`, no `@ts-ignore` without a comment explaining why
 - **No default exports from lib files** — named exports only in `src/lib/`
 - **Server components by default** — only add `"use client"` when you actually need interactivity or browser APIs
@@ -41,6 +42,7 @@ Two distinct surfaces:
 - Keep components **small and single-purpose** — if a component exceeds ~150 lines, split it
 
 ### Naming conventions
+
 - Components: `PascalCase.tsx` — e.g. `Hero.tsx`, `DashboardSidebar.tsx`
 - Pages: `page.tsx` (Next.js convention)
 - Layouts: `layout.tsx` (Next.js convention)
@@ -49,6 +51,7 @@ Two distinct surfaces:
 - Types: `PascalCase` interfaces/types in `src/types/index.ts`
 
 ### File locations
+
 ```
 src/app/(portfolio)/          ← public portfolio pages
 src/app/(dashboard)/          ← auth-gated dashboard pages
@@ -64,11 +67,13 @@ prisma/schema.prisma          ← single source of truth for DB schema
 ```
 
 ### API routes
+
 - All API routes return `{ data, error }` shaped JSON
 - Always validate input — never trust request body directly
 - Auth-protected routes must check session at the top: `const session = await auth(); if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 })`
 
 ### Portfolio components
+
 - **Read `PROJECT_PLANNING.md` → Portfolio section** before building any portfolio component
 - Match colour tokens from `globals.css` exactly — do not introduce new colour values
 - The design reference is the original `portfolio.html` — ask for it if you need to check something
@@ -78,17 +83,14 @@ prisma/schema.prisma          ← single source of truth for DB schema
 ## Design tokens (from globals.css — use these, never hardcode colours)
 
 ```css
---color-linen: #f5f0e8        /* hero background */
---color-sage: #8faa8b         /* sage green accent */
---color-sage-light: #e8f0e7   /* skills section background */
---color-sage-dark: #2d5a27    /* dark sage text/borders */
---color-slate: #3d5a80        /* experience section accent */
---color-slate-light: #e8eef5  /* experience section background */
---color-purple: #6b4d8f       /* projects section accent */
---color-purple-light: #f0eaf8 /* projects section background */
---color-forest: #1a3a2a       /* contact section background (dark) */
---color-forest-light: #2d5a3d /* contact section secondary */
---px: clamp(1.25rem, 5vw, 5rem) /* horizontal padding — use everywhere */
+--color-linen: #f5f0e8 /* hero background */ --color-sage: #8faa8b /* sage green accent */
+  --color-sage-light: #e8f0e7 /* skills section background */ --color-sage-dark: #2d5a27
+  /* dark sage text/borders */ --color-slate: #3d5a80 /* experience section accent */
+  --color-slate-light: #e8eef5 /* experience section background */ --color-purple: #6b4d8f
+  /* projects section accent */ --color-purple-light: #f0eaf8 /* projects section background */
+  --color-forest: #1a3a2a /* contact section background (dark) */ --color-forest-light: #2d5a3d
+  /* contact section secondary */ --px: clamp(1.25rem, 5vw, 5rem)
+  /* horizontal padding — use everywhere */;
 ```
 
 ---
@@ -110,16 +112,16 @@ prisma/schema.prisma          ← single source of truth for DB schema
 
 All vars live in `.env.local` (never committed). See `.env.example` for the full list.
 
-| Variable | Purpose |
-|----------|---------|
-| `DATABASE_URL` | PostgreSQL connection string |
-| `AUTH_SECRET` | NextAuth JWT secret (`openssl rand -base64 32`) |
-| `AUTH_URL` | App URL for NextAuth callbacks |
-| `ADMIN_EMAIL` | Login email for the single admin user |
-| `ADMIN_PASSWORD` | Login password for the single admin user |
-| `ANTHROPIC_API_KEY` | Claude API key for AI assistant features |
-| `NEXT_PUBLIC_SITE_URL` | Public site URL |
-| `NEXT_PUBLIC_CV_URL` | Google Drive CV download link |
+| Variable               | Purpose                                         |
+| ---------------------- | ----------------------------------------------- |
+| `DATABASE_URL`         | PostgreSQL connection string                    |
+| `AUTH_SECRET`          | NextAuth JWT secret (`openssl rand -base64 32`) |
+| `AUTH_URL`             | App URL for NextAuth callbacks                  |
+| `ADMIN_EMAIL`          | Login email for the single admin user           |
+| `ADMIN_PASSWORD`       | Login password for the single admin user        |
+| `ANTHROPIC_API_KEY`    | Claude API key for AI assistant features        |
+| `NEXT_PUBLIC_SITE_URL` | Public site URL                                 |
+| `NEXT_PUBLIC_CV_URL`   | Google Drive CV download link                   |
 
 ---
 

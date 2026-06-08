@@ -1,5 +1,5 @@
-@use 'variables' as v;
-@use 'mixins' as m;
+@use "variables" as v;
+@use "mixins" as m;
 
 #projects {
   background: v.$c-proj;
@@ -27,10 +27,12 @@
   gap: 13px;
   position: relative;
   overflow: hidden;
-  transition: transform v.$transition-normal ease, background v.$transition-fast;
+  transition:
+    transform v.$transition-normal ease,
+    background v.$transition-fast;
 
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     bottom: 0;
     left: 0;
@@ -119,7 +121,9 @@
   text-decoration: none;
   padding: 5px 11px;
   border: 1px solid rgba(0, 0, 0, 0.12);
-  transition: color v.$transition-fast, border-color v.$transition-fast;
+  transition:
+    color v.$transition-fast,
+    border-color v.$transition-fast;
 
   svg {
     width: 12px;

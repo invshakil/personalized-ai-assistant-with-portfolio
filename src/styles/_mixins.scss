@@ -1,4 +1,4 @@
-@use 'variables' as v;
+@use "variables" as v;
 
 // ── Responsive breakpoint wrapper ──
 @mixin respond-to($bp) {
@@ -38,7 +38,12 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   text-decoration: none;
-  transition: opacity v.$transition-fast, transform v.$transition-fast, background v.$transition-fast, color v.$transition-fast, border-color v.$transition-fast;
+  transition:
+    opacity v.$transition-fast,
+    transform v.$transition-fast,
+    background v.$transition-fast,
+    color v.$transition-fast,
+    border-color v.$transition-fast;
 
   &:hover {
     transform: translateY(-2px);
@@ -58,7 +63,7 @@
   margin-bottom: 52px;
 
   &::before {
-    content: '';
+    content: "";
     display: block;
     width: 20px;
     height: 1px;
