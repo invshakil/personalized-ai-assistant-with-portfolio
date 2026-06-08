@@ -66,8 +66,6 @@ jobs:
           script: |
             set -e
             export PATH=/usr/local/bin:/usr/bin:/bin:$PATH
-            export NVM_DIR="$HOME/.nvm"
-            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             cd ${{ secrets.DEPLOY_PATH }}
 
             echo "==> Pulling latest code"
