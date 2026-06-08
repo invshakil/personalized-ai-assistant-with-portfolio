@@ -1,0 +1,82 @@
+@use 'variables' as v;
+
+// ── Responsive breakpoint wrapper ──
+@mixin respond-to($bp) {
+  @media (max-width: $bp) {
+    @content;
+  }
+}
+
+// ── Section inner padding ──
+@mixin section-padding($extra-top: 0px) {
+  padding: calc(96px + #{$extra-top}) v.$px-desktop 96px;
+
+  @include respond-to(v.$bp-tablet) {
+    padding: calc(72px + #{$extra-top}) v.$px-mobile 72px;
+  }
+}
+
+// ── Decorative gradient rule at top of section ──
+@mixin gradient-rule($color, $opacity: 0.18) {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(to right, transparent, rgba($color, $opacity), transparent);
+  z-index: 1;
+}
+
+// ── Button base shared styles ──
+@mixin btn-base($size: 11px) {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 34px;
+  font-size: $size;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: opacity v.$transition-fast, transform v.$transition-fast, background v.$transition-fast, color v.$transition-fast, border-color v.$transition-fast;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+}
+
+// ── Section label ──
+@mixin section-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: v.$accent;
+  margin-bottom: 52px;
+
+  &::before {
+    content: '';
+    display: block;
+    width: 20px;
+    height: 1px;
+    background: v.$accent;
+  }
+}
+
+// ── Flex center ──
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// ── Uppercase label text ──
+@mixin label-text($size: 10px, $spacing: 0.15em) {
+  font-size: $size;
+  font-weight: 500;
+  letter-spacing: $spacing;
+  text-transform: uppercase;
+}
