@@ -1,0 +1,9 @@
+.next/
+node_modules/
+out/
+build/
+.env*
+*.lock
+prisma/migrations/
+tsconfig.tsbuildinfo
+public/
