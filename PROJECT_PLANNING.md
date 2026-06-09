@@ -51,12 +51,16 @@ Defined in `prisma/schema.prisma`. Do not modify schema without updating this do
 | `User`                                    | NextAuth user (single admin); has `password` (bcrypt hash)                 |
 | `Account`, `Session`, `VerificationToken` | NextAuth internals                                                         |
 | `SiteSettings`                            | Singleton — admin-editable portfolio content (availability, bio, CV URL)   |
-| `Unit`                                    | A rentable floor/flat in Syful's building (unitNumber, floor, monthlyRent) |
-| `Tenant`                                  | Linked to a Unit; has contact info and move-in/out dates                   |
-| `Payment`                                 | Monthly rent payment per unit — status: PENDING/PAID/PARTIAL/OVERDUE       |
-| `Income`                                  | Salary, freelance, rental income entries by month/year                     |
-| `Expense`                                 | Maintenance, utility, salary, subscription expenses                        |
-| `RenovationItem`                          | Construction cost line items with category, amount, vendor, status         |
+| `Unit`                | 13 flats (Flat 1A–5A); `unitNumber String`, `floor String`, `monthlyRent Decimal`                  |
+| `Tenant`              | Nullable `unitId` (external members); `tenantCode T01-T07`; `advanceAmount Decimal`; `isExternal` |
+| `Payment`             | `rentDue`, `amountPaid`, `advanceApplied`; unique `[tenantId, month, year]`; `receiptNumber`        |
+| `PaymentTransaction`  | Audit log per transaction — `TransactionType` enum (CASH/BANK_TRANSFER/ADVANCE_APPLIED/…)          |
+| `AddOnService`        | Service catalog (WiFi, Parking, Generator…)                                                         |
+| `TenantService`       | Per-tenant service fee (same service can cost different amounts per tenant); `@@unique[tenantId, serviceId]` |
+| `RentChange`          | Scheduled rent increases — `effectiveDate`, `appliedAt` (null = pending, set by payment generation) |
+| `Income`              | Salary, freelance, rental income entries by month/year                                              |
+| `Expense`             | Maintenance, utility, salary, subscription expenses; `expenseDate`, `paidTo`, `paymentMode`        |
+| `RenovationItem`      | Construction cost line items with category, amount, vendor, status                                  |
 
 Currency: **BDT (Bangladeshi Taka ৳)** throughout. All `Decimal` fields are BDT unless noted.
 
@@ -198,12 +202,25 @@ All sections use `padding: var(--px)` for horizontal spacing. Do not hardcode pa
 
 ## Admin modules
 
-### 1. Property Management (`/admin/property`)
+### 1. Property Management (`/admin/property`) ✅ complete (all 9 phases)
 
-- List all units with occupancy status
-- Per-unit tenant details
-- Monthly payment tracker — mark as PAID / PARTIAL / OVERDUE
-- Due tracker — who hasn't paid this month
+**Routes:**
+- `/admin/property` — Units & Tenants tabbed view (units grid + tenant table + external members)
+- `/admin/property/tenants/[id]` — Tenant profile (advance balance, services, rent changes, payment history)
+- `/admin/property/payments` — Monthly payments (auto-generate, record payment, apply advance, transaction log, receipt download)
+- `/admin/property/expenses` — Expense tracker with month filter
+- `/admin/property/services` — Service catalog + per-tenant assignment (variable per-tenant fees)
+- `/admin/property/dashboard` — Financial dashboard (bar + line charts, occupancy, due tracker)
+
+**API routes:** `src/app/api/admin/property/` — units, tenants, payments, payments/generate, payments/[id]/transactions, payments/[id]/receipt, expenses, services, services/assign, dashboard
+
+**PDF receipts:** `GET /api/admin/property/payments/[id]/receipt` — A4 PDF with two halves (Tenant Copy + Owner Copy), generated server-side via `@react-pdf/renderer`. Receipt numbers auto-assigned as `RCP-YYYY-NNNN`.
+
+**Key behaviours:**
+- Advance stored as BDT amount; can be partially applied to any month
+- Monthly payments auto-generate on page load (idempotent); applies pending `RentChange` records first
+- Move-out is two-step: preview settlement → admin confirms
+- External members (no unit, service-only billing) supported
 
 ### 2. Finance (`/admin/finance`)
 
