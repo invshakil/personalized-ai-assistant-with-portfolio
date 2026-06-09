@@ -18,6 +18,7 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
+  password      String?   // bcrypt hash — null for future OAuth users
   role          Role      @default(ADMIN)
   accounts      Account[]
   sessions      Session[]
