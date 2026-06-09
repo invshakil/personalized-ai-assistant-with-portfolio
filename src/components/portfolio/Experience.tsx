@@ -37,9 +37,9 @@ const FREELANCE_JOBS: ExperienceEntry[] = [
   },
 ];
 
-function ExperienceCard({ entry }: { entry: ExperienceEntry }) {
+function ExperienceCard({ entry, delay }: { entry: ExperienceEntry; delay?: number }) {
   return (
-    <div className="exp-entry">
+    <div className="exp-entry" data-animate="true" data-delay={delay !== undefined ? String(delay) : undefined}>
       <span className={`exp-badge${entry.isCurrent ? " current" : ""}`}>{entry.badge}</span>
       <p className="exp-role">{entry.role}</p>
       <p className="exp-company">{entry.company}</p>
@@ -60,18 +60,18 @@ export default function Experience() {
     <div className="sec" id="experience">
       <div className="exp-rule" />
       <div className="sec-in">
-        <p className="lbl">Work Experience</p>
+        <p className="lbl" data-animate="true">Work Experience</p>
         <div className="exp-cols">
           <div>
-            <p className="exp-col-label">Full-time</p>
-            {FULLTIME_JOBS.map((entry) => (
-              <ExperienceCard key={entry.company} entry={entry} />
+            <p className="exp-col-label" data-animate="true" data-delay="1">Full-time</p>
+            {FULLTIME_JOBS.map((entry, i) => (
+              <ExperienceCard key={entry.company} entry={entry} delay={i + 2} />
             ))}
           </div>
           <div>
-            <p className="exp-col-label freelance">Freelance</p>
-            {FREELANCE_JOBS.map((entry) => (
-              <ExperienceCard key={entry.company} entry={entry} />
+            <p className="exp-col-label freelance" data-animate="true" data-delay="1">Freelance</p>
+            {FREELANCE_JOBS.map((entry, i) => (
+              <ExperienceCard key={entry.company} entry={entry} delay={i + 2} />
             ))}
           </div>
         </div>

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import Link from "next/link";
+
+const DELAYS = [0, 0.08, 0.18, 0.28, 0.38, 0.48];
 
 const NAV_LINKS = [
   { href: "#skills", label: "Skills" },
@@ -13,6 +15,42 @@ const NAV_LINKS = [
 
 export default function Nav() {
   const [isOpen, setIsOpen] = useState<boolean>(false);
+
+  // Hide elements before first paint, then reveal on scroll
+  useLayoutEffect(() => {
+    document.querySelectorAll<HTMLElement>("[data-animate]").forEach((el) => {
+      const d = Number(el.dataset.delay ?? 0);
+      delete el.dataset.revealed;
+      el.style.opacity = "0";
+      el.style.transform = "translateY(24px)";
+      el.style.transition = `opacity 0.55s ease ${DELAYS[d] ?? 0}s, transform 0.55s ease ${DELAYS[d] ?? 0}s`;
+    });
+  }, []);
+
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll<HTMLElement>("[data-animate]"));
+
+    function reveal() {
+      const vh = window.innerHeight;
+      els.forEach((el) => {
+        if (el.dataset.revealed) return;
+        const { top, bottom } = el.getBoundingClientRect();
+        if (top < vh * 0.93 && bottom > 0) {
+          el.dataset.revealed = "true";
+          el.style.opacity = "1";
+          el.style.transform = "translateY(0)";
+        }
+      });
+    }
+
+    reveal();
+    window.addEventListener("scroll", reveal, { passive: true });
+    window.addEventListener("resize", reveal, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", reveal);
+      window.removeEventListener("resize", reveal);
+    };
+  }, []);
 
   function closeNav(): void {
     setIsOpen(false);
