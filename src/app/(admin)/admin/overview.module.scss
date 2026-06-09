@@ -1,0 +1,8 @@
+// Overview page — stat grid and welcome header
+// Primary styling via Tailwind; add route-specific overrides here
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}

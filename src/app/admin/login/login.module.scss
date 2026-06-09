@@ -1,0 +1,19 @@
+// Admin login page styles
+
+.root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #030712; // gray-950
+}
+
+.card {
+  width: 100%;
+  max-width: 22rem;
+  background: #111827; // gray-900
+  border: 1px solid #1f2937; // gray-800
+  border-radius: 1rem;
+  padding: 2rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6);
+}
