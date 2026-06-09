@@ -82,9 +82,10 @@ model SiteSettings {
 
 model Unit {
   id          String    @id @default(cuid())
-  unitNumber  String    @unique   // e.g. "2A", "3B"
-  floor       Int
+  unitNumber  String    @unique   // e.g. "Flat 1A", "Flat 2B"
+  floor       String              // e.g. "Ground Floor", "1st Floor"
   monthlyRent Decimal   @db.Decimal(10, 2)
+  description String?
   isOccupied  Boolean   @default(false)
   notes       String?
   tenant      Tenant?
@@ -95,37 +96,50 @@ model Unit {
 }
 
 model Tenant {
-  id          String   @id @default(cuid())
-  name        String
-  phone       String?
-  email       String?
-  nidNumber   String?
-  moveInDate  DateTime
-  moveOutDate DateTime?
-  isActive    Boolean  @default(true)
-  unit        Unit     @relation(fields: [unitId], references: [id])
-  unitId      String   @unique
-  payments    Payment[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String          @id @default(cuid())
+  tenantCode     String?         @unique   // e.g. "T01", "T02"
+  name           String
+  phone          String?
+  email          String?
+  nidNumber      String?
+  isExternal     Boolean         @default(false)  // true = parking-only / non-resident member
+  moveInDate     DateTime
+  moveOutDate    DateTime?
+  leaseEndDate   DateTime?
+  isActive       Boolean         @default(true)
+  advancePaid    Boolean         @default(false)
+  advanceAmount  Decimal?        @db.Decimal(10, 2)  // BDT held; decreases as advance is applied
+  advanceSettled Boolean         @default(false)
+  notes          String?
+  unit           Unit?           @relation(fields: [unitId], references: [id])
+  unitId         String?         @unique
+  payments       Payment[]
+  services       TenantService[]
+  rentChanges    RentChange[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 }
 
 model Payment {
-  id          String        @id @default(cuid())
-  tenant      Tenant        @relation(fields: [tenantId], references: [id])
-  tenantId    String
-  unit        Unit          @relation(fields: [unitId], references: [id])
-  unitId      String
-  amount      Decimal       @db.Decimal(10, 2)
-  month       Int           // 1–12
-  year        Int
-  paidDate    DateTime?
-  status      PaymentStatus @default(PENDING)
-  notes       String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  id              String               @id @default(cuid())
+  tenant          Tenant               @relation(fields: [tenantId], references: [id])
+  tenantId        String
+  unit            Unit?                @relation(fields: [unitId], references: [id])
+  unitId          String?              // null for external members
+  rentDue         Decimal              @db.Decimal(10, 2)   // expected total (rent + active services)
+  amountPaid      Decimal              @default(0) @db.Decimal(10, 2)  // cash/bank received
+  advanceApplied  Decimal              @default(0) @db.Decimal(10, 2)  // drawn from tenant advance
+  month           Int                  // 1–12
+  year            Int
+  paidDate        DateTime?            // date of most recent payment transaction
+  status          PaymentStatus        @default(PENDING)
+  receiptNumber   String?              @unique  // e.g. "RCP-2026-0001"
+  notes           String?
+  transactions    PaymentTransaction[]
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
 
-  @@unique([unitId, month, year])
+  @@unique([tenantId, month, year])
 }
 
 enum PaymentStatus {
@@ -133,6 +147,64 @@ enum PaymentStatus {
   PAID
   PARTIAL
   OVERDUE
+}
+
+model PaymentTransaction {
+  id        String          @id @default(cuid())
+  payment   Payment         @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  paymentId String
+  type      TransactionType
+  amount    Decimal         @db.Decimal(10, 2)
+  date      DateTime
+  notes     String?
+  createdAt DateTime        @default(now())
+}
+
+enum TransactionType {
+  CASH
+  BANK_TRANSFER
+  ADVANCE_APPLIED
+  ADJUSTMENT
+  OTHER
+}
+
+model AddOnService {
+  id          String          @id @default(cuid())
+  name        String          @unique  // e.g. "WiFi", "Parking", "Generator"
+  description String?
+  isActive    Boolean         @default(true)
+  tenants     TenantService[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model TenantService {
+  id         String       @id @default(cuid())
+  tenant     Tenant       @relation(fields: [tenantId], references: [id])
+  tenantId   String
+  service    AddOnService @relation(fields: [serviceId], references: [id])
+  serviceId  String
+  monthlyFee Decimal      @db.Decimal(10, 2)  // per-tenant rate (variable)
+  startDate  DateTime
+  endDate    DateTime?
+  isActive   Boolean      @default(true)
+  notes      String?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  @@unique([tenantId, serviceId])
+}
+
+model RentChange {
+  id            String    @id @default(cuid())
+  tenant        Tenant    @relation(fields: [tenantId], references: [id])
+  tenantId      String
+  effectiveDate DateTime
+  previousRent  Decimal   @db.Decimal(10, 2)
+  newRent       Decimal   @db.Decimal(10, 2)
+  reason        String?
+  appliedAt     DateTime?  // null = pending; set when payment generation picks it up
+  createdAt     DateTime  @default(now())
 }
 
 // ─── Income & Expenses ────────────────────────────────────────────────────────
@@ -165,6 +237,9 @@ model Expense {
   category    ExpenseCategory
   month       Int
   year        Int
+  expenseDate DateTime?
+  paidTo      String?
+  paymentMode String?
   unitId      String?
   unit        Unit?           @relation(fields: [unitId], references: [id])
   notes       String?
