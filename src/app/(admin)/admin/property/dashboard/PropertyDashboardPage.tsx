@@ -73,10 +73,13 @@ function StatCard({
 
 export default function PropertyDashboardPage() {
   const now = new Date();
+  const [mounted, setMounted] = useState(false);
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [data, setData] = useState<PropertyDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => { setMounted(true); }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -90,6 +93,14 @@ export default function PropertyDashboardPage() {
   }, [month, year]);
 
   useEffect(() => { load(); }, [load]);
+
+  if (!mounted) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <Box>
