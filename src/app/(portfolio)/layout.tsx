@@ -98,9 +98,11 @@ export default function PortfolioLayout({ children }: { children: React.ReactNod
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(serviceSchema) }}
       />
-      <Nav />
-      {children}
-      <Footer />
+      <div className="portfolio-frame">
+        <Nav />
+        {children}
+        <Footer />
+      </div>
     </>
   );
 }
