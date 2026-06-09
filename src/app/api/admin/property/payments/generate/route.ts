@@ -35,10 +35,26 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // Remove stale PENDING payments for tenants who haven't moved in yet this month
+  const stalePayments = await db.payment.findMany({
+    where: { month, year, status: "PENDING", tenant: { moveInDate: { gt: monthStart } } },
+    select: { id: true },
+  });
+  if (stalePayments.length > 0) {
+    const staleIds = stalePayments.map((p) => p.id);
+    await db.paymentTransaction.deleteMany({ where: { paymentId: { in: staleIds } } });
+    await db.payment.deleteMany({ where: { id: { in: staleIds } } });
+  }
+
   let created = 0;
   let skipped = 0;
 
   for (const tenant of tenants) {
+    if (tenant.moveInDate > monthStart) {
+      skipped++;
+      continue;
+    }
+
     const baseRent = tenant.unit ? Number(tenant.unit.monthlyRent) : 0;
     const serviceTotal = tenant.services.reduce((sum, s) => sum + Number(s.monthlyFee), 0);
     const rentDue = baseRent + serviceTotal;
