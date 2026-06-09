@@ -31,6 +31,13 @@ export interface DashboardStats {
   overdueCount: number;
 }
 
+// ── Admin chat types ──
+
+export interface Message {
+  role: "user" | "assistant";
+  content: string;
+}
+
 // ── Portfolio component types ──
 
 export interface SkillGroup {
