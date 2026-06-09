@@ -89,7 +89,9 @@ export default function Contact() {
     <div className="sec" id="contact">
       <div className="contact-rule" />
       <div className="sec-in">
-        <p className="lbl" data-animate="true">Contact</p>
+        <p className="lbl" data-animate="true">
+          Contact
+        </p>
         <div className="contact-layout">
           <div>
             <h2 className="contact-heading" data-animate="true" data-delay="1">

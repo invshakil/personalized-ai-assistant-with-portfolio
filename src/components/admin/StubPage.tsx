@@ -46,9 +46,18 @@ export default function StubPage({ title, description, icon }: StubPageProps) {
               label="Coming soon"
               size="small"
               variant="outlined"
-              sx={{ mb: 2.5, fontSize: "0.68rem", letterSpacing: "0.08em", textTransform: "uppercase" }}
+              sx={{
+                mb: 2.5,
+                fontSize: "0.68rem",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}
             />
-            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 360, lineHeight: 1.7 }}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ maxWidth: 360, lineHeight: 1.7 }}
+            >
               {description}
             </Typography>
           </Box>

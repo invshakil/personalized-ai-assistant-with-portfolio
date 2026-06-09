@@ -2,9 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { Sparkles, Send } from "lucide-react";
-import {
-  Box, Card, Typography, TextField, Button, Avatar, IconButton,
-} from "@mui/material";
+import { Box, Card, Typography, TextField, Button, Avatar, IconButton } from "@mui/material";
 import ChatMessage from "@/components/admin/ChatMessage";
 import PageHeader from "@/components/admin/PageHeader";
 import type { Message } from "./types";
@@ -94,7 +92,9 @@ export default function AiAssistantPage() {
     >
       <PageHeader title="AI Assistant" subtitle="Powered by Claude Sonnet 4" />
 
-      <Card sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}>
+      <Card
+        sx={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 }}
+      >
         {/* Messages area */}
         <Box
           sx={{

@@ -2,9 +2,18 @@
 
 import { useState } from "react";
 import {
-  Box, Card, CardContent, Typography, TextField,
-  Switch, FormControlLabel, Button, Alert, Divider,
-  CircularProgress, Chip,
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Switch,
+  FormControlLabel,
+  Button,
+  Alert,
+  Divider,
+  CircularProgress,
+  Chip,
 } from "@mui/material";
 import { Check } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
@@ -62,13 +71,9 @@ export default function SettingsPage({ initialData }: SettingsPageProps) {
               gap: 2,
               p: 2,
               borderRadius: 2,
-              bgcolor: form.availableForWork
-                ? "rgba(40,199,111,0.06)"
-                : "rgba(231,227,252,0.03)",
+              bgcolor: form.availableForWork ? "rgba(40,199,111,0.06)" : "rgba(231,227,252,0.03)",
               border: "1px solid",
-              borderColor: form.availableForWork
-                ? "rgba(40,199,111,0.2)"
-                : "divider",
+              borderColor: form.availableForWork ? "rgba(40,199,111,0.2)" : "divider",
               transition: "all 0.2s ease",
             }}
           >

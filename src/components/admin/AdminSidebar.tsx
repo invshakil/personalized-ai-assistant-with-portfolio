@@ -4,12 +4,25 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
-  Box, List, ListItem, ListItemButton, ListItemIcon,
-  ListItemText, Typography, Divider, Avatar,
+  Box,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  Divider,
+  Avatar,
 } from "@mui/material";
 import {
-  LayoutDashboard, Building2, BarChart3, Wrench,
-  Sparkles, Settings, User, LogOut,
+  LayoutDashboard,
+  Building2,
+  BarChart3,
+  Wrench,
+  Sparkles,
+  Settings,
+  User,
+  LogOut,
 } from "lucide-react";
 
 const SIDEBAR_WIDTH = 260;
@@ -18,17 +31,17 @@ const navGroups = [
   {
     label: "Workspace",
     items: [
-      { href: "/admin",              label: "Overview",    icon: LayoutDashboard, exact: true  },
-      { href: "/admin/property",     label: "Property",    icon: Building2,       exact: false },
-      { href: "/admin/finance",      label: "Finance",     icon: BarChart3,       exact: false },
-      { href: "/admin/renovation",   label: "Renovation",  icon: Wrench,          exact: false },
+      { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
+      { href: "/admin/property", label: "Property", icon: Building2, exact: false },
+      { href: "/admin/finance", label: "Finance", icon: BarChart3, exact: false },
+      { href: "/admin/renovation", label: "Renovation", icon: Wrench, exact: false },
     ],
   },
   {
     label: "Tools",
     items: [
       { href: "/admin/ai-assistant", label: "AI Assistant", icon: Sparkles, exact: false },
-      { href: "/admin/settings",     label: "Settings",     icon: Settings, exact: false },
+      { href: "/admin/settings", label: "Settings", icon: Settings, exact: false },
     ],
   },
 ];
@@ -106,7 +119,10 @@ export default function AdminSidebar() {
                 const Icon = item.icon;
                 return (
                   <ListItem key={item.href} disablePadding sx={{ mb: 0.25 }}>
-                    <Link href={item.href} style={{ width: "100%", textDecoration: "none", color: "inherit" }}>
+                    <Link
+                      href={item.href}
+                      style={{ width: "100%", textDecoration: "none", color: "inherit" }}
+                    >
                       <ListItemButton selected={active} sx={{ px: 1.5, py: 0.875 }}>
                         <ListItemIcon>
                           <Icon size={17} />
@@ -128,7 +144,10 @@ export default function AdminSidebar() {
       <Box sx={{ px: 2, py: 1.5 }}>
         <List dense disablePadding>
           <ListItem disablePadding sx={{ mb: 0.25 }}>
-            <Link href="/admin/account" style={{ width: "100%", textDecoration: "none", color: "inherit" }}>
+            <Link
+              href="/admin/account"
+              style={{ width: "100%", textDecoration: "none", color: "inherit" }}
+            >
               <ListItemButton selected={pathname === "/admin/account"} sx={{ px: 1.5, py: 0.875 }}>
                 <ListItemIcon>
                   <User size={17} />

@@ -5,9 +5,17 @@ import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
 import {
-  ThemeProvider, CssBaseline,
-  Box, Card, CardContent, Typography,
-  TextField, Button, Alert, Avatar, InputAdornment,
+  ThemeProvider,
+  CssBaseline,
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Alert,
+  Avatar,
+  InputAdornment,
   CircularProgress,
 } from "@mui/material";
 import { adminTheme } from "@/lib/adminTheme";
@@ -68,7 +76,9 @@ export default function LoginPage() {
 
           <Box sx={{ position: "relative", zIndex: 1, width: "100%", maxWidth: 420 }}>
             {/* Brand */}
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 4, gap: 2 }}>
+            <Box
+              sx={{ display: "flex", flexDirection: "column", alignItems: "center", mb: 4, gap: 2 }}
+            >
               <Avatar
                 sx={{
                   width: 56,
@@ -99,7 +109,11 @@ export default function LoginPage() {
               }}
             >
               <CardContent sx={{ p: 4, "&:last-child": { pb: 4 } }}>
-                <Box component="form" onSubmit={handleSubmit} sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+                <Box
+                  component="form"
+                  onSubmit={handleSubmit}
+                  sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}
+                >
                   <TextField
                     label="Email address"
                     type="email"
@@ -169,7 +183,11 @@ export default function LoginPage() {
               </CardContent>
             </Card>
 
-            <Typography variant="caption" color="text.disabled" sx={{ display: "block", textAlign: "center", mt: 3 }}>
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              sx={{ display: "block", textAlign: "center", mt: 3 }}
+            >
               sshakil.com · Personal admin panel
             </Typography>
           </Box>

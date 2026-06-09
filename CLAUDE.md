@@ -12,11 +12,11 @@ Then read **PROJECT_PLANNING.md** for architecture, progress, and what to build 
 A Next.js application for **sshakil.com** — Syful Islam Shakil's personal domain.
 Two distinct surfaces:
 
-| Route        | Audience                           | Auth     |
-| ------------ | ---------------------------------- | -------- |
-| `/`          | Public — portfolio website         | None     |
-| `/admin/*`   | Private — personal admin dashboard | Required |
-| `/admin/login` | Auth gate                        | None     |
+| Route          | Audience                           | Auth     |
+| -------------- | ---------------------------------- | -------- |
+| `/`            | Public — portfolio website         | None     |
+| `/admin/*`     | Private — personal admin dashboard | Required |
+| `/admin/login` | Auth gate                          | None     |
 
 ---
 
@@ -32,10 +32,10 @@ Two distinct surfaces:
 
 **The two styling systems are strictly separated by surface:**
 
-| Surface   | Styling              | Entry point                              |
-| --------- | -------------------- | ---------------------------------------- |
-| Portfolio | Tailwind v4 + SCSS   | `src/styles/tailwind.css`, `globals.scss` |
-| Admin     | MUI v9 + emotion     | `src/lib/adminTheme.ts`, `AdminShell.tsx` |
+| Surface   | Styling            | Entry point                               |
+| --------- | ------------------ | ----------------------------------------- |
+| Portfolio | Tailwind v4 + SCSS | `src/styles/tailwind.css`, `globals.scss` |
+| Admin     | MUI v9 + emotion   | `src/lib/adminTheme.ts`, `AdminShell.tsx` |
 
 ---
 
@@ -51,12 +51,14 @@ Two distinct surfaces:
 ### Styling rules by surface
 
 **Portfolio** (`src/app/(portfolio)/`, `src/components/portfolio/`, `src/components/shared/`):
+
 - Tailwind utility classes only
 - No inline styles — use Tailwind or CSS variables from `globals.css`
 - Match colour tokens from `globals.css` exactly — do not introduce new colour values
 - The design reference is the original `portfolio.html`
 
 **Admin** (`src/app/(admin)/`, `src/components/admin/`):
+
 - MUI components only — `Box`, `Card`, `Typography`, `TextField`, `Button`, etc.
 - Use the `sx` prop for layout and overrides; never use Tailwind classes in admin components
 - Never use `className` with Tailwind utilities inside the `(admin)` route group
@@ -119,35 +121,32 @@ components/admin/
 
 All admin colours come from the MUI theme. Reference these palette keys in `sx` props:
 
-| Token                    | Value     | Use                              |
-| ------------------------ | --------- | -------------------------------- |
-| `background.default`     | `#25293c` | Page background                  |
-| `background.paper`       | `#2f3349` | Cards, sidebar, header           |
-| `primary.main`           | `#7367f0` | Indigo — buttons, active state   |
-| `success.main`           | `#28c76f` | Green — active/OK badges         |
-| `warning.main`           | `#ff9f43` | Amber — warnings                 |
-| `error.main`             | `#ea5455` | Red — errors, overdue            |
-| `info.main`              | `#00cfe8` | Cyan — info                      |
-| `text.primary`           | `#cfd3ec` | Main text                        |
-| `text.secondary`         | `#8692a8` | Muted text, labels               |
-| `divider`                | rgba      | Borders between sections         |
+| Token                | Value     | Use                            |
+| -------------------- | --------- | ------------------------------ |
+| `background.default` | `#25293c` | Page background                |
+| `background.paper`   | `#2f3349` | Cards, sidebar, header         |
+| `primary.main`       | `#7367f0` | Indigo — buttons, active state |
+| `success.main`       | `#28c76f` | Green — active/OK badges       |
+| `warning.main`       | `#ff9f43` | Amber — warnings               |
+| `error.main`         | `#ea5455` | Red — errors, overdue          |
+| `info.main`          | `#00cfe8` | Cyan — info                    |
+| `text.primary`       | `#cfd3ec` | Main text                      |
+| `text.secondary`     | `#8692a8` | Muted text, labels             |
+| `divider`            | rgba      | Borders between sections       |
 
 ---
 
 ## Portfolio design tokens (from `globals.css` — portfolio surface only)
 
 ```css
---color-linen: #f5f0e8        /* hero background */
---color-sage: #8faa8b         /* sage green accent */
---color-sage-light: #e8f0e7   /* skills section background */
---color-sage-dark: #2d5a27    /* dark sage text/borders */
---color-slate: #3d5a80        /* experience section accent */
---color-slate-light: #e8eef5  /* experience section background */
---color-purple: #6b4d8f       /* projects section accent */
---color-purple-light: #f0eaf8 /* projects section background */
---color-forest: #1a3a2a       /* contact section background (dark) */
---color-forest-light: #2d5a3d /* contact section secondary */
---px: clamp(1.25rem, 5vw, 5rem) /* horizontal padding — use everywhere */
+--color-linen: #f5f0e8 /* hero background */ --color-sage: #8faa8b /* sage green accent */
+  --color-sage-light: #e8f0e7 /* skills section background */ --color-sage-dark: #2d5a27
+  /* dark sage text/borders */ --color-slate: #3d5a80 /* experience section accent */
+  --color-slate-light: #e8eef5 /* experience section background */ --color-purple: #6b4d8f
+  /* projects section accent */ --color-purple-light: #f0eaf8 /* projects section background */
+  --color-forest: #1a3a2a /* contact section background (dark) */ --color-forest-light: #2d5a3d
+  /* contact section secondary */ --px: clamp(1.25rem, 5vw, 5rem)
+  /* horizontal padding — use everywhere */;
 ```
 
 ---

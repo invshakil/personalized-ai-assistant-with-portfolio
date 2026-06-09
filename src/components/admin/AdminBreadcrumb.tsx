@@ -5,13 +5,13 @@ import { Box, Typography } from "@mui/material";
 import { ChevronRight } from "lucide-react";
 
 const routeLabels: Record<string, string> = {
-  "/admin":              "Overview",
-  "/admin/property":     "Property",
-  "/admin/finance":      "Finance",
-  "/admin/renovation":   "Renovation",
+  "/admin": "Overview",
+  "/admin/property": "Property",
+  "/admin/finance": "Finance",
+  "/admin/renovation": "Renovation",
   "/admin/ai-assistant": "AI Assistant",
-  "/admin/settings":     "Settings",
-  "/admin/account":      "Account",
+  "/admin/settings": "Settings",
+  "/admin/account": "Account",
 };
 
 export default function AdminBreadcrumb() {

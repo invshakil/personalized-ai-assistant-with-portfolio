@@ -2,8 +2,16 @@
 
 import { useState } from "react";
 import {
-  Box, Card, CardContent, Typography, TextField,
-  Button, Alert, Divider, CircularProgress, Avatar,
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  Alert,
+  Divider,
+  CircularProgress,
+  Avatar,
 } from "@mui/material";
 import { Check, User, Lock } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
@@ -83,7 +91,12 @@ export default function AccountPage({ initialName, email }: AccountPageProps) {
   };
 
   const initials = profile.name
-    ? profile.name.split(" ").map((w) => w[0]).join("").toUpperCase().slice(0, 2)
+    ? profile.name
+        .split(" ")
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
     : email[0].toUpperCase();
 
   return (

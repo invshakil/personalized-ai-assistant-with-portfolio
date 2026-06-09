@@ -87,10 +87,17 @@ export default function Projects() {
     <div className="sec" id="projects">
       <div className="proj-rule" />
       <div className="sec-in">
-        <p className="lbl" data-animate="true">Selected Projects</p>
+        <p className="lbl" data-animate="true">
+          Selected Projects
+        </p>
         <div className="proj-grid">
           {PROJECTS.map((project, i) => (
-            <div key={project.num} className="proj-card" data-animate="true" data-delay={String(i + 1)}>
+            <div
+              key={project.num}
+              className="proj-card"
+              data-animate="true"
+              data-delay={String(i + 1)}
+            >
               <p className="proj-num">{project.num}</p>
               <h3 className="proj-title">{project.title}</h3>
               <p className="proj-desc">{project.description}</p>

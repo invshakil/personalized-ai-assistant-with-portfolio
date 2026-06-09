@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "→ Running pre-push checks..."
+
+# 1. Prettier
+echo ""
+echo "  [1/2] Prettier format check"
+if ! npm run format:check --silent; then
+  echo ""
+  echo "  ✗ Prettier check failed."
+  echo "    Run: npm run format"
+  echo "    Then stage and commit the formatted files before pushing."
+  exit 1
+fi
+echo "  ✓ Prettier OK"
+
+# 2. TypeScript
+echo ""
+echo "  [2/2] TypeScript type check"
+if ! npx tsc --noEmit 2>&1; then
+  echo ""
+  echo "  ✗ TypeScript errors found. Fix them before pushing."
+  exit 1
+fi
+echo "  ✓ TypeScript OK"
+
+echo ""
+echo "→ All checks passed."
