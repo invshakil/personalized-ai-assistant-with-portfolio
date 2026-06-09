@@ -1,8 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
-
-// Simple credentials auth — single admin user via env vars
-// For production: add Google OAuth or magic link
+import bcrypt from "bcryptjs";
+import { db } from "@/lib/db";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -13,34 +12,43 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        // Single admin user — credentials stored in env
-        const adminEmail = process.env.ADMIN_EMAIL;
-        const adminPassword = process.env.ADMIN_PASSWORD;
+        if (!credentials?.email || !credentials?.password) return null;
 
-        if (credentials?.email === adminEmail && credentials?.password === adminPassword) {
-          return {
-            id: "1",
-            email: adminEmail,
-            name: "Shakil",
-            role: "ADMIN",
-          };
-        }
-        return null;
+        const user = await db.user.findUnique({
+          where: { email: credentials.email as string },
+        });
+
+        if (!user?.password) return null;
+
+        const valid = await bcrypt.compare(
+          credentials.password as string,
+          user.password
+        );
+        if (!valid) return null;
+
+        return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),
   ],
   pages: {
-    signIn: "/login",
+    signIn: "/admin/login",
   },
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        token.id = user.id;
         token.role = (user as { role?: string }).role;
+        token.appVersion = process.env.APP_VERSION ?? "1.0";
+      }
+      // Force re-auth whenever APP_VERSION is bumped in .env.local
+      if (token.appVersion !== (process.env.APP_VERSION ?? "1.0")) {
+        return null as unknown as typeof token;
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
+      if (session.user && token) {
+        session.user.id = token.id as string;
         (session.user as { role?: string }).role = token.role as string;
       }
       return session;

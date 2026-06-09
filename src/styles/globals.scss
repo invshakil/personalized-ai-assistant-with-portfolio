@@ -12,6 +12,9 @@
 // ── Layout components ──
 @use "nav";
 
+// ── Admin panel tokens (imported by admin *.module.scss files) ──
+@forward "admin";
+
 // ── Portfolio sections ──
 @use "hero";
 @use "skills";
