@@ -49,10 +49,10 @@ export default function Testimonials() {
     <div className="sec" id="testimonials">
       <div className="test-rule" />
       <div className="sec-in">
-        <p className="lbl">Client Testimonials</p>
+        <p className="lbl" data-animate="true">Client Testimonials</p>
         <div className="test-grid">
           {TESTIMONIALS.map((t, i) => (
-            <div key={i} className="test-card">
+            <div key={i} className="test-card" data-animate="true" data-delay={String(i + 1)}>
               <div className="test-stars">
                 <div className="stars">
                   {Array.from({ length: t.rating }).map((_, j) => (

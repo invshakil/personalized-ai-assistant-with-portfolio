@@ -89,23 +89,23 @@ export default function Contact() {
     <div className="sec" id="contact">
       <div className="contact-rule" />
       <div className="sec-in">
-        <p className="lbl">Contact</p>
+        <p className="lbl" data-animate="true">Contact</p>
         <div className="contact-layout">
           <div>
-            <h2 className="contact-heading">
+            <h2 className="contact-heading" data-animate="true" data-delay="1">
               Let&apos;s build
               <br />
               something
               <br />
               together.
             </h2>
-            <p className="contact-sub">
+            <p className="contact-sub" data-animate="true" data-delay="2">
               Whether it&apos;s a product idea, a technical challenge, or a collaboration — I&apos;m
               always open to a good conversation.
             </p>
           </div>
 
-          <div className="contact-links">
+          <div className="contact-links" data-animate="true" data-delay="2">
             {CONTACT_LINKS.map((link) => (
               <a
                 key={link.icon}
