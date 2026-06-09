@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { messages } = await req.json() as { messages: MessageParam[] };
+  const { messages } = (await req.json()) as { messages: MessageParam[] };
 
   if (!messages || !Array.isArray(messages)) {
     return Response.json({ error: "messages array is required" }, { status: 400 });

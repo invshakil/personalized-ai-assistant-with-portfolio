@@ -39,7 +39,10 @@ export async function PUT(req: Request) {
     }
 
     if (newPassword.length < 8) {
-      return Response.json({ error: "New password must be at least 8 characters" }, { status: 400 });
+      return Response.json(
+        { error: "New password must be at least 8 characters" },
+        { status: 400 }
+      );
     }
 
     const hash = await bcrypt.hash(newPassword, 12);

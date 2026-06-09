@@ -1,22 +1,22 @@
 // Admin dark palette tokens — imported by admin *.module.scss files
 // Primary usage: CSS custom props in JSX via Tailwind; these tokens for SCSS-only overrides
 
-$admin-bg:          #030712; // gray-950
-$admin-surface:     #111827; // gray-900
-$admin-card:        #1f2937; // gray-800
-$admin-card-hover:  #374151; // gray-700
-$admin-border:      #374151; // gray-700
+$admin-bg: #030712; // gray-950
+$admin-surface: #111827; // gray-900
+$admin-card: #1f2937; // gray-800
+$admin-card-hover: #374151; // gray-700
+$admin-border: #374151; // gray-700
 $admin-border-soft: #1f2937; // gray-800
-$admin-text:        #f9fafb; // gray-50
-$admin-muted:       #9ca3af; // gray-400
-$admin-subtle:      #6b7280; // gray-500
-$admin-accent:      #16a34a; // green-600
-$admin-accent-bg:   rgba(20, 83, 45, 0.3); // green-900/30
+$admin-text: #f9fafb; // gray-50
+$admin-muted: #9ca3af; // gray-400
+$admin-subtle: #6b7280; // gray-500
+$admin-accent: #16a34a; // green-600
+$admin-accent-bg: rgba(20, 83, 45, 0.3); // green-900/30
 $admin-accent-text: #4ade80; // green-400
 
 // Sidebar dimensions
 $sidebar-width: 14rem; // w-56
 
 // Chat bubble tokens
-$chat-user-bg:      rgba(20, 83, 45, 0.4);  // green-900/40
-$chat-assistant-bg: #1f2937;                  // gray-800
+$chat-user-bg: rgba(20, 83, 45, 0.4); // green-900/40
+$chat-assistant-bg: #1f2937; // gray-800

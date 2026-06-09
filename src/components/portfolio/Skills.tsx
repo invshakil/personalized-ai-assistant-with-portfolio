@@ -63,7 +63,9 @@ export default function Skills() {
     <div className="sec" id="skills">
       <div className="skills-rule" />
       <div className="sec-in">
-        <p className="lbl" data-animate="true">Skills &amp; Stack</p>
+        <p className="lbl" data-animate="true">
+          Skills &amp; Stack
+        </p>
         <div className="skills-grid">
           {SKILL_GROUPS.map((group, i) => (
             <div key={group.name} data-animate="true" data-delay={String(i + 1)}>

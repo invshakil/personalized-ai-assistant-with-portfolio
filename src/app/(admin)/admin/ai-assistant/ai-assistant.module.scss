@@ -46,7 +46,9 @@
   font-size: 0.875rem;
   line-height: 1.5;
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
 
   &::placeholder {
     color: #52525b;

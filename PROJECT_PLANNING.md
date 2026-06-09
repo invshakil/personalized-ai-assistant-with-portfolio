@@ -21,16 +21,16 @@ A single Next.js application serving two purposes:
 
 ## Architecture decisions
 
-| Decision  | Choice                               | Reason                                                                                     |
-| --------- | ------------------------------------ | ------------------------------------------------------------------------------------------ |
-| Framework | Next.js 16 App Router                | SSR for portfolio SEO; server components reduce client JS                                  |
-| Auth      | NextAuth v5 credentials              | Single admin user — no need for OAuth complexity                                           |
-| Database  | PostgreSQL + Prisma 5                | Relational data (units→tenants→payments); Prisma gives type safety                         |
-| Portfolio styling | SCSS modules + Tailwind CSS v4 | SCSS for variables, mixins, section partials; Tailwind for utility classes              |
-| Admin styling | Material UI v9 + emotion         | Professional dark dashboard UI; scoped to `/admin` — no conflict with portfolio Tailwind   |
-| AI        | Claude Sonnet 4 via Anthropic API    | Tool use for structured data queries against DB                                            |
-| Hosting   | DigitalOcean Basic droplet (~$12/mo) | Full control, PM2 + Nginx + Certbot for SSL                                                |
-| Session   | JWT (not DB sessions)                | Simpler for single-user setup; no session table needed                                     |
+| Decision          | Choice                               | Reason                                                                                   |
+| ----------------- | ------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Framework         | Next.js 16 App Router                | SSR for portfolio SEO; server components reduce client JS                                |
+| Auth              | NextAuth v5 credentials              | Single admin user — no need for OAuth complexity                                         |
+| Database          | PostgreSQL + Prisma 5                | Relational data (units→tenants→payments); Prisma gives type safety                       |
+| Portfolio styling | SCSS modules + Tailwind CSS v4       | SCSS for variables, mixins, section partials; Tailwind for utility classes               |
+| Admin styling     | Material UI v9 + emotion             | Professional dark dashboard UI; scoped to `/admin` — no conflict with portfolio Tailwind |
+| AI                | Claude Sonnet 4 via Anthropic API    | Tool use for structured data queries against DB                                          |
+| Hosting           | DigitalOcean Basic droplet (~$12/mo) | Full control, PM2 + Nginx + Certbot for SSL                                              |
+| Session           | JWT (not DB sessions)                | Simpler for single-user setup; no session table needed                                   |
 
 ### Styling isolation
 
@@ -173,15 +173,15 @@ sshakil-app/
 
 ## Portfolio section reference
 
-| Component          | Section ID      | Background              | Key content                                                                           |
-| ------------------ | --------------- | ----------------------- | ------------------------------------------------------------------------------------- |
-| `Hero.tsx`         | `#hero`         | `--color-linen`         | Photo, name, tagline, availability badge, 3 CTAs (Hire Me / View Work / Download CV)  |
-| `Skills.tsx`       | `#skills`       | `--color-sage-light`    | 5 skill groups with tag pills                                                         |
-| `Experience.tsx`   | `#experience`   | `--color-slate-light`   | Two columns: full-time left, freelance right                                          |
-| `Projects.tsx`     | `#projects`     | `--color-purple-light`  | 4 project cards, private badges, 1 GitHub link                                        |
-| `Testimonials.tsx` | `#testimonials` | white                   | 2 Upwork reviews, link to Upwork profile                                              |
-| `Education.tsx`    | `#education`    | white                   | 3 entries, flat flex layout                                                           |
-| `Contact.tsx`      | `#contact`      | `--color-forest` (dark) | 5 contact links + CV download, dark bg                                                |
+| Component          | Section ID      | Background              | Key content                                                                          |
+| ------------------ | --------------- | ----------------------- | ------------------------------------------------------------------------------------ |
+| `Hero.tsx`         | `#hero`         | `--color-linen`         | Photo, name, tagline, availability badge, 3 CTAs (Hire Me / View Work / Download CV) |
+| `Skills.tsx`       | `#skills`       | `--color-sage-light`    | 5 skill groups with tag pills                                                        |
+| `Experience.tsx`   | `#experience`   | `--color-slate-light`   | Two columns: full-time left, freelance right                                         |
+| `Projects.tsx`     | `#projects`     | `--color-purple-light`  | 4 project cards, private badges, 1 GitHub link                                       |
+| `Testimonials.tsx` | `#testimonials` | white                   | 2 Upwork reviews, link to Upwork profile                                             |
+| `Education.tsx`    | `#education`    | white                   | 3 entries, flat flex layout                                                          |
+| `Contact.tsx`      | `#contact`      | `--color-forest` (dark) | 5 contact links + CV download, dark bg                                               |
 
 All sections use `padding: var(--px)` for horizontal spacing. Do not hardcode padding values.
 
@@ -299,26 +299,26 @@ certbot --nginx -d sshakil.com -d www.sshakil.com
 
 ## AI Engineering curriculum context
 
-| Lesson | Topic               | Status      | Where implemented                              |
-| ------ | ------------------- | ----------- | ---------------------------------------------- |
-| 1.1    | Tokens & cost       | ✅ done     | —                                              |
-| 1.2    | Stateless API calls | ✅ done     | —                                              |
-| 1.3    | Temperature         | ✅ done     | —                                              |
-| 1.4    | Tool use            | 🔲 next     | `api/admin/ai/route.ts` — add Claude tools     |
-| 2.x    | Streaming responses | ✅ done     | AI assistant chat — ReadableStream end-to-end  |
-| 3.x    | RAG / embeddings    | 🔲 future   | TBD                                            |
+| Lesson | Topic               | Status    | Where implemented                             |
+| ------ | ------------------- | --------- | --------------------------------------------- |
+| 1.1    | Tokens & cost       | ✅ done   | —                                             |
+| 1.2    | Stateless API calls | ✅ done   | —                                             |
+| 1.3    | Temperature         | ✅ done   | —                                             |
+| 1.4    | Tool use            | 🔲 next   | `api/admin/ai/route.ts` — add Claude tools    |
+| 2.x    | Streaming responses | ✅ done   | AI assistant chat — ReadableStream end-to-end |
+| 3.x    | RAG / embeddings    | 🔲 future | TBD                                           |
 
 ---
 
 ## Progress log
 
-| Date       | What was done                                                                                                                                                                                                                                                                                                                                                                    |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 2026-06-07 | Portfolio HTML completed (8.5/10), CV PDF + DOCX created, SEO implemented, all reference markdown files created                                                                                                                                                                                                                                                                  |
-| 2026-06-08 | Next.js project scaffolded — App Router, Prisma schema, NextAuth credentials, middleware, admin layout + sidebar, portfolio component stubs, login page, CLAUDE.md + PROJECT_PLANNING.md written                                                                                                                                                                                 |
-| 2026-06-08 | Local PostgreSQL set up, `.env` + `.env.local` configured, `npx prisma db push` verified                                                                                                                                                                                                                                                                                         |
-| 2026-06-08 | **Portfolio fully ported** — `sass` installed; 13-file SCSS architecture; all 7 portfolio components implemented from `portfolio.html`; Nav + Footer; root layout with full SEO metadata + geo tags + 3× JSON-LD structured data; build passes zero errors                                                                                                                        |
-| 2026-06-08 | **Admin panel v1** — migrated from `/dashboard` to `/admin`; DB-backed auth (bcrypt passwords, seeded admin user); APP_VERSION session invalidation; dark sidebar + header layout; full route set (property/finance/renovation stubs, AI assistant streaming chat, settings, account, login)                                                                                      |
+| Date       | What was done                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-07 | Portfolio HTML completed (8.5/10), CV PDF + DOCX created, SEO implemented, all reference markdown files created                                                                                                                                                                                                                                                                                                                                                                                       |
+| 2026-06-08 | Next.js project scaffolded — App Router, Prisma schema, NextAuth credentials, middleware, admin layout + sidebar, portfolio component stubs, login page, CLAUDE.md + PROJECT_PLANNING.md written                                                                                                                                                                                                                                                                                                      |
+| 2026-06-08 | Local PostgreSQL set up, `.env` + `.env.local` configured, `npx prisma db push` verified                                                                                                                                                                                                                                                                                                                                                                                                              |
+| 2026-06-08 | **Portfolio fully ported** — `sass` installed; 13-file SCSS architecture; all 7 portfolio components implemented from `portfolio.html`; Nav + Footer; root layout with full SEO metadata + geo tags + 3× JSON-LD structured data; build passes zero errors                                                                                                                                                                                                                                            |
+| 2026-06-08 | **Admin panel v1** — migrated from `/dashboard` to `/admin`; DB-backed auth (bcrypt passwords, seeded admin user); APP_VERSION session invalidation; dark sidebar + header layout; full route set (property/finance/renovation stubs, AI assistant streaming chat, settings, account, login)                                                                                                                                                                                                          |
 | 2026-06-09 | **Admin panel v2 — MUI migration** — replaced Tailwind in all admin components with Material UI v9; Materio-inspired dark theme (`adminTheme.ts`); `AdminShell.tsx` provides `AppRouterCacheProvider` + `ThemeProvider` scoped to admin; rebuilt: sidebar (MUI List nav), header (MUI Box + Avatar), overview (animated stat cards, vivid colors), login (MUI TextField + Alert), AI chat (MUI Card + TextField multiline), settings (MUI Switch + TextField), account (MUI profile + password cards) |
 
 ---

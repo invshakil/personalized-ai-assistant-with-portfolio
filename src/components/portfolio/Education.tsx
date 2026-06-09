@@ -23,10 +23,17 @@ export default function Education() {
     <div className="sec" id="education">
       <div className="edu-rule" />
       <div className="sec-in">
-        <p className="lbl" data-animate="true">Education</p>
+        <p className="lbl" data-animate="true">
+          Education
+        </p>
         <div className="edu-list">
           {EDUCATION.map((item, i) => (
-            <div key={item.years} className="edu-item" data-animate="true" data-delay={String(i + 1)}>
+            <div
+              key={item.years}
+              className="edu-item"
+              data-animate="true"
+              data-delay={String(i + 1)}
+            >
               <p className="edu-year">{item.years}</p>
               <p className="edu-degree">{item.degree}</p>
               <p className="edu-inst">{item.institution}</p>
