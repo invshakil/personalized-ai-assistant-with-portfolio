@@ -82,6 +82,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     where: { id },
     data: {
       ...(body.name && { name: body.name }),
+      ...(body.moveInDate && { moveInDate: new Date(body.moveInDate) }),
       ...(body.phone !== undefined && { phone: body.phone }),
       ...(body.email !== undefined && { email: body.email }),
       ...(body.nidNumber !== undefined && { nidNumber: body.nidNumber }),
