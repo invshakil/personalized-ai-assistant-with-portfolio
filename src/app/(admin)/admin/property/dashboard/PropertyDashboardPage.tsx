@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import dynamic from "next/dynamic";
 import {
   Box,
   Card,
@@ -20,21 +21,20 @@ import {
   InputLabel,
   Alert,
 } from "@mui/material";
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from "recharts";
+
 import { TrendingUp, AlertTriangle } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import type { PropertyDashboardStats } from "@/types";
+
+const PropertyCharts = dynamic(() => import("./PropertyCharts"), {
+  ssr: false,
+  loading: () => (
+    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 3, mb: 3 }}>
+      <Card sx={{ bgcolor: "background.paper", height: 280 }} />
+      <Card sx={{ bgcolor: "background.paper", height: 280 }} />
+    </Box>
+  ),
+});
 
 const MONTHS = [
   "January", "February", "March", "April", "May", "June",
@@ -144,69 +144,7 @@ export default function PropertyDashboardPage() {
             )}
           </Box>
 
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 3, mb: 3 }}>
-            {/* Bar chart — this month */}
-            <Card sx={{ bgcolor: "background.paper" }}>
-              <CardContent>
-                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, fontWeight: 600 }}>
-                  {MONTHS[month - 1]} {year} — Financial Overview
-                </Typography>
-                <div style={{ width: "100%", height: 220 }}>
-                  <ResponsiveContainer width="100%" height="100%" debounce={50}>
-                    <BarChart
-                      data={[
-                        { name: "Expected", value: data.totalExpected },
-                        { name: "Collected", value: data.totalCollected },
-                        { name: "Expenses", value: data.totalExpenses },
-                        { name: "Net Profit", value: Math.max(0, data.netProfit) },
-                      ]}
-                      margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                      <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#8692a8" }} />
-                      <YAxis tick={{ fontSize: 11, fill: "#8692a8" }} tickFormatter={(v) => `৳${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip
-                        formatter={(v) => [fmt(Number(v ?? 0)), ""]}
-                        contentStyle={{ backgroundColor: "#2f3349", border: "none", borderRadius: 8 }}
-                        labelStyle={{ color: "#cfd3ec" }}
-                      />
-                      <Bar dataKey="value" fill="#7367f0" radius={[4, 4, 0, 0]} isAnimationActive={false} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Line chart — yearly trend */}
-            <Card sx={{ bgcolor: "background.paper" }}>
-              <CardContent>
-                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, fontWeight: 600 }}>
-                  {year} — Yearly Trend
-                </Typography>
-                <div style={{ width: "100%", height: 220 }}>
-                  <ResponsiveContainer width="100%" height="100%" debounce={50}>
-                    <LineChart
-                      data={data.yearlyData}
-                      margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8692a8" }} />
-                      <YAxis tick={{ fontSize: 10, fill: "#8692a8" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
-                      <Tooltip
-                        formatter={(v) => [fmt(Number(v ?? 0)), ""]}
-                        contentStyle={{ backgroundColor: "#2f3349", border: "none", borderRadius: 8 }}
-                        labelStyle={{ color: "#cfd3ec" }}
-                      />
-                      <Legend wrapperStyle={{ fontSize: 11 }} />
-                      <Line type="monotone" dataKey="collected" stroke="#0D7377" strokeWidth={2} dot={false} name="Collected" isAnimationActive={false} />
-                      <Line type="monotone" dataKey="expenses" stroke="#C0392B" strokeWidth={2} dot={false} name="Expenses" isAnimationActive={false} />
-                      <Line type="monotone" dataKey="netProfit" stroke="#28c76f" strokeWidth={2} dot={false} name="Net Profit" isAnimationActive={false} />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              </CardContent>
-            </Card>
-          </Box>
+          <PropertyCharts data={data} month={month} year={year} />
 
           {/* Pending rent changes */}
           {data.pendingRentChanges.length > 0 && (
