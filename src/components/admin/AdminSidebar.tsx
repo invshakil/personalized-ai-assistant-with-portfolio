@@ -1,5 +1,6 @@
 "use client";
 
+import { ComponentType } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -23,16 +24,45 @@ import {
   Settings,
   User,
   LogOut,
+  Users,
+  CreditCard,
+  Receipt,
+  Wifi,
+  PieChart,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 
 const SIDEBAR_WIDTH = 260;
 
-const navGroups = [
+type IconComponent = ComponentType<{ size?: number }>;
+
+type NavItem = {
+  href: string;
+  label: string;
+  icon: IconComponent;
+  exact: boolean;
+  children?: { href: string; label: string; icon: IconComponent }[];
+};
+
+const navGroups: { label: string; items: NavItem[] }[] = [
   {
     label: "Workspace",
     items: [
       { href: "/admin", label: "Overview", icon: LayoutDashboard, exact: true },
-      { href: "/admin/property", label: "Property", icon: Building2, exact: false },
+      {
+        href: "/admin/property",
+        label: "Property",
+        icon: Building2,
+        exact: true,
+        children: [
+          { href: "/admin/property", label: "Units & Tenants", icon: Users },
+          { href: "/admin/property/payments", label: "Payments", icon: CreditCard },
+          { href: "/admin/property/expenses", label: "Expenses", icon: Receipt },
+          { href: "/admin/property/services", label: "Services", icon: Wifi },
+          { href: "/admin/property/dashboard", label: "Dashboard", icon: PieChart },
+        ],
+      },
       { href: "/admin/finance", label: "Finance", icon: BarChart3, exact: false },
       { href: "/admin/renovation", label: "Renovation", icon: Wrench, exact: false },
     ],
@@ -117,20 +147,61 @@ export default function AdminSidebar() {
               {group.items.map((item) => {
                 const active = isActive(item.href, item.exact);
                 const Icon = item.icon;
+                const hasChildren = !!item.children?.length;
+                const expanded = hasChildren && pathname.startsWith("/admin/property");
+                const ChevronIcon = expanded ? ChevronDown : ChevronRight;
+
                 return (
-                  <ListItem key={item.href} disablePadding sx={{ mb: 0.25 }}>
-                    <Link
-                      href={item.href}
-                      style={{ width: "100%", textDecoration: "none", color: "inherit" }}
-                    >
-                      <ListItemButton selected={active} sx={{ px: 1.5, py: 0.875 }}>
-                        <ListItemIcon>
-                          <Icon size={17} />
-                        </ListItemIcon>
-                        <ListItemText primary={item.label} />
-                      </ListItemButton>
-                    </Link>
-                  </ListItem>
+                  <Box key={item.href}>
+                    <ListItem disablePadding sx={{ mb: 0.25 }}>
+                      <Link
+                        href={item.href}
+                        style={{ width: "100%", textDecoration: "none", color: "inherit" }}
+                      >
+                        <ListItemButton selected={active && !hasChildren} sx={{ px: 1.5, py: 0.875 }}>
+                          <ListItemIcon>
+                            <Icon size={17} />
+                          </ListItemIcon>
+                          <ListItemText primary={item.label} />
+                          {hasChildren && <ChevronIcon size={14} />}
+                        </ListItemButton>
+                      </Link>
+                    </ListItem>
+
+                    {/* Sub-items (property section) */}
+                    {hasChildren && expanded && (
+                      <List dense disablePadding sx={{ pl: 2, mb: 0.5 }}>
+                        {item.children!.map((child) => {
+                          const childActive =
+                            child.href === "/admin/property"
+                              ? pathname === "/admin/property"
+                              : pathname.startsWith(child.href);
+                          const ChildIcon = child.icon;
+                          return (
+                            <ListItem key={child.href} disablePadding sx={{ mb: 0.25 }}>
+                              <Link
+                                href={child.href}
+                                style={{ width: "100%", textDecoration: "none", color: "inherit" }}
+                              >
+                                <ListItemButton
+                                  selected={childActive}
+                                  sx={{ px: 1.5, py: 0.625, borderRadius: 1 }}
+                                >
+                                  <ListItemIcon>
+                                    <ChildIcon size={15} />
+                                  </ListItemIcon>
+                                  <ListItemText
+                                    primary={child.label}
+                                    slotProps={{ primary: { style: { fontSize: "0.8125rem" } } }}
+                                  />
+                                </ListItemButton>
+                              </Link>
+                            </ListItem>
+                          );
+                        })}
+                      </List>
+                    )}
+                  </Box>
                 );
               })}
             </List>
