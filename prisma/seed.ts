@@ -20,8 +20,8 @@ async function main() {
 
   // ─── Add-on service catalog ───────────────────────────────────────────────
   for (const s of [
-    { name: "WiFi",      description: "Monthly internet service" },
-    { name: "Parking",   description: "Reserved parking space" },
+    { name: "WiFi", description: "Monthly internet service" },
+    { name: "Parking", description: "Reserved parking space" },
     { name: "Generator", description: "Backup power / generator access" },
   ]) {
     await db.addOnService.upsert({
@@ -35,26 +35,31 @@ async function main() {
   // ─── Units ─────────────────────────────────────────────────────────────────
   // monthlyRent is the current occupant's rent; vacant units carry a placeholder.
   const unitData = [
-    { unitNumber: "Flat 1A", floor: "Ground Floor", monthlyRent: 7000 },   // vacant
-    { unitNumber: "Flat 1B", floor: "Ground Floor", monthlyRent: 7000 },   // vacant
-    { unitNumber: "Flat 2A", floor: "1st Floor",    monthlyRent: 9000 },   // T05 Alamin
-    { unitNumber: "Flat 2B", floor: "1st Floor",    monthlyRent: 7000 },   // vacant
-    { unitNumber: "Flat 2C", floor: "1st Floor",    monthlyRent: 8000 },   // T07 Ashraful
-    { unitNumber: "Flat 2D", floor: "1st Floor",    monthlyRent: 8500 },   // T04 Foyez
-    { unitNumber: "Flat 2E", floor: "1st Floor",    monthlyRent: 7000 },   // T06 Kamrul
-    { unitNumber: "Flat 4A", floor: "3rd Floor",    monthlyRent: 7000 },   // vacant
-    { unitNumber: "Flat 4B", floor: "3rd Floor",    monthlyRent: 7000 },   // vacant
-    { unitNumber: "Flat 4C", floor: "3rd Floor",    monthlyRent: 7000 },   // vacant
-    { unitNumber: "Flat 4D", floor: "3rd Floor",    monthlyRent: 9500 },   // T02 Faruk
-    { unitNumber: "Flat 4E", floor: "3rd Floor",    monthlyRent: 7000 },   // T01 Sharif
-    { unitNumber: "Flat 5A", floor: "4th Floor",    monthlyRent: 5000 },   // T03 Mintu
+    { unitNumber: "Flat 1A", floor: "Ground Floor", monthlyRent: 7000 }, // vacant
+    { unitNumber: "Flat 1B", floor: "Ground Floor", monthlyRent: 7000 }, // vacant
+    { unitNumber: "Flat 2A", floor: "1st Floor", monthlyRent: 9000 }, // T05 Alamin
+    { unitNumber: "Flat 2B", floor: "1st Floor", monthlyRent: 7000 }, // vacant
+    { unitNumber: "Flat 2C", floor: "1st Floor", monthlyRent: 8000 }, // T07 Ashraful
+    { unitNumber: "Flat 2D", floor: "1st Floor", monthlyRent: 8500 }, // T04 Foyez
+    { unitNumber: "Flat 2E", floor: "1st Floor", monthlyRent: 7000 }, // T06 Kamrul
+    { unitNumber: "Flat 4A", floor: "3rd Floor", monthlyRent: 7000 }, // vacant
+    { unitNumber: "Flat 4B", floor: "3rd Floor", monthlyRent: 7000 }, // vacant
+    { unitNumber: "Flat 4C", floor: "3rd Floor", monthlyRent: 7000 }, // vacant
+    { unitNumber: "Flat 4D", floor: "3rd Floor", monthlyRent: 9500 }, // T02 Faruk
+    { unitNumber: "Flat 4E", floor: "3rd Floor", monthlyRent: 7000 }, // T01 Sharif
+    { unitNumber: "Flat 5A", floor: "4th Floor", monthlyRent: 5000 }, // T03 Mintu
   ];
 
   for (const u of unitData) {
     await db.unit.upsert({
       where: { unitNumber: u.unitNumber },
       update: { floor: u.floor, monthlyRent: u.monthlyRent },
-      create: { unitNumber: u.unitNumber, floor: u.floor, monthlyRent: u.monthlyRent, isOccupied: false },
+      create: {
+        unitNumber: u.unitNumber,
+        floor: u.floor,
+        monthlyRent: u.monthlyRent,
+        isOccupied: false,
+      },
     });
   }
   console.log("✓ 13 units seeded");
@@ -68,7 +73,7 @@ async function main() {
     where: { tenantCode: "T00" },
     update: {
       name: "Nasrin",
-      unitId: null,           // vacated
+      unitId: null, // vacated
       isActive: false,
       advancePaid: false,
       advanceAmount: 0,
@@ -78,7 +83,7 @@ async function main() {
       tenantCode: "T00",
       name: "Nasrin",
       unitId: null,
-      moveInDate: new Date("2025-01-01"),  // approximate — not in Excel
+      moveInDate: new Date("2025-01-01"), // approximate — not in Excel
       isActive: false,
       isExternal: false,
       advancePaid: false,
@@ -181,7 +186,10 @@ async function main() {
   ];
 
   // Clear existing unitId assignments to avoid unique constraint conflicts on re-seed
-  await db.tenant.updateMany({ where: { tenantCode: { in: tenantData.map((t) => t.tenantCode) } }, data: { unitId: null } });
+  await db.tenant.updateMany({
+    where: { tenantCode: { in: tenantData.map((t) => t.tenantCode) } },
+    data: { unitId: null },
+  });
   await db.unit.updateMany({ data: { isOccupied: false } });
 
   for (const t of tenantData) {
@@ -223,7 +231,9 @@ async function main() {
   // ─── Rent change for T05 (Alamin) ─────────────────────────────────────────
   const alamin = await db.tenant.findUnique({ where: { tenantCode: "T05" } });
   if (alamin) {
-    const existing = await db.rentChange.findFirst({ where: { tenantId: alamin.id, appliedAt: null } });
+    const existing = await db.rentChange.findFirst({
+      where: { tenantId: alamin.id, appliedAt: null },
+    });
     if (!existing) {
       await db.rentChange.create({
         data: {
@@ -269,18 +279,99 @@ async function main() {
     status: PaymentStatus;
   }[] = [
     // ── T01 Sharif ──
-    { tenantCode: "T01", unitNumber: "Flat 4E", month: 3, year: 2026, rentDue: 7000, amountPaid: 7000, paidDate: new Date("2026-03-12"), status: PaymentStatus.PAID },
-    { tenantCode: "T01", unitNumber: "Flat 4E", month: 4, year: 2026, rentDue: 7000, amountPaid: 7000, paidDate: new Date("2026-04-12"), status: PaymentStatus.PAID },
-    { tenantCode: "T01", unitNumber: "Flat 4E", month: 5, year: 2026, rentDue: 7000, amountPaid: 7000, paidDate: new Date("2026-05-18"), status: PaymentStatus.PAID },
+    {
+      tenantCode: "T01",
+      unitNumber: "Flat 4E",
+      month: 3,
+      year: 2026,
+      rentDue: 7000,
+      amountPaid: 7000,
+      paidDate: new Date("2026-03-12"),
+      status: PaymentStatus.PAID,
+    },
+    {
+      tenantCode: "T01",
+      unitNumber: "Flat 4E",
+      month: 4,
+      year: 2026,
+      rentDue: 7000,
+      amountPaid: 7000,
+      paidDate: new Date("2026-04-12"),
+      status: PaymentStatus.PAID,
+    },
+    {
+      tenantCode: "T01",
+      unitNumber: "Flat 4E",
+      month: 5,
+      year: 2026,
+      rentDue: 7000,
+      amountPaid: 7000,
+      paidDate: new Date("2026-05-18"),
+      status: PaymentStatus.PAID,
+    },
     // ── T02 Faruk ──
-    { tenantCode: "T02", unitNumber: "Flat 4D", month: 4, year: 2026, rentDue: 9500, amountPaid: 9500, paidDate: new Date("2026-04-10"), status: PaymentStatus.PAID },
-    { tenantCode: "T02", unitNumber: "Flat 4D", month: 5, year: 2026, rentDue: 9500, amountPaid: 9500, paidDate: new Date("2026-05-06"), status: PaymentStatus.PAID },
+    {
+      tenantCode: "T02",
+      unitNumber: "Flat 4D",
+      month: 4,
+      year: 2026,
+      rentDue: 9500,
+      amountPaid: 9500,
+      paidDate: new Date("2026-04-10"),
+      status: PaymentStatus.PAID,
+    },
+    {
+      tenantCode: "T02",
+      unitNumber: "Flat 4D",
+      month: 5,
+      year: 2026,
+      rentDue: 9500,
+      amountPaid: 9500,
+      paidDate: new Date("2026-05-06"),
+      status: PaymentStatus.PAID,
+    },
     // ── T03 Mintu ──
-    { tenantCode: "T03", unitNumber: "Flat 5A", month: 4, year: 2026, rentDue: 5000, amountPaid: 5000, paidDate: new Date("2026-04-10"), status: PaymentStatus.PAID },
-    { tenantCode: "T03", unitNumber: "Flat 5A", month: 5, year: 2026, rentDue: 5000, amountPaid: 5000, paidDate: new Date("2026-05-09"), status: PaymentStatus.PAID },
+    {
+      tenantCode: "T03",
+      unitNumber: "Flat 5A",
+      month: 4,
+      year: 2026,
+      rentDue: 5000,
+      amountPaid: 5000,
+      paidDate: new Date("2026-04-10"),
+      status: PaymentStatus.PAID,
+    },
+    {
+      tenantCode: "T03",
+      unitNumber: "Flat 5A",
+      month: 5,
+      year: 2026,
+      rentDue: 5000,
+      amountPaid: 5000,
+      paidDate: new Date("2026-05-09"),
+      status: PaymentStatus.PAID,
+    },
     // ── T00 Nasrin (former T04, Flat 2D) ──
-    { tenantCode: "T00", unitNumber: "Flat 2D", month: 3, year: 2026, rentDue: 8500, amountPaid: 7000, paidDate: new Date("2026-03-01"), status: PaymentStatus.PAID },
-    { tenantCode: "T00", unitNumber: "Flat 2D", month: 4, year: 2026, rentDue: 8500, amountPaid: 7000, paidDate: new Date("2026-03-02"), status: PaymentStatus.PAID },
+    {
+      tenantCode: "T00",
+      unitNumber: "Flat 2D",
+      month: 3,
+      year: 2026,
+      rentDue: 8500,
+      amountPaid: 7000,
+      paidDate: new Date("2026-03-01"),
+      status: PaymentStatus.PAID,
+    },
+    {
+      tenantCode: "T00",
+      unitNumber: "Flat 2D",
+      month: 4,
+      year: 2026,
+      rentDue: 8500,
+      amountPaid: 7000,
+      paidDate: new Date("2026-03-02"),
+      status: PaymentStatus.PAID,
+    },
   ];
 
   // Remove stale payments not present in Excel (e.g. old seed had T02/T03 for March 2026)
@@ -306,7 +397,12 @@ async function main() {
 
     const payment = await db.payment.upsert({
       where: { tenantId_month_year: { tenantId: tenant.id, month: p.month, year: p.year } },
-      update: { amountPaid: p.amountPaid, status: p.status, paidDate: p.paidDate, rentDue: p.rentDue },
+      update: {
+        amountPaid: p.amountPaid,
+        status: p.status,
+        paidDate: p.paidDate,
+        rentDue: p.rentDue,
+      },
       create: {
         tenantId: tenant.id,
         unitId,

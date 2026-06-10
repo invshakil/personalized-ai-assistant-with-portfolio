@@ -9,7 +9,8 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { month, year } = body as { month: number; year: number };
 
-  if (!month || !year) return Response.json({ error: "month and year are required" }, { status: 400 });
+  if (!month || !year)
+    return Response.json({ error: "month and year are required" }, { status: 400 });
 
   const data = await generatePayments(month, year);
   return Response.json({ data });

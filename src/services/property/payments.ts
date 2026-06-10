@@ -14,7 +14,10 @@ export async function getPayments(opts: { month?: number; year?: number; tenantI
     include: {
       tenant: {
         select: {
-          id: true, tenantCode: true, name: true, advanceAmount: true,
+          id: true,
+          tenantCode: true,
+          name: true,
+          advanceAmount: true,
           services: {
             where: { isActive: true },
             select: { id: true, monthlyFee: true, service: { select: { name: true } } },
@@ -107,7 +110,12 @@ export async function updatePayment(id: string, input: UpdatePaymentInput) {
   let recalcedStatus: PaymentStatus | undefined;
   if (input.rentDue !== undefined) {
     const total = toNum(existing.amountPaid) + toNum(existing.advanceApplied);
-    recalcedStatus = total >= input.rentDue ? PaymentStatus.PAID : total > 0 ? PaymentStatus.PARTIAL : PaymentStatus.PENDING;
+    recalcedStatus =
+      total >= input.rentDue
+        ? PaymentStatus.PAID
+        : total > 0
+          ? PaymentStatus.PARTIAL
+          : PaymentStatus.PENDING;
   }
 
   const payment = await db.payment.update({

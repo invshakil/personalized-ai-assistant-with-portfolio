@@ -9,9 +9,7 @@ function serializeTenant(t: Record<string, any>) {
     moveInDate: t.moveInDate instanceof Date ? t.moveInDate.toISOString() : t.moveInDate,
     moveOutDate: toIso(t.moveOutDate),
     leaseEndDate: toIso(t.leaseEndDate),
-    unit: t.unit
-      ? { ...t.unit, monthlyRent: toNum(t.unit.monthlyRent) }
-      : null,
+    unit: t.unit ? { ...t.unit, monthlyRent: toNum(t.unit.monthlyRent) } : null,
   };
 }
 
@@ -19,11 +17,15 @@ export type TenantFilter = "active" | "inactive" | "external" | "all" | "future"
 
 export async function getTenants(filter: TenantFilter = "active") {
   const where =
-    filter === "all" ? {} :
-    filter === "external" ? { isExternal: true, isActive: true } :
-    filter === "inactive" ? { isActive: false } :
-    filter === "future" ? { isActive: true, tenantStatus: "FUTURE" as const } :
-    { isActive: true, isExternal: false, tenantStatus: "CURRENT" as const };
+    filter === "all"
+      ? {}
+      : filter === "external"
+        ? { isExternal: true, isActive: true }
+        : filter === "inactive"
+          ? { isActive: false }
+          : filter === "future"
+            ? { isActive: true, tenantStatus: "FUTURE" as const }
+            : { isActive: true, isExternal: false, tenantStatus: "CURRENT" as const };
 
   const tenants = await db.tenant.findMany({
     where,
@@ -38,14 +40,15 @@ export async function getTenants(filter: TenantFilter = "active") {
   });
 
   const inactiveIds = tenants.filter((t) => !t.isActive).map((t) => t.id);
-  const lastPayments = inactiveIds.length > 0
-    ? await db.payment.findMany({
-        where: { tenantId: { in: inactiveIds } },
-        orderBy: [{ year: "desc" }, { month: "desc" }],
-        select: { tenantId: true, rentDue: true },
-        distinct: ["tenantId"],
-      })
-    : [];
+  const lastPayments =
+    inactiveIds.length > 0
+      ? await db.payment.findMany({
+          where: { tenantId: { in: inactiveIds } },
+          orderBy: [{ year: "desc" }, { month: "desc" }],
+          select: { tenantId: true, rentDue: true },
+          distinct: ["tenantId"],
+        })
+      : [];
 
   const lastRentMap: Record<string, number> = {};
   for (const p of lastPayments) lastRentMap[p.tenantId] = toNum(p.rentDue);
@@ -54,7 +57,10 @@ export async function getTenants(filter: TenantFilter = "active") {
   return tenants.map((t) => ({
     ...serializeTenant(t),
     // CURRENT tenants who haven't reached their moveInDate display as FUTURE (Scheduled badge)
-    tenantStatus: t.isActive && t.tenantStatus === "CURRENT" && t.moveInDate > today ? "FUTURE" : t.tenantStatus,
+    tenantStatus:
+      t.isActive && t.tenantStatus === "CURRENT" && t.moveInDate > today
+        ? "FUTURE"
+        : t.tenantStatus,
     lastRent: t.isActive ? null : (lastRentMap[t.id] ?? null),
     services: t.services.map((s) => ({
       id: s.id,
@@ -219,7 +225,8 @@ export async function updateTenant(id: string, input: UpdateTenantInput) {
   if (input.phone !== undefined) data.phone = input.phone;
   if (input.email !== undefined) data.email = input.email;
   if (input.nidNumber !== undefined) data.nidNumber = input.nidNumber;
-  if (input.leaseEndDate !== undefined) data.leaseEndDate = input.leaseEndDate ? new Date(input.leaseEndDate) : null;
+  if (input.leaseEndDate !== undefined)
+    data.leaseEndDate = input.leaseEndDate ? new Date(input.leaseEndDate) : null;
   if (input.advancePaid !== undefined) data.advancePaid = input.advancePaid;
   if (input.advanceAmount !== undefined) data.advanceAmount = input.advanceAmount;
   if (input.advanceSettled !== undefined) data.advanceSettled = input.advanceSettled;
@@ -254,7 +261,10 @@ export async function updateTenant(id: string, input: UpdateTenantInput) {
 }
 
 export async function deactivateTenant(id: string) {
-  const tenant = await db.tenant.findUnique({ where: { id }, select: { unitId: true, tenantStatus: true } });
+  const tenant = await db.tenant.findUnique({
+    where: { id },
+    select: { unitId: true, tenantStatus: true },
+  });
   if (!tenant) throw new Error("Not found");
 
   const unitId = tenant.unitId;
@@ -292,7 +302,10 @@ export async function activateTenant(id: string) {
   const tenant = await db.tenant.findUnique({ where: { id } });
   if (!tenant) throw new Error("Not found");
   if (tenant.isActive) throw new Error("Tenant is already active");
-  await db.tenant.update({ where: { id }, data: { isActive: true, tenantStatus: "CURRENT", moveOutDate: null } });
+  await db.tenant.update({
+    where: { id },
+    data: { isActive: true, tenantStatus: "CURRENT", moveOutDate: null },
+  });
   return { ok: true };
 }
 
@@ -300,8 +313,12 @@ export async function getMoveOutPreview(id: string, moveOutDate: string) {
   const tenant = await db.tenant.findUnique({
     where: { id },
     select: {
-      id: true, name: true, tenantCode: true,
-      advanceAmount: true, advancePaid: true, advanceSettled: true,
+      id: true,
+      name: true,
+      tenantCode: true,
+      advanceAmount: true,
+      advancePaid: true,
+      advanceSettled: true,
     },
   });
   if (!tenant) throw new Error("Not found");
@@ -367,8 +384,7 @@ export async function settleMoveOut(id: string, moveOutDate: string, settlements
       const newAmountPaid = toNum(payment.amountPaid);
       const newTotal = newAmountPaid + newAdvanceApplied;
       const newStatus =
-        newTotal >= toNum(payment.rentDue) ? "PAID" :
-        newTotal > 0 ? "PARTIAL" : "PENDING";
+        newTotal >= toNum(payment.rentDue) ? "PAID" : newTotal > 0 ? "PARTIAL" : "PENDING";
 
       await tx.payment.update({
         where: { id: s.paymentId },
@@ -444,7 +460,10 @@ export async function autoDeactivateExpired() {
         data: { isActive: false, tenantStatus: "PAST", unitId: null, moveOutDate: now },
       });
       if (shouldPromote && futureTenant) {
-        await tx.tenant.update({ where: { id: futureTenant.id }, data: { tenantStatus: "CURRENT" } });
+        await tx.tenant.update({
+          where: { id: futureTenant.id },
+          data: { tenantStatus: "CURRENT" },
+        });
         promoted++;
       } else if (unitId) {
         await tx.unit.update({ where: { id: unitId }, data: { isOccupied: false } });

@@ -19,7 +19,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const { id: paymentId } = await params;
   const body = await req.json();
   const { type, amount, date, notes } = body as {
-    type: TransactionType; amount: number; date: string; notes?: string;
+    type: TransactionType;
+    amount: number;
+    date: string;
+    notes?: string;
   };
 
   if (!type || !amount || !date) {

@@ -2,20 +2,37 @@
 
 import { Card, CardContent, Typography, Box } from "@mui/material";
 import {
-  BarChart, Bar,
-  LineChart, Line,
-  XAxis, YAxis,
-  CartesianGrid, Tooltip, Legend,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
   ResponsiveContainer,
 } from "recharts";
 import type { PropertyDashboardStats } from "@/types";
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
-function fmt(n: number) { return `৳${n.toLocaleString()}`; }
+function fmt(n: number) {
+  return `৳${n.toLocaleString()}`;
+}
 
 interface Props {
   data: PropertyDashboardStats;
@@ -43,7 +60,10 @@ export default function PropertyCharts({ data, month, year }: Props) {
             >
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
               <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#8692a8" }} />
-              <YAxis tick={{ fontSize: 11, fill: "#8692a8" }} tickFormatter={(v) => `৳${(v / 1000).toFixed(0)}k`} />
+              <YAxis
+                tick={{ fontSize: 11, fill: "#8692a8" }}
+                tickFormatter={(v) => `৳${(v / 1000).toFixed(0)}k`}
+              />
               <Tooltip
                 formatter={(v) => [fmt(Number(v ?? 0)), ""]}
                 contentStyle={{ backgroundColor: "#2f3349", border: "none", borderRadius: 8 }}
@@ -61,22 +81,46 @@ export default function PropertyCharts({ data, month, year }: Props) {
             {year} — Yearly Trend
           </Typography>
           <ResponsiveContainer width="99%" height={220} debounce={50}>
-            <LineChart
-              data={data.yearlyData}
-              margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
-            >
+            <LineChart data={data.yearlyData} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
               <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8692a8" }} />
-              <YAxis tick={{ fontSize: 10, fill: "#8692a8" }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
+              <YAxis
+                tick={{ fontSize: 10, fill: "#8692a8" }}
+                tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`}
+              />
               <Tooltip
                 formatter={(v) => [fmt(Number(v ?? 0)), ""]}
                 contentStyle={{ backgroundColor: "#2f3349", border: "none", borderRadius: 8 }}
                 labelStyle={{ color: "#cfd3ec" }}
               />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line type="monotone" dataKey="collected" stroke="#0D7377" strokeWidth={2} dot={false} name="Collected" isAnimationActive={false} />
-              <Line type="monotone" dataKey="expenses" stroke="#C0392B" strokeWidth={2} dot={false} name="Expenses" isAnimationActive={false} />
-              <Line type="monotone" dataKey="netProfit" stroke="#28c76f" strokeWidth={2} dot={false} name="Net Profit" isAnimationActive={false} />
+              <Line
+                type="monotone"
+                dataKey="collected"
+                stroke="#0D7377"
+                strokeWidth={2}
+                dot={false}
+                name="Collected"
+                isAnimationActive={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="expenses"
+                stroke="#C0392B"
+                strokeWidth={2}
+                dot={false}
+                name="Expenses"
+                isAnimationActive={false}
+              />
+              <Line
+                type="monotone"
+                dataKey="netProfit"
+                stroke="#28c76f"
+                strokeWidth={2}
+                dot={false}
+                name="Net Profit"
+                isAnimationActive={false}
+              />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>

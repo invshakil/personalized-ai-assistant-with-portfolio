@@ -54,7 +54,9 @@ function fmt(n: number) {
 
 export default function TenantProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const [tenant, setTenant] = useState<TenantWithUnit & { payments: PaymentWithTenant[] } | null>(null);
+  const [tenant, setTenant] = useState<(TenantWithUnit & { payments: PaymentWithTenant[] }) | null>(
+    null
+  );
   const [loading, setLoading] = useState(true);
   const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set());
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
@@ -75,7 +77,9 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
     }
   }, [id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const togglePayment = (pid: string) => {
     setExpandedPayments((prev) => {
@@ -97,7 +101,12 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
     }
   };
 
-  const openEditRc = (rc: { id: string; effectiveDate: string; newRent: number; reason: string | null }) => {
+  const openEditRc = (rc: {
+    id: string;
+    effectiveDate: string;
+    newRent: number;
+    reason: string | null;
+  }) => {
     setEditRcId(rc.id);
     setEditRcDate(rc.effectiveDate.split("T")[0]);
     setEditRcRent(String(rc.newRent));
@@ -111,7 +120,11 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
       await fetch(`/api/admin/property/rent-changes/${editRcId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ effectiveDate: editRcDate, newRent: Number(editRcRent), reason: editRcReason || null }),
+        body: JSON.stringify({
+          effectiveDate: editRcDate,
+          newRent: Number(editRcRent),
+          reason: editRcReason || null,
+        }),
       });
       setEditRcId(null);
       await load();
@@ -146,8 +159,18 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
   }
 
   const monthLabels = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
   ];
 
   const activeServices = tenant.services.filter((s) => s.isActive);
@@ -173,7 +196,9 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
         subtitle={`${tenant.tenantCode ?? ""} · ${tenant.unit?.unitNumber ?? "External Member"}`}
       />
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, mb: 3 }}>
+      <Box
+        sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, mb: 3 }}
+      >
         {/* Info card */}
         <Card sx={{ bgcolor: "background.paper" }}>
           <CardContent>
@@ -320,7 +345,14 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
 
       {/* Pending rent changes */}
       {pendingChanges.length > 0 && (
-        <Card sx={{ bgcolor: "background.paper", mb: 3, border: "1px solid", borderColor: "warning.main" }}>
+        <Card
+          sx={{
+            bgcolor: "background.paper",
+            mb: 3,
+            border: "1px solid",
+            borderColor: "warning.main",
+          }}
+        >
           <CardContent>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
               <TrendingUp size={16} color="var(--mui-palette-warning-main)" />
@@ -334,26 +366,47 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                   <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                     <Box sx={{ display: "flex", gap: 1 }}>
                       <TextField
-                        label="Effective Date" type="date" size="small" sx={{ flex: 1 }}
-                        value={editRcDate} onChange={(e) => setEditRcDate(e.target.value)}
+                        label="Effective Date"
+                        type="date"
+                        size="small"
+                        sx={{ flex: 1 }}
+                        value={editRcDate}
+                        onChange={(e) => setEditRcDate(e.target.value)}
                         slotProps={{ inputLabel: { shrink: true } }}
                       />
                       <TextField
-                        label="New Rent (৳)" type="number" size="small" sx={{ flex: 1 }}
-                        value={editRcRent} onChange={(e) => setEditRcRent(e.target.value)}
+                        label="New Rent (৳)"
+                        type="number"
+                        size="small"
+                        sx={{ flex: 1 }}
+                        value={editRcRent}
+                        onChange={(e) => setEditRcRent(e.target.value)}
                       />
                     </Box>
                     <TextField
-                      label="Reason (optional)" size="small" fullWidth
-                      value={editRcReason} onChange={(e) => setEditRcReason(e.target.value)}
+                      label="Reason (optional)"
+                      size="small"
+                      fullWidth
+                      value={editRcReason}
+                      onChange={(e) => setEditRcReason(e.target.value)}
                     />
                     <Box sx={{ display: "flex", gap: 1 }}>
-                      <Button size="small" variant="outlined" startIcon={<X size={13} />}
-                        onClick={() => setEditRcId(null)} disabled={rcSaving}>
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<X size={13} />}
+                        onClick={() => setEditRcId(null)}
+                        disabled={rcSaving}
+                      >
                         Cancel
                       </Button>
-                      <Button size="small" variant="contained" startIcon={<Check size={13} />}
-                        onClick={saveEditRc} disabled={rcSaving || !editRcDate || !editRcRent}>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        startIcon={<Check size={13} />}
+                        onClick={saveEditRc}
+                        disabled={rcSaving || !editRcDate || !editRcRent}
+                      >
                         {rcSaving ? "Saving…" : "Save"}
                       </Button>
                     </Box>
@@ -369,7 +422,9 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                       sx={{ bgcolor: "warning.main", color: "#fff", fontSize: "0.6875rem" }}
                     />
                     {rc.reason && (
-                      <Typography variant="caption" color="text.secondary">{rc.reason}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {rc.reason}
+                      </Typography>
                     )}
                     <Box sx={{ ml: "auto", display: "flex", gap: 0.5 }}>
                       <Tooltip title="Edit">
@@ -401,7 +456,9 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
       {/* Payment history */}
       <Card sx={{ bgcolor: "background.paper" }}>
         <CardContent>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+          <Box
+            sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}
+          >
             <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
               Payment History
             </Typography>
@@ -456,7 +513,10 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                               </Typography>
                               {beforeMoveIn && (
                                 <Tooltip title="This period is before the tenant's move-in date">
-                                  <AlertTriangle size={13} color="var(--mui-palette-warning-main)" />
+                                  <AlertTriangle
+                                    size={13}
+                                    color="var(--mui-palette-warning-main)"
+                                  />
                                 </Tooltip>
                               )}
                             </Box>
@@ -465,11 +525,18 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                               <Typography variant="body2">{fmt(p.rentDue)}</Typography>
                               {p.carryForward > 0 && (
-                                <Tooltip title={`Includes ${fmt(p.carryForward)} carried forward from previous month`}>
+                                <Tooltip
+                                  title={`Includes ${fmt(p.carryForward)} carried forward from previous month`}
+                                >
                                   <Chip
                                     label={`+${fmt(p.carryForward)} carry`}
                                     size="small"
-                                    sx={{ bgcolor: "warning.main", color: "#fff", fontSize: "0.6rem", height: 16 }}
+                                    sx={{
+                                      bgcolor: "warning.main",
+                                      color: "#fff",
+                                      fontSize: "0.6rem",
+                                      height: 16,
+                                    }}
                                   />
                                 </Tooltip>
                               )}
@@ -544,9 +611,18 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                                   p.transactions.map((tx) => (
                                     <Box
                                       key={tx.id}
-                                      sx={{ display: "flex", gap: 2, py: 0.5, alignItems: "center" }}
+                                      sx={{
+                                        display: "flex",
+                                        gap: 2,
+                                        py: 0.5,
+                                        alignItems: "center",
+                                      }}
                                     >
-                                      <Typography variant="caption" color="text.secondary" sx={{ width: 90 }}>
+                                      <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{ width: 90 }}
+                                      >
                                         {new Date(tx.date).toLocaleDateString()}
                                       </Typography>
                                       <Chip

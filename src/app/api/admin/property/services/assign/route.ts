@@ -9,7 +9,10 @@ export async function POST(req: NextRequest) {
   const { tenantId, serviceId, monthlyFee, startDate, notes } = await req.json();
 
   if (!tenantId || !serviceId || monthlyFee == null || !startDate) {
-    return Response.json({ error: "tenantId, serviceId, monthlyFee, startDate are required" }, { status: 400 });
+    return Response.json(
+      { error: "tenantId, serviceId, monthlyFee, startDate are required" },
+      { status: 400 }
+    );
   }
 
   const data = await assignService({ tenantId, serviceId, monthlyFee, startDate, notes });

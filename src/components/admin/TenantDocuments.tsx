@@ -2,8 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Box, Typography, Button, IconButton, Tooltip, Chip,
-  CircularProgress, LinearProgress, Alert,
+  Box,
+  Typography,
+  Button,
+  IconButton,
+  Tooltip,
+  Chip,
+  CircularProgress,
+  LinearProgress,
+  Alert,
 } from "@mui/material";
 import { FileUp, FileDown, Trash2, File, FileImage, FileText } from "lucide-react";
 
@@ -53,7 +60,9 @@ export default function TenantDocuments({ tenantId, compact = false }: Props) {
     }
   }, [tenantId]);
 
-  useEffect(() => { fetchDocs(); }, [fetchDocs]);
+  useEffect(() => {
+    fetchDocs();
+  }, [fetchDocs]);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -80,7 +89,9 @@ export default function TenantDocuments({ tenantId, compact = false }: Props) {
   const handleDelete = async (docId: string) => {
     setDeletingId(docId);
     try {
-      await fetch(`/api/admin/property/tenants/${tenantId}/documents/${docId}`, { method: "DELETE" });
+      await fetch(`/api/admin/property/tenants/${tenantId}/documents/${docId}`, {
+        method: "DELETE",
+      });
       setDocs((prev) => prev.filter((d) => d.id !== docId));
     } finally {
       setDeletingId(null);
@@ -152,27 +163,50 @@ export default function TenantDocuments({ tenantId, compact = false }: Props) {
                 "&:hover": { bgcolor: "action.selected" },
               }}
             >
-              <Box sx={{ color: "text.secondary", flexShrink: 0 }}>
-                {fileIcon(doc.mimeType)}
-              </Box>
+              <Box sx={{ color: "text.secondary", flexShrink: 0 }}>{fileIcon(doc.mimeType)}</Box>
 
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography
                   variant="caption"
-                  sx={{ fontWeight: 600, display: "block", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+                  sx={{
+                    fontWeight: 600,
+                    display: "block",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
                 >
                   {doc.fileName}
                 </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.25, flexWrap: "wrap" }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.75,
+                    mt: 0.25,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <Typography variant="caption" color="text.secondary">
                     {fmtSize(doc.size)}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">·</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    {new Date(doc.uploadedAt).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    ·
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {new Date(doc.uploadedAt).toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
                   </Typography>
                   {doc.label && (
-                    <Chip label={doc.label} size="small" variant="outlined" sx={{ height: 16, fontSize: "0.6rem" }} />
+                    <Chip
+                      label={doc.label}
+                      size="small"
+                      variant="outlined"
+                      sx={{ height: 16, fontSize: "0.6rem" }}
+                    />
                   )}
                 </Box>
               </Box>

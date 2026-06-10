@@ -8,10 +8,18 @@ export async function getUnits() {
       tenants: {
         where: { isActive: true },
         select: {
-          id: true, tenantCode: true, name: true, phone: true,
-          isActive: true, isExternal: true, tenantStatus: true,
-          moveInDate: true, leaseEndDate: true,
-          advancePaid: true, advanceAmount: true, advanceSettled: true,
+          id: true,
+          tenantCode: true,
+          name: true,
+          phone: true,
+          isActive: true,
+          isExternal: true,
+          tenantStatus: true,
+          moveInDate: true,
+          leaseEndDate: true,
+          advancePaid: true,
+          advanceAmount: true,
+          advanceSettled: true,
           services: {
             where: { isActive: true },
             select: { id: true, monthlyFee: true, service: { select: { name: true } } },
@@ -31,8 +39,12 @@ export async function getUnits() {
     const today = new Date();
     // A tenant is "current" only if they are CURRENT and have actually moved in.
     // CURRENT tenants with a future moveInDate were promoted early — treat them as future.
-    const currentTenant = u.tenants.find((t) => t.tenantStatus === "CURRENT" && t.moveInDate <= today) ?? null;
-    const futureTenant = u.tenants.find((t) => t.tenantStatus === "FUTURE" || (t.tenantStatus === "CURRENT" && t.moveInDate > today)) ?? null;
+    const currentTenant =
+      u.tenants.find((t) => t.tenantStatus === "CURRENT" && t.moveInDate <= today) ?? null;
+    const futureTenant =
+      u.tenants.find(
+        (t) => t.tenantStatus === "FUTURE" || (t.tenantStatus === "CURRENT" && t.moveInDate > today)
+      ) ?? null;
 
     const serialize = (t: typeof currentTenant) => {
       if (!t) return null;
@@ -43,7 +55,10 @@ export async function getUnits() {
         phone: t.phone,
         isActive: t.isActive,
         isExternal: t.isExternal,
-        tenantStatus: t.tenantStatus === "CURRENT" && t.moveInDate > today ? "FUTURE" : (t.tenantStatus as string),
+        tenantStatus:
+          t.tenantStatus === "CURRENT" && t.moveInDate > today
+            ? "FUTURE"
+            : (t.tenantStatus as string),
         moveInDate: t.moveInDate.toISOString(),
         leaseEndDate: t.leaseEndDate?.toISOString() ?? null,
         advancePaid: t.advancePaid,
@@ -79,10 +94,18 @@ export async function getUnit(id: string) {
     include: {
       tenants: {
         select: {
-          id: true, tenantCode: true, name: true, phone: true,
-          isActive: true, tenantStatus: true,
-          moveInDate: true, moveOutDate: true, leaseEndDate: true,
-          advancePaid: true, advanceAmount: true, advanceSettled: true,
+          id: true,
+          tenantCode: true,
+          name: true,
+          phone: true,
+          isActive: true,
+          tenantStatus: true,
+          moveInDate: true,
+          moveOutDate: true,
+          leaseEndDate: true,
+          advancePaid: true,
+          advanceAmount: true,
+          advanceSettled: true,
           rentChanges: {
             where: { appliedAt: null },
             select: { newRent: true },
@@ -104,7 +127,9 @@ export async function getUnit(id: string) {
     monthlyRent: toNum(unit.monthlyRent),
     description: unit.description,
     notes: unit.notes,
-    isOccupied: unit.tenants.some((t) => t.tenantStatus === "CURRENT" && t.isActive && t.moveInDate <= new Date()),
+    isOccupied: unit.tenants.some(
+      (t) => t.tenantStatus === "CURRENT" && t.isActive && t.moveInDate <= new Date()
+    ),
     tenants: unit.tenants.map((t) => ({
       id: t.id,
       tenantCode: t.tenantCode,

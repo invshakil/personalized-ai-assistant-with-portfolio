@@ -3,19 +3,46 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Box, Typography, Card, CardContent, Chip, Button, CircularProgress,
-  Divider, TextField, Table, TableHead, TableRow, TableCell, TableBody,
-  TableContainer, Dialog, DialogTitle, DialogContent, DialogContentText,
-  DialogActions, Alert,
+  Box,
+  Typography,
+  Card,
+  CardContent,
+  Chip,
+  Button,
+  CircularProgress,
+  Divider,
+  TextField,
+  Table,
+  TableHead,
+  TableRow,
+  TableCell,
+  TableBody,
+  TableContainer,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
+  Alert,
 } from "@mui/material";
 import {
-  ArrowLeft, UserCheck, UserPlus, UserX, Pencil, ExternalLink,
-  Calendar, Phone, DollarSign, Plus,
+  ArrowLeft,
+  UserCheck,
+  UserPlus,
+  UserX,
+  Pencil,
+  ExternalLink,
+  Calendar,
+  Phone,
+  DollarSign,
+  Plus,
 } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
 
-function fmt(n: number) { return `৳${n.toLocaleString()}`; }
+function fmt(n: number) {
+  return `৳${n.toLocaleString()}`;
+}
 
 type TenantHistory = {
   id: string;
@@ -60,13 +87,27 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [editForm, setEditForm] = useState({ unitNumber: "", floor: "", monthlyRent: "", description: "", notes: "" });
+  const [editForm, setEditForm] = useState({
+    unitNumber: "",
+    floor: "",
+    monthlyRent: "",
+    description: "",
+    notes: "",
+  });
   const [addFutureOpen, setAddFutureOpen] = useState(false);
   const [addFutureForm, setAddFutureForm] = useState<AddFutureForm>({
-    name: "", phone: "", moveInDate: "", leaseEndDate: "", advancePaid: false, advanceAmount: "", newRent: "",
+    name: "",
+    phone: "",
+    moveInDate: "",
+    leaseEndDate: "",
+    advancePaid: false,
+    advanceAmount: "",
+    newRent: "",
   });
   const [confirmDialog, setConfirmDialog] = useState<{
-    title: string; message: string; confirmLabel: string;
+    title: string;
+    message: string;
+    confirmLabel: string;
     confirmColor: "error" | "warning" | "success" | "primary";
     onConfirm: () => Promise<void>;
   } | null>(null);
@@ -77,7 +118,10 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
     try {
       const res = await fetch(`/api/admin/property/units/${unitId}`);
       const json = await res.json();
-      if (json.error) { router.push("/admin/property"); return; }
+      if (json.error) {
+        router.push("/admin/property");
+        return;
+      }
       const u: UnitDetail = json.data;
       setUnit(u);
       setEditForm({
@@ -92,7 +136,9 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
     }
   }, [unitId, router]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const saveUnit = async () => {
     setSaving(true);
@@ -116,16 +162,22 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
   };
 
   const openConfirm = (
-    title: string, message: string, confirmLabel: string,
+    title: string,
+    message: string,
+    confirmLabel: string,
     confirmColor: "error" | "warning" | "success" | "primary",
-    onConfirm: () => Promise<void>,
+    onConfirm: () => Promise<void>
   ) => setConfirmDialog({ title, message, confirmLabel, confirmColor, onConfirm });
 
   const runConfirm = async () => {
     if (!confirmDialog) return;
     setConfirmLoading(true);
-    try { await confirmDialog.onConfirm(); }
-    finally { setConfirmLoading(false); setConfirmDialog(null); }
+    try {
+      await confirmDialog.onConfirm();
+    } finally {
+      setConfirmLoading(false);
+      setConfirmDialog(null);
+    }
   };
 
   const moveOut = (t: TenantHistory) => {
@@ -140,7 +192,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
       async () => {
         await fetch(`/api/admin/property/tenants/${t.id}/deactivate`, { method: "POST" });
         await load();
-      },
+      }
     );
   };
 
@@ -153,7 +205,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
       async () => {
         await fetch(`/api/admin/property/tenants/${current.id}/deactivate`, { method: "POST" });
         await load();
-      },
+      }
     );
   };
 
@@ -194,7 +246,15 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         });
       }
       setAddFutureOpen(false);
-      setAddFutureForm({ name: "", phone: "", moveInDate: "", leaseEndDate: "", advancePaid: false, advanceAmount: "", newRent: "" });
+      setAddFutureForm({
+        name: "",
+        phone: "",
+        moveInDate: "",
+        leaseEndDate: "",
+        advancePaid: false,
+        advanceAmount: "",
+        newRent: "",
+      });
       await load();
     } finally {
       setSaving(false);
@@ -209,7 +269,8 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
     );
   }
 
-  const currentTenant = unit.tenants.find((t) => t.tenantStatus === "CURRENT" && t.isActive) ?? null;
+  const currentTenant =
+    unit.tenants.find((t) => t.tenantStatus === "CURRENT" && t.isActive) ?? null;
   const futureTenant = unit.tenants.find((t) => t.tenantStatus === "FUTURE" && t.isActive) ?? null;
   const pastTenants = unit.tenants.filter((t) => t.tenantStatus === "PAST" || !t.isActive);
 
@@ -234,58 +295,120 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         <CardContent>
           {editMode ? (
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2, maxWidth: 480 }}>
-              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>Edit Unit</Typography>
-              <TextField label="Unit Number" value={editForm.unitNumber}
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                Edit Unit
+              </Typography>
+              <TextField
+                label="Unit Number"
+                value={editForm.unitNumber}
                 onChange={(e) => setEditForm((p) => ({ ...p, unitNumber: e.target.value }))}
-                size="small" fullWidth />
-              <TextField label="Floor" value={editForm.floor}
+                size="small"
+                fullWidth
+              />
+              <TextField
+                label="Floor"
+                value={editForm.floor}
                 onChange={(e) => setEditForm((p) => ({ ...p, floor: e.target.value }))}
-                size="small" fullWidth />
-              <TextField label="Monthly Rent (৳)" type="number" value={editForm.monthlyRent}
+                size="small"
+                fullWidth
+              />
+              <TextField
+                label="Monthly Rent (৳)"
+                type="number"
+                value={editForm.monthlyRent}
                 onChange={(e) => setEditForm((p) => ({ ...p, monthlyRent: e.target.value }))}
-                size="small" fullWidth />
-              <TextField label="Description" value={editForm.description}
+                size="small"
+                fullWidth
+              />
+              <TextField
+                label="Description"
+                value={editForm.description}
                 onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
-                size="small" fullWidth multiline rows={2} />
-              <TextField label="Notes" value={editForm.notes}
+                size="small"
+                fullWidth
+                multiline
+                rows={2}
+              />
+              <TextField
+                label="Notes"
+                value={editForm.notes}
                 onChange={(e) => setEditForm((p) => ({ ...p, notes: e.target.value }))}
-                size="small" fullWidth multiline rows={2} />
+                size="small"
+                fullWidth
+                multiline
+                rows={2}
+              />
               <Box sx={{ display: "flex", gap: 1 }}>
-                <Button variant="outlined" size="small" onClick={() => setEditMode(false)} disabled={saving}>Cancel</Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={() => setEditMode(false)}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
                 <Button variant="contained" size="small" onClick={saveUnit} disabled={saving}>
                   {saving ? "Saving…" : "Save"}
                 </Button>
               </Box>
             </Box>
           ) : (
-            <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 2 }}>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: 2,
+              }}
+            >
               <Box sx={{ display: "flex", gap: 3, flexWrap: "wrap" }}>
                 <Box>
-                  <Typography variant="caption" color="text.secondary">Floor</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Floor
+                  </Typography>
                   <Typography variant="body2">{unit.floor}</Typography>
                 </Box>
                 <Box>
-                  <Typography variant="caption" color="text.secondary">Monthly Rent</Typography>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{fmt(unit.monthlyRent)}</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Monthly Rent
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {fmt(unit.monthlyRent)}
+                  </Typography>
                 </Box>
                 <Box>
-                  <Typography variant="caption" color="text.secondary">Status</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Status
+                  </Typography>
                   <Box sx={{ mt: 0.25 }}>
                     <Chip
                       label={unit.isOccupied ? "Occupied" : "Vacant"}
                       size="small"
-                      sx={{ bgcolor: unit.isOccupied ? "success.main" : "warning.main", color: "#fff", fontSize: "0.6875rem", fontWeight: 600 }}
+                      sx={{
+                        bgcolor: unit.isOccupied ? "success.main" : "warning.main",
+                        color: "#fff",
+                        fontSize: "0.6875rem",
+                        fontWeight: 600,
+                      }}
                     />
                   </Box>
                 </Box>
                 {unit.description && (
                   <Box>
-                    <Typography variant="caption" color="text.secondary">Description</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Description
+                    </Typography>
                     <Typography variant="body2">{unit.description}</Typography>
                   </Box>
                 )}
               </Box>
-              <Button variant="outlined" size="small" startIcon={<Pencil size={14} />} onClick={() => setEditMode(true)}>
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Pencil size={14} />}
+                onClick={() => setEditMode(true)}
+              >
                 Edit Unit
               </Button>
             </Box>
@@ -293,11 +416,22 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         </CardContent>
       </Card>
 
-      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, mb: 3 }}>
+      <Box
+        sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, mb: 3 }}
+      >
         {/* Current Tenant */}
-        <Card sx={{ bgcolor: "background.paper", borderLeft: "4px solid", borderColor: currentTenant ? "success.main" : "divider" }}>
+        <Card
+          sx={{
+            bgcolor: "background.paper",
+            borderLeft: "4px solid",
+            borderColor: currentTenant ? "success.main" : "divider",
+          }}
+        >
           <CardContent>
-            <Typography variant="overline" sx={{ color: "success.main", fontSize: "0.6875rem", fontWeight: 700 }}>
+            <Typography
+              variant="overline"
+              sx={{ color: "success.main", fontSize: "0.6875rem", fontWeight: 700 }}
+            >
               Current Tenant
             </Typography>
             {currentTenant ? (
@@ -305,8 +439,12 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
                   <UserCheck size={18} color="var(--mui-palette-success-main)" />
                   <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{currentTenant.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">{currentTenant.tenantCode}</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {currentTenant.name}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {currentTenant.tenantCode}
+                    </Typography>
                   </Box>
                 </Box>
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mb: 2 }}>
@@ -319,41 +457,71 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <Calendar size={13} />
                     <Typography variant="body2">
-                      Move-in: {new Date(currentTenant.moveInDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                      Move-in:{" "}
+                      {new Date(currentTenant.moveInDate).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </Typography>
                   </Box>
                   {currentTenant.leaseEndDate && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Calendar size={13} />
                       <Typography variant="body2">
-                        Lease ends: {new Date(currentTenant.leaseEndDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        Lease ends:{" "}
+                        {new Date(currentTenant.leaseEndDate).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </Typography>
                     </Box>
                   )}
                   {currentTenant.advancePaid && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <DollarSign size={13} />
-                      <Typography variant="body2">Advance: {fmt(currentTenant.advanceAmount)}</Typography>
+                      <Typography variant="body2">
+                        Advance: {fmt(currentTenant.advanceAmount)}
+                      </Typography>
                     </Box>
                   )}
                 </Box>
                 <Box sx={{ display: "flex", gap: 1 }}>
-                  <Button component={Link} href={`/admin/property/tenants/${currentTenant.id}`}
-                    variant="outlined" size="small" startIcon={<ExternalLink size={13} />} sx={{ flex: 1 }}>
+                  <Button
+                    component={Link}
+                    href={`/admin/property/tenants/${currentTenant.id}`}
+                    variant="outlined"
+                    size="small"
+                    startIcon={<ExternalLink size={13} />}
+                    sx={{ flex: 1 }}
+                  >
                     Profile
                   </Button>
-                  <Button variant="outlined" color="error" size="small"
-                    startIcon={<UserX size={13} />} sx={{ flex: 1 }}
-                    onClick={() => moveOut(currentTenant)}>
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size="small"
+                    startIcon={<UserX size={13} />}
+                    sx={{ flex: 1 }}
+                    onClick={() => moveOut(currentTenant)}
+                  >
                     Move Out{futureTenant ? ` (→ ${futureTenant.name})` : ""}
                   </Button>
                 </Box>
               </Box>
             ) : (
               <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1 }}>
-                <Typography variant="body2" color="text.secondary">This unit is currently vacant.</Typography>
-                <Button variant="contained" size="small" startIcon={<Plus size={14} />}
-                  onClick={() => setAddFutureOpen(true)} sx={{ alignSelf: "flex-start" }}>
+                <Typography variant="body2" color="text.secondary">
+                  This unit is currently vacant.
+                </Typography>
+                <Button
+                  variant="contained"
+                  size="small"
+                  startIcon={<Plus size={14} />}
+                  onClick={() => setAddFutureOpen(true)}
+                  sx={{ alignSelf: "flex-start" }}
+                >
                   Add Tenant
                 </Button>
               </Box>
@@ -362,9 +530,18 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         </Card>
 
         {/* Future Tenant */}
-        <Card sx={{ bgcolor: "background.paper", borderLeft: "4px solid", borderColor: futureTenant ? "warning.main" : "divider" }}>
+        <Card
+          sx={{
+            bgcolor: "background.paper",
+            borderLeft: "4px solid",
+            borderColor: futureTenant ? "warning.main" : "divider",
+          }}
+        >
           <CardContent>
-            <Typography variant="overline" sx={{ color: "warning.main", fontSize: "0.6875rem", fontWeight: 700 }}>
+            <Typography
+              variant="overline"
+              sx={{ color: "warning.main", fontSize: "0.6875rem", fontWeight: 700 }}
+            >
               Scheduled Future Tenant
             </Typography>
             {futureTenant ? (
@@ -372,7 +549,9 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
                   <UserPlus size={18} color="var(--mui-palette-warning-main)" />
                   <Box>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{futureTenant.name}</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      {futureTenant.name}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
                       {futureTenant.tenantCode}
                       {futureTenant.scheduledRent
@@ -382,10 +561,22 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
                   </Box>
                 </Box>
                 {futureTenant.scheduledRent && futureTenant.scheduledRent !== unit.monthlyRent && (
-                  <Box sx={{ bgcolor: "action.selected", px: 1.5, py: 1, borderRadius: 1, mb: 1.5, display: "flex", gap: 1, alignItems: "center" }}>
+                  <Box
+                    sx={{
+                      bgcolor: "action.selected",
+                      px: 1.5,
+                      py: 1,
+                      borderRadius: 1,
+                      mb: 1.5,
+                      display: "flex",
+                      gap: 1,
+                      alignItems: "center",
+                    }}
+                  >
                     <DollarSign size={13} />
                     <Typography variant="caption">
-                      Rent changes from {fmt(unit.monthlyRent)} → <strong>{fmt(futureTenant.scheduledRent)}</strong> on their move-in date
+                      Rent changes from {fmt(unit.monthlyRent)} →{" "}
+                      <strong>{fmt(futureTenant.scheduledRent)}</strong> on their move-in date
                     </Typography>
                   </Box>
                 )}
@@ -399,27 +590,48 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <Calendar size={13} />
                     <Typography variant="body2">
-                      Move-in: {new Date(futureTenant.moveInDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                      Move-in:{" "}
+                      {new Date(futureTenant.moveInDate).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </Typography>
                   </Box>
                   {futureTenant.leaseEndDate && (
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                       <Calendar size={13} />
                       <Typography variant="body2">
-                        Lease ends: {new Date(futureTenant.leaseEndDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        Lease ends:{" "}
+                        {new Date(futureTenant.leaseEndDate).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </Typography>
                     </Box>
                   )}
                 </Box>
                 <Box sx={{ display: "flex", gap: 1 }}>
-                  <Button component={Link} href={`/admin/property/tenants/${futureTenant.id}`}
-                    variant="outlined" size="small" startIcon={<ExternalLink size={13} />} sx={{ flex: 1 }}>
+                  <Button
+                    component={Link}
+                    href={`/admin/property/tenants/${futureTenant.id}`}
+                    variant="outlined"
+                    size="small"
+                    startIcon={<ExternalLink size={13} />}
+                    sx={{ flex: 1 }}
+                  >
                     Profile
                   </Button>
                   {currentTenant && (
-                    <Button variant="outlined" color="warning" size="small"
-                      startIcon={<UserCheck size={13} />} sx={{ flex: 1 }}
-                      onClick={() => promoteNow(currentTenant, futureTenant)}>
+                    <Button
+                      variant="outlined"
+                      color="warning"
+                      size="small"
+                      startIcon={<UserCheck size={13} />}
+                      sx={{ flex: 1 }}
+                      onClick={() => promoteNow(currentTenant, futureTenant)}
+                    >
                       Promote Now
                     </Button>
                   )}
@@ -427,15 +639,25 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
               </Box>
             ) : currentTenant ? (
               <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 1 }}>
-                <Typography variant="body2" color="text.secondary">No future tenant scheduled.</Typography>
-                <Button variant="outlined" color="warning" size="small" startIcon={<Plus size={14} />}
-                  onClick={() => setAddFutureOpen(true)} sx={{ alignSelf: "flex-start" }}>
+                <Typography variant="body2" color="text.secondary">
+                  No future tenant scheduled.
+                </Typography>
+                <Button
+                  variant="outlined"
+                  color="warning"
+                  size="small"
+                  startIcon={<Plus size={14} />}
+                  onClick={() => setAddFutureOpen(true)}
+                  sx={{ alignSelf: "flex-start" }}
+                >
                   Schedule Future Tenant
                 </Button>
               </Box>
             ) : (
               <Box sx={{ mt: 2 }}>
-                <Typography variant="body2" color="text.secondary">Unit is vacant — add a current tenant first.</Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Unit is vacant — add a current tenant first.
+                </Typography>
               </Box>
             )}
           </CardContent>
@@ -478,51 +700,84 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
             <TableBody>
               {pastTenants.map((t) => (
                 <TableRow key={t.id} hover>
-                  <TableCell><Chip label={t.tenantCode ?? "—"} size="small" variant="outlined" /></TableCell>
                   <TableCell>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.name}</Typography>
+                    <Chip label={t.tenantCode ?? "—"} size="small" variant="outlined" />
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2" color="text.secondary">{t.phone ?? "—"}</Typography>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {t.name}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary">
+                      {t.phone ?? "—"}
+                    </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
-                      {new Date(t.moveInDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                      {new Date(t.moveInDate).toLocaleDateString("en-GB", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     {t.moveOutDate ? (
                       <Typography variant="body2">
-                        {new Date(t.moveOutDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        {new Date(t.moveOutDate).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </Typography>
                     ) : (
-                      <Typography variant="caption" color="text.secondary">—</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        —
+                      </Typography>
                     )}
                   </TableCell>
                   <TableCell>
                     {t.leaseEndDate ? (
                       <Typography variant="body2">
-                        {new Date(t.leaseEndDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                        {new Date(t.leaseEndDate).toLocaleDateString("en-GB", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
                       </Typography>
                     ) : (
-                      <Typography variant="caption" color="text.secondary">—</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        —
+                      </Typography>
                     )}
                   </TableCell>
                   <TableCell>
                     {t.advancePaid ? (
                       <Box>
-                        <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>{fmt(t.advanceAmount)}</Typography>
+                        <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>
+                          {fmt(t.advanceAmount)}
+                        </Typography>
                         {t.advanceSettled && (
-                          <Typography variant="caption" color="success.main">Settled</Typography>
+                          <Typography variant="caption" color="success.main">
+                            Settled
+                          </Typography>
                         )}
                       </Box>
                     ) : (
-                      <Typography variant="caption" color="text.secondary">None</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        None
+                      </Typography>
                     )}
                   </TableCell>
                   <TableCell>
-                    <Button component={Link} href={`/admin/property/tenants/${t.id}`}
-                      size="small" startIcon={<ExternalLink size={13} />} sx={{ fontSize: "0.75rem" }}>
+                    <Button
+                      component={Link}
+                      href={`/admin/property/tenants/${t.id}`}
+                      size="small"
+                      startIcon={<ExternalLink size={13} />}
+                      sx={{ fontSize: "0.75rem" }}
+                    >
                       View
                     </Button>
                   </TableCell>
@@ -534,34 +789,65 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
       )}
 
       {/* Add Future / Current Tenant dialog */}
-      <Dialog open={addFutureOpen} onClose={() => setAddFutureOpen(false)}
-        slotProps={{ paper: { sx: { bgcolor: "background.paper", borderRadius: 2, minWidth: 360 } } }}>
+      <Dialog
+        open={addFutureOpen}
+        onClose={() => setAddFutureOpen(false)}
+        slotProps={{
+          paper: { sx: { bgcolor: "background.paper", borderRadius: 2, minWidth: 360 } },
+        }}
+      >
         <DialogTitle sx={{ fontWeight: 700 }}>
           {currentTenant ? "Schedule Future Tenant" : "Add Tenant"}
         </DialogTitle>
         <DialogContent>
           {currentTenant && (
             <Alert severity="info" sx={{ mb: 2, fontSize: "0.8rem" }}>
-              This unit is occupied by <strong>{currentTenant.name}</strong>. The new tenant will be queued as a future tenant and will become active when {currentTenant.name} moves out.
+              This unit is occupied by <strong>{currentTenant.name}</strong>. The new tenant will be
+              queued as a future tenant and will become active when {currentTenant.name} moves out.
             </Alert>
           )}
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
-            <TextField label="Full Name" value={addFutureForm.name} size="small" fullWidth required
-              onChange={(e) => setAddFutureForm((p) => ({ ...p, name: e.target.value }))} />
-            <TextField label="Phone" value={addFutureForm.phone} size="small" fullWidth
-              onChange={(e) => setAddFutureForm((p) => ({ ...p, phone: e.target.value }))} />
-            <TextField label="Move-in Date" type="date" value={addFutureForm.moveInDate} size="small" fullWidth required
+            <TextField
+              label="Full Name"
+              value={addFutureForm.name}
+              size="small"
+              fullWidth
+              required
+              onChange={(e) => setAddFutureForm((p) => ({ ...p, name: e.target.value }))}
+            />
+            <TextField
+              label="Phone"
+              value={addFutureForm.phone}
+              size="small"
+              fullWidth
+              onChange={(e) => setAddFutureForm((p) => ({ ...p, phone: e.target.value }))}
+            />
+            <TextField
+              label="Move-in Date"
+              type="date"
+              value={addFutureForm.moveInDate}
+              size="small"
+              fullWidth
+              required
               onChange={(e) => setAddFutureForm((p) => ({ ...p, moveInDate: e.target.value }))}
-              slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField label="Lease End Date" type="date" value={addFutureForm.leaseEndDate} size="small" fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Lease End Date"
+              type="date"
+              value={addFutureForm.leaseEndDate}
+              size="small"
+              fullWidth
               onChange={(e) => setAddFutureForm((p) => ({ ...p, leaseEndDate: e.target.value }))}
-              slotProps={{ inputLabel: { shrink: true } }} />
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
             <TextField
               label={currentTenant ? "New Rent (৳)" : "Monthly Rent (৳)"}
               type="number"
               value={addFutureForm.newRent}
               onChange={(e) => setAddFutureForm((p) => ({ ...p, newRent: e.target.value }))}
-              size="small" fullWidth
+              size="small"
+              fullWidth
               placeholder={String(unit?.monthlyRent ?? "")}
               helperText={
                 currentTenant
@@ -574,28 +860,59 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button variant="outlined" size="small" onClick={() => setAddFutureOpen(false)} disabled={saving} sx={{ flex: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setAddFutureOpen(false)}
+            disabled={saving}
+            sx={{ flex: 1 }}
+          >
             Cancel
           </Button>
-          <Button variant="contained" size="small" onClick={addFutureTenant}
-            disabled={saving || !addFutureForm.name || !addFutureForm.moveInDate} sx={{ flex: 1 }}>
+          <Button
+            variant="contained"
+            size="small"
+            onClick={addFutureTenant}
+            disabled={saving || !addFutureForm.name || !addFutureForm.moveInDate}
+            sx={{ flex: 1 }}
+          >
             {saving ? "Adding…" : currentTenant ? "Schedule" : "Add Tenant"}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Confirmation dialog */}
-      <Dialog open={!!confirmDialog} onClose={() => !confirmLoading && setConfirmDialog(null)}
-        slotProps={{ paper: { sx: { bgcolor: "background.paper", borderRadius: 2, minWidth: 340 } } }}>
+      <Dialog
+        open={!!confirmDialog}
+        onClose={() => !confirmLoading && setConfirmDialog(null)}
+        slotProps={{
+          paper: { sx: { bgcolor: "background.paper", borderRadius: 2, minWidth: 340 } },
+        }}
+      >
         <DialogTitle sx={{ fontWeight: 700, fontSize: "1rem" }}>{confirmDialog?.title}</DialogTitle>
         <DialogContent>
-          <DialogContentText sx={{ color: "text.secondary" }}>{confirmDialog?.message}</DialogContentText>
+          <DialogContentText sx={{ color: "text.secondary" }}>
+            {confirmDialog?.message}
+          </DialogContentText>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button variant="outlined" size="small" onClick={() => setConfirmDialog(null)}
-            disabled={confirmLoading} sx={{ flex: 1 }}>Cancel</Button>
-          <Button variant="contained" size="small" color={confirmDialog?.confirmColor ?? "primary"}
-            onClick={runConfirm} disabled={confirmLoading} sx={{ flex: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setConfirmDialog(null)}
+            disabled={confirmLoading}
+            sx={{ flex: 1 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            color={confirmDialog?.confirmColor ?? "primary"}
+            onClick={runConfirm}
+            disabled={confirmLoading}
+            sx={{ flex: 1 }}
+          >
             {confirmLoading ? "Please wait…" : (confirmDialog?.confirmLabel ?? "Confirm")}
           </Button>
         </DialogActions>

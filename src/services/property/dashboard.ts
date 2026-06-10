@@ -1,7 +1,20 @@
 import { db } from "@/lib/db";
 import { toNum, toIso } from "./_serializers";
 
-const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_LABELS = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 export async function getDashboardStats(month: number, year: number) {
   const [monthPayments, monthExpenses] = await Promise.all([
@@ -13,7 +26,10 @@ export async function getDashboardStats(month: number, year: number) {
   ]);
 
   const totalExpected = monthPayments.reduce((sum, p) => sum + toNum(p.rentDue), 0);
-  const totalCollected = monthPayments.reduce((sum, p) => sum + toNum(p.amountPaid) + toNum(p.advanceApplied), 0);
+  const totalCollected = monthPayments.reduce(
+    (sum, p) => sum + toNum(p.amountPaid) + toNum(p.advanceApplied),
+    0
+  );
   const totalExpenses = monthExpenses.reduce((sum, e) => sum + toNum(e.amount), 0);
   const overdueCount = monthPayments.filter((p) => p.status === "OVERDUE").length;
 
@@ -39,8 +55,14 @@ export async function getDashboardStats(month: number, year: number) {
   });
 
   type DueEntry = {
-    tenantId: string; tenantCode: string | null; tenantName: string; unitNumber: string | null;
-    totalDue: number; monthsUnpaid: number; lastPaidDate: string | null; alert: "OVERDUE" | "PENDING";
+    tenantId: string;
+    tenantCode: string | null;
+    tenantName: string;
+    unitNumber: string | null;
+    totalDue: number;
+    monthsUnpaid: number;
+    lastPaidDate: string | null;
+    alert: "OVERDUE" | "PENDING";
   };
 
   const dueMap = new Map<string, DueEntry>();
@@ -54,9 +76,14 @@ export async function getDashboardStats(month: number, year: number) {
       if (p.status === "OVERDUE") existing.alert = "OVERDUE";
     } else {
       dueMap.set(p.tenantId, {
-        tenantId: p.tenantId, tenantCode: p.tenant.tenantCode, tenantName: p.tenant.name,
-        unitNumber: p.unit?.unitNumber ?? null, totalDue: balance, monthsUnpaid: 1,
-        lastPaidDate: null, alert: p.status === "OVERDUE" ? "OVERDUE" : "PENDING",
+        tenantId: p.tenantId,
+        tenantCode: p.tenant.tenantCode,
+        tenantName: p.tenant.name,
+        unitNumber: p.unit?.unitNumber ?? null,
+        totalDue: balance,
+        monthsUnpaid: 1,
+        lastPaidDate: null,
+        alert: p.status === "OVERDUE" ? "OVERDUE" : "PENDING",
       });
     }
   }
@@ -76,11 +103,16 @@ export async function getDashboardStats(month: number, year: number) {
     }
   }
 
-  const topDue = Array.from(dueMap.values()).sort((a, b) => b.totalDue - a.totalDue).slice(0, 10);
+  const topDue = Array.from(dueMap.values())
+    .sort((a, b) => b.totalDue - a.totalDue)
+    .slice(0, 10);
 
   // Yearly trend data
   const [yearPayments, yearExpenses] = await Promise.all([
-    db.payment.findMany({ where: { year }, select: { month: true, amountPaid: true, advanceApplied: true } }),
+    db.payment.findMany({
+      where: { year },
+      select: { month: true, amountPaid: true, advanceApplied: true },
+    }),
     db.expense.findMany({ where: { year }, select: { month: true, amount: true } }),
   ]);
 
@@ -89,7 +121,9 @@ export async function getDashboardStats(month: number, year: number) {
     const collected = yearPayments
       .filter((p) => p.month === m)
       .reduce((sum, p) => sum + toNum(p.amountPaid) + toNum(p.advanceApplied), 0);
-    const expenses = yearExpenses.filter((e) => e.month === m).reduce((sum, e) => sum + toNum(e.amount), 0);
+    const expenses = yearExpenses
+      .filter((e) => e.month === m)
+      .reduce((sum, e) => sum + toNum(e.amount), 0);
     return { month: m, label, collected, expenses, netProfit: collected - expenses };
   });
 
@@ -101,20 +135,30 @@ export async function getDashboardStats(month: number, year: number) {
   });
 
   return {
-    month, year,
-    totalExpected, totalCollected, totalExpenses,
+    month,
+    year,
+    totalExpected,
+    totalCollected,
+    totalExpenses,
     netProfit: totalCollected - totalExpenses,
-    activeTenantsCount, occupiedUnits, totalUnits,
+    activeTenantsCount,
+    occupiedUnits,
+    totalUnits,
     tenantsWithAdvance: advanceStats._count.id,
     totalAdvanceHeld: toNum(advanceStats._sum.advanceAmount),
     overdueCount,
-    yearlyData, topDue,
+    yearlyData,
+    topDue,
     pendingRentChanges: pendingRentChanges.map((rc) => ({
-      id: rc.id, tenantId: rc.tenantId,
-      tenantCode: rc.tenant.tenantCode, tenantName: rc.tenant.name,
+      id: rc.id,
+      tenantId: rc.tenantId,
+      tenantCode: rc.tenant.tenantCode,
+      tenantName: rc.tenant.name,
       effectiveDate: rc.effectiveDate.toISOString(),
-      previousRent: toNum(rc.previousRent), newRent: toNum(rc.newRent),
-      reason: rc.reason, appliedAt: null,
+      previousRent: toNum(rc.previousRent),
+      newRent: toNum(rc.newRent),
+      reason: rc.reason,
+      appliedAt: null,
     })),
   };
 }

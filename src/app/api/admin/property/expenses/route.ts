@@ -20,15 +20,37 @@ export async function POST(req: NextRequest) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { description, amount, category, month, year, expenseDate, paidTo, paymentMode, unitId, notes } = body;
+  const {
+    description,
+    amount,
+    category,
+    month,
+    year,
+    expenseDate,
+    paidTo,
+    paymentMode,
+    unitId,
+    notes,
+  } = body;
 
   if (!description || !amount || !category || !month || !year) {
-    return Response.json({ error: "description, amount, category, month, year are required" }, { status: 400 });
+    return Response.json(
+      { error: "description, amount, category, month, year are required" },
+      { status: 400 }
+    );
   }
 
   const data = await createExpense({
-    description, amount, category: category as ExpenseCategory,
-    month, year, expenseDate, paidTo, paymentMode, unitId, notes,
+    description,
+    amount,
+    category: category as ExpenseCategory,
+    month,
+    year,
+    expenseDate,
+    paidTo,
+    paymentMode,
+    unitId,
+    notes,
   });
   return Response.json({ data }, { status: 201 });
 }

@@ -10,7 +10,10 @@ function recalcStatus(rentDue: number, amountPaid: number, advanceApplied: numbe
 }
 
 async function assignReceiptIfNeeded(paymentId: string, year: number) {
-  const payment = await db.payment.findUnique({ where: { id: paymentId }, select: { receiptNumber: true } });
+  const payment = await db.payment.findUnique({
+    where: { id: paymentId },
+    select: { receiptNumber: true },
+  });
   if (payment?.receiptNumber) return;
   const count = await db.payment.count({ where: { year, receiptNumber: { not: null } } });
   const receiptNumber = `RCP-${year}-${String(count + 1).padStart(4, "0")}`;
@@ -61,8 +64,12 @@ export async function addTransaction(input: AddTransactionInput) {
       data: { paymentId, type, amount, date: new Date(date), notes: notes ?? null },
     });
 
-    const newAmountPaid = isAdvance ? toNum(payment.amountPaid) : toNum(payment.amountPaid) + amount;
-    const newAdvanceApplied = isAdvance ? toNum(payment.advanceApplied) + amount : toNum(payment.advanceApplied);
+    const newAmountPaid = isAdvance
+      ? toNum(payment.amountPaid)
+      : toNum(payment.amountPaid) + amount;
+    const newAdvanceApplied = isAdvance
+      ? toNum(payment.advanceApplied) + amount
+      : toNum(payment.advanceApplied);
     const newStatus = recalcStatus(toNum(payment.rentDue), newAmountPaid, newAdvanceApplied);
 
     await prisma.payment.update({
@@ -71,7 +78,8 @@ export async function addTransaction(input: AddTransactionInput) {
         amountPaid: newAmountPaid,
         advanceApplied: newAdvanceApplied,
         status: newStatus,
-        paidDate: newStatus === "PAID" || newStatus === "PARTIAL" ? new Date(date) : payment.paidDate,
+        paidDate:
+          newStatus === "PAID" || newStatus === "PARTIAL" ? new Date(date) : payment.paidDate,
       },
     });
 
@@ -85,12 +93,20 @@ export async function addTransaction(input: AddTransactionInput) {
     return transaction;
   });
 
-  const updated = await db.payment.findUnique({ where: { id: paymentId }, select: { status: true, year: true } });
+  const updated = await db.payment.findUnique({
+    where: { id: paymentId },
+    select: { status: true, year: true },
+  });
   if (updated && (updated.status === "PAID" || updated.status === "PARTIAL")) {
     await assignReceiptIfNeeded(paymentId, updated.year);
   }
 
-  return { ...tx, amount: toNum(tx.amount), date: tx.date.toISOString(), createdAt: tx.createdAt.toISOString() };
+  return {
+    ...tx,
+    amount: toNum(tx.amount),
+    date: tx.date.toISOString(),
+    createdAt: tx.createdAt.toISOString(),
+  };
 }
 
 export interface UpdateTransactionInput {
@@ -111,7 +127,7 @@ export async function updateTransaction(txId: string, input: UpdateTransactionIn
   const newType = input.type ?? tx.type;
   const newAmount = input.amount ?? toNum(tx.amount);
   const newDate = input.date ? new Date(input.date) : tx.date;
-  const newNotes = input.notes !== undefined ? (input.notes || null) : tx.notes;
+  const newNotes = input.notes !== undefined ? input.notes || null : tx.notes;
 
   const oldIsAdvance = tx.type === TransactionType.ADVANCE_APPLIED;
   const newIsAdvance = newType === TransactionType.ADVANCE_APPLIED;
@@ -128,7 +144,8 @@ export async function updateTransaction(txId: string, input: UpdateTransactionIn
   }
 
   if (newIsAdvance) {
-    const availableAdvance = toNum(payment.tenant.advanceAmount) + (oldIsAdvance ? toNum(tx.amount) : 0);
+    const availableAdvance =
+      toNum(payment.tenant.advanceAmount) + (oldIsAdvance ? toNum(tx.amount) : 0);
     if (newAmount > availableAdvance) {
       throw new Error(`Cannot apply ৳${newAmount} — only ৳${availableAdvance} advance available`);
     }
@@ -180,8 +197,12 @@ export async function deleteTransaction(txId: string) {
   const isAdvance = tx.type === TransactionType.ADVANCE_APPLIED;
   const txAmount = toNum(tx.amount);
 
-  const newAmountPaid = isAdvance ? toNum(payment.amountPaid) : toNum(payment.amountPaid) - txAmount;
-  const newAdvanceApplied = isAdvance ? toNum(payment.advanceApplied) - txAmount : toNum(payment.advanceApplied);
+  const newAmountPaid = isAdvance
+    ? toNum(payment.amountPaid)
+    : toNum(payment.amountPaid) - txAmount;
+  const newAdvanceApplied = isAdvance
+    ? toNum(payment.advanceApplied) - txAmount
+    : toNum(payment.advanceApplied);
   const newStatus = recalcStatus(toNum(payment.rentDue), newAmountPaid, newAdvanceApplied);
 
   await db.$transaction(async (prisma) => {
