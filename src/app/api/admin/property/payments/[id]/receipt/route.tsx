@@ -194,7 +194,7 @@ function ReceiptHalf(props: HalfProps) {
           <Text>Tenant Signature</Text>
         </View>
         <View style={s.signatureLine}>
-          <Text>Owner Signature</Text>
+          <Text>Shakil</Text>
         </View>
       </View>
     </View>
