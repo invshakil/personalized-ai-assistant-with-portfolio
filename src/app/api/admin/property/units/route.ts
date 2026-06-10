@@ -23,6 +23,10 @@ export async function GET() {
           advancePaid: true,
           advanceAmount: true,
           advanceSettled: true,
+          services: {
+            where: { isActive: true },
+            select: { id: true, monthlyFee: true, service: { select: { name: true } } },
+          },
         },
       },
     },
@@ -42,6 +46,11 @@ export async function GET() {
           advanceAmount: Number(u.tenant.advanceAmount ?? 0),
           moveInDate: u.tenant.moveInDate.toISOString(),
           leaseEndDate: u.tenant.leaseEndDate?.toISOString() ?? null,
+          services: u.tenant.services.map((s) => ({
+            id: s.id,
+            serviceName: s.service.name,
+            monthlyFee: Number(s.monthlyFee),
+          })),
         }
       : null,
   }));
