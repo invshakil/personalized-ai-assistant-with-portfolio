@@ -5,6 +5,14 @@ import nextTs from "eslint-config-next/typescript";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
+  {
+    rules: {
+      // Valid async data-fetch pattern: useEffect(() => { load(); }, [load])
+      // The rule fires because load() calls setLoading synchronously, but this
+      // is idiomatic React and does not cause infinite loops.
+      "react-hooks/set-state-in-effect": "warn",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

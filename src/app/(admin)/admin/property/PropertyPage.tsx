@@ -55,7 +55,7 @@ import {
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
 import TenantDocuments from "@/components/admin/TenantDocuments";
-import type { UnitWithTenant, TenantSummary } from "@/types";
+import type { UnitWithTenant } from "@/types";
 
 function fmt(n: number) {
   return `৳${n.toLocaleString()}`;
@@ -332,17 +332,7 @@ export default function PropertyPage() {
       );
   }, [load]);
 
-  const openUnitDrawer = (unit: UnitWithTenant) => {
-    setDrawerUnit(unit);
-    setUnitEditMode(false);
-    setUnitForm({
-      unitNumber: unit.unitNumber,
-      floor: unit.floor,
-      monthlyRent: String(unit.monthlyRent),
-      description: unit.description ?? "",
-      notes: unit.notes ?? "",
-    });
-  };
+
 
   const saveUnit = async () => {
     if (!drawerUnit) return;
@@ -657,7 +647,6 @@ export default function PropertyPage() {
     }
   };
 
-  const vacantUnits = units.filter((u) => !u.isOccupied);
   const unitsWithoutFuture = units.filter((u) => !u.futureTenant);
   const selectedUnit = units.find((u) => u.id === addForm.unitId);
   const activeTenants = [

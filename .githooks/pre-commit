@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "→ Running pre-commit checks..."
+
+# 1. ESLint — fail on errors, allow warnings
+echo ""
+echo "  [1/1] ESLint"
+if ! npm run lint --silent; then
+  echo ""
+  echo "  ✗ ESLint errors found. Fix them before committing."
+  exit 1
+fi
+echo "  ✓ ESLint OK"
+
+echo ""
+echo "→ Pre-commit checks passed."

@@ -84,7 +84,8 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
   const togglePayment = (pid: string) => {
     setExpandedPayments((prev) => {
       const next = new Set(prev);
-      next.has(pid) ? next.delete(pid) : next.add(pid);
+      if (next.has(pid)) next.delete(pid);
+      else next.add(pid);
       return next;
     });
   };
