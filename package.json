@@ -10,7 +10,8 @@
     "prepare": "git config core.hooksPath .githooks",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "seed": "npx prisma db seed"
+    "seed": "npx prisma db seed",
+    "seed:prod": "tsx prisma/seed-admin.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
