@@ -5,12 +5,14 @@ const db = new PrismaClient();
 
 async function main() {
   // ─── Admin user ───────────────────────────────────────────────────────────
-  const hash = await bcrypt.hash("isshakil32!", 12);
+  const adminEmail = process.env.ADMIN_EMAIL ?? "inverse.shakil@gmail.com";
+  const adminPassword = process.env.ADMIN_PASSWORD ?? "isshakil32!";
+  const hash = await bcrypt.hash(adminPassword, 12);
   await db.user.upsert({
-    where: { email: "inverse.shakil@gmail.com" },
+    where: { email: adminEmail },
     update: { password: hash },
     create: {
-      email: "inverse.shakil@gmail.com",
+      email: adminEmail,
       name: "Shakil",
       password: hash,
       role: "ADMIN",
