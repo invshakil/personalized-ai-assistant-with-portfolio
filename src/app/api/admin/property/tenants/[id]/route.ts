@@ -58,6 +58,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         rentDue: Number(p.rentDue),
         amountPaid: Number(p.amountPaid),
         advanceApplied: Number(p.advanceApplied),
+        carryForward: Number(p.carryForward),
         balance: Number(p.rentDue) - Number(p.amountPaid) - Number(p.advanceApplied),
         paidDate: p.paidDate?.toISOString() ?? null,
         transactions: p.transactions.map((tx) => ({

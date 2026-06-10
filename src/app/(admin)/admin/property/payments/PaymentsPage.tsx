@@ -34,9 +34,11 @@ import {
   Wallet,
   AlertTriangle,
   Download,
+  Trash2,
+  Pencil,
 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
-import type { PaymentWithTenant } from "@/types";
+import type { PaymentWithTenant, PaymentTransaction } from "@/types";
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   PAID: { bg: "success.main", color: "#fff" },
@@ -72,6 +74,20 @@ export default function PaymentsPage() {
   const [txNotes, setTxNotes] = useState("");
   const [txLoading, setTxLoading] = useState(false);
   const [txError, setTxError] = useState<string | null>(null);
+
+  // Edit payment state
+  const [editPayment, setEditPayment] = useState<{ id: string; tenantName: string; rentDue: string; notes: string } | null>(null);
+  const [editPaymentLoading, setEditPaymentLoading] = useState(false);
+  const [editPaymentError, setEditPaymentError] = useState<string | null>(null);
+
+  // Edit transaction state
+  const [editTx, setEditTx] = useState<{ id: string; paymentId: string } | null>(null);
+  const [editTxType, setEditTxType] = useState("CASH");
+  const [editTxAmount, setEditTxAmount] = useState("");
+  const [editTxDate, setEditTxDate] = useState("");
+  const [editTxNotes, setEditTxNotes] = useState("");
+  const [editTxLoading, setEditTxLoading] = useState(false);
+  const [editTxError, setEditTxError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -157,6 +173,80 @@ export default function PaymentsPage() {
       setTxError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setTxLoading(false);
+    }
+  };
+
+  const submitEditPayment = async () => {
+    if (!editPayment) return;
+    setEditPaymentLoading(true);
+    setEditPaymentError(null);
+    try {
+      const res = await fetch(`/api/admin/property/payments/${editPayment.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rentDue: parseFloat(editPayment.rentDue),
+          notes: editPayment.notes || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed");
+      setEditPayment(null);
+      load();
+    } catch (e: unknown) {
+      setEditPaymentError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setEditPaymentLoading(false);
+    }
+  };
+
+  const deletePayment = async (id: string, tenantName: string) => {
+    if (!window.confirm(`Delete the payment record for ${tenantName}? All transactions will be removed and any advance applied will be restored.`)) return;
+    await fetch(`/api/admin/property/payments/${id}`, { method: "DELETE" });
+    load();
+  };
+
+  const openEditTx = (tx: PaymentTransaction) => {
+    setEditTx({ id: tx.id, paymentId: tx.paymentId });
+    setEditTxType(tx.type);
+    setEditTxAmount(String(tx.amount));
+    setEditTxDate(tx.date.split("T")[0]);
+    setEditTxNotes(tx.notes ?? "");
+    setEditTxError(null);
+  };
+
+  const deleteTransaction = async (txId: string, isAdvance: boolean) => {
+    const msg = isAdvance
+      ? "Delete this advance entry? The advance amount will be restored to the tenant's balance."
+      : "Delete this transaction?";
+    if (!window.confirm(msg)) return;
+    await fetch(`/api/admin/property/payments/transactions/${txId}`, { method: "DELETE" });
+    load();
+  };
+
+  const submitEditTransaction = async () => {
+    if (!editTx) return;
+    setEditTxLoading(true);
+    setEditTxError(null);
+    try {
+      const res = await fetch(`/api/admin/property/payments/transactions/${editTx.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: editTxType,
+          amount: parseFloat(editTxAmount),
+          date: editTxDate,
+          notes: editTxNotes || null,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed");
+      setEditTx(null);
+      load();
+    } catch (e: unknown) {
+      setEditTxError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setEditTxLoading(false);
     }
   };
 
@@ -318,6 +408,11 @@ export default function PaymentsPage() {
                       </TableCell>
                       <TableCell>
                         <Box sx={{ display: "flex", gap: 0.5 }}>
+                          <Tooltip title="Edit payment">
+                            <IconButton size="small" onClick={() => setEditPayment({ id: p.id, tenantName: p.tenantName, rentDue: String(p.rentDue), notes: p.notes ?? "" })}>
+                              <Pencil size={15} />
+                            </IconButton>
+                          </Tooltip>
                           {p.balance > 0 && (
                             <Tooltip title="Record Payment">
                               <IconButton size="small" onClick={() => openPayDrawer(p, "pay")}>
@@ -344,6 +439,11 @@ export default function PaymentsPage() {
                               </IconButton>
                             </Tooltip>
                           )}
+                          <Tooltip title="Delete payment record">
+                            <IconButton size="small" color="error" onClick={() => deletePayment(p.id, p.tenantName)}>
+                              <Trash2 size={15} />
+                            </IconButton>
+                          </Tooltip>
                         </Box>
                       </TableCell>
                     </TableRow>
@@ -353,13 +453,43 @@ export default function PaymentsPage() {
                       <TableCell colSpan={9} sx={{ p: 0, border: 0 }}>
                         <Collapse in={expanded.has(p.id)}>
                           <Box sx={{ bgcolor: "action.hover", px: 5, py: 1.5 }}>
+                            {/* Bill breakdown */}
+                            {p.rentDue > 0 && (
+                              <Box sx={{ mb: 1.5, pb: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: "block", mb: 0.5 }}>
+                                  Bill Breakdown
+                                </Typography>
+                                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                                  <Typography variant="caption" color="text.secondary">Base Rent</Typography>
+                                  <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                    {fmt(p.rentDue - p.services.reduce((s, sv) => s + sv.monthlyFee, 0) - p.carryForward)}
+                                  </Typography>
+                                </Box>
+                                {p.services.map((sv) => (
+                                  <Box key={sv.name} sx={{ display: "flex", justifyContent: "space-between" }}>
+                                    <Typography variant="caption" color="text.secondary">{sv.name}</Typography>
+                                    <Typography variant="caption" sx={{ fontWeight: 600 }}>{fmt(sv.monthlyFee)}</Typography>
+                                  </Box>
+                                ))}
+                                {p.carryForward > 0 && (
+                                  <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                                    <Typography variant="caption" color="warning.main">Previous Balance</Typography>
+                                    <Typography variant="caption" sx={{ fontWeight: 600, color: "warning.main" }}>{fmt(p.carryForward)}</Typography>
+                                  </Box>
+                                )}
+                                <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.5, pt: 0.5, borderTop: "1px dashed", borderColor: "divider" }}>
+                                  <Typography variant="caption" sx={{ fontWeight: 700 }}>Total Due</Typography>
+                                  <Typography variant="caption" sx={{ fontWeight: 700, color: "primary.main" }}>{fmt(p.rentDue)}</Typography>
+                                </Box>
+                              </Box>
+                            )}
                             {p.transactions.length > 0 ? (
                               p.transactions.map((tx) => (
                                 <Box
                                   key={tx.id}
-                                  sx={{ display: "flex", gap: 2, py: 0.5, alignItems: "center" }}
+                                  sx={{ display: "flex", gap: 1.5, py: 0.5, alignItems: "center" }}
                                 >
-                                  <Typography variant="caption" color="text.secondary" sx={{ width: 90 }}>
+                                  <Typography variant="caption" color="text.secondary" sx={{ width: 86, flexShrink: 0 }}>
                                     {new Date(tx.date).toLocaleDateString()}
                                   </Typography>
                                   <Chip
@@ -376,6 +506,19 @@ export default function PaymentsPage() {
                                       · {tx.notes}
                                     </Typography>
                                   )}
+                                  <Box sx={{ ml: "auto", display: "flex", gap: 0 }}>
+                                    <Tooltip title="Edit transaction">
+                                      <IconButton size="small" onClick={() => openEditTx(tx)}>
+                                        <Pencil size={12} />
+                                      </IconButton>
+                                    </Tooltip>
+                                    <Tooltip title="Delete transaction">
+                                      <IconButton size="small" color="error"
+                                        onClick={() => deleteTransaction(tx.id, tx.type === "ADVANCE_APPLIED")}>
+                                        <Trash2 size={12} />
+                                      </IconButton>
+                                    </Tooltip>
+                                  </Box>
                                 </Box>
                               ))
                             ) : (
@@ -404,6 +547,87 @@ export default function PaymentsPage() {
           </Table>
         </TableContainer>
       )}
+
+      {/* Edit payment drawer */}
+      <Drawer anchor="right" open={!!editPayment} onClose={() => setEditPayment(null)}>
+        <Box sx={{ width: 340, p: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>Edit Payment</Typography>
+          {editPayment && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{editPayment.tenantName}</Typography>
+          )}
+          <Alert severity="info" sx={{ mb: 2, fontSize: "0.8rem" }}>
+            Editing Rent Due recalculates the balance and status. Use this to correct the billed amount — e.g. to split embedded service fees from base rent.
+          </Alert>
+          <TextField
+            label="Rent Due (৳)" type="number" size="small" fullWidth
+            value={editPayment?.rentDue ?? ""}
+            onChange={(e) => setEditPayment((p) => p ? { ...p, rentDue: e.target.value } : p)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Notes (optional)" size="small" fullWidth multiline rows={2}
+            value={editPayment?.notes ?? ""}
+            onChange={(e) => setEditPayment((p) => p ? { ...p, notes: e.target.value } : p)}
+            sx={{ mb: 2 }}
+          />
+          {editPaymentError && <Alert severity="error" sx={{ mb: 2 }}>{editPaymentError}</Alert>}
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button variant="outlined" size="small" fullWidth onClick={() => setEditPayment(null)} disabled={editPaymentLoading}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained" size="small" fullWidth onClick={submitEditPayment}
+              disabled={editPaymentLoading || !editPayment?.rentDue || parseFloat(editPayment.rentDue) <= 0}
+            >
+              {editPaymentLoading ? "Saving…" : "Save"}
+            </Button>
+          </Box>
+        </Box>
+      </Drawer>
+
+      {/* Edit transaction drawer */}
+      <Drawer anchor="right" open={!!editTx} onClose={() => setEditTx(null)}>
+        <Box sx={{ width: 340, p: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Edit Transaction</Typography>
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel>Type</InputLabel>
+            <Select label="Type" value={editTxType} onChange={(e) => setEditTxType(e.target.value)}>
+              <MenuItem value="CASH">Cash</MenuItem>
+              <MenuItem value="BANK_TRANSFER">Bank Transfer</MenuItem>
+              <MenuItem value="ADVANCE_APPLIED">Advance Applied</MenuItem>
+              <MenuItem value="ADJUSTMENT">Adjustment</MenuItem>
+              <MenuItem value="OTHER">Other</MenuItem>
+            </Select>
+          </FormControl>
+          <TextField
+            label="Amount (৳)" type="number" size="small" fullWidth
+            value={editTxAmount} onChange={(e) => setEditTxAmount(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label="Date" type="date" size="small" fullWidth
+            value={editTxDate} onChange={(e) => setEditTxDate(e.target.value)}
+            sx={{ mb: 2 }} slotProps={{ inputLabel: { shrink: true } }}
+          />
+          <TextField
+            label="Notes (optional)" size="small" fullWidth
+            value={editTxNotes} onChange={(e) => setEditTxNotes(e.target.value)}
+            sx={{ mb: 2 }}
+          />
+          {editTxError && <Alert severity="error" sx={{ mb: 2 }}>{editTxError}</Alert>}
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button variant="outlined" size="small" fullWidth onClick={() => setEditTx(null)} disabled={editTxLoading}>
+              Cancel
+            </Button>
+            <Button
+              variant="contained" size="small" fullWidth onClick={submitEditTransaction}
+              disabled={editTxLoading || !editTxAmount || parseFloat(editTxAmount) <= 0}
+            >
+              {editTxLoading ? "Saving…" : "Save Changes"}
+            </Button>
+          </Box>
+        </Box>
+      </Drawer>
 
       {/* Payment / Advance drawer */}
       <Drawer anchor="right" open={!!drawer} onClose={() => setDrawer(null)}>

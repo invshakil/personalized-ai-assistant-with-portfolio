@@ -19,7 +19,18 @@ export async function GET(req: NextRequest) {
     },
     orderBy: [{ year: "desc" }, { month: "desc" }, { tenant: { name: "asc" } }],
     include: {
-      tenant: { select: { id: true, tenantCode: true, name: true, advanceAmount: true } },
+      tenant: {
+        select: {
+          id: true,
+          tenantCode: true,
+          name: true,
+          advanceAmount: true,
+          services: {
+            where: { isActive: true },
+            select: { id: true, monthlyFee: true, service: { select: { name: true } } },
+          },
+        },
+      },
       unit: { select: { id: true, unitNumber: true } },
       transactions: { orderBy: { date: "asc" } },
     },
@@ -31,6 +42,10 @@ export async function GET(req: NextRequest) {
     tenantName: p.tenant.name,
     tenantCode: p.tenant.tenantCode,
     advanceBalance: Number(p.tenant.advanceAmount ?? 0),
+    services: p.tenant.services.map((s) => ({
+      name: s.service.name,
+      monthlyFee: Number(s.monthlyFee),
+    })),
     unitId: p.unitId,
     unitNumber: p.unit?.unitNumber ?? null,
     month: p.month,
@@ -38,6 +53,7 @@ export async function GET(req: NextRequest) {
     rentDue: Number(p.rentDue),
     amountPaid: Number(p.amountPaid),
     advanceApplied: Number(p.advanceApplied),
+    carryForward: Number(p.carryForward),
     balance: Number(p.rentDue) - Number(p.amountPaid) - Number(p.advanceApplied),
     status: p.status,
     paidDate: p.paidDate?.toISOString() ?? null,

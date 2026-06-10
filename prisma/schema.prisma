@@ -126,9 +126,10 @@ model Payment {
   tenantId        String
   unit            Unit?                @relation(fields: [unitId], references: [id])
   unitId          String?              // null for external members
-  rentDue         Decimal              @db.Decimal(10, 2)   // expected total (rent + active services)
+  rentDue         Decimal              @db.Decimal(10, 2)   // expected total (rent + services + carry-forward)
   amountPaid      Decimal              @default(0) @db.Decimal(10, 2)  // cash/bank received
   advanceApplied  Decimal              @default(0) @db.Decimal(10, 2)  // drawn from tenant advance
+  carryForward    Decimal              @default(0) @db.Decimal(10, 2)  // unpaid balance carried from previous month
   month           Int                  // 1–12
   year            Int
   paidDate        DateTime?            // date of most recent payment transaction
