@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Box, Card, CardContent, Typography, Chip, Grid, Tabs, Tab,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
@@ -10,7 +11,7 @@ import {
 } from "@mui/material";
 import {
   Building2, X, Phone, Calendar, DollarSign, UserCheck, UserX, UserPlus,
-  ExternalLink, Plus, Pencil, TrendingUp,
+  ExternalLink, Plus, Pencil, TrendingUp, MapPin,
 } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
@@ -37,6 +38,7 @@ interface AddTenantForm {
 }
 
 export default function PropertyPage() {
+  const router = useRouter();
   const [tab, setTab] = useState(0);
   const [units, setUnits] = useState<UnitWithTenant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -115,7 +117,11 @@ export default function PropertyPage() {
       setUnits(unitData);
 
       // Active tenants with no unit (e.g. after re-activation before unit reassignment)
-      const unitTenantIds = new Set(unitData.map((u) => u.tenant?.id).filter(Boolean));
+      // Include futureTenant IDs so scheduled tenants aren't also listed under "Unassigned"
+      const unitTenantIds = new Set([
+        ...unitData.map((u) => u.tenant?.id).filter(Boolean),
+        ...unitData.map((u) => u.futureTenant?.id).filter(Boolean),
+      ]);
       type ActiveTenant = {
         id: string; tenantCode: string | null; name: string; phone: string | null;
         isExternal: boolean; moveInDate: string; moveOutDate: string | null;
@@ -364,11 +370,10 @@ export default function PropertyPage() {
     if (!isAddingExternal && !addForm.unitId) return;
     setSaving(true);
     try {
-      // Update unit rent only when adding to a vacant unit with a custom rent
-      if (!isAddingExternal && addForm.customRent && addForm.unitId) {
-        const unit = units.find((u) => u.id === addForm.unitId);
-        // Don't update the unit rent if it's occupied — that would affect the current tenant's bill
-        if (unit && !unit.isOccupied && Number(addForm.customRent) !== unit.monthlyRent) {
+      const selectedUnitData = units.find((u) => u.id === addForm.unitId);
+      // For vacant units with a custom rent, update the unit before creating the tenant
+      if (!isAddingExternal && addForm.customRent && addForm.unitId && selectedUnitData && !selectedUnitData.isOccupied) {
+        if (Number(addForm.customRent) !== selectedUnitData.monthlyRent) {
           await fetch(`/api/admin/property/units/${addForm.unitId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -376,7 +381,7 @@ export default function PropertyPage() {
           });
         }
       }
-      await fetch("/api/admin/property/tenants", {
+      const res = await fetch("/api/admin/property/tenants", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -390,6 +395,25 @@ export default function PropertyPage() {
           isExternal: isAddingExternal,
         }),
       });
+      const newTenant = (await res.json())?.data;
+      // For occupied units: schedule a rent change for the future tenant's move-in date
+      if (
+        newTenant?.id &&
+        newTenant.tenantStatus === "FUTURE" &&
+        addForm.customRent &&
+        selectedUnitData &&
+        Number(addForm.customRent) !== selectedUnitData.monthlyRent
+      ) {
+        await fetch(`/api/admin/property/tenants/${newTenant.id}/rent-change`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            effectiveDate: addForm.moveInDate,
+            newRent: Number(addForm.customRent),
+            reason: "Scheduled with future tenant",
+          }),
+        });
+      }
       setAddOpen(false);
       setDrawerUnit(null);
       await load();
@@ -421,6 +445,53 @@ export default function PropertyPage() {
       },
       { confirmLabel: "Re-activate", confirmColor: "success" },
     );
+  };
+
+  // Assign Unit dialog (for unassigned tenants)
+  const [assignUnitDialog, setAssignUnitDialog] = useState<{ tenantId: string; tenantName: string } | null>(null);
+  const [assigningUnitId, setAssigningUnitId] = useState("");
+  const [assignRent, setAssignRent] = useState("");
+  const [assignSaving, setAssignSaving] = useState(false);
+
+  const doAssignUnit = async () => {
+    if (!assignUnitDialog || !assigningUnitId) return;
+    setAssignSaving(true);
+    try {
+      const res = await fetch(`/api/admin/property/tenants/${assignUnitDialog.tenantId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unitId: assigningUnitId }),
+      });
+      const newTenant = (await res.json())?.data;
+      const targetUnit = units.find((u) => u.id === assigningUnitId);
+      if (newTenant?.id && assignRent && targetUnit && Number(assignRent) !== targetUnit.monthlyRent) {
+        if (newTenant.tenantStatus === "CURRENT") {
+          // Vacant unit: update the unit's base rent immediately
+          await fetch(`/api/admin/property/units/${assigningUnitId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ monthlyRent: Number(assignRent) }),
+          });
+        } else {
+          // Occupied unit: schedule a rent change effective on move-in date
+          await fetch(`/api/admin/property/tenants/${newTenant.id}/rent-change`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              effectiveDate: newTenant.moveInDate,
+              newRent: Number(assignRent),
+              reason: "Set when assigning unit",
+            }),
+          });
+        }
+      }
+      setAssignUnitDialog(null);
+      setAssigningUnitId("");
+      setAssignRent("");
+      await load();
+    } finally {
+      setAssignSaving(false);
+    }
   };
 
   const vacantUnits = units.filter((u) => !u.isOccupied);
@@ -490,7 +561,7 @@ export default function PropertyPage() {
                       "&:hover": { bgcolor: "action.hover" },
                       transition: "background-color 0.15s",
                     }}
-                    onClick={() => openUnitDrawer(unit)}
+                    onClick={() => router.push(`/admin/property/units/${unit.id}`)}
                   >
                     <CardContent sx={{ p: "14px !important" }}>
                       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
@@ -511,7 +582,7 @@ export default function PropertyPage() {
                         )}
                         {unit.futureTenant && (
                           <Chip
-                            label={`Future: ${unit.futureTenant.name}`}
+                            label={`Future: ${unit.futureTenant.name}${unit.futureTenant.scheduledRent ? ` · ${fmt(unit.futureTenant.scheduledRent)}` : ""}`}
                             size="small"
                             sx={{ mt: 0.75, fontSize: "0.6rem", height: 18, bgcolor: "warning.main", color: "#fff", maxWidth: "100%" }}
                           />
@@ -554,6 +625,7 @@ export default function PropertyPage() {
                   onEdit={openTenantEdit}
                   onDeactivate={deactivateTenant}
                   onActivate={activateTenant}
+                  onAssignUnit={(id, name) => { setAssignUnitDialog({ tenantId: id, tenantName: name }); setAssigningUnitId(""); setAssignRent(""); }}
                 />
               ) : inactiveLoading ? (
                 <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
@@ -979,7 +1051,7 @@ export default function PropertyPage() {
       <Dialog
         open={!!confirmDialog}
         onClose={() => !confirmLoading && setConfirmDialog(null)}
-        PaperProps={{ sx: { bgcolor: "background.paper", borderRadius: 2, minWidth: 340 } }}
+        slotProps={{ paper: { sx: { bgcolor: "background.paper", borderRadius: 2, minWidth: 340 } } }}
       >
         <DialogTitle sx={{ pb: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
@@ -1035,6 +1107,74 @@ export default function PropertyPage() {
         </DialogActions>
       </Dialog>
 
+      {/* ── Assign Unit dialog ─────────────────────────────────────── */}
+      <Dialog
+        open={!!assignUnitDialog}
+        onClose={() => !assignSaving && setAssignUnitDialog(null)}
+        slotProps={{ paper: { sx: { bgcolor: "background.paper", borderRadius: 2, minWidth: 360 } } }}
+      >
+        <DialogTitle sx={{ fontWeight: 700, fontSize: "1rem" }}>
+          Assign Unit — {assignUnitDialog?.tenantName}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: "text.secondary", fontSize: "0.875rem", mb: 2 }}>
+            Select a unit to assign. If the unit is already occupied, this tenant will be queued as a future tenant.
+          </DialogContentText>
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel>Unit</InputLabel>
+            <Select
+              label="Unit"
+              value={assigningUnitId}
+              onChange={(e) => {
+                setAssigningUnitId(e.target.value as string);
+                setAssignRent("");
+              }}
+            >
+              {units.map((u) => (
+                <MenuItem key={u.id} value={u.id}>
+                  {u.unitNumber} — {u.floor}
+                  {u.isOccupied
+                    ? ` (Occupied by ${u.tenant?.name ?? "?"} — will be Future)`
+                    : ` (${fmt(u.monthlyRent)}/mo, Vacant)`}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          {assigningUnitId && (() => {
+            const u = units.find((x) => x.id === assigningUnitId);
+            return (
+              <TextField
+                label={u?.isOccupied ? "New Rent for Future Tenant (৳)" : "Monthly Rent (৳)"}
+                type="number"
+                value={assignRent}
+                onChange={(e) => setAssignRent(e.target.value)}
+                size="small" fullWidth
+                placeholder={String(u?.monthlyRent ?? "")}
+                helperText={
+                  u?.isOccupied
+                    ? assignRent && Number(assignRent) !== u.monthlyRent
+                      ? `Current rent is ${fmt(u.monthlyRent)} — a rent change will be scheduled for their move-in date`
+                      : `Current rent is ${fmt(u?.monthlyRent ?? 0)} — leave blank to keep the same`
+                    : assignRent && u && Number(assignRent) !== u.monthlyRent
+                      ? `Default: ${fmt(u.monthlyRent)} — saving will update the unit's rent`
+                      : "Leave blank to keep the unit's current rent"
+                }
+              />
+            );
+          })()}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button variant="outlined" size="small" onClick={() => setAssignUnitDialog(null)}
+            disabled={assignSaving} sx={{ flex: 1 }}>
+            Cancel
+          </Button>
+          <Button variant="contained" size="small" startIcon={<MapPin size={14} />}
+            onClick={doAssignUnit} disabled={!assigningUnitId || assignSaving} sx={{ flex: 1 }}>
+            {assignSaving ? "Assigning…" : "Assign"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* ── Add Tenant / External Member drawer ─────────────────────── */}
       <Drawer anchor="right" open={addOpen} onClose={() => setAddOpen(false)}>
         <Box sx={{ width: 380, p: 3 }}>
@@ -1084,16 +1224,22 @@ export default function PropertyPage() {
                   </Alert>
                 )}
 
-                {addForm.unitId && !selectedUnit?.isOccupied && (
+                {addForm.unitId && (
                   <TextField
-                    label="Monthly Rent (৳)"
+                    label={selectedUnit?.isOccupied ? "New Rent for Future Tenant (৳)" : "Monthly Rent (৳)"}
                     type="number"
                     value={addForm.customRent}
                     onChange={(e) => setAddForm((p) => ({ ...p, customRent: e.target.value }))}
                     size="small" fullWidth
-                    helperText={selectedUnit && Number(addForm.customRent) !== selectedUnit.monthlyRent
-                      ? `Default: ${fmt(selectedUnit.monthlyRent)} — saving will update the unit's rent`
-                      : "Leave as default or enter a custom rent for this tenant"}
+                    helperText={
+                      selectedUnit?.isOccupied
+                        ? addForm.customRent && Number(addForm.customRent) !== selectedUnit.monthlyRent
+                          ? `Current unit rent is ${fmt(selectedUnit.monthlyRent)} — a rent change will be scheduled for their move-in date`
+                          : `Current unit rent is ${fmt(selectedUnit?.monthlyRent ?? 0)} — enter a different amount if their rent will change`
+                        : selectedUnit && Number(addForm.customRent) !== selectedUnit.monthlyRent
+                          ? `Default: ${fmt(selectedUnit.monthlyRent)} — saving will update the unit's rent`
+                          : "Leave as default or enter a custom rent for this tenant"
+                    }
                   />
                 )}
               </>
@@ -1138,12 +1284,14 @@ function TenantTable({
   onEdit,
   onDeactivate,
   onActivate,
+  onAssignUnit,
 }: {
   tenants: UnitWithTenant[];
   showUnit: boolean;
   onEdit: (row: UnitWithTenant) => void;
   onDeactivate: (id: string, name: string) => void;
   onActivate: (id: string, name: string) => void;
+  onAssignUnit?: (tenantId: string, tenantName: string) => void;
 }) {
   if (tenants.length === 0) {
     return (
@@ -1258,6 +1406,13 @@ function TenantTable({
                       <ExternalLink size={15} />
                     </IconButton>
                   </Tooltip>
+                  {onAssignUnit && row.id.startsWith("unassigned-") && (
+                    <Tooltip title="Assign to unit">
+                      <IconButton size="small" color="warning" onClick={() => onAssignUnit(t.id, t.name)}>
+                        <MapPin size={15} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                   {t.isActive ? (
                     <Tooltip title="Deactivate">
                       <IconButton size="small" color="error" onClick={() => onDeactivate(t.id, t.name)}>
