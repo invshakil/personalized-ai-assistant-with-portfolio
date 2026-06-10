@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, use } from "react";
+import { Fragment, useState, useEffect, useCallback, use } from "react";
 import {
   Box,
   Card,
@@ -14,11 +14,11 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Divider,
   CircularProgress,
   IconButton,
   Collapse,
   Tooltip,
+  TextField,
 } from "@mui/material";
 import {
   ArrowLeft,
@@ -30,6 +30,10 @@ import {
   AlertTriangle,
   TrendingUp,
   Wifi,
+  Trash2,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
@@ -51,6 +55,12 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
   const [tenant, setTenant] = useState<TenantWithUnit & { payments: PaymentWithTenant[] } | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set());
+  const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+  const [editRcId, setEditRcId] = useState<string | null>(null);
+  const [editRcDate, setEditRcDate] = useState("");
+  const [editRcRent, setEditRcRent] = useState("");
+  const [editRcReason, setEditRcReason] = useState("");
+  const [rcSaving, setRcSaving] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -71,6 +81,54 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
       next.has(pid) ? next.delete(pid) : next.add(pid);
       return next;
     });
+  };
+
+  const deletePayment = async (pid: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Delete this payment record? This cannot be undone.")) return;
+    setDeletingPaymentId(pid);
+    try {
+      await fetch(`/api/admin/property/payments/${pid}`, { method: "DELETE" });
+      await load();
+    } finally {
+      setDeletingPaymentId(null);
+    }
+  };
+
+  const openEditRc = (rc: { id: string; effectiveDate: string; newRent: number; reason: string | null }) => {
+    setEditRcId(rc.id);
+    setEditRcDate(rc.effectiveDate.split("T")[0]);
+    setEditRcRent(String(rc.newRent));
+    setEditRcReason(rc.reason ?? "");
+  };
+
+  const saveEditRc = async () => {
+    if (!editRcId) return;
+    setRcSaving(true);
+    try {
+      await fetch(`/api/admin/property/rent-changes/${editRcId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ effectiveDate: editRcDate, newRent: Number(editRcRent), reason: editRcReason || null }),
+      });
+      setEditRcId(null);
+      await load();
+    } finally {
+      setRcSaving(false);
+    }
+  };
+
+  const deleteRc = async (rcId: string) => {
+    if (!confirm("Delete this scheduled rent change?")) return;
+    await fetch(`/api/admin/property/rent-changes/${rcId}`, { method: "DELETE" });
+    await load();
+  };
+
+  const isBeforeMoveIn = (month: number, year: number, moveInDate: string) => {
+    const d = new Date(moveInDate);
+    const moveInYear = d.getFullYear();
+    const moveInMonth = d.getMonth() + 1;
+    return year < moveInYear || (year === moveInYear && month < moveInMonth);
   };
 
   if (loading) {
@@ -269,19 +327,61 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
               </Typography>
             </Box>
             {pendingChanges.map((rc) => (
-              <Box key={rc.id} sx={{ display: "flex", gap: 2, alignItems: "center", mt: 1 }}>
-                <Typography variant="body2">
-                  {fmt(rc.previousRent)} → {fmt(rc.newRent)}
-                </Typography>
-                <Chip
-                  label={`Effective ${new Date(rc.effectiveDate).toLocaleDateString()}`}
-                  size="small"
-                  sx={{ bgcolor: "warning.main", color: "#fff", fontSize: "0.6875rem" }}
-                />
-                {rc.reason && (
-                  <Typography variant="caption" color="text.secondary">
-                    {rc.reason}
-                  </Typography>
+              <Box key={rc.id} sx={{ mt: 1.5 }}>
+                {editRcId === rc.id ? (
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <TextField
+                        label="Effective Date" type="date" size="small" sx={{ flex: 1 }}
+                        value={editRcDate} onChange={(e) => setEditRcDate(e.target.value)}
+                        slotProps={{ inputLabel: { shrink: true } }}
+                      />
+                      <TextField
+                        label="New Rent (৳)" type="number" size="small" sx={{ flex: 1 }}
+                        value={editRcRent} onChange={(e) => setEditRcRent(e.target.value)}
+                      />
+                    </Box>
+                    <TextField
+                      label="Reason (optional)" size="small" fullWidth
+                      value={editRcReason} onChange={(e) => setEditRcReason(e.target.value)}
+                    />
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <Button size="small" variant="outlined" startIcon={<X size={13} />}
+                        onClick={() => setEditRcId(null)} disabled={rcSaving}>
+                        Cancel
+                      </Button>
+                      <Button size="small" variant="contained" startIcon={<Check size={13} />}
+                        onClick={saveEditRc} disabled={rcSaving || !editRcDate || !editRcRent}>
+                        {rcSaving ? "Saving…" : "Save"}
+                      </Button>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Box sx={{ display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
+                    <Typography variant="body2">
+                      {fmt(rc.previousRent)} → {fmt(rc.newRent)}
+                    </Typography>
+                    <Chip
+                      label={`Effective ${new Date(rc.effectiveDate).toLocaleDateString()}`}
+                      size="small"
+                      sx={{ bgcolor: "warning.main", color: "#fff", fontSize: "0.6875rem" }}
+                    />
+                    {rc.reason && (
+                      <Typography variant="caption" color="text.secondary">{rc.reason}</Typography>
+                    )}
+                    <Box sx={{ ml: "auto", display: "flex", gap: 0.5 }}>
+                      <Tooltip title="Edit">
+                        <IconButton size="small" onClick={() => openEditRc(rc)}>
+                          <Pencil size={13} />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton size="small" color="error" onClick={() => deleteRc(rc.id)}>
+                          <Trash2 size={13} />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </Box>
                 )}
               </Box>
             ))}
@@ -318,106 +418,141 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                     <TableCell sx={{ fontWeight: 700 }}>Advance Applied</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Balance</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                    <TableCell />
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {(tenant.payments as PaymentWithTenant[]).map((p) => (
-                    <>
-                      <TableRow
-                        key={p.id}
-                        hover
-                        sx={{ cursor: "pointer" }}
-                        onClick={() => togglePayment(p.id)}
-                      >
-                        <TableCell sx={{ width: 32 }}>
-                          <IconButton size="small">
-                            {expandedPayments.has(p.id) ? (
-                              <ChevronDown size={14} />
-                            ) : (
-                              <ChevronRight size={14} />
-                            )}
-                          </IconButton>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">
-                            {monthLabels[p.month - 1]} {p.year}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>{fmt(p.rentDue)}</TableCell>
-                        <TableCell>{fmt(p.amountPaid)}</TableCell>
-                        <TableCell>
-                          {p.advanceApplied > 0 ? (
-                            <Typography variant="body2" color="primary.main">
-                              {fmt(p.advanceApplied)}
-                            </Typography>
-                          ) : (
-                            "—"
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Typography
-                            variant="body2"
-                            color={p.balance > 0 ? "error.main" : "success.main"}
-                            sx={{ fontWeight: 600 }}
-                          >
-                            {fmt(p.balance)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Chip
-                            label={p.status}
-                            size="small"
-                            sx={{
-                              bgcolor: STATUS_COLORS[p.status] ?? "text.secondary",
-                              color: p.status === "PENDING" ? "text.primary" : "#fff",
-                              fontWeight: 600,
-                              fontSize: "0.6875rem",
-                            }}
-                          />
-                        </TableCell>
-                      </TableRow>
-
-                      {/* Transaction log */}
-                      <TableRow key={`${p.id}-expand`}>
-                        <TableCell colSpan={7} sx={{ p: 0, border: 0 }}>
-                          <Collapse in={expandedPayments.has(p.id)}>
-                            <Box sx={{ bgcolor: "action.hover", px: 4, py: 1.5 }}>
-                              {p.transactions && p.transactions.length > 0 ? (
-                                p.transactions.map((tx) => (
-                                  <Box
-                                    key={tx.id}
-                                    sx={{ display: "flex", gap: 2, py: 0.5, alignItems: "center" }}
-                                  >
-                                    <Typography variant="caption" color="text.secondary" sx={{ width: 90 }}>
-                                      {new Date(tx.date).toLocaleDateString()}
-                                    </Typography>
-                                    <Chip
-                                      label={tx.type.replace("_", " ")}
-                                      size="small"
-                                      variant="outlined"
-                                      sx={{ fontSize: "0.6875rem", height: 18 }}
-                                    />
-                                    <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                                      {fmt(tx.amount)}
-                                    </Typography>
-                                    {tx.notes && (
-                                      <Typography variant="caption" color="text.secondary">
-                                        · {tx.notes}
-                                      </Typography>
-                                    )}
-                                  </Box>
-                                ))
+                  {(tenant.payments as PaymentWithTenant[]).map((p) => {
+                    const beforeMoveIn = isBeforeMoveIn(p.month, p.year, tenant.moveInDate);
+                    return (
+                      <Fragment key={p.id}>
+                        <TableRow
+                          hover
+                          sx={{ cursor: "pointer" }}
+                          onClick={() => togglePayment(p.id)}
+                        >
+                          <TableCell sx={{ width: 32 }}>
+                            <IconButton size="small">
+                              {expandedPayments.has(p.id) ? (
+                                <ChevronDown size={14} />
                               ) : (
-                                <Typography variant="caption" color="text.secondary">
-                                  No transactions logged
-                                </Typography>
+                                <ChevronRight size={14} />
+                              )}
+                            </IconButton>
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              <Typography variant="body2">
+                                {monthLabels[p.month - 1]} {p.year}
+                              </Typography>
+                              {beforeMoveIn && (
+                                <Tooltip title="This period is before the tenant's move-in date">
+                                  <AlertTriangle size={13} color="var(--mui-palette-warning-main)" />
+                                </Tooltip>
                               )}
                             </Box>
-                          </Collapse>
-                        </TableCell>
-                      </TableRow>
-                    </>
-                  ))}
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              <Typography variant="body2">{fmt(p.rentDue)}</Typography>
+                              {p.carryForward > 0 && (
+                                <Tooltip title={`Includes ${fmt(p.carryForward)} carried forward from previous month`}>
+                                  <Chip
+                                    label={`+${fmt(p.carryForward)} carry`}
+                                    size="small"
+                                    sx={{ bgcolor: "warning.main", color: "#fff", fontSize: "0.6rem", height: 16 }}
+                                  />
+                                </Tooltip>
+                              )}
+                            </Box>
+                          </TableCell>
+                          <TableCell>{fmt(p.amountPaid)}</TableCell>
+                          <TableCell>
+                            {p.advanceApplied > 0 ? (
+                              <Typography variant="body2" color="primary.main">
+                                {fmt(p.advanceApplied)}
+                              </Typography>
+                            ) : (
+                              "—"
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Typography
+                              variant="body2"
+                              color={p.balance > 0 ? "error.main" : "success.main"}
+                              sx={{ fontWeight: 600 }}
+                            >
+                              {fmt(p.balance)}
+                            </Typography>
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              label={p.status}
+                              size="small"
+                              sx={{
+                                bgcolor: STATUS_COLORS[p.status] ?? "text.secondary",
+                                color: p.status === "PENDING" ? "text.primary" : "#fff",
+                                fontWeight: 600,
+                                fontSize: "0.6875rem",
+                              }}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ width: 40 }}>
+                            <Tooltip title="Delete payment">
+                              <IconButton
+                                size="small"
+                                color="error"
+                                disabled={deletingPaymentId === p.id}
+                                onClick={(e) => deletePayment(p.id, e)}
+                              >
+                                <Trash2 size={14} />
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Transaction log */}
+                        <TableRow>
+                          <TableCell colSpan={8} sx={{ p: 0, border: 0 }}>
+                            <Collapse in={expandedPayments.has(p.id)}>
+                              <Box sx={{ bgcolor: "action.hover", px: 4, py: 1.5 }}>
+                                {p.transactions && p.transactions.length > 0 ? (
+                                  p.transactions.map((tx) => (
+                                    <Box
+                                      key={tx.id}
+                                      sx={{ display: "flex", gap: 2, py: 0.5, alignItems: "center" }}
+                                    >
+                                      <Typography variant="caption" color="text.secondary" sx={{ width: 90 }}>
+                                        {new Date(tx.date).toLocaleDateString()}
+                                      </Typography>
+                                      <Chip
+                                        label={tx.type.replace("_", " ")}
+                                        size="small"
+                                        variant="outlined"
+                                        sx={{ fontSize: "0.6875rem", height: 18 }}
+                                      />
+                                      <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                        {fmt(tx.amount)}
+                                      </Typography>
+                                      {tx.notes && (
+                                        <Typography variant="caption" color="text.secondary">
+                                          · {tx.notes}
+                                        </Typography>
+                                      )}
+                                    </Box>
+                                  ))
+                                ) : (
+                                  <Typography variant="caption" color="text.secondary">
+                                    No transactions logged
+                                  </Typography>
+                                )}
+                              </Box>
+                            </Collapse>
+                          </TableCell>
+                        </TableRow>
+                      </Fragment>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
