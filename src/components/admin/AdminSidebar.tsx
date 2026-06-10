@@ -14,6 +14,7 @@ import {
   Typography,
   Divider,
   Avatar,
+  Drawer,
 } from "@mui/material";
 import {
   LayoutDashboard,
@@ -78,26 +79,29 @@ const navGroups: { label: string; items: NavItem[] }[] = [
   },
 ];
 
-export default function AdminSidebar() {
+interface AdminSidebarProps {
+  mobileOpen: boolean;
+  onClose: () => void;
+}
+
+function SidebarContents({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
 
   const isActive = (href: string, exact: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
 
+  const handleNavClick = () => {
+    onClose?.();
+  };
+
   return (
     <Box
-      role="navigation"
       sx={{
-        width: SIDEBAR_WIDTH,
-        flexShrink: 0,
-        bgcolor: "background.paper",
-        borderRight: "1px solid",
-        borderColor: "divider",
         display: "flex",
         flexDirection: "column",
-        height: "100vh",
-        position: "sticky",
-        top: 0,
+        height: "100%",
+        width: SIDEBAR_WIDTH,
+        bgcolor: "background.paper",
       }}
     >
       {/* Brand */}
@@ -159,6 +163,7 @@ export default function AdminSidebar() {
                       <Link
                         href={item.href}
                         style={{ width: "100%", textDecoration: "none", color: "inherit" }}
+                        onClick={handleNavClick}
                       >
                         <ListItemButton
                           selected={active && !hasChildren}
@@ -187,6 +192,7 @@ export default function AdminSidebar() {
                               <Link
                                 href={child.href}
                                 style={{ width: "100%", textDecoration: "none", color: "inherit" }}
+                                onClick={handleNavClick}
                               >
                                 <ListItemButton
                                   selected={childActive}
@@ -223,8 +229,9 @@ export default function AdminSidebar() {
             <Link
               href="/admin/account"
               style={{ width: "100%", textDecoration: "none", color: "inherit" }}
+              onClick={handleNavClick}
             >
-              <ListItemButton selected={pathname === "/admin/account"} sx={{ px: 1.5, py: 0.875 }}>
+              <ListItemButton sx={{ px: 1.5, py: 0.875 }}>
                 <ListItemIcon>
                   <User size={17} />
                 </ListItemIcon>
@@ -246,5 +253,48 @@ export default function AdminSidebar() {
         </List>
       </Box>
     </Box>
+  );
+}
+
+export default function AdminSidebar({ mobileOpen, onClose }: AdminSidebarProps) {
+  return (
+    <>
+      {/* Desktop — permanent sidebar */}
+      <Box
+        role="navigation"
+        sx={{
+          display: { xs: "none", md: "flex" },
+          width: SIDEBAR_WIDTH,
+          flexShrink: 0,
+          borderRight: "1px solid",
+          borderColor: "divider",
+          height: "100vh",
+          position: "sticky",
+          top: 0,
+        }}
+      >
+        <SidebarContents />
+      </Box>
+
+      {/* Mobile — temporary drawer */}
+      <Drawer
+        variant="temporary"
+        anchor="left"
+        open={mobileOpen}
+        onClose={onClose}
+        ModalProps={{ keepMounted: true }}
+        sx={{
+          display: { xs: "block", md: "none" },
+          "& .MuiDrawer-paper": {
+            width: SIDEBAR_WIDTH,
+            bgcolor: "background.paper",
+            borderRight: "1px solid",
+            borderColor: "divider",
+          },
+        }}
+      >
+        <SidebarContents onClose={onClose} />
+      </Drawer>
+    </>
   );
 }
