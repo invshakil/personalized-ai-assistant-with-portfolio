@@ -87,22 +87,22 @@ function StatCard({
 
 export default function PropertyDashboardPage() {
   const now = new Date();
-  const [mounted, setMounted] = useState(false);
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [data, setData] = useState<PropertyDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/admin/property/dashboard?month=${month}&year=${year}`);
       const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Failed to load dashboard");
       setData(json.data ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load dashboard");
     } finally {
       setLoading(false);
     }
@@ -111,14 +111,6 @@ export default function PropertyDashboardPage() {
   useEffect(() => {
     load();
   }, [load]);
-
-  if (!mounted) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
     <Box>
@@ -277,6 +269,8 @@ export default function PropertyDashboardPage() {
             </Card>
           )}
         </>
+      ) : error ? (
+        <Alert severity="error">{error}</Alert>
       ) : (
         <Typography color="text.secondary">No data available.</Typography>
       )}
