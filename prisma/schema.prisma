@@ -78,6 +78,18 @@ model SiteSettings {
   updatedAt         DateTime @updatedAt
 }
 
+// ─── Property Settings (singleton) ───────────────────────────────────────────
+
+model PropertySettings {
+  id           String   @id @default("singleton")
+  propertyName String   @default("Shakil Property")
+  ownerName    String   @default("Md. Syful Islam Shakil")
+  ownerPhone   String   @default("")
+  address      String   @default("Dhaka, Bangladesh")
+  bankAccount  String?
+  updatedAt    DateTime @updatedAt
+}
+
 // ─── Property Management ──────────────────────────────────────────────────────
 
 model Unit {
