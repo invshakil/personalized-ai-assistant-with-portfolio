@@ -44,10 +44,12 @@ export interface TenantSummary {
   isActive: boolean;
   isExternal: boolean;
   moveInDate: string;
+  moveOutDate?: string | null;
   leaseEndDate: string | null;
   advancePaid: boolean;
   advanceAmount: number;
   advanceSettled: boolean;
+  services?: { id: string; serviceName: string; monthlyFee: number }[];
 }
 
 export interface TenantWithUnit extends TenantSummary {
@@ -100,6 +102,7 @@ export interface PaymentWithTenant {
   rentDue: number;
   amountPaid: number;
   advanceApplied: number;
+  carryForward: number;
   balance: number;
   status: PaymentStatus;
   paidDate: string | null;
@@ -107,6 +110,7 @@ export interface PaymentWithTenant {
   notes: string | null;
   transactions: PaymentTransaction[];
   advanceBalance: number;
+  services: { name: string; monthlyFee: number }[];
 }
 
 export interface PaymentTransaction {
