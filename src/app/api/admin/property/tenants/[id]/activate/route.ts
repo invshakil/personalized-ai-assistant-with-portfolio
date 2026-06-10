@@ -14,7 +14,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
 
   await db.tenant.update({
     where: { id },
-    data: { isActive: true, moveOutDate: null },
+    data: { isActive: true, tenantStatus: "CURRENT", moveOutDate: null },
   });
 
   return Response.json({ data: { ok: true } });

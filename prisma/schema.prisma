@@ -88,11 +88,17 @@ model Unit {
   description String?
   isOccupied  Boolean   @default(false)
   notes       String?
-  tenant      Tenant?
+  tenants     Tenant[]
   payments    Payment[]
   expenses    Expense[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+}
+
+enum TenantStatus {
+  CURRENT
+  FUTURE
+  PAST
 }
 
 model Tenant {
@@ -107,12 +113,13 @@ model Tenant {
   moveOutDate    DateTime?
   leaseEndDate   DateTime?
   isActive       Boolean         @default(true)
+  tenantStatus   TenantStatus    @default(CURRENT)  // CURRENT | FUTURE | PAST
   advancePaid    Boolean         @default(false)
   advanceAmount  Decimal?        @db.Decimal(10, 2)  // BDT held; decreases as advance is applied
   advanceSettled Boolean         @default(false)
   notes          String?
   unit           Unit?           @relation(fields: [unitId], references: [id])
-  unitId         String?         @unique
+  unitId         String?         // no @unique — multiple tenants (current + future) share a unit
   payments       Payment[]
   services       TenantService[]
   rentChanges    RentChange[]

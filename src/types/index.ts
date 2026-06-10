@@ -14,6 +14,7 @@ declare module "next-auth" {
 // Property management — enums
 export type PaymentStatus = "PENDING" | "PAID" | "PARTIAL" | "OVERDUE";
 export type TransactionType = "CASH" | "BANK_TRANSFER" | "ADVANCE_APPLIED" | "ADJUSTMENT" | "OTHER";
+export type TenantStatus = "CURRENT" | "FUTURE" | "PAST";
 export type IncomeCategory = "SALARY" | "FREELANCE" | "RENTAL" | "OTHER";
 export type ExpenseCategory =
   | "MAINTENANCE"
@@ -33,7 +34,8 @@ export interface UnitWithTenant {
   description: string | null;
   isOccupied: boolean;
   notes: string | null;
-  tenant: TenantSummary | null;
+  tenant: TenantSummary | null;        // current tenant
+  futureTenant: TenantSummary | null;  // scheduled future tenant (moveInDate in future)
 }
 
 export interface TenantSummary {
@@ -43,6 +45,7 @@ export interface TenantSummary {
   phone: string | null;
   isActive: boolean;
   isExternal: boolean;
+  tenantStatus: TenantStatus;
   moveInDate: string;
   moveOutDate?: string | null;
   leaseEndDate: string | null;

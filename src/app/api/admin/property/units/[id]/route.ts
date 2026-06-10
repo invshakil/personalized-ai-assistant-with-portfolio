@@ -9,7 +9,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const unit = await db.unit.findUnique({
     where: { id },
-    include: { tenant: { where: { isActive: true } } },
+    include: { tenants: { where: { isActive: true } } },
   });
 
   if (!unit) return Response.json({ error: "Not found" }, { status: 404 });
@@ -43,7 +43,7 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const unit = await db.unit.findUnique({ where: { id }, include: { tenant: true } });
+  const unit = await db.unit.findUnique({ where: { id }, include: { tenants: true } });
   if (!unit) return Response.json({ error: "Not found" }, { status: 404 });
   if (unit.isOccupied) return Response.json({ error: "Cannot delete an occupied unit" }, { status: 400 });
 
