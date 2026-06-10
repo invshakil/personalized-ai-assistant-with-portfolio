@@ -1,4 +1,4 @@
-import { PrismaClient, PaymentStatus, ExpenseCategory, TransactionType } from "@prisma/client";
+import { ExpenseCategory, PaymentStatus, PrismaClient, TransactionType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const db = new PrismaClient();
@@ -40,19 +40,19 @@ async function main() {
   // ─── Units ─────────────────────────────────────────────────────────────────
   // monthlyRent is the current occupant's rent; vacant units carry a placeholder.
   const unitData = [
-    { unitNumber: "Flat 1A", floor: "Ground Floor", monthlyRent: 7000 }, // vacant
-    { unitNumber: "Flat 1B", floor: "Ground Floor", monthlyRent: 7000 }, // vacant
+    { unitNumber: "Flat 1A", floor: "Ground Floor", monthlyRent: 10000 }, // vacant
+    { unitNumber: "Flat 1B", floor: "Ground Floor", monthlyRent: 10000 }, // vacant
     { unitNumber: "Flat 2A", floor: "1st Floor", monthlyRent: 9000 }, // T05 Charles Taylor
-    { unitNumber: "Flat 2B", floor: "1st Floor", monthlyRent: 7000 }, // vacant
+    { unitNumber: "Flat 2B", floor: "1st Floor", monthlyRent: 9000 }, // vacant
     { unitNumber: "Flat 2C", floor: "1st Floor", monthlyRent: 8000 }, // T07 Matthew Thomas
     { unitNumber: "Flat 2D", floor: "1st Floor", monthlyRent: 8500 }, // T04 Thomas Moore
     { unitNumber: "Flat 2E", floor: "1st Floor", monthlyRent: 7000 }, // T06 Daniel Anderson
-    { unitNumber: "Flat 4A", floor: "3rd Floor", monthlyRent: 7000 }, // vacant
-    { unitNumber: "Flat 4B", floor: "3rd Floor", monthlyRent: 7000 }, // vacant
+    { unitNumber: "Flat 4A", floor: "3rd Floor", monthlyRent: 9000 }, // vacant
+    { unitNumber: "Flat 4B", floor: "3rd Floor", monthlyRent: 8500 }, // vacant
     { unitNumber: "Flat 4C", floor: "3rd Floor", monthlyRent: 7000 }, // vacant
-    { unitNumber: "Flat 4D", floor: "3rd Floor", monthlyRent: 9500 }, // T02 William Jones
+    { unitNumber: "Flat 4D", floor: "3rd Floor", monthlyRent: 9000 }, // T02 William Jones
     { unitNumber: "Flat 4E", floor: "3rd Floor", monthlyRent: 7000 }, // T01 James Brown
-    { unitNumber: "Flat 5A", floor: "4th Floor", monthlyRent: 5000 }, // T03 Richard Miller
+    { unitNumber: "Flat 5A", floor: "4th Floor", monthlyRent: 4500 }, // T03 Richard Miller
   ];
 
   for (const u of unitData) {
