@@ -1,11 +1,8 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
+import { getPropertySettings } from "@/services/property";
 import { NextRequest } from "next/server";
 import { Document, Page, View, Text, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
-
-const PROPERTY_NAME = "Shakil Property";
-const OWNER_NAME = "Md. Syful Islam Shakil";
-const ADDRESS = "Dhaka, Bangladesh";
 
 const MONTH_LABELS = [
   "January", "February", "March", "April", "May", "June",
@@ -75,6 +72,11 @@ type ServiceRow = { name: string; fee: number };
 
 interface HalfProps {
   label: string;
+  propertyName: string;
+  ownerName: string;
+  ownerPhone: string;
+  address: string;
+  bankAccount: string | null;
   tenantName: string;
   tenantCode: string;
   unitNumber: string;
@@ -94,7 +96,8 @@ interface HalfProps {
 
 function ReceiptHalf(props: HalfProps) {
   const {
-    label, tenantName, tenantCode, unitNumber, month, year,
+    label, propertyName, ownerName, ownerPhone, address, bankAccount,
+    tenantName, tenantCode, unitNumber, month, year,
     rentDue, amountPaid, advanceApplied, balance, status,
     receiptNumber, issuedDate, transactions, baseRent, services,
   } = props;
@@ -104,9 +107,10 @@ function ReceiptHalf(props: HalfProps) {
     <View style={s.half}>
       <Text style={s.copyBadge}>[{label}]</Text>
       <View style={s.header}>
-        <Text style={s.propertyName}>{PROPERTY_NAME}</Text>
-        <Text style={s.subTitle}>{ADDRESS}</Text>
-        <Text style={s.subTitle}>Owner: {OWNER_NAME}</Text>
+        <Text style={s.propertyName}>{propertyName}</Text>
+        <Text style={s.subTitle}>{address}</Text>
+        <Text style={s.subTitle}>Owner: {ownerName}{ownerPhone ? ` · ${ownerPhone}` : ""}</Text>
+        {bankAccount && <Text style={s.subTitle}>Bank: {bankAccount}</Text>}
       </View>
 
       <View style={s.divider} />
@@ -203,20 +207,23 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
 
-  const payment = await db.payment.findUnique({
-    where: { id },
-    include: {
-      tenant: {
-        select: {
-          name: true,
-          tenantCode: true,
-          services: { where: { isActive: true }, include: { service: true } },
+  const [payment, settings] = await Promise.all([
+    db.payment.findUnique({
+      where: { id },
+      include: {
+        tenant: {
+          select: {
+            name: true,
+            tenantCode: true,
+            services: { where: { isActive: true }, include: { service: true } },
+          },
         },
+        unit: { select: { unitNumber: true, monthlyRent: true } },
+        transactions: { orderBy: { date: "asc" } },
       },
-      unit: { select: { unitNumber: true, monthlyRent: true } },
-      transactions: { orderBy: { date: "asc" } },
-    },
-  });
+    }),
+    getPropertySettings(),
+  ]);
 
   if (!payment) return Response.json({ error: "Not found" }, { status: 404 });
 
@@ -237,6 +244,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const halfProps: HalfProps = {
     label: "",
+    propertyName: settings.propertyName,
+    ownerName: settings.ownerName,
+    ownerPhone: settings.ownerPhone,
+    address: settings.address,
+    bankAccount: settings.bankAccount,
     tenantName: payment.tenant.name,
     tenantCode,
     unitNumber,
