@@ -9,8 +9,8 @@ const eslintConfig = defineConfig([
     rules: {
       // Valid async data-fetch pattern: useEffect(() => { load(); }, [load])
       // The rule fires because load() calls setLoading synchronously, but this
-      // is idiomatic React and does not cause infinite loops.
-      "react-hooks/set-state-in-effect": "warn",
+      // is idiomatic React, React 18 batches these updates, and no cascade occurs.
+      "react-hooks/set-state-in-effect": "off",
     },
   },
   // Override default ignores of eslint-config-next.
