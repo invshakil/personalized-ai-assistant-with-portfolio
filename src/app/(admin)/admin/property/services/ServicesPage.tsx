@@ -207,13 +207,13 @@ export default function ServicesPage() {
                       sx={{ bgcolor: s.isActive ? "success.main" : "error.main", color: "#fff", fontSize: "0.6875rem" }}
                     />
                     <Tooltip title="Edit">
-                      <IconButton size="small" onClick={(e) => { e.stopPropagation(); openEditService(s); }}>
+                      <IconButton component="div" size="small" onClick={(e) => { e.stopPropagation(); openEditService(s); }}>
                         <Pencil size={14} />
                       </IconButton>
                     </Tooltip>
                     {s.isActive && (
                       <Tooltip title="Deactivate">
-                        <IconButton size="small" color="error" onClick={(e) => { e.stopPropagation(); deactivate(s.id); }}>
+                        <IconButton component="div" size="small" color="error" onClick={(e) => { e.stopPropagation(); deactivate(s.id); }}>
                           <PowerOff size={14} />
                         </IconButton>
                       </Tooltip>
@@ -343,7 +343,7 @@ export default function ServicesPage() {
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           <Button
             variant="contained" fullWidth onClick={saveAssignment}
-            disabled={saving || !assignTenant || !assignService || !assignFee}
+            disabled={saving || !assignTenant || !assignService || assignFee === "" || parseFloat(assignFee) < 0}
           >
             {saving ? "Saving…" : "Assign Service"}
           </Button>
