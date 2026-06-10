@@ -332,8 +332,6 @@ export default function PropertyPage() {
       );
   }, [load]);
 
-
-
   const saveUnit = async () => {
     if (!drawerUnit) return;
     setSaving(true);
