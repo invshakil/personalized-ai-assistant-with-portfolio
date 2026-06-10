@@ -31,7 +31,7 @@ export default function PropertyCharts({ data, month, year }: Props) {
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, fontWeight: 600 }}>
             {MONTHS[month - 1]} {year} — Financial Overview
           </Typography>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="99%" height={220} debounce={50}>
             <BarChart
               data={[
                 { name: "Expected", value: data.totalExpected },
@@ -60,7 +60,7 @@ export default function PropertyCharts({ data, month, year }: Props) {
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, fontWeight: 600 }}>
             {year} — Yearly Trend
           </Typography>
-          <ResponsiveContainer width="100%" height={220}>
+          <ResponsiveContainer width="99%" height={220} debounce={50}>
             <LineChart
               data={data.yearlyData}
               margin={{ top: 0, right: 10, left: 0, bottom: 0 }}
