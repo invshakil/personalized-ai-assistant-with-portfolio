@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect } from "react";
 import { Sparkles, Send } from "lucide-react";
-import { Box, Card, Typography, TextField, Button, Avatar, IconButton } from "@mui/material";
+import { Box, Card, Typography, TextField, Button, Avatar } from "@mui/material";
 import ChatMessage from "@/components/admin/ChatMessage";
 import PageHeader from "@/components/admin/PageHeader";
 import type { Message } from "./types";
