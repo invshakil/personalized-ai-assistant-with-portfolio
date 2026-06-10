@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
+import TenantDocuments from "@/components/admin/TenantDocuments";
 import type { TenantWithUnit, PaymentWithTenant } from "@/types";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -389,6 +390,13 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
           </CardContent>
         </Card>
       )}
+
+      {/* Documents */}
+      <Card sx={{ bgcolor: "background.paper" }}>
+        <CardContent>
+          <TenantDocuments tenantId={tenant.id} />
+        </CardContent>
+      </Card>
 
       {/* Payment history */}
       <Card sx={{ bgcolor: "background.paper" }}>
