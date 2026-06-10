@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
 import { NextRequest } from "next/server";
+import { createRentChange } from "@/services/property";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -8,43 +8,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const body = await req.json();
-  const { effectiveDate, newRent, reason } = body as {
-    effectiveDate: string;
-    newRent: number;
-    reason?: string;
-  };
+  const { effectiveDate, newRent, reason } = body;
 
   if (!effectiveDate || newRent == null) {
     return Response.json({ error: "effectiveDate and newRent are required" }, { status: 400 });
   }
 
-  const tenant = await db.tenant.findUnique({
-    where: { id },
-    include: { unit: { select: { monthlyRent: true } } },
-  });
-
-  if (!tenant) return Response.json({ error: "Tenant not found" }, { status: 404 });
-
-  const previousRent = tenant.unit ? Number(tenant.unit.monthlyRent) : 0;
-
-  const rentChange = await db.rentChange.create({
-    data: {
-      tenantId: id,
-      effectiveDate: new Date(effectiveDate),
-      previousRent,
-      newRent,
-      reason: reason ?? null,
-      appliedAt: null,
-    },
-  });
-
-  return Response.json({
-    data: {
-      ...rentChange,
-      previousRent: Number(rentChange.previousRent),
-      newRent: Number(rentChange.newRent),
-      effectiveDate: rentChange.effectiveDate.toISOString(),
-      appliedAt: null,
-    },
-  });
+  try {
+    const data = await createRentChange({ tenantId: id, effectiveDate, newRent, reason });
+    return Response.json({ data });
+  } catch (err) {
+    return Response.json({ error: (err as Error).message }, { status: 400 });
+  }
 }
