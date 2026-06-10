@@ -56,7 +56,9 @@ export async function GET(req: NextRequest) {
         ? { isExternal: true, isActive: true }
         : filter === "inactive"
           ? { isActive: false }
-          : { isActive: true, isExternal: false };
+          : filter === "future"
+            ? { isActive: true, tenantStatus: "FUTURE" as const }
+            : { isActive: true, isExternal: false, tenantStatus: "CURRENT" as const };
 
   const tenants = await db.tenant.findMany({
     where,
@@ -137,6 +139,16 @@ export async function POST(req: NextRequest) {
   const nextNum = last?.tenantCode ? parseInt(last.tenantCode.replace("T", "")) + 1 : 1;
   const tenantCode = `T${String(nextNum).padStart(2, "0")}`;
 
+  // Determine tenant status: FUTURE if the unit already has a CURRENT active tenant
+  let tenantStatus: "CURRENT" | "FUTURE" = "CURRENT";
+  if (unitId && !isExternal) {
+    const existingCurrent = await db.tenant.findFirst({
+      where: { unitId, tenantStatus: "CURRENT", isActive: true },
+      select: { id: true },
+    });
+    if (existingCurrent) tenantStatus = "FUTURE";
+  }
+
   const tenant = await db.tenant.create({
     data: {
       tenantCode,
@@ -152,14 +164,15 @@ export async function POST(req: NextRequest) {
       notes: notes ?? null,
       isExternal: isExternal ?? false,
       isActive: true,
+      tenantStatus,
     },
     include: {
       unit: { select: { id: true, unitNumber: true, floor: true, monthlyRent: true } },
     },
   });
 
-  // Mark unit as occupied
-  if (unitId) {
+  // Mark unit as occupied only when the new tenant is CURRENT
+  if (unitId && tenantStatus === "CURRENT") {
     await db.unit.update({ where: { id: unitId }, data: { isOccupied: true } });
   }
 

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
-import type { UnitWithTenant } from "@/types";
+import type { UnitWithTenant, TenantSummary } from "@/types";
 
 function fmt(n: number) { return `৳${n.toLocaleString()}`; }
 
@@ -103,6 +103,9 @@ export default function PropertyPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // Auto-deactivate any tenants whose lease has expired (fire-and-forget; silent)
+      fetch("/api/admin/property/tenants/auto-deactivate-expired", { method: "POST" }).catch(() => {});
+
       const [unitsRes, tenantsRes] = await Promise.all([
         fetch("/api/admin/property/units"),
         fetch("/api/admin/property/tenants?filter=active"),
@@ -130,6 +133,7 @@ export default function PropertyPage() {
           description: null,
           isOccupied: false,
           notes: null,
+          futureTenant: null,
           tenant: {
             id: t.id,
             tenantCode: t.tenantCode,
@@ -137,6 +141,7 @@ export default function PropertyPage() {
             phone: t.phone,
             isActive: true,
             isExternal: t.isExternal,
+            tenantStatus: "CURRENT" as const,
             moveInDate: t.moveInDate,
             moveOutDate: t.moveOutDate ?? null,
             leaseEndDate: t.leaseEndDate,
@@ -172,6 +177,7 @@ export default function PropertyPage() {
           description: null,
           isOccupied: false,
           notes: null,
+          futureTenant: null,
           tenant: {
             id: t.id,
             tenantCode: t.tenantCode,
@@ -179,6 +185,7 @@ export default function PropertyPage() {
             phone: t.phone,
             isActive: false,
             isExternal: t.isExternal,
+            tenantStatus: "PAST" as const,
             moveInDate: t.moveInDate,
             moveOutDate: t.moveOutDate ?? null,
             leaseEndDate: t.leaseEndDate,
@@ -357,10 +364,11 @@ export default function PropertyPage() {
     if (!isAddingExternal && !addForm.unitId) return;
     setSaving(true);
     try {
-      // Update unit rent first if a custom rent was specified and differs from default
+      // Update unit rent only when adding to a vacant unit with a custom rent
       if (!isAddingExternal && addForm.customRent && addForm.unitId) {
         const unit = units.find((u) => u.id === addForm.unitId);
-        if (unit && Number(addForm.customRent) !== unit.monthlyRent) {
+        // Don't update the unit rent if it's occupied — that would affect the current tenant's bill
+        if (unit && !unit.isOccupied && Number(addForm.customRent) !== unit.monthlyRent) {
           await fetch(`/api/admin/property/units/${addForm.unitId}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -416,6 +424,7 @@ export default function PropertyPage() {
   };
 
   const vacantUnits = units.filter((u) => !u.isOccupied);
+  const unitsWithoutFuture = units.filter((u) => !u.futureTenant);
   const selectedUnit = units.find((u) => u.id === addForm.unitId);
   const activeTenants = [
     ...units.filter((u) => u.tenant && !u.tenant.isExternal).map((u) => u.tenant!),
@@ -500,6 +509,13 @@ export default function PropertyPage() {
                         ) : (
                           <Typography variant="body2" color="text.secondary">{fmt(unit.monthlyRent)}/mo</Typography>
                         )}
+                        {unit.futureTenant && (
+                          <Chip
+                            label={`Future: ${unit.futureTenant.name}`}
+                            size="small"
+                            sx={{ mt: 0.75, fontSize: "0.6rem", height: 18, bgcolor: "warning.main", color: "#fff", maxWidth: "100%" }}
+                          />
+                        )}
                       </Box>
                     </CardContent>
                   </Card>
@@ -529,6 +545,10 @@ export default function PropertyPage() {
                   tenants={[
                     ...units.filter((u) => u.tenant && !u.tenant.isExternal && u.tenant.isActive),
                     ...unassignedRows.filter((r) => !r.tenant?.isExternal),
+                    // Future tenants — show as separate rows in the same unit column
+                    ...units
+                      .filter((u) => u.futureTenant && !u.futureTenant.isExternal)
+                      .map((u) => ({ ...u, tenant: u.futureTenant! })),
                   ]}
                   showUnit
                   onEdit={openTenantEdit}
@@ -684,23 +704,83 @@ export default function PropertyPage() {
                         startIcon={<UserX size={14} />}
                         onClick={() => {
                           if (!drawerUnit.tenant) return;
+                          const hasFuture = !!drawerUnit.futureTenant;
                           const unitId = drawerUnit.id;
                           openConfirm(
                             "Move Out Tenant",
-                            `Move out ${drawerUnit.tenant.name}? They will be unassigned from this unit so you can add a new tenant.`,
+                            hasFuture
+                              ? `Move out ${drawerUnit.tenant.name}? ${drawerUnit.futureTenant!.name} will automatically become the current tenant.`
+                              : `Move out ${drawerUnit.tenant.name}? They will be unassigned from this unit.`,
                             async () => {
                               await fetch(`/api/admin/property/tenants/${drawerUnit.tenant!.id}/deactivate`, { method: "POST" });
                               setDrawerUnit(null);
                               await load();
-                              openAddTenant(unitId);
+                              if (!hasFuture) openAddTenant(unitId);
                             },
                             { confirmLabel: "Move Out", confirmColor: "error" },
                           );
                         }}
                       >
-                        Move Out &amp; Add New Tenant
+                        Move Out{drawerUnit.futureTenant ? ` (${drawerUnit.futureTenant.name} takes over)` : " & Add New Tenant"}
                       </Button>
                     </Box>
+
+                    {/* Future tenant section */}
+                    {drawerUnit.futureTenant && (
+                      <Box sx={{ mt: 2 }}>
+                        <Divider sx={{ mb: 1.5 }} />
+                        <Typography variant="overline" color="warning.main" sx={{ fontSize: "0.6875rem", fontWeight: 700 }}>
+                          Scheduled Future Tenant
+                        </Typography>
+                        <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 1 }}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <UserPlus size={15} color="var(--mui-palette-warning-main)" />
+                            <Box>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{drawerUnit.futureTenant.name}</Typography>
+                              <Typography variant="caption" color="text.secondary">{drawerUnit.futureTenant.tenantCode}</Typography>
+                            </Box>
+                          </Box>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Calendar size={13} />
+                            <Typography variant="caption">Move-in: {new Date(drawerUnit.futureTenant.moveInDate).toLocaleDateString()}</Typography>
+                          </Box>
+                          <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
+                            <Button
+                              component={Link}
+                              href={`/admin/property/tenants/${drawerUnit.futureTenant.id}`}
+                              variant="outlined"
+                              size="small"
+                              fullWidth
+                              startIcon={<ExternalLink size={13} />}
+                            >
+                              View Profile
+                            </Button>
+                            <Button
+                              variant="outlined"
+                              color="warning"
+                              size="small"
+                              fullWidth
+                              startIcon={<UserCheck size={13} />}
+                              onClick={() => {
+                                const ft = drawerUnit.futureTenant!;
+                                openConfirm(
+                                  "Promote to Current Tenant",
+                                  `Promote ${ft.name} to current tenant now? ${drawerUnit.tenant!.name} will be moved out.`,
+                                  async () => {
+                                    await fetch(`/api/admin/property/tenants/${drawerUnit.tenant!.id}/deactivate`, { method: "POST" });
+                                    setDrawerUnit(null);
+                                    await load();
+                                  },
+                                  { confirmLabel: "Promote", confirmColor: "warning" },
+                                );
+                              }}
+                            >
+                              Promote Now
+                            </Button>
+                          </Box>
+                        </Box>
+                      </Box>
+                    )}
                   </Box>
                 ) : (
                   <Box>
@@ -986,18 +1066,25 @@ export default function PropertyPage() {
                       setAddForm((p) => ({ ...p, unitId: uid, customRent: u ? String(u.monthlyRent) : "" }));
                     }}
                   >
-                    {vacantUnits.length === 0 && (
-                      <MenuItem disabled value="">No vacant units</MenuItem>
+                    {unitsWithoutFuture.length === 0 && (
+                      <MenuItem disabled value="">All units have a future tenant queued</MenuItem>
                     )}
-                    {vacantUnits.map((u) => (
+                    {unitsWithoutFuture.map((u) => (
                       <MenuItem key={u.id} value={u.id}>
-                        {u.unitNumber} — {u.floor} ({fmt(u.monthlyRent)}/mo)
+                        {u.unitNumber} — {u.floor}
+                        {u.isOccupied ? ` (Occupied by ${u.tenant?.name ?? "?"} — will add as future)` : ` (${fmt(u.monthlyRent)}/mo)`}
                       </MenuItem>
                     ))}
                   </Select>
                 </FormControl>
 
-                {addForm.unitId && (
+                {selectedUnit?.isOccupied && (
+                  <Alert severity="info" sx={{ fontSize: "0.8rem", py: 0.5 }}>
+                    This unit is occupied. The new tenant will be scheduled as a <strong>future tenant</strong> and will become active when the current tenant moves out.
+                  </Alert>
+                )}
+
+                {addForm.unitId && !selectedUnit?.isOccupied && (
                   <TextField
                     label="Monthly Rent (৳)"
                     type="number"
@@ -1142,7 +1229,10 @@ function TenantTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  {t.isActive ? (
+                  {t.tenantStatus === "FUTURE" ? (
+                    <Chip label="Scheduled" size="small"
+                      sx={{ bgcolor: "warning.main", color: "#fff", fontWeight: 600, fontSize: "0.6875rem" }} />
+                  ) : t.isActive ? (
                     <Chip label="Active" size="small"
                       sx={{ bgcolor: "success.main", color: "#fff", fontWeight: 600, fontSize: "0.6875rem" }} />
                   ) : (

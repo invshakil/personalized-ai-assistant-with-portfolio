@@ -28,9 +28,9 @@ export async function POST(req: NextRequest) {
     await db.rentChange.update({ where: { id: rc.id }, data: { appliedAt: new Date() } });
   }
 
-  // Fetch all active tenants (both unit and external)
+  // Fetch only CURRENT active tenants (skip FUTURE tenants — not moved in yet)
   const tenants = await db.tenant.findMany({
-    where: { isActive: true },
+    where: { isActive: true, tenantStatus: "CURRENT" },
     include: {
       unit: { select: { id: true, monthlyRent: true } },
       services: { where: { isActive: true }, select: { monthlyFee: true } },
