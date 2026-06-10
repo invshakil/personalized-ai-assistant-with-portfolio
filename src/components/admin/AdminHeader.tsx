@@ -1,14 +1,16 @@
 "use client";
 
-import { Box, Typography, Avatar, Tooltip } from "@mui/material";
+import { Box, Typography, Avatar, Tooltip, IconButton } from "@mui/material";
+import { Menu } from "lucide-react";
 import AdminBreadcrumb from "@/components/admin/AdminBreadcrumb";
 
 interface AdminHeaderProps {
   userName: string | null;
   userEmail: string | null;
+  onMenuToggle: () => void;
 }
 
-export default function AdminHeader({ userName, userEmail }: AdminHeaderProps) {
+export default function AdminHeader({ userName, userEmail, onMenuToggle }: AdminHeaderProps) {
   const displayName = userName ?? userEmail ?? "Admin";
   const initials = displayName
     .split(" ")
@@ -26,13 +28,24 @@ export default function AdminHeader({ userName, userEmail }: AdminHeaderProps) {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        px: 4,
+        px: { xs: 2, md: 4 },
         bgcolor: "background.paper",
         borderBottom: "1px solid",
         borderColor: "divider",
       }}
     >
-      <AdminBreadcrumb />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        {/* Hamburger — mobile only */}
+        <IconButton
+          onClick={onMenuToggle}
+          size="small"
+          sx={{ display: { xs: "flex", md: "none" }, mr: 0.5 }}
+          aria-label="Open menu"
+        >
+          <Menu size={20} />
+        </IconButton>
+        <AdminBreadcrumb />
+      </Box>
 
       <Tooltip title={displayName} placement="bottom-end">
         <Box
@@ -47,10 +60,16 @@ export default function AdminHeader({ userName, userEmail }: AdminHeaderProps) {
             "&:hover": { bgcolor: "action.hover" },
           }}
         >
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ display: { xs: "none", sm: "block" } }}
+          >
             {displayName}
           </Typography>
-          <Avatar sx={{ bgcolor: "primary.main" }}>{initials}</Avatar>
+          <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32, fontSize: "0.8rem" }}>
+            {initials}
+          </Avatar>
         </Box>
       </Tooltip>
     </Box>
