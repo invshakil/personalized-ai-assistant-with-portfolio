@@ -86,7 +86,7 @@ export default function AiAssistantPage() {
       sx={{
         display: "flex",
         flexDirection: "column",
-        height: "calc(100vh - 64px - 64px)",
+        height: { xs: "calc(100vh - 64px - 32px)", md: "calc(100vh - 64px - 64px)" },
         minHeight: 400,
       }}
     >
