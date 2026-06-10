@@ -8,7 +8,9 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const now = new Date();
-  const month = searchParams.get("month") ? parseInt(searchParams.get("month")!) : now.getMonth() + 1;
+  const month = searchParams.get("month")
+    ? parseInt(searchParams.get("month")!)
+    : now.getMonth() + 1;
   const year = searchParams.get("year") ? parseInt(searchParams.get("year")!) : now.getFullYear();
 
   const data = await getDashboardStats(month, year);

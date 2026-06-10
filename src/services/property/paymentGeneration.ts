@@ -67,7 +67,12 @@ export async function generatePayments(month: number, year: number) {
       select: { rentDue: true, amountPaid: true, advanceApplied: true },
     });
     const carryForward = prevPayment
-      ? Math.max(0, toNum(prevPayment.rentDue) - toNum(prevPayment.amountPaid) - toNum(prevPayment.advanceApplied))
+      ? Math.max(
+          0,
+          toNum(prevPayment.rentDue) -
+            toNum(prevPayment.amountPaid) -
+            toNum(prevPayment.advanceApplied)
+        )
       : 0;
 
     const rentDue = baseRent + serviceTotal + carryForward;
@@ -93,8 +98,12 @@ export async function generatePayments(month: number, year: number) {
       data: {
         tenantId: tenant.id,
         unitId: tenant.unitId ?? null,
-        month, year, rentDue,
-        amountPaid: 0, advanceApplied: 0, carryForward,
+        month,
+        year,
+        rentDue,
+        amountPaid: 0,
+        advanceApplied: 0,
+        carryForward,
         status: "PENDING",
       },
     });
@@ -102,7 +111,9 @@ export async function generatePayments(month: number, year: number) {
   }
 
   return {
-    created, updated, skipped,
+    created,
+    updated,
+    skipped,
     rentChangesApplied: pendingChanges.length,
     tenantsPromoted: toPromote.length,
     message: `Generated ${created} new, updated ${updated} existing payment records for ${month}/${year}.`,

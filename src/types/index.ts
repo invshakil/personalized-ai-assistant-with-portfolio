@@ -45,8 +45,8 @@ export interface UnitWithTenant {
   description: string | null;
   isOccupied: boolean;
   notes: string | null;
-  tenant: TenantSummary | null;        // current tenant
-  futureTenant: TenantSummary | null;  // scheduled future tenant (moveInDate in future)
+  tenant: TenantSummary | null; // current tenant
+  futureTenant: TenantSummary | null; // scheduled future tenant (moveInDate in future)
 }
 
 export interface TenantSummary {
@@ -64,7 +64,7 @@ export interface TenantSummary {
   advanceAmount: number;
   advanceSettled: boolean;
   services?: { id: string; serviceName: string; monthlyFee: number }[];
-  scheduledRent?: number | null;  // pending RentChange for FUTURE tenants
+  scheduledRent?: number | null; // pending RentChange for FUTURE tenants
 }
 
 export interface TenantWithUnit extends TenantSummary {

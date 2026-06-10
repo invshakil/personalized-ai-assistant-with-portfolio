@@ -2,8 +2,16 @@
 
 import { useState } from "react";
 import {
-  Box, Card, CardContent, TextField, Button, Typography,
-  Divider, Alert, Snackbar, InputAdornment,
+  Box,
+  Card,
+  CardContent,
+  TextField,
+  Button,
+  Typography,
+  Divider,
+  Alert,
+  Snackbar,
+  InputAdornment,
 } from "@mui/material";
 import { Save, Building2, User, Phone, MapPin, CreditCard } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
@@ -22,8 +30,14 @@ export default function PropertySettingsPage({ initial }: Props) {
     bankAccount: initial.bankAccount ?? "",
   });
   const [saving, setSaving] = useState(false);
-  const [toast, setToast] = useState<{ open: boolean; message: string; severity: "success" | "error" }>({
-    open: false, message: "", severity: "success",
+  const [toast, setToast] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({
+    open: false,
+    message: "",
+    severity: "success",
   });
 
   const set = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>

@@ -17,7 +17,10 @@ export async function POST(req: NextRequest) {
   const { unitNumber, floor, monthlyRent, description, notes } = body;
 
   if (!unitNumber || !floor || monthlyRent == null) {
-    return Response.json({ error: "unitNumber, floor, and monthlyRent are required" }, { status: 400 });
+    return Response.json(
+      { error: "unitNumber, floor, and monthlyRent are required" },
+      { status: 400 }
+    );
   }
 
   const data = await createUnit({ unitNumber, floor, monthlyRent, description, notes });

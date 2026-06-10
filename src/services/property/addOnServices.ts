@@ -75,13 +75,31 @@ export async function assignService(input: AssignServiceInput) {
   const record = existing
     ? await db.tenantService.update({
         where: { tenantId_serviceId: { tenantId, serviceId } },
-        data: { monthlyFee, startDate: new Date(startDate), endDate: null, isActive: true, notes: notes ?? null },
+        data: {
+          monthlyFee,
+          startDate: new Date(startDate),
+          endDate: null,
+          isActive: true,
+          notes: notes ?? null,
+        },
       })
     : await db.tenantService.create({
-        data: { tenantId, serviceId, monthlyFee, startDate: new Date(startDate), isActive: true, notes: notes ?? null },
+        data: {
+          tenantId,
+          serviceId,
+          monthlyFee,
+          startDate: new Date(startDate),
+          isActive: true,
+          notes: notes ?? null,
+        },
       });
 
-  return { ...record, monthlyFee: toNum(record.monthlyFee), startDate: record.startDate.toISOString(), endDate: toIso(record.endDate) };
+  return {
+    ...record,
+    monthlyFee: toNum(record.monthlyFee),
+    startDate: record.startDate.toISOString(),
+    endDate: toIso(record.endDate),
+  };
 }
 
 export interface UpdateAssignmentInput {
@@ -96,12 +114,19 @@ export async function updateServiceAssignment(id: string, input: UpdateAssignmen
     where: { id },
     data: {
       ...(input.monthlyFee != null && { monthlyFee: input.monthlyFee }),
-      ...(input.endDate !== undefined && { endDate: input.endDate ? new Date(input.endDate) : null }),
+      ...(input.endDate !== undefined && {
+        endDate: input.endDate ? new Date(input.endDate) : null,
+      }),
       ...(input.isActive !== undefined && { isActive: input.isActive }),
       ...(input.notes !== undefined && { notes: input.notes }),
     },
   });
-  return { ...record, monthlyFee: toNum(record.monthlyFee), startDate: record.startDate.toISOString(), endDate: toIso(record.endDate) };
+  return {
+    ...record,
+    monthlyFee: toNum(record.monthlyFee),
+    startDate: record.startDate.toISOString(),
+    endDate: toIso(record.endDate),
+  };
 }
 
 export async function endServiceAssignment(id: string) {
@@ -109,5 +134,10 @@ export async function endServiceAssignment(id: string) {
     where: { id },
     data: { isActive: false, endDate: new Date() },
   });
-  return { ...record, monthlyFee: toNum(record.monthlyFee), startDate: record.startDate.toISOString(), endDate: toIso(record.endDate) };
+  return {
+    ...record,
+    monthlyFee: toNum(record.monthlyFee),
+    startDate: record.startDate.toISOString(),
+    endDate: toIso(record.endDate),
+  };
 }

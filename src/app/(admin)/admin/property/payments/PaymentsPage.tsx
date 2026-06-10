@@ -52,8 +52,18 @@ function fmt(n: number) {
 }
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 export default function PaymentsPage() {
@@ -65,7 +75,10 @@ export default function PaymentsPage() {
   const [generating, setGenerating] = useState(false);
   const [genMsg, setGenMsg] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
-  const [drawer, setDrawer] = useState<{ payment: PaymentWithTenant; mode: "pay" | "advance" } | null>(null);
+  const [drawer, setDrawer] = useState<{
+    payment: PaymentWithTenant;
+    mode: "pay" | "advance";
+  } | null>(null);
 
   // Form state for payment drawer
   const [txType, setTxType] = useState("CASH");
@@ -76,7 +89,12 @@ export default function PaymentsPage() {
   const [txError, setTxError] = useState<string | null>(null);
 
   // Edit payment state
-  const [editPayment, setEditPayment] = useState<{ id: string; tenantName: string; rentDue: string; notes: string } | null>(null);
+  const [editPayment, setEditPayment] = useState<{
+    id: string;
+    tenantName: string;
+    rentDue: string;
+    notes: string;
+  } | null>(null);
   const [editPaymentLoading, setEditPaymentLoading] = useState(false);
   const [editPaymentError, setEditPaymentError] = useState<string | null>(null);
 
@@ -139,9 +157,7 @@ export default function PaymentsPage() {
   const openPayDrawer = (payment: PaymentWithTenant, mode: "pay" | "advance") => {
     const outstanding = payment.balance;
     const maxApplicable =
-      mode === "advance"
-        ? Math.min(payment.advanceBalance, outstanding)
-        : outstanding;
+      mode === "advance" ? Math.min(payment.advanceBalance, outstanding) : outstanding;
     setTxType(mode === "advance" ? "ADVANCE_APPLIED" : "CASH");
     setTxAmount(String(maxApplicable > 0 ? maxApplicable : ""));
     setTxDate(new Date().toISOString().split("T")[0]);
@@ -201,7 +217,12 @@ export default function PaymentsPage() {
   };
 
   const deletePayment = async (id: string, tenantName: string) => {
-    if (!window.confirm(`Delete the payment record for ${tenantName}? All transactions will be removed and any advance applied will be restored.`)) return;
+    if (
+      !window.confirm(
+        `Delete the payment record for ${tenantName}? All transactions will be removed and any advance applied will be restored.`
+      )
+    )
+      return;
     await fetch(`/api/admin/property/payments/${id}`, { method: "DELETE" });
     load();
   };
@@ -250,7 +271,9 @@ export default function PaymentsPage() {
     }
   };
 
-  const overdueCount = payments.filter((p) => p.status === "OVERDUE" || (p.status === "PENDING" && p.balance > 0)).length;
+  const overdueCount = payments.filter(
+    (p) => p.status === "OVERDUE" || (p.status === "PENDING" && p.balance > 0)
+  ).length;
   const totalExpected = payments.reduce((s, p) => s + p.rentDue, 0);
   const totalCollected = payments.reduce((s, p) => s + p.amountPaid + p.advanceApplied, 0);
 
@@ -264,7 +287,9 @@ export default function PaymentsPage() {
           <InputLabel>Month</InputLabel>
           <Select label="Month" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
             {MONTHS.map((m, i) => (
-              <MenuItem key={i + 1} value={i + 1}>{m}</MenuItem>
+              <MenuItem key={i + 1} value={i + 1}>
+                {m}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -272,7 +297,9 @@ export default function PaymentsPage() {
           <InputLabel>Year</InputLabel>
           <Select label="Year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
             {[2025, 2026, 2027, 2028].map((y) => (
-              <MenuItem key={y} value={y}>{y}</MenuItem>
+              <MenuItem key={y} value={y}>
+                {y}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -309,14 +336,23 @@ export default function PaymentsPage() {
           { label: "Expected", value: fmt(totalExpected), color: "text.primary" },
           { label: "Collected", value: fmt(totalCollected), color: "success.main" },
           { label: "Outstanding", value: fmt(totalExpected - totalCollected), color: "error.main" },
-          { label: "Unpaid Tenants", value: String(overdueCount), color: overdueCount > 0 ? "warning.main" : "text.secondary" },
+          {
+            label: "Unpaid Tenants",
+            value: String(overdueCount),
+            color: overdueCount > 0 ? "warning.main" : "text.secondary",
+          },
         ].map((s) => (
-          <Card key={s.label} sx={{ minWidth: 130, flex: "1 1 130px", bgcolor: "background.paper" }}>
+          <Card
+            key={s.label}
+            sx={{ minWidth: 130, flex: "1 1 130px", bgcolor: "background.paper" }}
+          >
             <CardContent sx={{ py: "10px !important", px: 2 }}>
               <Typography variant="h6" sx={{ fontWeight: 700, color: s.color }}>
                 {s.value}
               </Typography>
-              <Typography variant="caption" color="text.secondary">{s.label}</Typography>
+              <Typography variant="caption" color="text.secondary">
+                {s.label}
+              </Typography>
             </CardContent>
           </Card>
         ))}
@@ -324,12 +360,9 @@ export default function PaymentsPage() {
 
       {/* Due tracker alert */}
       {overdueCount > 0 && (
-        <Alert
-          severity="warning"
-          icon={<AlertTriangle size={18} />}
-          sx={{ mb: 2 }}
-        >
-          {overdueCount} tenant{overdueCount > 1 ? "s have" : " has"} outstanding dues for {MONTHS[month - 1]} {year}
+        <Alert severity="warning" icon={<AlertTriangle size={18} />} sx={{ mb: 2 }}>
+          {overdueCount} tenant{overdueCount > 1 ? "s have" : " has"} outstanding dues for{" "}
+          {MONTHS[month - 1]} {year}
         </Alert>
       )}
 
@@ -357,7 +390,9 @@ export default function PaymentsPage() {
               {payments.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} sx={{ textAlign: "center", py: 4 }}>
-                    <Typography color="text.secondary">No payment records for this period</Typography>
+                    <Typography color="text.secondary">
+                      No payment records for this period
+                    </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
@@ -366,12 +401,20 @@ export default function PaymentsPage() {
                     <TableRow hover>
                       <TableCell sx={{ width: 32 }}>
                         <IconButton size="small" onClick={() => toggleExpand(p.id)}>
-                          {expanded.has(p.id) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          {expanded.has(p.id) ? (
+                            <ChevronDown size={14} />
+                          ) : (
+                            <ChevronRight size={14} />
+                          )}
                         </IconButton>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>{p.tenantName}</Typography>
-                        <Typography variant="caption" color="text.secondary">{p.tenantCode}</Typography>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {p.tenantName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {p.tenantCode}
+                        </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">{p.unitNumber ?? "—"}</Typography>
@@ -383,7 +426,9 @@ export default function PaymentsPage() {
                           <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>
                             {fmt(p.advanceApplied)}
                           </Typography>
-                        ) : "—"}
+                        ) : (
+                          "—"
+                        )}
                       </TableCell>
                       <TableCell>
                         <Typography
@@ -409,7 +454,17 @@ export default function PaymentsPage() {
                       <TableCell>
                         <Box sx={{ display: "flex", gap: 0.5 }}>
                           <Tooltip title="Edit payment">
-                            <IconButton size="small" onClick={() => setEditPayment({ id: p.id, tenantName: p.tenantName, rentDue: String(p.rentDue), notes: p.notes ?? "" })}>
+                            <IconButton
+                              size="small"
+                              onClick={() =>
+                                setEditPayment({
+                                  id: p.id,
+                                  tenantName: p.tenantName,
+                                  rentDue: String(p.rentDue),
+                                  notes: p.notes ?? "",
+                                })
+                              }
+                            >
                               <Pencil size={15} />
                             </IconButton>
                           </Tooltip>
@@ -440,7 +495,11 @@ export default function PaymentsPage() {
                             </Tooltip>
                           )}
                           <Tooltip title="Delete payment record">
-                            <IconButton size="small" color="error" onClick={() => deletePayment(p.id, p.tenantName)}>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => deletePayment(p.id, p.tenantName)}
+                            >
                               <Trash2 size={15} />
                             </IconButton>
                           </Tooltip>
@@ -455,31 +514,78 @@ export default function PaymentsPage() {
                           <Box sx={{ bgcolor: "action.hover", px: 5, py: 1.5 }}>
                             {/* Bill breakdown */}
                             {p.rentDue > 0 && (
-                              <Box sx={{ mb: 1.5, pb: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600, display: "block", mb: 0.5 }}>
+                              <Box
+                                sx={{
+                                  mb: 1.5,
+                                  pb: 1.5,
+                                  borderBottom: "1px solid",
+                                  borderColor: "divider",
+                                }}
+                              >
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{ fontWeight: 600, display: "block", mb: 0.5 }}
+                                >
                                   Bill Breakdown
                                 </Typography>
                                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                                  <Typography variant="caption" color="text.secondary">Base Rent</Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    Base Rent
+                                  </Typography>
                                   <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                                    {fmt(p.rentDue - p.services.reduce((s, sv) => s + sv.monthlyFee, 0) - p.carryForward)}
+                                    {fmt(
+                                      p.rentDue -
+                                        p.services.reduce((s, sv) => s + sv.monthlyFee, 0) -
+                                        p.carryForward
+                                    )}
                                   </Typography>
                                 </Box>
                                 {p.services.map((sv) => (
-                                  <Box key={sv.name} sx={{ display: "flex", justifyContent: "space-between" }}>
-                                    <Typography variant="caption" color="text.secondary">{sv.name}</Typography>
-                                    <Typography variant="caption" sx={{ fontWeight: 600 }}>{fmt(sv.monthlyFee)}</Typography>
+                                  <Box
+                                    key={sv.name}
+                                    sx={{ display: "flex", justifyContent: "space-between" }}
+                                  >
+                                    <Typography variant="caption" color="text.secondary">
+                                      {sv.name}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{ fontWeight: 600 }}>
+                                      {fmt(sv.monthlyFee)}
+                                    </Typography>
                                   </Box>
                                 ))}
                                 {p.carryForward > 0 && (
                                   <Box sx={{ display: "flex", justifyContent: "space-between" }}>
-                                    <Typography variant="caption" color="warning.main">Previous Balance</Typography>
-                                    <Typography variant="caption" sx={{ fontWeight: 600, color: "warning.main" }}>{fmt(p.carryForward)}</Typography>
+                                    <Typography variant="caption" color="warning.main">
+                                      Previous Balance
+                                    </Typography>
+                                    <Typography
+                                      variant="caption"
+                                      sx={{ fontWeight: 600, color: "warning.main" }}
+                                    >
+                                      {fmt(p.carryForward)}
+                                    </Typography>
                                   </Box>
                                 )}
-                                <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.5, pt: 0.5, borderTop: "1px dashed", borderColor: "divider" }}>
-                                  <Typography variant="caption" sx={{ fontWeight: 700 }}>Total Due</Typography>
-                                  <Typography variant="caption" sx={{ fontWeight: 700, color: "primary.main" }}>{fmt(p.rentDue)}</Typography>
+                                <Box
+                                  sx={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    mt: 0.5,
+                                    pt: 0.5,
+                                    borderTop: "1px dashed",
+                                    borderColor: "divider",
+                                  }}
+                                >
+                                  <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                                    Total Due
+                                  </Typography>
+                                  <Typography
+                                    variant="caption"
+                                    sx={{ fontWeight: 700, color: "primary.main" }}
+                                  >
+                                    {fmt(p.rentDue)}
+                                  </Typography>
                                 </Box>
                               </Box>
                             )}
@@ -489,7 +595,11 @@ export default function PaymentsPage() {
                                   key={tx.id}
                                   sx={{ display: "flex", gap: 1.5, py: 0.5, alignItems: "center" }}
                                 >
-                                  <Typography variant="caption" color="text.secondary" sx={{ width: 86, flexShrink: 0 }}>
+                                  <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ width: 86, flexShrink: 0 }}
+                                  >
                                     {new Date(tx.date).toLocaleDateString()}
                                   </Typography>
                                   <Chip
@@ -513,8 +623,13 @@ export default function PaymentsPage() {
                                       </IconButton>
                                     </Tooltip>
                                     <Tooltip title="Delete transaction">
-                                      <IconButton size="small" color="error"
-                                        onClick={() => deleteTransaction(tx.id, tx.type === "ADVANCE_APPLIED")}>
+                                      <IconButton
+                                        size="small"
+                                        color="error"
+                                        onClick={() =>
+                                          deleteTransaction(tx.id, tx.type === "ADVANCE_APPLIED")
+                                        }
+                                      >
                                         <Trash2 size={12} />
                                       </IconButton>
                                     </Tooltip>
@@ -551,33 +666,60 @@ export default function PaymentsPage() {
       {/* Edit payment drawer */}
       <Drawer anchor="right" open={!!editPayment} onClose={() => setEditPayment(null)}>
         <Box sx={{ width: 340, p: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>Edit Payment</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Edit Payment
+          </Typography>
           {editPayment && (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{editPayment.tenantName}</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {editPayment.tenantName}
+            </Typography>
           )}
           <Alert severity="info" sx={{ mb: 2, fontSize: "0.8rem" }}>
-            Editing Rent Due recalculates the balance and status. Use this to correct the billed amount — e.g. to split embedded service fees from base rent.
+            Editing Rent Due recalculates the balance and status. Use this to correct the billed
+            amount — e.g. to split embedded service fees from base rent.
           </Alert>
           <TextField
-            label="Rent Due (৳)" type="number" size="small" fullWidth
+            label="Rent Due (৳)"
+            type="number"
+            size="small"
+            fullWidth
             value={editPayment?.rentDue ?? ""}
-            onChange={(e) => setEditPayment((p) => p ? { ...p, rentDue: e.target.value } : p)}
+            onChange={(e) => setEditPayment((p) => (p ? { ...p, rentDue: e.target.value } : p))}
             sx={{ mb: 2 }}
           />
           <TextField
-            label="Notes (optional)" size="small" fullWidth multiline rows={2}
+            label="Notes (optional)"
+            size="small"
+            fullWidth
+            multiline
+            rows={2}
             value={editPayment?.notes ?? ""}
-            onChange={(e) => setEditPayment((p) => p ? { ...p, notes: e.target.value } : p)}
+            onChange={(e) => setEditPayment((p) => (p ? { ...p, notes: e.target.value } : p))}
             sx={{ mb: 2 }}
           />
-          {editPaymentError && <Alert severity="error" sx={{ mb: 2 }}>{editPaymentError}</Alert>}
+          {editPaymentError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {editPaymentError}
+            </Alert>
+          )}
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button variant="outlined" size="small" fullWidth onClick={() => setEditPayment(null)} disabled={editPaymentLoading}>
+            <Button
+              variant="outlined"
+              size="small"
+              fullWidth
+              onClick={() => setEditPayment(null)}
+              disabled={editPaymentLoading}
+            >
               Cancel
             </Button>
             <Button
-              variant="contained" size="small" fullWidth onClick={submitEditPayment}
-              disabled={editPaymentLoading || !editPayment?.rentDue || parseFloat(editPayment.rentDue) <= 0}
+              variant="contained"
+              size="small"
+              fullWidth
+              onClick={submitEditPayment}
+              disabled={
+                editPaymentLoading || !editPayment?.rentDue || parseFloat(editPayment.rentDue) <= 0
+              }
             >
               {editPaymentLoading ? "Saving…" : "Save"}
             </Button>
@@ -588,7 +730,9 @@ export default function PaymentsPage() {
       {/* Edit transaction drawer */}
       <Drawer anchor="right" open={!!editTx} onClose={() => setEditTx(null)}>
         <Box sx={{ width: 340, p: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Edit Transaction</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+            Edit Transaction
+          </Typography>
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Type</InputLabel>
             <Select label="Type" value={editTxType} onChange={(e) => setEditTxType(e.target.value)}>
@@ -600,27 +744,52 @@ export default function PaymentsPage() {
             </Select>
           </FormControl>
           <TextField
-            label="Amount (৳)" type="number" size="small" fullWidth
-            value={editTxAmount} onChange={(e) => setEditTxAmount(e.target.value)}
+            label="Amount (৳)"
+            type="number"
+            size="small"
+            fullWidth
+            value={editTxAmount}
+            onChange={(e) => setEditTxAmount(e.target.value)}
             sx={{ mb: 2 }}
           />
           <TextField
-            label="Date" type="date" size="small" fullWidth
-            value={editTxDate} onChange={(e) => setEditTxDate(e.target.value)}
-            sx={{ mb: 2 }} slotProps={{ inputLabel: { shrink: true } }}
+            label="Date"
+            type="date"
+            size="small"
+            fullWidth
+            value={editTxDate}
+            onChange={(e) => setEditTxDate(e.target.value)}
+            sx={{ mb: 2 }}
+            slotProps={{ inputLabel: { shrink: true } }}
           />
           <TextField
-            label="Notes (optional)" size="small" fullWidth
-            value={editTxNotes} onChange={(e) => setEditTxNotes(e.target.value)}
+            label="Notes (optional)"
+            size="small"
+            fullWidth
+            value={editTxNotes}
+            onChange={(e) => setEditTxNotes(e.target.value)}
             sx={{ mb: 2 }}
           />
-          {editTxError && <Alert severity="error" sx={{ mb: 2 }}>{editTxError}</Alert>}
+          {editTxError && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {editTxError}
+            </Alert>
+          )}
           <Box sx={{ display: "flex", gap: 1 }}>
-            <Button variant="outlined" size="small" fullWidth onClick={() => setEditTx(null)} disabled={editTxLoading}>
+            <Button
+              variant="outlined"
+              size="small"
+              fullWidth
+              onClick={() => setEditTx(null)}
+              disabled={editTxLoading}
+            >
               Cancel
             </Button>
             <Button
-              variant="contained" size="small" fullWidth onClick={submitEditTransaction}
+              variant="contained"
+              size="small"
+              fullWidth
+              onClick={submitEditTransaction}
               disabled={editTxLoading || !editTxAmount || parseFloat(editTxAmount) <= 0}
             >
               {editTxLoading ? "Saving…" : "Save Changes"}
@@ -641,14 +810,18 @@ export default function PaymentsPage() {
                 {drawer.payment.tenantName} · {MONTHS[month - 1]} {year}
               </Typography>
               <Box sx={{ bgcolor: "action.selected", px: 2, py: 1.5, borderRadius: 1, mb: 2 }}>
-                <Typography variant="caption" color="text.secondary">Balance due</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Balance due
+                </Typography>
                 <Typography variant="h6" sx={{ fontWeight: 700, color: "error.main" }}>
                   {fmt(drawer.payment.balance)}
                 </Typography>
                 {drawer.mode === "advance" && (
                   <>
                     <Divider sx={{ my: 1 }} />
-                    <Typography variant="caption" color="text.secondary">Available advance</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Available advance
+                    </Typography>
                     <Typography variant="body2" sx={{ fontWeight: 700, color: "primary.main" }}>
                       {fmt(drawer.payment.advanceBalance)}
                     </Typography>
@@ -678,9 +851,10 @@ export default function PaymentsPage() {
                 sx={{ mb: 2 }}
                 slotProps={{
                   htmlInput: {
-                    max: drawer.mode === "advance"
-                      ? Math.min(drawer.payment.advanceBalance, drawer.payment.balance)
-                      : undefined,
+                    max:
+                      drawer.mode === "advance"
+                        ? Math.min(drawer.payment.advanceBalance, drawer.payment.balance)
+                        : undefined,
                   },
                 }}
               />
@@ -703,7 +877,9 @@ export default function PaymentsPage() {
               />
 
               {txError && (
-                <Alert severity="error" sx={{ mb: 2 }}>{txError}</Alert>
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {txError}
+                </Alert>
               )}
 
               <Button
@@ -712,7 +888,11 @@ export default function PaymentsPage() {
                 onClick={submitTransaction}
                 disabled={txLoading || !txAmount || parseFloat(txAmount) <= 0}
               >
-                {txLoading ? "Saving…" : drawer.mode === "advance" ? "Apply Advance" : "Record Payment"}
+                {txLoading
+                  ? "Saving…"
+                  : drawer.mode === "advance"
+                    ? "Apply Advance"
+                    : "Record Payment"}
               </Button>
             </>
           )}

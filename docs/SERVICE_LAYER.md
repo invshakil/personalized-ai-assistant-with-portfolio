@@ -53,87 +53,87 @@ src/services/property/
 
 ### Units (`import { ... } from "@/services/property"`)
 
-| Function | Parameters | Returns |
-|----------|-----------|---------|
-| `getUnits()` | — | `UnitWithTenant[]` |
-| `getUnit(id)` | `id: string` | unit with full tenant history, or `null` |
-| `createUnit(input)` | `CreateUnitInput` | created unit |
-| `updateUnit(id, input)` | `UpdateUnitInput` | updated unit |
-| `deleteUnit(id)` | `id: string` | `{ deleted: true }` or throws |
+| Function                | Parameters        | Returns                                  |
+| ----------------------- | ----------------- | ---------------------------------------- |
+| `getUnits()`            | —                 | `UnitWithTenant[]`                       |
+| `getUnit(id)`           | `id: string`      | unit with full tenant history, or `null` |
+| `createUnit(input)`     | `CreateUnitInput` | created unit                             |
+| `updateUnit(id, input)` | `UpdateUnitInput` | updated unit                             |
+| `deleteUnit(id)`        | `id: string`      | `{ deleted: true }` or throws            |
 
 ### Tenants
 
-| Function | Parameters | Returns |
-|----------|-----------|---------|
-| `getTenants(filter?)` | `"active" \| "inactive" \| "external" \| "all" \| "future"` | tenant list |
-| `getTenant(id)` | `id: string` | full tenant with payments/services/rent changes, or `null` |
-| `createTenant(input)` | `CreateTenantInput` | created tenant; auto-sets CURRENT or FUTURE status |
-| `updateTenant(id, input)` | `UpdateTenantInput` | updated tenant |
-| `deactivateTenant(id)` | `id: string` | `{ deactivated, promoted }` |
-| `activateTenant(id)` | `id: string` | `{ ok: true }` |
-| `getMoveOutPreview(id, moveOutDate)` | tenant id + ISO date string | settlement preview (advance vs outstanding) |
-| `settleMoveOut(id, moveOutDate, settlements)` | `Settlement[]` | `{ success, remainingAdvanceRefundable }` |
-| `autoDeactivateExpired()` | — | `{ deactivated, promoted }` |
+| Function                                      | Parameters                                                  | Returns                                                    |
+| --------------------------------------------- | ----------------------------------------------------------- | ---------------------------------------------------------- |
+| `getTenants(filter?)`                         | `"active" \| "inactive" \| "external" \| "all" \| "future"` | tenant list                                                |
+| `getTenant(id)`                               | `id: string`                                                | full tenant with payments/services/rent changes, or `null` |
+| `createTenant(input)`                         | `CreateTenantInput`                                         | created tenant; auto-sets CURRENT or FUTURE status         |
+| `updateTenant(id, input)`                     | `UpdateTenantInput`                                         | updated tenant                                             |
+| `deactivateTenant(id)`                        | `id: string`                                                | `{ deactivated, promoted }`                                |
+| `activateTenant(id)`                          | `id: string`                                                | `{ ok: true }`                                             |
+| `getMoveOutPreview(id, moveOutDate)`          | tenant id + ISO date string                                 | settlement preview (advance vs outstanding)                |
+| `settleMoveOut(id, moveOutDate, settlements)` | `Settlement[]`                                              | `{ success, remainingAdvanceRefundable }`                  |
+| `autoDeactivateExpired()`                     | —                                                           | `{ deactivated, promoted }`                                |
 
 ### Payments
 
-| Function | Parameters | Returns |
-|----------|-----------|---------|
-| `getPayments({ month?, year?, tenantId? })` | optional filters | payment list with transactions |
-| `getPayment(id)` | `id: string` | single payment with transactions, or `null` |
-| `updatePayment(id, input)` | `UpdatePaymentInput` | updated payment |
-| `deletePayment(id)` | `id: string` | `{ deleted: true }` |
+| Function                                    | Parameters           | Returns                                     |
+| ------------------------------------------- | -------------------- | ------------------------------------------- |
+| `getPayments({ month?, year?, tenantId? })` | optional filters     | payment list with transactions              |
+| `getPayment(id)`                            | `id: string`         | single payment with transactions, or `null` |
+| `updatePayment(id, input)`                  | `UpdatePaymentInput` | updated payment                             |
+| `deletePayment(id)`                         | `id: string`         | `{ deleted: true }`                         |
 
 ### Payment Generation
 
-| Function | Parameters | Returns |
-|----------|-----------|---------|
+| Function                        | Parameters                    | Returns                                                                       |
+| ------------------------------- | ----------------------------- | ----------------------------------------------------------------------------- |
 | `generatePayments(month, year)` | `month: number, year: number` | `{ created, updated, skipped, rentChangesApplied, tenantsPromoted, message }` |
 
 **Side effects:** applies pending rent changes, promotes FUTURE tenants whose moveInDate ≤ end of month, cleans up stale payments.
 
 ### Transactions
 
-| Function | Parameters | Returns |
-|----------|-----------|---------|
-| `getTransactions(paymentId)` | `paymentId: string` | transaction list |
-| `addTransaction(input)` | `AddTransactionInput` | created transaction; updates payment status + tenant advance balance |
-| `updateTransaction(txId, input)` | `UpdateTransactionInput` | updated transaction; recalculates payment status |
-| `deleteTransaction(txId)` | `txId: string` | `{ deleted: true }` |
+| Function                         | Parameters               | Returns                                                              |
+| -------------------------------- | ------------------------ | -------------------------------------------------------------------- |
+| `getTransactions(paymentId)`     | `paymentId: string`      | transaction list                                                     |
+| `addTransaction(input)`          | `AddTransactionInput`    | created transaction; updates payment status + tenant advance balance |
+| `updateTransaction(txId, input)` | `UpdateTransactionInput` | updated transaction; recalculates payment status                     |
+| `deleteTransaction(txId)`        | `txId: string`           | `{ deleted: true }`                                                  |
 
 ### Expenses
 
-| Function | Parameters | Returns |
-|----------|-----------|---------|
-| `getExpenses({ month?, year? })` | optional filters | expense list |
-| `createExpense(input)` | `CreateExpenseInput` | created expense |
-| `updateExpense(id, input)` | `UpdateExpenseInput` | updated expense |
-| `deleteExpense(id)` | `id: string` | `{ deleted: true }` |
+| Function                         | Parameters           | Returns             |
+| -------------------------------- | -------------------- | ------------------- |
+| `getExpenses({ month?, year? })` | optional filters     | expense list        |
+| `createExpense(input)`           | `CreateExpenseInput` | created expense     |
+| `updateExpense(id, input)`       | `UpdateExpenseInput` | updated expense     |
+| `deleteExpense(id)`              | `id: string`         | `{ deleted: true }` |
 
 ### Add-On Services
 
-| Function | Parameters | Returns |
-|----------|-----------|---------|
-| `getServices()` | — | service catalog with active assignments |
-| `createService(name, description?)` | strings | created service |
-| `updateService(id, input)` | `UpdateServiceInput` | updated service |
-| `deactivateService(id)` | `id: string` | deactivated service |
-| `assignService(input)` | `AssignServiceInput` | tenant-service assignment (upserts) |
-| `updateServiceAssignment(id, input)` | `UpdateAssignmentInput` | updated assignment |
-| `endServiceAssignment(id)` | `id: string` | ended assignment (isActive=false, endDate=now) |
+| Function                             | Parameters              | Returns                                        |
+| ------------------------------------ | ----------------------- | ---------------------------------------------- |
+| `getServices()`                      | —                       | service catalog with active assignments        |
+| `createService(name, description?)`  | strings                 | created service                                |
+| `updateService(id, input)`           | `UpdateServiceInput`    | updated service                                |
+| `deactivateService(id)`              | `id: string`            | deactivated service                            |
+| `assignService(input)`               | `AssignServiceInput`    | tenant-service assignment (upserts)            |
+| `updateServiceAssignment(id, input)` | `UpdateAssignmentInput` | updated assignment                             |
+| `endServiceAssignment(id)`           | `id: string`            | ended assignment (isActive=false, endDate=now) |
 
 ### Rent Changes
 
-| Function | Parameters | Returns |
-|----------|-----------|---------|
-| `createRentChange(input)` | `CreateRentChangeInput` | pending rent change |
+| Function                      | Parameters              | Returns                                    |
+| ----------------------------- | ----------------------- | ------------------------------------------ |
+| `createRentChange(input)`     | `CreateRentChangeInput` | pending rent change                        |
 | `updateRentChange(id, input)` | `UpdateRentChangeInput` | updated change (throws if already applied) |
-| `deleteRentChange(id)` | `id: string` | `{ ok: true }` (throws if already applied) |
+| `deleteRentChange(id)`        | `id: string`            | `{ ok: true }` (throws if already applied) |
 
 ### Dashboard
 
-| Function | Parameters | Returns |
-|----------|-----------|---------|
+| Function                         | Parameters                    | Returns                  |
+| -------------------------------- | ----------------------------- | ------------------------ |
 | `getDashboardStats(month, year)` | `month: number, year: number` | `PropertyDashboardStats` |
 
 ---
@@ -160,12 +160,12 @@ Create tenant (unitId provided)
 
 The service layer normalises status for the UI:
 
-| DB tenantStatus | moveInDate vs today | Response tenantStatus | Unit card slot |
-|----------------|--------------------|-----------------------|---------------|
-| `CURRENT` | ≤ today | `CURRENT` | currentTenant (Occupied) |
-| `CURRENT` | > today | `FUTURE` (overridden) | futureTenant (Vacant) |
-| `FUTURE` | any | `FUTURE` | futureTenant |
-| `PAST` | any | `PAST` | not shown |
+| DB tenantStatus | moveInDate vs today | Response tenantStatus | Unit card slot           |
+| --------------- | ------------------- | --------------------- | ------------------------ |
+| `CURRENT`       | ≤ today             | `CURRENT`             | currentTenant (Occupied) |
+| `CURRENT`       | > today             | `FUTURE` (overridden) | futureTenant (Vacant)    |
+| `FUTURE`        | any                 | `FUTURE`              | futureTenant             |
+| `PAST`          | any                 | `PAST`                | not shown                |
 
 ---
 
@@ -174,8 +174,8 @@ The service layer normalises status for the UI:
 ```ts
 import { toNum, toIso } from "@/services/property/_serializers";
 
-toNum(prismaDecimalOrNumber)  // → number (handles Prisma Decimal objects)
-toIso(dateOrNull)             // → ISO string or null
+toNum(prismaDecimalOrNumber); // → number (handles Prisma Decimal objects)
+toIso(dateOrNull); // → ISO string or null
 ```
 
 Always use these instead of `.toNumber()` or `.toISOString()` directly — they handle both Prisma Decimal objects and plain numbers, and are null-safe.
@@ -188,7 +188,11 @@ Each service function maps directly to an Anthropic tool definition. Example for
 
 ```ts
 import {
-  getUnits, getTenants, getPayments, getDashboardStats, generatePayments
+  getUnits,
+  getTenants,
+  getPayments,
+  getDashboardStats,
+  generatePayments,
 } from "@/services/property";
 
 const TOOLS: Anthropic.Tool[] = [
@@ -199,7 +203,8 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "get_tenants",
-    description: "List tenants. Filter: active (current), inactive (past), future (scheduled), external, all.",
+    description:
+      "List tenants. Filter: active (current), inactive (past), future (scheduled), external, all.",
     input_schema: {
       type: "object",
       properties: {
@@ -233,7 +238,8 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "generate_payments",
-    description: "Generate monthly payment records for all current tenants. Applies pending rent changes and promotes scheduled tenants.",
+    description:
+      "Generate monthly payment records for all current tenants. Applies pending rent changes and promotes scheduled tenants.",
     input_schema: {
       type: "object",
       required: ["month", "year"],
@@ -248,12 +254,18 @@ const TOOLS: Anthropic.Tool[] = [
 // Tool call dispatcher
 async function executeTool(name: string, input: Record<string, unknown>) {
   switch (name) {
-    case "get_units":       return getUnits();
-    case "get_tenants":     return getTenants((input.filter as string) ?? "active");
-    case "get_payments":    return getPayments(input as { month?: number; year?: number; tenantId?: string });
-    case "get_dashboard_stats": return getDashboardStats(input.month as number, input.year as number);
-    case "generate_payments":   return generatePayments(input.month as number, input.year as number);
-    default: throw new Error(`Unknown tool: ${name}`);
+    case "get_units":
+      return getUnits();
+    case "get_tenants":
+      return getTenants((input.filter as string) ?? "active");
+    case "get_payments":
+      return getPayments(input as { month?: number; year?: number; tenantId?: string });
+    case "get_dashboard_stats":
+      return getDashboardStats(input.month as number, input.year as number);
+    case "generate_payments":
+      return generatePayments(input.month as number, input.year as number);
+    default:
+      throw new Error(`Unknown tool: ${name}`);
   }
 }
 ```
@@ -276,9 +288,9 @@ The AI chat handler calls `executeTool()` when Claude returns a `tool_use` block
 Service functions throw `Error` for expected failures:
 
 ```ts
-throw new Error("Not found")           // → route returns 404
-throw new Error("Cannot delete ...")   // → route returns 400
-throw new Error("Advance exceeded ...") // → route returns 400
+throw new Error("Not found"); // → route returns 404
+throw new Error("Cannot delete ..."); // → route returns 400
+throw new Error("Advance exceeded ..."); // → route returns 400
 ```
 
 Route handlers wrap calls in `try/catch` and map thrown errors to HTTP responses:

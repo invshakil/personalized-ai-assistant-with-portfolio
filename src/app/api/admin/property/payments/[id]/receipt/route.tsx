@@ -5,8 +5,18 @@ import { NextRequest } from "next/server";
 import { Document, Page, View, Text, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 
 const MONTH_LABELS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 const TX_LABELS: Record<string, string> = {
@@ -34,7 +44,13 @@ const s = StyleSheet.create({
   row: { flexDirection: "row", justifyContent: "space-between", marginBottom: 3 },
   label: { color: "#666" },
   value: { fontFamily: "Helvetica-Bold" },
-  sectionTitle: { fontFamily: "Helvetica-Bold", fontSize: 8, color: "#555", marginBottom: 4, marginTop: 6 },
+  sectionTitle: {
+    fontFamily: "Helvetica-Bold",
+    fontSize: 8,
+    color: "#555",
+    marginBottom: 4,
+    marginTop: 6,
+  },
   lineItem: { flexDirection: "row", justifyContent: "space-between", marginBottom: 2 },
   totalRow: {
     flexDirection: "row",
@@ -59,7 +75,13 @@ const s = StyleSheet.create({
     marginTop: 14,
     paddingTop: 4,
   },
-  signatureLine: { borderTop: "0.5 solid #aaa", width: 100, paddingTop: 3, fontSize: 7, color: "#888" },
+  signatureLine: {
+    borderTop: "0.5 solid #aaa",
+    width: 100,
+    paddingTop: 3,
+    fontSize: 7,
+    color: "#888",
+  },
   copyBadge: { fontSize: 7, color: "#999", marginBottom: 4, fontFamily: "Helvetica-Bold" },
   paidWatermark: {
     position: "absolute",
@@ -109,10 +131,27 @@ interface HalfProps {
 
 function ReceiptHalf(props: HalfProps) {
   const {
-    label, propertyName, ownerName, ownerPhone, address, bankAccount,
-    tenantName, tenantCode, unitNumber, month, year,
-    rentDue, amountPaid, advanceApplied, balance, status,
-    receiptNumber, issuedDate, transactions, baseRent, services,
+    label,
+    propertyName,
+    ownerName,
+    ownerPhone,
+    address,
+    bankAccount,
+    tenantName,
+    tenantCode,
+    unitNumber,
+    month,
+    year,
+    rentDue,
+    amountPaid,
+    advanceApplied,
+    balance,
+    status,
+    receiptNumber,
+    issuedDate,
+    transactions,
+    baseRent,
+    services,
   } = props;
   const statusColor = status === "PAID" ? "#28c76f" : status === "PARTIAL" ? "#ff9f43" : "#ea5455";
 
@@ -123,7 +162,10 @@ function ReceiptHalf(props: HalfProps) {
       <View style={s.header}>
         <Text style={s.propertyName}>{propertyName}</Text>
         <Text style={s.subTitle}>{address}</Text>
-        <Text style={s.subTitle}>Owner: {ownerName}{ownerPhone ? ` · ${ownerPhone}` : ""}</Text>
+        <Text style={s.subTitle}>
+          Owner: {ownerName}
+          {ownerPhone ? ` · ${ownerPhone}` : ""}
+        </Text>
         {bankAccount && <Text style={s.subTitle}>Bank: {bankAccount}</Text>}
       </View>
 
@@ -136,7 +178,9 @@ function ReceiptHalf(props: HalfProps) {
         </View>
         <View style={{ alignItems: "flex-end" }}>
           <Text style={[s.value, { fontSize: 9 }]}>{receiptNumber}</Text>
-          <Text style={s.subTitle}>Billing: {MONTH_LABELS[month - 1]} {year}</Text>
+          <Text style={s.subTitle}>
+            Billing: {MONTH_LABELS[month - 1]} {year}
+          </Text>
         </View>
       </View>
 
@@ -144,7 +188,9 @@ function ReceiptHalf(props: HalfProps) {
 
       <View style={s.row}>
         <Text style={s.label}>Tenant</Text>
-        <Text style={s.value}>{tenantName} ({tenantCode})</Text>
+        <Text style={s.value}>
+          {tenantName} ({tenantCode})
+        </Text>
       </View>
       <View style={s.row}>
         <Text style={s.label}>Unit</Text>
@@ -188,7 +234,7 @@ function ReceiptHalf(props: HalfProps) {
       </View>
       {advanceApplied > 0 && (
         <View style={s.lineItem}>
-          <Text style={s.label}>  (incl. advance applied)</Text>
+          <Text style={s.label}> (incl. advance applied)</Text>
           <Text style={s.label}>{fmt(advanceApplied)}</Text>
         </View>
       )}
@@ -241,7 +287,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!payment) return Response.json({ error: "Not found" }, { status: 404 });
 
-  const receiptNumber = payment.receiptNumber ?? `RCP-${payment.year}-${id.slice(-4).toUpperCase()}`;
+  const receiptNumber =
+    payment.receiptNumber ?? `RCP-${payment.year}-${id.slice(-4).toUpperCase()}`;
   const issuedDate = new Date().toLocaleDateString("en-GB");
   const tenantCode = payment.tenant.tenantCode ?? "N/A";
   const unitNumber = payment.unit?.unitNumber ?? "—";
@@ -285,7 +332,9 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       <Page size="A4" style={s.page}>
         <ReceiptHalf {...halfProps} label="TENANT COPY" />
         <View style={s.cut}>
-          <Text style={s.cutText}>- - - - - - - - - - - - - - cut here - - - - - - - - - - - - - -</Text>
+          <Text style={s.cutText}>
+            - - - - - - - - - - - - - - cut here - - - - - - - - - - - - - -
+          </Text>
         </View>
         <ReceiptHalf {...halfProps} label="OWNER COPY" />
       </Page>

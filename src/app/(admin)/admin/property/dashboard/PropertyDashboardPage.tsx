@@ -37,11 +37,23 @@ const PropertyCharts = dynamic(() => import("./PropertyCharts"), {
 });
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
-function fmt(n: number) { return `৳${n.toLocaleString()}`; }
+function fmt(n: number) {
+  return `৳${n.toLocaleString()}`;
+}
 
 function StatCard({
   label,
@@ -60,7 +72,9 @@ function StatCard({
         <Typography variant="h5" sx={{ fontWeight: 700, color: color ?? "text.primary" }}>
           {value}
         </Typography>
-        <Typography variant="caption" color="text.secondary">{label}</Typography>
+        <Typography variant="caption" color="text.secondary">
+          {label}
+        </Typography>
         {sub && (
           <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
             {sub}
@@ -79,7 +93,9 @@ export default function PropertyDashboardPage() {
   const [data, setData] = useState<PropertyDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -92,7 +108,9 @@ export default function PropertyDashboardPage() {
     }
   }, [month, year]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   if (!mounted) {
     return (
@@ -111,26 +129,40 @@ export default function PropertyDashboardPage() {
         <FormControl size="small" sx={{ minWidth: 140 }}>
           <InputLabel>Month</InputLabel>
           <Select label="Month" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-            {MONTHS.map((m, i) => <MenuItem key={i + 1} value={i + 1}>{m}</MenuItem>)}
+            {MONTHS.map((m, i) => (
+              <MenuItem key={i + 1} value={i + 1}>
+                {m}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
         <FormControl size="small" sx={{ minWidth: 100 }}>
           <InputLabel>Year</InputLabel>
           <Select label="Year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {[2025, 2026, 2027, 2028].map((y) => <MenuItem key={y} value={y}>{y}</MenuItem>)}
+            {[2025, 2026, 2027, 2028].map((y) => (
+              <MenuItem key={y} value={y}>
+                {y}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
       </Box>
 
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}><CircularProgress /></Box>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
+          <CircularProgress />
+        </Box>
       ) : data ? (
         <>
           {/* Monthly stat cards */}
           <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
             <StatCard label="Rent Expected" value={fmt(data.totalExpected)} color="text.primary" />
-            <StatCard label="Rent Collected" value={fmt(data.totalCollected)} color="success.main"
-              sub={`${data.totalExpected > 0 ? Math.round((data.totalCollected / data.totalExpected) * 100) : 0}% collected`} />
+            <StatCard
+              label="Rent Collected"
+              value={fmt(data.totalCollected)}
+              color="success.main"
+              sub={`${data.totalExpected > 0 ? Math.round((data.totalCollected / data.totalExpected) * 100) : 0}% collected`}
+            />
             <StatCard label="Total Expenses" value={fmt(data.totalExpenses)} color="error.main" />
             <StatCard
               label="Net Profit"
@@ -147,11 +179,19 @@ export default function PropertyDashboardPage() {
               value={`${data.occupiedUnits}/${data.totalUnits}`}
               sub={`${Math.round((data.occupiedUnits / Math.max(data.totalUnits, 1)) * 100)}% occupied`}
             />
-            <StatCard label="Advance Held" value={fmt(data.totalAdvanceHeld)}
-              sub={`${data.tenantsWithAdvance} tenants`} color="primary.main" />
+            <StatCard
+              label="Advance Held"
+              value={fmt(data.totalAdvanceHeld)}
+              sub={`${data.tenantsWithAdvance} tenants`}
+              color="primary.main"
+            />
             {data.overdueCount > 0 && (
-              <StatCard label="Overdue" value={String(data.overdueCount)} color="error.main"
-                sub="need attention" />
+              <StatCard
+                label="Overdue"
+                value={String(data.overdueCount)}
+                color="error.main"
+                sub="need attention"
+              />
             )}
           </Box>
 
@@ -159,17 +199,14 @@ export default function PropertyDashboardPage() {
 
           {/* Pending rent changes */}
           {data.pendingRentChanges.length > 0 && (
-            <Alert
-              severity="info"
-              icon={<TrendingUp size={18} />}
-              sx={{ mb: 3 }}
-            >
+            <Alert severity="info" icon={<TrendingUp size={18} />} sx={{ mb: 3 }}>
               <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
                 Pending Rent Changes
               </Typography>
               {data.pendingRentChanges.map((rc) => (
                 <Typography key={rc.id} variant="caption" sx={{ display: "block" }}>
-                  {(rc as { tenantName?: string }).tenantName ?? rc.tenantId}: {fmt(rc.previousRent)} → {fmt(rc.newRent)} from{" "}
+                  {(rc as { tenantName?: string }).tenantName ?? rc.tenantId}:{" "}
+                  {fmt(rc.previousRent)} → {fmt(rc.newRent)} from{" "}
                   {new Date(rc.effectiveDate).toLocaleDateString()}
                   {rc.reason ? ` (${rc.reason})` : ""}
                 </Typography>
@@ -202,12 +239,19 @@ export default function PropertyDashboardPage() {
                       {data.topDue.map((d) => (
                         <TableRow key={d.tenantId} hover>
                           <TableCell>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{d.tenantName}</Typography>
-                            <Typography variant="caption" color="text.secondary">{d.tenantCode}</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {d.tenantName}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              {d.tenantCode}
+                            </Typography>
                           </TableCell>
                           <TableCell>{d.unitNumber ?? "—"}</TableCell>
                           <TableCell>
-                            <Typography variant="body2" sx={{ fontWeight: 700, color: "error.main" }}>
+                            <Typography
+                              variant="body2"
+                              sx={{ fontWeight: 700, color: "error.main" }}
+                            >
                               {fmt(d.totalDue)}
                             </Typography>
                           </TableCell>

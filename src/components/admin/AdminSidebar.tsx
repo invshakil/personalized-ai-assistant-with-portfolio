@@ -160,7 +160,10 @@ export default function AdminSidebar() {
                         href={item.href}
                         style={{ width: "100%", textDecoration: "none", color: "inherit" }}
                       >
-                        <ListItemButton selected={active && !hasChildren} sx={{ px: 1.5, py: 0.875 }}>
+                        <ListItemButton
+                          selected={active && !hasChildren}
+                          sx={{ px: 1.5, py: 0.875 }}
+                        >
                           <ListItemIcon>
                             <Icon size={17} />
                           </ListItemIcon>

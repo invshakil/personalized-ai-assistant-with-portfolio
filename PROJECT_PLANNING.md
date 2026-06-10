@@ -46,21 +46,21 @@ The two styling systems are strictly separated by surface — they do not mix:
 
 Defined in `prisma/schema.prisma`. Do not modify schema without updating this document.
 
-| Model                                     | Purpose                                                                    |
-| ----------------------------------------- | -------------------------------------------------------------------------- |
-| `User`                                    | NextAuth user (single admin); has `password` (bcrypt hash)                 |
-| `Account`, `Session`, `VerificationToken` | NextAuth internals                                                         |
-| `SiteSettings`                            | Singleton — admin-editable portfolio content (availability, bio, CV URL)   |
-| `Unit`                | 13 flats (Flat 1A–5A); `unitNumber String`, `floor String`, `monthlyRent Decimal`                  |
-| `Tenant`              | Nullable `unitId` (external members); `tenantCode T01-T07`; `advanceAmount Decimal`; `isExternal` |
-| `Payment`             | `rentDue`, `amountPaid`, `advanceApplied`; unique `[tenantId, month, year]`; `receiptNumber`        |
-| `PaymentTransaction`  | Audit log per transaction — `TransactionType` enum (CASH/BANK_TRANSFER/ADVANCE_APPLIED/…)          |
-| `AddOnService`        | Service catalog (WiFi, Parking, Generator…)                                                         |
-| `TenantService`       | Per-tenant service fee (same service can cost different amounts per tenant); `@@unique[tenantId, serviceId]` |
-| `RentChange`          | Scheduled rent increases — `effectiveDate`, `appliedAt` (null = pending, set by payment generation) |
-| `Income`              | Salary, freelance, rental income entries by month/year                                              |
-| `Expense`             | Maintenance, utility, salary, subscription expenses; `expenseDate`, `paidTo`, `paymentMode`        |
-| `RenovationItem`      | Construction cost line items with category, amount, vendor, status                                  |
+| Model                                     | Purpose                                                                                                      |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `User`                                    | NextAuth user (single admin); has `password` (bcrypt hash)                                                   |
+| `Account`, `Session`, `VerificationToken` | NextAuth internals                                                                                           |
+| `SiteSettings`                            | Singleton — admin-editable portfolio content (availability, bio, CV URL)                                     |
+| `Unit`                                    | 13 flats (Flat 1A–5A); `unitNumber String`, `floor String`, `monthlyRent Decimal`                            |
+| `Tenant`                                  | Nullable `unitId` (external members); `tenantCode T01-T07`; `advanceAmount Decimal`; `isExternal`            |
+| `Payment`                                 | `rentDue`, `amountPaid`, `advanceApplied`; unique `[tenantId, month, year]`; `receiptNumber`                 |
+| `PaymentTransaction`                      | Audit log per transaction — `TransactionType` enum (CASH/BANK_TRANSFER/ADVANCE_APPLIED/…)                    |
+| `AddOnService`                            | Service catalog (WiFi, Parking, Generator…)                                                                  |
+| `TenantService`                           | Per-tenant service fee (same service can cost different amounts per tenant); `@@unique[tenantId, serviceId]` |
+| `RentChange`                              | Scheduled rent increases — `effectiveDate`, `appliedAt` (null = pending, set by payment generation)          |
+| `Income`                                  | Salary, freelance, rental income entries by month/year                                                       |
+| `Expense`                                 | Maintenance, utility, salary, subscription expenses; `expenseDate`, `paidTo`, `paymentMode`                  |
+| `RenovationItem`                          | Construction cost line items with category, amount, vendor, status                                           |
 
 Currency: **BDT (Bangladeshi Taka ৳)** throughout. All `Decimal` fields are BDT unless noted.
 
@@ -205,6 +205,7 @@ All sections use `padding: var(--px)` for horizontal spacing. Do not hardcode pa
 ### 1. Property Management (`/admin/property`) ✅ complete (all 9 phases)
 
 **Routes:**
+
 - `/admin/property` — Units & Tenants tabbed view (units grid + tenant table + external members)
 - `/admin/property/tenants/[id]` — Tenant profile (advance balance, services, rent changes, payment history)
 - `/admin/property/payments` — Monthly payments (auto-generate, record payment, apply advance, transaction log, receipt download)
@@ -217,6 +218,7 @@ All sections use `padding: var(--px)` for horizontal spacing. Do not hardcode pa
 **PDF receipts:** `GET /api/admin/property/payments/[id]/receipt` — A4 PDF with two halves (Tenant Copy + Owner Copy), generated server-side via `@react-pdf/renderer`. Receipt numbers auto-assigned as `RCP-YYYY-NNNN`.
 
 **Key behaviours:**
+
 - Advance stored as BDT amount; can be partially applied to any month
 - Monthly payments auto-generate on page load (idempotent); applies pending `RentChange` records first
 - Move-out is two-step: preview settlement → admin confirms

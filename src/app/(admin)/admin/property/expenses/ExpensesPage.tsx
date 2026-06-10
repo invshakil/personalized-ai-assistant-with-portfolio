@@ -29,11 +29,26 @@ import PageHeader from "@/components/admin/PageHeader";
 import type { PropertyExpense, ExpenseCategory } from "@/types";
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 const CATEGORIES: ExpenseCategory[] = [
-  "MAINTENANCE", "UTILITY", "SALARY", "SUBSCRIPTION", "CONSTRUCTION", "OTHER",
+  "MAINTENANCE",
+  "UTILITY",
+  "SALARY",
+  "SUBSCRIPTION",
+  "CONSTRUCTION",
+  "OTHER",
 ];
 const CAT_LABELS: Record<ExpenseCategory, string> = {
   MAINTENANCE: "Maintenance",
@@ -52,7 +67,9 @@ const CAT_COLORS: Record<ExpenseCategory, string> = {
   OTHER: "text.secondary",
 };
 
-function fmt(n: number) { return `৳${n.toLocaleString()}`; }
+function fmt(n: number) {
+  return `৳${n.toLocaleString()}`;
+}
 
 type ExpenseForm = {
   description: string;
@@ -97,7 +114,9 @@ export default function ExpensesPage() {
     }
   }, [month, year]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const openAdd = () => {
     setEditing(null);
@@ -136,7 +155,9 @@ export default function ExpensesPage() {
         paymentMode: form.paymentMode || null,
         notes: form.notes || null,
       };
-      const url = editing ? `/api/admin/property/expenses/${editing}` : "/api/admin/property/expenses";
+      const url = editing
+        ? `/api/admin/property/expenses/${editing}`
+        : "/api/admin/property/expenses";
       const res = await fetch(url, {
         method: editing ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -169,13 +190,21 @@ export default function ExpensesPage() {
         <FormControl size="small" sx={{ minWidth: 140 }}>
           <InputLabel>Month</InputLabel>
           <Select label="Month" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-            {MONTHS.map((m, i) => <MenuItem key={i + 1} value={i + 1}>{m}</MenuItem>)}
+            {MONTHS.map((m, i) => (
+              <MenuItem key={i + 1} value={i + 1}>
+                {m}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
         <FormControl size="small" sx={{ minWidth: 100 }}>
           <InputLabel>Year</InputLabel>
           <Select label="Year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {[2025, 2026, 2027, 2028].map((y) => <MenuItem key={y} value={y}>{y}</MenuItem>)}
+            {[2025, 2026, 2027, 2028].map((y) => (
+              <MenuItem key={y} value={y}>
+                {y}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
         <Box sx={{ ml: "auto" }}>
@@ -187,16 +216,24 @@ export default function ExpensesPage() {
 
       {/* Total */}
       {expenses.length > 0 && (
-        <Card sx={{ bgcolor: "background.paper", mb: 2, display: "inline-flex", px: 3, py: 1.5, mr: 2 }}>
+        <Card
+          sx={{ bgcolor: "background.paper", mb: 2, display: "inline-flex", px: 3, py: 1.5, mr: 2 }}
+        >
           <Box>
-            <Typography variant="caption" color="text.secondary">Total Expenses</Typography>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: "error.main" }}>{fmt(total)}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Total Expenses
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: "error.main" }}>
+              {fmt(total)}
+            </Typography>
           </Box>
         </Card>
       )}
 
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+          <CircularProgress />
+        </Box>
       ) : (
         <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
           <Table size="small">
@@ -224,14 +261,20 @@ export default function ExpensesPage() {
                   <TableRow key={e.id} hover>
                     <TableCell>
                       <Typography variant="body2">
-                        {e.expenseDate ? new Date(e.expenseDate).toLocaleDateString() : `${MONTHS[e.month - 1]} ${e.year}`}
+                        {e.expenseDate
+                          ? new Date(e.expenseDate).toLocaleDateString()
+                          : `${MONTHS[e.month - 1]} ${e.year}`}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip
                         label={CAT_LABELS[e.category]}
                         size="small"
-                        sx={{ bgcolor: CAT_COLORS[e.category], color: "#fff", fontSize: "0.6875rem" }}
+                        sx={{
+                          bgcolor: CAT_COLORS[e.category],
+                          color: "#fff",
+                          fontSize: "0.6875rem",
+                        }}
                       />
                     </TableCell>
                     <TableCell>
@@ -245,15 +288,21 @@ export default function ExpensesPage() {
                     <TableCell>{e.paidTo ?? "—"}</TableCell>
                     <TableCell>{e.paymentMode ?? "—"}</TableCell>
                     <TableCell>
-                      <Typography variant="caption" color="text.secondary">{e.notes ?? "—"}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {e.notes ?? "—"}
+                      </Typography>
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: "flex" }}>
                         <Tooltip title="Edit">
-                          <IconButton size="small" onClick={() => openEdit(e)}><Pencil size={14} /></IconButton>
+                          <IconButton size="small" onClick={() => openEdit(e)}>
+                            <Pencil size={14} />
+                          </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => del(e.id)}><Trash2 size={14} /></IconButton>
+                          <IconButton size="small" color="error" onClick={() => del(e.id)}>
+                            <Trash2 size={14} />
+                          </IconButton>
                         </Tooltip>
                       </Box>
                     </TableCell>
@@ -272,52 +321,87 @@ export default function ExpensesPage() {
             {editing ? "Edit Expense" : "Add Expense"}
           </Typography>
           <TextField
-            label="Description" size="small" fullWidth
+            label="Description"
+            size="small"
+            fullWidth
             value={form.description}
             onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
             sx={{ mb: 2 }}
           />
           <TextField
-            label="Amount (৳)" type="number" size="small" fullWidth
+            label="Amount (৳)"
+            type="number"
+            size="small"
+            fullWidth
             value={form.amount}
             onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
             sx={{ mb: 2 }}
           />
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Category</InputLabel>
-            <Select label="Category" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as ExpenseCategory }))}>
-              {CATEGORIES.map((c) => <MenuItem key={c} value={c}>{CAT_LABELS[c]}</MenuItem>)}
+            <Select
+              label="Category"
+              value={form.category}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, category: e.target.value as ExpenseCategory }))
+              }
+            >
+              {CATEGORIES.map((c) => (
+                <MenuItem key={c} value={c}>
+                  {CAT_LABELS[c]}
+                </MenuItem>
+              ))}
             </Select>
           </FormControl>
           <TextField
-            label="Date" type="date" size="small" fullWidth
+            label="Date"
+            type="date"
+            size="small"
+            fullWidth
             value={form.expenseDate}
             onChange={(e) => setForm((f) => ({ ...f, expenseDate: e.target.value }))}
             sx={{ mb: 2 }}
           />
           <TextField
-            label="Paid To" size="small" fullWidth
+            label="Paid To"
+            size="small"
+            fullWidth
             value={form.paidTo}
             onChange={(e) => setForm((f) => ({ ...f, paidTo: e.target.value }))}
             sx={{ mb: 2 }}
           />
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Payment Mode</InputLabel>
-            <Select label="Payment Mode" value={form.paymentMode} onChange={(e) => setForm((f) => ({ ...f, paymentMode: e.target.value }))}>
+            <Select
+              label="Payment Mode"
+              value={form.paymentMode}
+              onChange={(e) => setForm((f) => ({ ...f, paymentMode: e.target.value }))}
+            >
               {["Cash", "Bank Transfer", "Mobile Banking", "Other"].map((m) => (
-                <MenuItem key={m} value={m}>{m}</MenuItem>
+                <MenuItem key={m} value={m}>
+                  {m}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>
           <TextField
-            label="Notes" size="small" fullWidth multiline rows={2}
+            label="Notes"
+            size="small"
+            fullWidth
+            multiline
+            rows={2}
             value={form.notes}
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             sx={{ mb: 2 }}
           />
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
           <Button
-            variant="contained" fullWidth
+            variant="contained"
+            fullWidth
             onClick={save}
             disabled={saving || !form.description || !form.amount}
           >

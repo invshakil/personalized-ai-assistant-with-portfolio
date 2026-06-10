@@ -3,39 +3,109 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Box, Card, CardContent, Typography, Chip, Grid, Tabs, Tab,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
-  Button, Drawer, IconButton, Divider, CircularProgress, Tooltip,
-  TextField, Switch, FormControlLabel, Select, MenuItem, FormControl, InputLabel, Alert,
-  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Chip,
+  Grid,
+  Tabs,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Button,
+  Drawer,
+  IconButton,
+  Divider,
+  CircularProgress,
+  Tooltip,
+  TextField,
+  Switch,
+  FormControlLabel,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  Alert,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from "@mui/material";
 import {
-  Building2, X, Phone, Calendar, DollarSign, UserCheck, UserX, UserPlus,
-  ExternalLink, Plus, Pencil, TrendingUp, MapPin,
+  Building2,
+  X,
+  Phone,
+  Calendar,
+  DollarSign,
+  UserCheck,
+  UserX,
+  UserPlus,
+  ExternalLink,
+  Plus,
+  Pencil,
+  TrendingUp,
+  MapPin,
 } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
 import TenantDocuments from "@/components/admin/TenantDocuments";
 import type { UnitWithTenant, TenantSummary } from "@/types";
 
-function fmt(n: number) { return `৳${n.toLocaleString()}`; }
+function fmt(n: number) {
+  return `৳${n.toLocaleString()}`;
+}
 
 function StatusChip({ isOccupied }: { isOccupied: boolean }) {
   return (
     <Chip
       label={isOccupied ? "Occupied" : "Vacant"}
       size="small"
-      sx={{ bgcolor: isOccupied ? "success.main" : "warning.main", color: "#fff", fontWeight: 600, fontSize: "0.6875rem", height: 20 }}
+      sx={{
+        bgcolor: isOccupied ? "success.main" : "warning.main",
+        color: "#fff",
+        fontWeight: 600,
+        fontSize: "0.6875rem",
+        height: 20,
+      }}
     />
   );
 }
 
-interface UnitForm { unitNumber: string; floor: string; monthlyRent: string; description: string; notes: string; }
-interface TenantForm { name: string; phone: string; moveInDate: string; leaseEndDate: string; advancePaid: boolean; advanceAmount: string; }
-interface RentChangeForm { effectiveDate: string; newRent: string; reason: string; }
+interface UnitForm {
+  unitNumber: string;
+  floor: string;
+  monthlyRent: string;
+  description: string;
+  notes: string;
+}
+interface TenantForm {
+  name: string;
+  phone: string;
+  moveInDate: string;
+  leaseEndDate: string;
+  advancePaid: boolean;
+  advanceAmount: string;
+}
+interface RentChangeForm {
+  effectiveDate: string;
+  newRent: string;
+  reason: string;
+}
 interface AddTenantForm {
-  name: string; phone: string; unitId: string; customRent: string;
-  moveInDate: string; leaseEndDate: string; advancePaid: boolean; advanceAmount: string;
+  name: string;
+  phone: string;
+  unitId: string;
+  customRent: string;
+  moveInDate: string;
+  leaseEndDate: string;
+  advancePaid: boolean;
+  advanceAmount: string;
 }
 
 export default function PropertyPage() {
@@ -68,7 +138,7 @@ export default function PropertyPage() {
     title: string,
     message: string,
     onConfirm: () => Promise<void>,
-    opts?: { confirmLabel?: string; confirmColor?: "error" | "warning" | "success" | "primary" },
+    opts?: { confirmLabel?: string; confirmColor?: "error" | "warning" | "success" | "primary" }
   ) => {
     setConfirmDialog({ title, message, onConfirm, ...opts });
   };
@@ -87,13 +157,30 @@ export default function PropertyPage() {
   // Unit drawer
   const [drawerUnit, setDrawerUnit] = useState<UnitWithTenant | null>(null);
   const [unitEditMode, setUnitEditMode] = useState(false);
-  const [unitForm, setUnitForm] = useState<UnitForm>({ unitNumber: "", floor: "", monthlyRent: "", description: "", notes: "" });
+  const [unitForm, setUnitForm] = useState<UnitForm>({
+    unitNumber: "",
+    floor: "",
+    monthlyRent: "",
+    description: "",
+    notes: "",
+  });
 
   // Tenant edit drawer
   const [editTenantRow, setEditTenantRow] = useState<UnitWithTenant | null>(null);
-  const [tenantForm, setTenantForm] = useState<TenantForm>({ name: "", phone: "", moveInDate: "", leaseEndDate: "", advancePaid: false, advanceAmount: "0" });
+  const [tenantForm, setTenantForm] = useState<TenantForm>({
+    name: "",
+    phone: "",
+    moveInDate: "",
+    leaseEndDate: "",
+    advancePaid: false,
+    advanceAmount: "0",
+  });
   const [showRcForm, setShowRcForm] = useState(false);
-  const [rcForm, setRcForm] = useState<RentChangeForm>({ effectiveDate: "", newRent: "", reason: "" });
+  const [rcForm, setRcForm] = useState<RentChangeForm>({
+    effectiveDate: "",
+    newRent: "",
+    reason: "",
+  });
 
   // Add tenant / external member drawer
   const [addOpen, setAddOpen] = useState(false);
@@ -101,15 +188,23 @@ export default function PropertyPage() {
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const addFileInputRef = useRef<HTMLInputElement>(null);
   const [addForm, setAddForm] = useState<AddTenantForm>({
-    name: "", phone: "", unitId: "", customRent: "",
-    moveInDate: "", leaseEndDate: "", advancePaid: false, advanceAmount: "",
+    name: "",
+    phone: "",
+    unitId: "",
+    customRent: "",
+    moveInDate: "",
+    leaseEndDate: "",
+    advancePaid: false,
+    advanceAmount: "",
   });
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       // Auto-deactivate any tenants whose lease has expired (fire-and-forget; silent)
-      fetch("/api/admin/property/tenants/auto-deactivate-expired", { method: "POST" }).catch(() => {});
+      fetch("/api/admin/property/tenants/auto-deactivate-expired", { method: "POST" }).catch(
+        () => {}
+      );
 
       const [unitsRes, tenantsRes] = await Promise.all([
         fetch("/api/admin/property/units"),
@@ -126,9 +221,16 @@ export default function PropertyPage() {
         ...unitData.map((u) => u.futureTenant?.id).filter(Boolean),
       ]);
       type ActiveTenant = {
-        id: string; tenantCode: string | null; name: string; phone: string | null;
-        isExternal: boolean; moveInDate: string; moveOutDate: string | null;
-        leaseEndDate: string | null; advancePaid: boolean; advanceAmount: number;
+        id: string;
+        tenantCode: string | null;
+        name: string;
+        phone: string | null;
+        isExternal: boolean;
+        moveInDate: string;
+        moveOutDate: string | null;
+        leaseEndDate: string | null;
+        advancePaid: boolean;
+        advanceAmount: number;
         advanceSettled: boolean;
         services?: { id: string; serviceName: string; monthlyFee: number }[];
       };
@@ -172,10 +274,18 @@ export default function PropertyPage() {
       const res = await fetch("/api/admin/property/tenants?filter=inactive");
       const json = await res.json();
       type InactiveTenant = {
-        id: string; tenantCode: string | null; name: string; phone: string | null;
-        isExternal: boolean; moveInDate: string; moveOutDate: string | null;
-        leaseEndDate: string | null; advancePaid: boolean; advanceAmount: number;
-        advanceSettled: boolean; lastRent: number | null;
+        id: string;
+        tenantCode: string | null;
+        name: string;
+        phone: string | null;
+        isExternal: boolean;
+        moveInDate: string;
+        moveOutDate: string | null;
+        leaseEndDate: string | null;
+        advancePaid: boolean;
+        advanceAmount: number;
+        advanceSettled: boolean;
+        lastRent: number | null;
       };
       setInactiveRows(
         (json.data ?? []).map((t: InactiveTenant) => ({
@@ -213,7 +323,13 @@ export default function PropertyPage() {
     load();
     fetch("/api/admin/property/services")
       .then((r) => r.json())
-      .then((j) => setServiceCatalog((j.data ?? []).filter((s: { isActive: boolean }) => s.isActive).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }))));
+      .then((j) =>
+        setServiceCatalog(
+          (j.data ?? [])
+            .filter((s: { isActive: boolean }) => s.isActive)
+            .map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }))
+        )
+      );
   }, [load]);
 
   const openUnitDrawer = (unit: UnitWithTenant) => {
@@ -352,21 +468,39 @@ export default function PropertyPage() {
         await fetch(`/api/admin/property/services/assign/${tenantServiceId}`, { method: "DELETE" });
         await refreshEditRow(tenantId);
       },
-      { confirmLabel: "End Subscription", confirmColor: "error" },
+      { confirmLabel: "End Subscription", confirmColor: "error" }
     );
   };
 
   const openAddTenant = (unitId = "") => {
     setIsAddingExternal(false);
     setPendingFiles([]);
-    setAddForm({ name: "", phone: "", unitId, customRent: "", moveInDate: "", leaseEndDate: "", advancePaid: false, advanceAmount: "" });
+    setAddForm({
+      name: "",
+      phone: "",
+      unitId,
+      customRent: "",
+      moveInDate: "",
+      leaseEndDate: "",
+      advancePaid: false,
+      advanceAmount: "",
+    });
     setAddOpen(true);
   };
 
   const openAddExternal = () => {
     setIsAddingExternal(true);
     setPendingFiles([]);
-    setAddForm({ name: "", phone: "", unitId: "", customRent: "", moveInDate: "", leaseEndDate: "", advancePaid: false, advanceAmount: "" });
+    setAddForm({
+      name: "",
+      phone: "",
+      unitId: "",
+      customRent: "",
+      moveInDate: "",
+      leaseEndDate: "",
+      advancePaid: false,
+      advanceAmount: "",
+    });
     setAddOpen(true);
   };
 
@@ -377,7 +511,13 @@ export default function PropertyPage() {
     try {
       const selectedUnitData = units.find((u) => u.id === addForm.unitId);
       // For vacant units with a custom rent, update the unit before creating the tenant
-      if (!isAddingExternal && addForm.customRent && addForm.unitId && selectedUnitData && !selectedUnitData.isOccupied) {
+      if (
+        !isAddingExternal &&
+        addForm.customRent &&
+        addForm.unitId &&
+        selectedUnitData &&
+        !selectedUnitData.isOccupied
+      ) {
         if (Number(addForm.customRent) !== selectedUnitData.monthlyRent) {
           await fetch(`/api/admin/property/units/${addForm.unitId}`, {
             method: "PUT",
@@ -392,7 +532,7 @@ export default function PropertyPage() {
         body: JSON.stringify({
           name: addForm.name,
           phone: addForm.phone || null,
-          unitId: isAddingExternal ? null : (addForm.unitId || null),
+          unitId: isAddingExternal ? null : addForm.unitId || null,
           moveInDate: addForm.moveInDate,
           leaseEndDate: addForm.leaseEndDate || null,
           advancePaid: addForm.advancePaid,
@@ -423,7 +563,10 @@ export default function PropertyPage() {
       if (newTenant?.id && pendingFiles.length > 0) {
         const fd = new FormData();
         pendingFiles.forEach((f) => fd.append("files", f));
-        await fetch(`/api/admin/property/tenants/${newTenant.id}/documents`, { method: "POST", body: fd });
+        await fetch(`/api/admin/property/tenants/${newTenant.id}/documents`, {
+          method: "POST",
+          body: fd,
+        });
       }
       setPendingFiles([]);
       setAddOpen(false);
@@ -442,7 +585,7 @@ export default function PropertyPage() {
         await fetch(`/api/admin/property/tenants/${id}/deactivate`, { method: "POST" });
         await load();
       },
-      { confirmLabel: "Deactivate", confirmColor: "error" },
+      { confirmLabel: "Deactivate", confirmColor: "error" }
     );
   };
 
@@ -455,12 +598,15 @@ export default function PropertyPage() {
         await loadInactive();
         await load();
       },
-      { confirmLabel: "Re-activate", confirmColor: "success" },
+      { confirmLabel: "Re-activate", confirmColor: "success" }
     );
   };
 
   // Assign Unit dialog (for unassigned tenants)
-  const [assignUnitDialog, setAssignUnitDialog] = useState<{ tenantId: string; tenantName: string } | null>(null);
+  const [assignUnitDialog, setAssignUnitDialog] = useState<{
+    tenantId: string;
+    tenantName: string;
+  } | null>(null);
   const [assigningUnitId, setAssigningUnitId] = useState("");
   const [assignRent, setAssignRent] = useState("");
   const [assignSaving, setAssignSaving] = useState(false);
@@ -476,7 +622,12 @@ export default function PropertyPage() {
       });
       const newTenant = (await res.json())?.data;
       const targetUnit = units.find((u) => u.id === assigningUnitId);
-      if (newTenant?.id && assignRent && targetUnit && Number(assignRent) !== targetUnit.monthlyRent) {
+      if (
+        newTenant?.id &&
+        assignRent &&
+        targetUnit &&
+        Number(assignRent) !== targetUnit.monthlyRent
+      ) {
         if (newTenant.tenantStatus === "CURRENT") {
           // Vacant unit: update the unit's base rent immediately
           await fetch(`/api/admin/property/units/${assigningUnitId}`, {
@@ -525,32 +676,61 @@ export default function PropertyPage() {
       <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
         {[
           { label: "Total Units", value: units.length, color: "text.primary" },
-          { label: "Occupied", value: units.filter((u) => u.isOccupied).length, color: "success.main" },
-          { label: "Vacant", value: units.filter((u) => !u.isOccupied).length, color: "warning.main" },
+          {
+            label: "Occupied",
+            value: units.filter((u) => u.isOccupied).length,
+            color: "success.main",
+          },
+          {
+            label: "Vacant",
+            value: units.filter((u) => !u.isOccupied).length,
+            color: "warning.main",
+          },
           { label: "Active Tenants", value: activeTenants.length, color: "primary.main" },
         ].map((s) => (
-          <Card key={s.label} sx={{ minWidth: 120, flex: "1 1 120px", bgcolor: "background.paper" }}>
+          <Card
+            key={s.label}
+            sx={{ minWidth: 120, flex: "1 1 120px", bgcolor: "background.paper" }}
+          >
             <CardContent sx={{ py: "12px !important", px: 2 }}>
-              <Typography variant="h5" sx={{ fontWeight: 700, color: s.color }}>{s.value}</Typography>
-              <Typography variant="caption" color="text.secondary">{s.label}</Typography>
+              <Typography variant="h5" sx={{ fontWeight: 700, color: s.color }}>
+                {s.value}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {s.label}
+              </Typography>
             </CardContent>
           </Card>
         ))}
       </Box>
 
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
-        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
+        <Tabs
+          value={tab}
+          onChange={(_, v) => setTab(v)}
+          sx={{ borderBottom: "1px solid", borderColor: "divider" }}
+        >
           <Tab label={`Units (${units.length})`} />
           <Tab label={`Tenants (${activeTenants.length})`} />
           <Tab label={`External Members (${externalTenants.length})`} />
         </Tabs>
         <Box sx={{ display: "flex", gap: 1 }}>
           {tab === 2 ? (
-            <Button variant="contained" size="small" startIcon={<Plus size={14} />} onClick={openAddExternal}>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<Plus size={14} />}
+              onClick={openAddExternal}
+            >
               Add External Member
             </Button>
           ) : (
-            <Button variant="contained" size="small" startIcon={<Plus size={14} />} onClick={() => openAddTenant()}>
+            <Button
+              variant="contained"
+              size="small"
+              startIcon={<Plus size={14} />}
+              onClick={() => openAddTenant()}
+            >
               Add Tenant
             </Button>
           )}
@@ -558,7 +738,9 @@ export default function PropertyPage() {
       </Box>
 
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+          <CircularProgress />
+        </Box>
       ) : (
         <Box sx={{ mt: 3 }}>
           {tab === 0 && (
@@ -567,7 +749,8 @@ export default function PropertyPage() {
                 <Grid key={unit.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                   <Card
                     sx={{
-                      cursor: "pointer", borderLeft: "4px solid",
+                      cursor: "pointer",
+                      borderLeft: "4px solid",
                       borderColor: unit.isOccupied ? "success.main" : "warning.main",
                       bgcolor: "background.paper",
                       "&:hover": { bgcolor: "action.hover" },
@@ -576,27 +759,53 @@ export default function PropertyPage() {
                     onClick={() => router.push(`/admin/property/units/${unit.id}`)}
                   >
                     <CardContent sx={{ p: "14px !important" }}>
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{unit.unitNumber}</Typography>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          mb: 1,
+                        }}
+                      >
+                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                          {unit.unitNumber}
+                        </Typography>
                         <StatusChip isOccupied={unit.isOccupied} />
                       </Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>{unit.floor}</Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ fontSize: "0.7rem" }}
+                      >
+                        {unit.floor}
+                      </Typography>
                       <Box sx={{ mt: 1.5 }}>
                         {unit.tenant ? (
                           <>
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>{unit.tenant.name}</Typography>
+                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                              {unit.tenant.name}
+                            </Typography>
                             <Typography variant="caption" color="text.secondary">
                               {unit.tenant.tenantCode} · {fmt(unit.monthlyRent)}/mo
                             </Typography>
                           </>
                         ) : (
-                          <Typography variant="body2" color="text.secondary">{fmt(unit.monthlyRent)}/mo</Typography>
+                          <Typography variant="body2" color="text.secondary">
+                            {fmt(unit.monthlyRent)}/mo
+                          </Typography>
                         )}
                         {unit.futureTenant && (
                           <Chip
                             label={`Future: ${unit.futureTenant.name}${unit.futureTenant.scheduledRent ? ` · ${fmt(unit.futureTenant.scheduledRent)}` : ""}`}
                             size="small"
-                            sx={{ mt: 0.75, fontSize: "0.6rem", height: 18, bgcolor: "warning.main", color: "#fff", maxWidth: "100%" }}
+                            sx={{
+                              mt: 0.75,
+                              fontSize: "0.6rem",
+                              height: 18,
+                              bgcolor: "warning.main",
+                              color: "#fff",
+                              maxWidth: "100%",
+                            }}
                           />
                         )}
                       </Box>
@@ -611,15 +820,20 @@ export default function PropertyPage() {
             <>
               <Box sx={{ display: "flex", gap: 1, mb: 2, mt: 1 }}>
                 <Chip
-                  label="Active" clickable
+                  label="Active"
+                  clickable
                   color={tenantView === "active" ? "primary" : "default"}
                   onClick={() => setTenantView("active")}
                   sx={{ fontWeight: 600 }}
                 />
                 <Chip
-                  label="Past Tenants" clickable
+                  label="Past Tenants"
+                  clickable
                   color={tenantView === "past" ? "primary" : "default"}
-                  onClick={() => { setTenantView("past"); loadInactive(); }}
+                  onClick={() => {
+                    setTenantView("past");
+                    loadInactive();
+                  }}
                   sx={{ fontWeight: 600 }}
                 />
               </Box>
@@ -637,10 +851,16 @@ export default function PropertyPage() {
                   onEdit={openTenantEdit}
                   onDeactivate={deactivateTenant}
                   onActivate={activateTenant}
-                  onAssignUnit={(id, name) => { setAssignUnitDialog({ tenantId: id, tenantName: name }); setAssigningUnitId(""); setAssignRent(""); }}
+                  onAssignUnit={(id, name) => {
+                    setAssignUnitDialog({ tenantId: id, tenantName: name });
+                    setAssigningUnitId("");
+                    setAssignRent("");
+                  }}
                 />
               ) : inactiveLoading ? (
-                <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+                <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+                  <CircularProgress />
+                </Box>
               ) : (
                 <TenantTable
                   tenants={inactiveRows.filter((r) => !r.tenant?.isExternal)}
@@ -657,15 +877,20 @@ export default function PropertyPage() {
             <>
               <Box sx={{ display: "flex", gap: 1, mb: 2, mt: 1 }}>
                 <Chip
-                  label="Active" clickable
+                  label="Active"
+                  clickable
                   color={extView === "active" ? "primary" : "default"}
                   onClick={() => setExtView("active")}
                   sx={{ fontWeight: 600 }}
                 />
                 <Chip
-                  label="Past Members" clickable
+                  label="Past Members"
+                  clickable
                   color={extView === "past" ? "primary" : "default"}
-                  onClick={() => { setExtView("past"); loadInactive(); }}
+                  onClick={() => {
+                    setExtView("past");
+                    loadInactive();
+                  }}
                   sx={{ fontWeight: 600 }}
                 />
               </Box>
@@ -681,7 +906,9 @@ export default function PropertyPage() {
                   onActivate={activateTenant}
                 />
               ) : inactiveLoading ? (
-                <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+                <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+                  <CircularProgress />
+                </Box>
               ) : (
                 <TenantTable
                   tenants={inactiveRows.filter((r) => r.tenant?.isExternal)}
@@ -700,50 +927,108 @@ export default function PropertyPage() {
       <Drawer anchor="right" open={!!drawerUnit} onClose={() => setDrawerUnit(null)}>
         {drawerUnit && (
           <Box sx={{ width: 360, p: 3 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}
+            >
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 {unitEditMode ? "Edit Unit" : drawerUnit.unitNumber}
               </Typography>
-              <IconButton onClick={() => setDrawerUnit(null)} size="small"><X size={18} /></IconButton>
+              <IconButton onClick={() => setDrawerUnit(null)} size="small">
+                <X size={18} />
+              </IconButton>
             </Box>
 
             {unitEditMode ? (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <TextField label="Unit Number" value={unitForm.unitNumber}
+                <TextField
+                  label="Unit Number"
+                  value={unitForm.unitNumber}
                   onChange={(e) => setUnitForm((p) => ({ ...p, unitNumber: e.target.value }))}
-                  size="small" fullWidth />
-                <TextField label="Floor" value={unitForm.floor}
+                  size="small"
+                  fullWidth
+                />
+                <TextField
+                  label="Floor"
+                  value={unitForm.floor}
                   onChange={(e) => setUnitForm((p) => ({ ...p, floor: e.target.value }))}
-                  size="small" fullWidth />
-                <TextField label="Monthly Rent (৳)" type="number" value={unitForm.monthlyRent}
+                  size="small"
+                  fullWidth
+                />
+                <TextField
+                  label="Monthly Rent (৳)"
+                  type="number"
+                  value={unitForm.monthlyRent}
                   onChange={(e) => setUnitForm((p) => ({ ...p, monthlyRent: e.target.value }))}
-                  size="small" fullWidth />
-                <TextField label="Description" value={unitForm.description}
+                  size="small"
+                  fullWidth
+                />
+                <TextField
+                  label="Description"
+                  value={unitForm.description}
                   onChange={(e) => setUnitForm((p) => ({ ...p, description: e.target.value }))}
-                  size="small" fullWidth multiline rows={2} />
-                <TextField label="Notes" value={unitForm.notes}
+                  size="small"
+                  fullWidth
+                  multiline
+                  rows={2}
+                />
+                <TextField
+                  label="Notes"
+                  value={unitForm.notes}
                   onChange={(e) => setUnitForm((p) => ({ ...p, notes: e.target.value }))}
-                  size="small" fullWidth multiline rows={2} />
+                  size="small"
+                  fullWidth
+                  multiline
+                  rows={2}
+                />
                 <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-                  <Button variant="outlined" size="small" fullWidth onClick={() => setUnitEditMode(false)} disabled={saving}>Cancel</Button>
-                  <Button variant="contained" size="small" fullWidth onClick={saveUnit} disabled={saving}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    fullWidth
+                    onClick={() => setUnitEditMode(false)}
+                    disabled={saving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="contained"
+                    size="small"
+                    fullWidth
+                    onClick={saveUnit}
+                    disabled={saving}
+                  >
                     {saving ? "Saving…" : "Save"}
                   </Button>
                 </Box>
               </Box>
             ) : (
               <>
-                <Chip label={drawerUnit.floor} size="small" variant="outlined" sx={{ mb: 2, fontSize: "0.75rem" }} />
+                <Chip
+                  label={drawerUnit.floor}
+                  size="small"
+                  variant="outlined"
+                  sx={{ mb: 2, fontSize: "0.75rem" }}
+                />
                 <Divider sx={{ mb: 2 }} />
                 {drawerUnit.tenant ? (
                   <Box>
-                    <Typography variant="overline" color="text.secondary" sx={{ fontSize: "0.6875rem" }}>Current Tenant</Typography>
+                    <Typography
+                      variant="overline"
+                      color="text.secondary"
+                      sx={{ fontSize: "0.6875rem" }}
+                    >
+                      Current Tenant
+                    </Typography>
                     <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 1.5 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <UserCheck size={16} color="var(--mui-palette-success-main)" />
                         <Box>
-                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{drawerUnit.tenant.name}</Typography>
-                          <Typography variant="caption" color="text.secondary">{drawerUnit.tenant.tenantCode}</Typography>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                            {drawerUnit.tenant.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {drawerUnit.tenant.tenantCode}
+                          </Typography>
                         </Box>
                       </Box>
                       {drawerUnit.tenant.phone && (
@@ -759,24 +1044,46 @@ export default function PropertyPage() {
                       {drawerUnit.tenant.moveInDate && (
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                           <Calendar size={14} />
-                          <Typography variant="body2">Move-in: {new Date(drawerUnit.tenant.moveInDate).toLocaleDateString()}</Typography>
+                          <Typography variant="body2">
+                            Move-in: {new Date(drawerUnit.tenant.moveInDate).toLocaleDateString()}
+                          </Typography>
                         </Box>
                       )}
                       {drawerUnit.tenant.advancePaid && (
-                        <Chip label={`Advance: ${fmt(drawerUnit.tenant.advanceAmount)}`} size="small"
-                          sx={{ bgcolor: "primary.main", color: "#fff", alignSelf: "flex-start" }} />
+                        <Chip
+                          label={`Advance: ${fmt(drawerUnit.tenant.advanceAmount)}`}
+                          size="small"
+                          sx={{ bgcolor: "primary.main", color: "#fff", alignSelf: "flex-start" }}
+                        />
                       )}
                     </Box>
                     <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 3 }}>
-                      <Button variant="outlined" size="small" fullWidth startIcon={<Pencil size={14} />}
-                        onClick={() => setUnitEditMode(true)}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        fullWidth
+                        startIcon={<Pencil size={14} />}
+                        onClick={() => setUnitEditMode(true)}
+                      >
                         Edit Unit
                       </Button>
-                      <Button component={Link} href={`/admin/property/tenants/${drawerUnit.tenant.id}`}
-                        variant="contained" size="small" fullWidth startIcon={<ExternalLink size={14} />}>
+                      <Button
+                        component={Link}
+                        href={`/admin/property/tenants/${drawerUnit.tenant.id}`}
+                        variant="contained"
+                        size="small"
+                        fullWidth
+                        startIcon={<ExternalLink size={14} />}
+                      >
                         View Profile
                       </Button>
-                      <Button component={Link} href="/admin/property/payments" variant="outlined" size="small" fullWidth>
+                      <Button
+                        component={Link}
+                        href="/admin/property/payments"
+                        variant="outlined"
+                        size="small"
+                        fullWidth
+                      >
                         Record Payment
                       </Button>
                       <Divider sx={{ my: 0.5 }} />
@@ -796,16 +1103,22 @@ export default function PropertyPage() {
                               ? `Move out ${drawerUnit.tenant.name}? ${drawerUnit.futureTenant!.name} will automatically become the current tenant.`
                               : `Move out ${drawerUnit.tenant.name}? They will be unassigned from this unit.`,
                             async () => {
-                              await fetch(`/api/admin/property/tenants/${drawerUnit.tenant!.id}/deactivate`, { method: "POST" });
+                              await fetch(
+                                `/api/admin/property/tenants/${drawerUnit.tenant!.id}/deactivate`,
+                                { method: "POST" }
+                              );
                               setDrawerUnit(null);
                               await load();
                               if (!hasFuture) openAddTenant(unitId);
                             },
-                            { confirmLabel: "Move Out", confirmColor: "error" },
+                            { confirmLabel: "Move Out", confirmColor: "error" }
                           );
                         }}
                       >
-                        Move Out{drawerUnit.futureTenant ? ` (${drawerUnit.futureTenant.name} takes over)` : " & Add New Tenant"}
+                        Move Out
+                        {drawerUnit.futureTenant
+                          ? ` (${drawerUnit.futureTenant.name} takes over)`
+                          : " & Add New Tenant"}
                       </Button>
                     </Box>
 
@@ -813,20 +1126,31 @@ export default function PropertyPage() {
                     {drawerUnit.futureTenant && (
                       <Box sx={{ mt: 2 }}>
                         <Divider sx={{ mb: 1.5 }} />
-                        <Typography variant="overline" color="warning.main" sx={{ fontSize: "0.6875rem", fontWeight: 700 }}>
+                        <Typography
+                          variant="overline"
+                          color="warning.main"
+                          sx={{ fontSize: "0.6875rem", fontWeight: 700 }}
+                        >
                           Scheduled Future Tenant
                         </Typography>
                         <Box sx={{ mt: 1, display: "flex", flexDirection: "column", gap: 1 }}>
                           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                             <UserPlus size={15} color="var(--mui-palette-warning-main)" />
                             <Box>
-                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{drawerUnit.futureTenant.name}</Typography>
-                              <Typography variant="caption" color="text.secondary">{drawerUnit.futureTenant.tenantCode}</Typography>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                                {drawerUnit.futureTenant.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {drawerUnit.futureTenant.tenantCode}
+                              </Typography>
                             </Box>
                           </Box>
                           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                             <Calendar size={13} />
-                            <Typography variant="caption">Move-in: {new Date(drawerUnit.futureTenant.moveInDate).toLocaleDateString()}</Typography>
+                            <Typography variant="caption">
+                              Move-in:{" "}
+                              {new Date(drawerUnit.futureTenant.moveInDate).toLocaleDateString()}
+                            </Typography>
                           </Box>
                           <Box sx={{ display: "flex", gap: 1, mt: 0.5 }}>
                             <Button
@@ -851,11 +1175,14 @@ export default function PropertyPage() {
                                   "Promote to Current Tenant",
                                   `Promote ${ft.name} to current tenant now? ${drawerUnit.tenant!.name} will be moved out.`,
                                   async () => {
-                                    await fetch(`/api/admin/property/tenants/${drawerUnit.tenant!.id}/deactivate`, { method: "POST" });
+                                    await fetch(
+                                      `/api/admin/property/tenants/${drawerUnit.tenant!.id}/deactivate`,
+                                      { method: "POST" }
+                                    );
                                     setDrawerUnit(null);
                                     await load();
                                   },
-                                  { confirmLabel: "Promote", confirmColor: "warning" },
+                                  { confirmLabel: "Promote", confirmColor: "warning" }
                                 );
                               }}
                             >
@@ -870,15 +1197,33 @@ export default function PropertyPage() {
                   <Box>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
                       <UserX size={16} color="var(--mui-palette-warning-main)" />
-                      <Typography variant="body2" color="text.secondary">This unit is currently vacant</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        This unit is currently vacant
+                      </Typography>
                     </Box>
-                    <Typography variant="body2" sx={{ mb: 2 }}>Base rent: {fmt(drawerUnit.monthlyRent)}/month</Typography>
-                    <Button variant="outlined" size="small" fullWidth startIcon={<Pencil size={14} />}
-                      onClick={() => setUnitEditMode(true)} sx={{ mb: 1 }}>
+                    <Typography variant="body2" sx={{ mb: 2 }}>
+                      Base rent: {fmt(drawerUnit.monthlyRent)}/month
+                    </Typography>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      fullWidth
+                      startIcon={<Pencil size={14} />}
+                      onClick={() => setUnitEditMode(true)}
+                      sx={{ mb: 1 }}
+                    >
                       Edit Unit
                     </Button>
-                    <Button variant="contained" size="small" fullWidth startIcon={<Plus size={14} />}
-                      onClick={() => { setDrawerUnit(null); openAddTenant(drawerUnit.id); }}>
+                    <Button
+                      variant="contained"
+                      size="small"
+                      fullWidth
+                      startIcon={<Plus size={14} />}
+                      onClick={() => {
+                        setDrawerUnit(null);
+                        openAddTenant(drawerUnit.id);
+                      }}
+                    >
                       Add Tenant
                     </Button>
                   </Box>
@@ -893,55 +1238,120 @@ export default function PropertyPage() {
       <Drawer anchor="right" open={!!editTenantRow} onClose={() => setEditTenantRow(null)}>
         {editTenantRow?.tenant && (
           <Box sx={{ width: 380, p: 3 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700 }}>Edit Tenant</Typography>
-              <IconButton onClick={() => setEditTenantRow(null)} size="small"><X size={18} /></IconButton>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}
+            >
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                Edit Tenant
+              </Typography>
+              <IconButton onClick={() => setEditTenantRow(null)} size="small">
+                <X size={18} />
+              </IconButton>
             </Box>
 
             {!editTenantRow.tenant.isActive && (
               <Alert severity="warning" sx={{ mb: 2, fontSize: "0.8125rem" }}>
-                Inactive — moved out. Changes save to their record only and won&apos;t affect any unit.
+                Inactive — moved out. Changes save to their record only and won&apos;t affect any
+                unit.
               </Alert>
             )}
 
             {!editTenantRow.tenant.isActive && editTenantRow.monthlyRent > 0 && (
               <Box sx={{ bgcolor: "action.selected", px: 2, py: 1.5, borderRadius: 1, mb: 2 }}>
-                <Typography variant="caption" color="text.secondary">Last Rent</Typography>
-                <Typography variant="body2" sx={{ fontWeight: 700 }}>{fmt(editTenantRow.monthlyRent)}/month</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Last Rent
+                </Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                  {fmt(editTenantRow.monthlyRent)}/month
+                </Typography>
                 {editTenantRow.tenant.moveOutDate && (
                   <>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>Moved Out</Typography>
-                    <Typography variant="body2">{new Date(editTenantRow.tenant.moveOutDate).toLocaleDateString()}</Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block", mt: 0.5 }}
+                    >
+                      Moved Out
+                    </Typography>
+                    <Typography variant="body2">
+                      {new Date(editTenantRow.tenant.moveOutDate).toLocaleDateString()}
+                    </Typography>
                   </>
                 )}
               </Box>
             )}
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <TextField label="Full Name" value={tenantForm.name}
+              <TextField
+                label="Full Name"
+                value={tenantForm.name}
                 onChange={(e) => setTenantForm((p) => ({ ...p, name: e.target.value }))}
-                size="small" fullWidth />
-              <TextField label="Phone" value={tenantForm.phone}
+                size="small"
+                fullWidth
+              />
+              <TextField
+                label="Phone"
+                value={tenantForm.phone}
                 onChange={(e) => setTenantForm((p) => ({ ...p, phone: e.target.value }))}
-                size="small" fullWidth />
-              <TextField label="Move-in Date" type="date" value={tenantForm.moveInDate}
+                size="small"
+                fullWidth
+              />
+              <TextField
+                label="Move-in Date"
+                type="date"
+                value={tenantForm.moveInDate}
                 onChange={(e) => setTenantForm((p) => ({ ...p, moveInDate: e.target.value }))}
-                size="small" fullWidth slotProps={{ inputLabel: { shrink: true } }} />
-              <TextField label="Lease End Date" type="date" value={tenantForm.leaseEndDate}
+                size="small"
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
+              <TextField
+                label="Lease End Date"
+                type="date"
+                value={tenantForm.leaseEndDate}
                 onChange={(e) => setTenantForm((p) => ({ ...p, leaseEndDate: e.target.value }))}
-                size="small" fullWidth slotProps={{ inputLabel: { shrink: true } }} />
+                size="small"
+                fullWidth
+                slotProps={{ inputLabel: { shrink: true } }}
+              />
               <FormControlLabel
-                control={<Switch checked={tenantForm.advancePaid}
-                  onChange={(e) => setTenantForm((p) => ({ ...p, advancePaid: e.target.checked }))} />}
-                label="Advance Paid" />
+                control={
+                  <Switch
+                    checked={tenantForm.advancePaid}
+                    onChange={(e) =>
+                      setTenantForm((p) => ({ ...p, advancePaid: e.target.checked }))
+                    }
+                  />
+                }
+                label="Advance Paid"
+              />
               {tenantForm.advancePaid && (
-                <TextField label="Advance Amount (৳)" type="number" value={tenantForm.advanceAmount}
+                <TextField
+                  label="Advance Amount (৳)"
+                  type="number"
+                  value={tenantForm.advanceAmount}
                   onChange={(e) => setTenantForm((p) => ({ ...p, advanceAmount: e.target.value }))}
-                  size="small" fullWidth />
+                  size="small"
+                  fullWidth
+                />
               )}
               <Box sx={{ display: "flex", gap: 1 }}>
-                <Button variant="outlined" size="small" fullWidth onClick={() => setEditTenantRow(null)} disabled={saving}>Cancel</Button>
-                <Button variant="contained" size="small" fullWidth onClick={saveTenant} disabled={saving}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  fullWidth
+                  onClick={() => setEditTenantRow(null)}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="contained"
+                  size="small"
+                  fullWidth
+                  onClick={saveTenant}
+                  disabled={saving}
+                >
                   {saving ? "Saving…" : "Save Changes"}
                 </Button>
               </Box>
@@ -949,21 +1359,40 @@ export default function PropertyPage() {
 
             {/* ── Add-On Services ─────────────────────────────────── */}
             <Divider sx={{ my: 2.5 }} />
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Add-On Services</Typography>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
+              Add-On Services
+            </Typography>
 
             {/* Current services */}
             {editTenantRow.tenant.services && editTenantRow.tenant.services.length > 0 ? (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mb: 1.5 }}>
                 {editTenantRow.tenant.services.map((sv) => (
-                  <Box key={sv.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", bgcolor: "action.selected", px: 1.5, py: 0.75, borderRadius: 1 }}>
+                  <Box
+                    key={sv.id}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      bgcolor: "action.selected",
+                      px: 1.5,
+                      py: 0.75,
+                      borderRadius: 1,
+                    }}
+                  >
                     <Box>
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{sv.serviceName}</Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                        {sv.serviceName}
+                      </Typography>
                       <Typography variant="caption" color="text.secondary">
                         {sv.monthlyFee > 0 ? `${fmt(sv.monthlyFee)}/month` : "Free"}
                       </Typography>
                     </Box>
                     <Tooltip title="Remove service">
-                      <IconButton size="small" color="error" onClick={() => removeService(sv.id, editTenantRow.tenant!.id)}>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => removeService(sv.id, editTenantRow.tenant!.id)}
+                      >
                         <X size={14} />
                       </IconButton>
                     </Tooltip>
@@ -971,25 +1400,45 @@ export default function PropertyPage() {
                 ))}
               </Box>
             ) : (
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>No services assigned.</Typography>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "block", mb: 1.5 }}
+              >
+                No services assigned.
+              </Typography>
             )}
 
             {/* Assign new service */}
-            {serviceCatalog.filter((c) => !editTenantRow.tenant!.services?.some((sv) => sv.serviceName === c.name)).length > 0 && (
+            {serviceCatalog.filter(
+              (c) => !editTenantRow.tenant!.services?.some((sv) => sv.serviceName === c.name)
+            ).length > 0 && (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 <Box sx={{ display: "flex", gap: 1 }}>
                   <FormControl size="small" sx={{ flex: 2 }}>
                     <InputLabel>Service</InputLabel>
-                    <Select label="Service" value={addSvcId} onChange={(e) => setAddSvcId(e.target.value as string)}>
+                    <Select
+                      label="Service"
+                      value={addSvcId}
+                      onChange={(e) => setAddSvcId(e.target.value as string)}
+                    >
                       {serviceCatalog
-                        .filter((c) => !editTenantRow.tenant!.services?.some((sv) => sv.serviceName === c.name))
+                        .filter(
+                          (c) =>
+                            !editTenantRow.tenant!.services?.some((sv) => sv.serviceName === c.name)
+                        )
                         .map((c) => (
-                          <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                          <MenuItem key={c.id} value={c.id}>
+                            {c.name}
+                          </MenuItem>
                         ))}
                     </Select>
                   </FormControl>
                   <TextField
-                    label="Fee (৳)" type="number" size="small" sx={{ flex: 1 }}
+                    label="Fee (৳)"
+                    type="number"
+                    size="small"
+                    sx={{ flex: 1 }}
                     value={addSvcFee}
                     onChange={(e) => setAddSvcFee(e.target.value)}
                     placeholder="0"
@@ -997,13 +1446,17 @@ export default function PropertyPage() {
                 </Box>
                 <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
                   <TextField
-                    label="Start Date" type="date" size="small" sx={{ flex: 1 }}
+                    label="Start Date"
+                    type="date"
+                    size="small"
+                    sx={{ flex: 1 }}
                     value={addSvcDate}
                     onChange={(e) => setAddSvcDate(e.target.value)}
                     slotProps={{ inputLabel: { shrink: true } }}
                   />
                   <Button
-                    variant="contained" size="small"
+                    variant="contained"
+                    size="small"
                     onClick={assignService}
                     disabled={saving || !addSvcId || addSvcFee === "" || !addSvcDate}
                   >
@@ -1020,13 +1473,28 @@ export default function PropertyPage() {
             {editTenantRow.tenant.isActive && (
               <>
                 <Divider sx={{ my: 2.5 }} />
-                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    mb: 1.5,
+                  }}
+                >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                     <TrendingUp size={15} />
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Scheduled Rent Changes</Typography>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      Scheduled Rent Changes
+                    </Typography>
                   </Box>
                   {!showRcForm && (
-                    <Button size="small" startIcon={<Plus size={13} />} onClick={() => setShowRcForm(true)}>Add</Button>
+                    <Button
+                      size="small"
+                      startIcon={<Plus size={13} />}
+                      onClick={() => setShowRcForm(true)}
+                    >
+                      Add
+                    </Button>
                   )}
                 </Box>
 
@@ -1035,26 +1503,55 @@ export default function PropertyPage() {
                     <Typography variant="caption" color="text.secondary">
                       Current rent: {fmt(editTenantRow.monthlyRent)}
                     </Typography>
-                    <TextField label="Effective Date" type="date" value={rcForm.effectiveDate}
+                    <TextField
+                      label="Effective Date"
+                      type="date"
+                      value={rcForm.effectiveDate}
                       onChange={(e) => setRcForm((p) => ({ ...p, effectiveDate: e.target.value }))}
-                      size="small" fullWidth slotProps={{ inputLabel: { shrink: true } }} />
-                    <TextField label="New Rent (৳)" type="number" value={rcForm.newRent}
+                      size="small"
+                      fullWidth
+                      slotProps={{ inputLabel: { shrink: true } }}
+                    />
+                    <TextField
+                      label="New Rent (৳)"
+                      type="number"
+                      value={rcForm.newRent}
                       onChange={(e) => setRcForm((p) => ({ ...p, newRent: e.target.value }))}
-                      size="small" fullWidth />
-                    <TextField label="Reason (optional)" value={rcForm.reason}
+                      size="small"
+                      fullWidth
+                    />
+                    <TextField
+                      label="Reason (optional)"
+                      value={rcForm.reason}
                       onChange={(e) => setRcForm((p) => ({ ...p, reason: e.target.value }))}
-                      size="small" fullWidth />
+                      size="small"
+                      fullWidth
+                    />
                     <Box sx={{ display: "flex", gap: 1 }}>
-                      <Button variant="outlined" size="small" fullWidth onClick={() => setShowRcForm(false)} disabled={saving}>Cancel</Button>
-                      <Button variant="contained" size="small" fullWidth onClick={saveRentChange}
-                        disabled={saving || !rcForm.effectiveDate || !rcForm.newRent}>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        fullWidth
+                        onClick={() => setShowRcForm(false)}
+                        disabled={saving}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="contained"
+                        size="small"
+                        fullWidth
+                        onClick={saveRentChange}
+                        disabled={saving || !rcForm.effectiveDate || !rcForm.newRent}
+                      >
                         {saving ? "Saving…" : "Schedule"}
                       </Button>
                     </Box>
                   </Box>
                 ) : (
                   <Typography variant="caption" color="text.secondary">
-                    Changes are applied automatically when payments are generated for the effective month.
+                    Changes are applied automatically when payments are generated for the effective
+                    month.
                   </Typography>
                 )}
               </>
@@ -1067,18 +1564,28 @@ export default function PropertyPage() {
       <Dialog
         open={!!confirmDialog}
         onClose={() => !confirmLoading && setConfirmDialog(null)}
-        slotProps={{ paper: { sx: { bgcolor: "background.paper", borderRadius: 2, minWidth: 340 } } }}
+        slotProps={{
+          paper: { sx: { bgcolor: "background.paper", borderRadius: 2, minWidth: 340 } },
+        }}
       >
         <DialogTitle sx={{ pb: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
             <Box
               sx={{
-                width: 36, height: 36, borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                bgcolor: confirmDialog?.confirmColor === "error" ? "error.main"
-                  : confirmDialog?.confirmColor === "success" ? "success.main"
-                  : confirmDialog?.confirmColor === "warning" ? "warning.main"
-                  : "primary.main",
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor:
+                  confirmDialog?.confirmColor === "error"
+                    ? "error.main"
+                    : confirmDialog?.confirmColor === "success"
+                      ? "success.main"
+                      : confirmDialog?.confirmColor === "warning"
+                        ? "warning.main"
+                        : "primary.main",
                 flexShrink: 0,
               }}
             >
@@ -1127,14 +1634,17 @@ export default function PropertyPage() {
       <Dialog
         open={!!assignUnitDialog}
         onClose={() => !assignSaving && setAssignUnitDialog(null)}
-        slotProps={{ paper: { sx: { bgcolor: "background.paper", borderRadius: 2, minWidth: 360 } } }}
+        slotProps={{
+          paper: { sx: { bgcolor: "background.paper", borderRadius: 2, minWidth: 360 } },
+        }}
       >
         <DialogTitle sx={{ fontWeight: 700, fontSize: "1rem" }}>
           Assign Unit — {assignUnitDialog?.tenantName}
         </DialogTitle>
         <DialogContent>
           <DialogContentText sx={{ color: "text.secondary", fontSize: "0.875rem", mb: 2 }}>
-            Select a unit to assign. If the unit is already occupied, this tenant will be queued as a future tenant.
+            Select a unit to assign. If the unit is already occupied, this tenant will be queued as
+            a future tenant.
           </DialogContentText>
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Unit</InputLabel>
@@ -1156,36 +1666,49 @@ export default function PropertyPage() {
               ))}
             </Select>
           </FormControl>
-          {assigningUnitId && (() => {
-            const u = units.find((x) => x.id === assigningUnitId);
-            return (
-              <TextField
-                label={u?.isOccupied ? "New Rent for Future Tenant (৳)" : "Monthly Rent (৳)"}
-                type="number"
-                value={assignRent}
-                onChange={(e) => setAssignRent(e.target.value)}
-                size="small" fullWidth
-                placeholder={String(u?.monthlyRent ?? "")}
-                helperText={
-                  u?.isOccupied
-                    ? assignRent && Number(assignRent) !== u.monthlyRent
-                      ? `Current rent is ${fmt(u.monthlyRent)} — a rent change will be scheduled for their move-in date`
-                      : `Current rent is ${fmt(u?.monthlyRent ?? 0)} — leave blank to keep the same`
-                    : assignRent && u && Number(assignRent) !== u.monthlyRent
-                      ? `Default: ${fmt(u.monthlyRent)} — saving will update the unit's rent`
-                      : "Leave blank to keep the unit's current rent"
-                }
-              />
-            );
-          })()}
+          {assigningUnitId &&
+            (() => {
+              const u = units.find((x) => x.id === assigningUnitId);
+              return (
+                <TextField
+                  label={u?.isOccupied ? "New Rent for Future Tenant (৳)" : "Monthly Rent (৳)"}
+                  type="number"
+                  value={assignRent}
+                  onChange={(e) => setAssignRent(e.target.value)}
+                  size="small"
+                  fullWidth
+                  placeholder={String(u?.monthlyRent ?? "")}
+                  helperText={
+                    u?.isOccupied
+                      ? assignRent && Number(assignRent) !== u.monthlyRent
+                        ? `Current rent is ${fmt(u.monthlyRent)} — a rent change will be scheduled for their move-in date`
+                        : `Current rent is ${fmt(u?.monthlyRent ?? 0)} — leave blank to keep the same`
+                      : assignRent && u && Number(assignRent) !== u.monthlyRent
+                        ? `Default: ${fmt(u.monthlyRent)} — saving will update the unit's rent`
+                        : "Leave blank to keep the unit's current rent"
+                  }
+                />
+              );
+            })()}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
-          <Button variant="outlined" size="small" onClick={() => setAssignUnitDialog(null)}
-            disabled={assignSaving} sx={{ flex: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setAssignUnitDialog(null)}
+            disabled={assignSaving}
+            sx={{ flex: 1 }}
+          >
             Cancel
           </Button>
-          <Button variant="contained" size="small" startIcon={<MapPin size={14} />}
-            onClick={doAssignUnit} disabled={!assigningUnitId || assignSaving} sx={{ flex: 1 }}>
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<MapPin size={14} />}
+            onClick={doAssignUnit}
+            disabled={!assigningUnitId || assignSaving}
+            sx={{ flex: 1 }}
+          >
             {assignSaving ? "Assigning…" : "Assign"}
           </Button>
         </DialogActions>
@@ -1194,20 +1717,33 @@ export default function PropertyPage() {
       {/* ── Add Tenant / External Member drawer ─────────────────────── */}
       <Drawer anchor="right" open={addOpen} onClose={() => setAddOpen(false)}>
         <Box sx={{ width: 380, p: 3 }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+          <Box
+            sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}
+          >
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
               {isAddingExternal ? "Add External Member" : "Add Tenant"}
             </Typography>
-            <IconButton onClick={() => setAddOpen(false)} size="small"><X size={18} /></IconButton>
+            <IconButton onClick={() => setAddOpen(false)} size="small">
+              <X size={18} />
+            </IconButton>
           </Box>
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <TextField label="Full Name" value={addForm.name}
+            <TextField
+              label="Full Name"
+              value={addForm.name}
               onChange={(e) => setAddForm((p) => ({ ...p, name: e.target.value }))}
-              size="small" fullWidth required />
-            <TextField label="Phone" value={addForm.phone}
+              size="small"
+              fullWidth
+              required
+            />
+            <TextField
+              label="Phone"
+              value={addForm.phone}
               onChange={(e) => setAddForm((p) => ({ ...p, phone: e.target.value }))}
-              size="small" fullWidth />
+              size="small"
+              fullWidth
+            />
 
             {!isAddingExternal && (
               <>
@@ -1219,16 +1755,24 @@ export default function PropertyPage() {
                     onChange={(e) => {
                       const uid = e.target.value as string;
                       const u = units.find((x) => x.id === uid);
-                      setAddForm((p) => ({ ...p, unitId: uid, customRent: u ? String(u.monthlyRent) : "" }));
+                      setAddForm((p) => ({
+                        ...p,
+                        unitId: uid,
+                        customRent: u ? String(u.monthlyRent) : "",
+                      }));
                     }}
                   >
                     {unitsWithoutFuture.length === 0 && (
-                      <MenuItem disabled value="">All units have a future tenant queued</MenuItem>
+                      <MenuItem disabled value="">
+                        All units have a future tenant queued
+                      </MenuItem>
                     )}
                     {unitsWithoutFuture.map((u) => (
                       <MenuItem key={u.id} value={u.id}>
                         {u.unitNumber} — {u.floor}
-                        {u.isOccupied ? ` (Occupied by ${u.tenant?.name ?? "?"} — will add as future)` : ` (${fmt(u.monthlyRent)}/mo)`}
+                        {u.isOccupied
+                          ? ` (Occupied by ${u.tenant?.name ?? "?"} — will add as future)`
+                          : ` (${fmt(u.monthlyRent)}/mo)`}
                       </MenuItem>
                     ))}
                   </Select>
@@ -1236,20 +1780,28 @@ export default function PropertyPage() {
 
                 {selectedUnit?.isOccupied && (
                   <Alert severity="info" sx={{ fontSize: "0.8rem", py: 0.5 }}>
-                    This unit is occupied. The new tenant will be scheduled as a <strong>future tenant</strong> and will become active when the current tenant moves out.
+                    This unit is occupied. The new tenant will be scheduled as a{" "}
+                    <strong>future tenant</strong> and will become active when the current tenant
+                    moves out.
                   </Alert>
                 )}
 
                 {addForm.unitId && (
                   <TextField
-                    label={selectedUnit?.isOccupied ? "New Rent for Future Tenant (৳)" : "Monthly Rent (৳)"}
+                    label={
+                      selectedUnit?.isOccupied
+                        ? "New Rent for Future Tenant (৳)"
+                        : "Monthly Rent (৳)"
+                    }
                     type="number"
                     value={addForm.customRent}
                     onChange={(e) => setAddForm((p) => ({ ...p, customRent: e.target.value }))}
-                    size="small" fullWidth
+                    size="small"
+                    fullWidth
                     helperText={
                       selectedUnit?.isOccupied
-                        ? addForm.customRent && Number(addForm.customRent) !== selectedUnit.monthlyRent
+                        ? addForm.customRent &&
+                          Number(addForm.customRent) !== selectedUnit.monthlyRent
                           ? `Current unit rent is ${fmt(selectedUnit.monthlyRent)} — a rent change will be scheduled for their move-in date`
                           : `Current unit rent is ${fmt(selectedUnit?.monthlyRent ?? 0)} — enter a different amount if their rent will change`
                         : selectedUnit && Number(addForm.customRent) !== selectedUnit.monthlyRent
@@ -1261,21 +1813,44 @@ export default function PropertyPage() {
               </>
             )}
 
-            <TextField label="Move-in Date" type="date" value={addForm.moveInDate}
+            <TextField
+              label="Move-in Date"
+              type="date"
+              value={addForm.moveInDate}
               onChange={(e) => setAddForm((p) => ({ ...p, moveInDate: e.target.value }))}
-              size="small" fullWidth required slotProps={{ inputLabel: { shrink: true } }} />
-            <TextField label="Lease End Date" type="date" value={addForm.leaseEndDate}
+              size="small"
+              fullWidth
+              required
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
+            <TextField
+              label="Lease End Date"
+              type="date"
+              value={addForm.leaseEndDate}
               onChange={(e) => setAddForm((p) => ({ ...p, leaseEndDate: e.target.value }))}
-              size="small" fullWidth slotProps={{ inputLabel: { shrink: true } }} />
+              size="small"
+              fullWidth
+              slotProps={{ inputLabel: { shrink: true } }}
+            />
 
             <FormControlLabel
-              control={<Switch checked={addForm.advancePaid}
-                onChange={(e) => setAddForm((p) => ({ ...p, advancePaid: e.target.checked }))} />}
-              label="Advance Paid" />
+              control={
+                <Switch
+                  checked={addForm.advancePaid}
+                  onChange={(e) => setAddForm((p) => ({ ...p, advancePaid: e.target.checked }))}
+                />
+              }
+              label="Advance Paid"
+            />
             {addForm.advancePaid && (
-              <TextField label="Advance Amount (৳)" type="number" value={addForm.advanceAmount}
+              <TextField
+                label="Advance Amount (৳)"
+                type="number"
+                value={addForm.advanceAmount}
                 onChange={(e) => setAddForm((p) => ({ ...p, advanceAmount: e.target.value }))}
-                size="small" fullWidth />
+                size="small"
+                fullWidth
+              />
             )}
 
             {/* Document upload (queued until tenant is saved) */}
@@ -1307,9 +1882,35 @@ export default function PropertyPage() {
               {pendingFiles.length > 0 && (
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
                   {pendingFiles.map((f, i) => (
-                    <Box key={i} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", bgcolor: "action.hover", px: 1, py: 0.5, borderRadius: 1 }}>
-                      <Typography variant="caption" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{f.name}</Typography>
-                      <IconButton size="small" onClick={() => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}>
+                    <Box
+                      key={i}
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        bgcolor: "action.hover",
+                        px: 1,
+                        py: 0.5,
+                        borderRadius: 1,
+                      }}
+                    >
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          whiteSpace: "nowrap",
+                          flex: 1,
+                        }}
+                      >
+                        {f.name}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        onClick={() =>
+                          setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))
+                        }
+                      >
                         <X size={12} />
                       </IconButton>
                     </Box>
@@ -1319,10 +1920,26 @@ export default function PropertyPage() {
             </Box>
 
             <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-              <Button variant="outlined" size="small" fullWidth onClick={() => setAddOpen(false)} disabled={saving}>Cancel</Button>
               <Button
-                variant="contained" size="small" fullWidth onClick={saveNewTenant}
-                disabled={saving || !addForm.name || !addForm.moveInDate || (!isAddingExternal && !addForm.unitId)}
+                variant="outlined"
+                size="small"
+                fullWidth
+                onClick={() => setAddOpen(false)}
+                disabled={saving}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                size="small"
+                fullWidth
+                onClick={saveNewTenant}
+                disabled={
+                  saving ||
+                  !addForm.name ||
+                  !addForm.moveInDate ||
+                  (!isAddingExternal && !addForm.unitId)
+                }
               >
                 {saving ? "Saving…" : isAddingExternal ? "Add Member" : "Add Tenant"}
               </Button>
@@ -1353,7 +1970,9 @@ function TenantTable({
     return (
       <Box sx={{ textAlign: "center", py: 8 }}>
         <Building2 size={40} style={{ opacity: 0.3 }} />
-        <Typography color="text.secondary" sx={{ mt: 1 }}>No records found</Typography>
+        <Typography color="text.secondary" sx={{ mt: 1 }}>
+          No records found
+        </Typography>
       </Box>
     );
   }
@@ -1384,13 +2003,21 @@ function TenantTable({
                   <Chip label={t.tenantCode ?? "—"} size="small" variant="outlined" />
                 </TableCell>
                 <TableCell>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.name}</Typography>
-                  {t.phone && <Typography variant="caption" color="text.secondary">{t.phone}</Typography>}
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    {t.name}
+                  </Typography>
+                  {t.phone && (
+                    <Typography variant="caption" color="text.secondary">
+                      {t.phone}
+                    </Typography>
+                  )}
                 </TableCell>
                 {showUnit && (
                   <TableCell>
                     <Typography variant="body2">{row.unitNumber}</Typography>
-                    <Typography variant="caption" color="text.secondary">{row.floor}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {row.floor}
+                    </Typography>
                   </TableCell>
                 )}
                 <TableCell>
@@ -1402,7 +2029,11 @@ function TenantTable({
                       {t.services.map((sv) => (
                         <Chip
                           key={sv.serviceName}
-                          label={sv.monthlyFee > 0 ? `${sv.serviceName} ${fmt(sv.monthlyFee)}` : sv.serviceName}
+                          label={
+                            sv.monthlyFee > 0
+                              ? `${sv.serviceName} ${fmt(sv.monthlyFee)}`
+                              : sv.serviceName
+                          }
                           size="small"
                           variant="outlined"
                           sx={{ fontSize: "0.65rem", height: 18 }}
@@ -1410,41 +2041,83 @@ function TenantTable({
                       ))}
                     </Box>
                   ) : (
-                    <Typography variant="caption" color="text.secondary">—</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      —
+                    </Typography>
                   )}
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2">
-                    {new Date(t.moveInDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    {new Date(t.moveInDate).toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
                   </Typography>
                 </TableCell>
                 <TableCell>
                   {t.advancePaid ? (
-                    <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>{fmt(t.advanceAmount)}</Typography>
+                    <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>
+                      {fmt(t.advanceAmount)}
+                    </Typography>
                   ) : (
-                    <Typography variant="caption" color="text.secondary">None</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      None
+                    </Typography>
                   )}
                 </TableCell>
                 <TableCell>
                   {t.leaseEndDate ? (
-                    <Typography variant="body2">{new Date(t.leaseEndDate).toLocaleDateString()}</Typography>
+                    <Typography variant="body2">
+                      {new Date(t.leaseEndDate).toLocaleDateString()}
+                    </Typography>
                   ) : (
-                    <Typography variant="caption" color="text.secondary">—</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      —
+                    </Typography>
                   )}
                 </TableCell>
                 <TableCell>
                   {t.tenantStatus === "FUTURE" ? (
-                    <Chip label="Scheduled" size="small"
-                      sx={{ bgcolor: "warning.main", color: "#fff", fontWeight: 600, fontSize: "0.6875rem" }} />
+                    <Chip
+                      label="Scheduled"
+                      size="small"
+                      sx={{
+                        bgcolor: "warning.main",
+                        color: "#fff",
+                        fontWeight: 600,
+                        fontSize: "0.6875rem",
+                      }}
+                    />
                   ) : t.isActive ? (
-                    <Chip label="Active" size="small"
-                      sx={{ bgcolor: "success.main", color: "#fff", fontWeight: 600, fontSize: "0.6875rem" }} />
+                    <Chip
+                      label="Active"
+                      size="small"
+                      sx={{
+                        bgcolor: "success.main",
+                        color: "#fff",
+                        fontWeight: 600,
+                        fontSize: "0.6875rem",
+                      }}
+                    />
                   ) : (
                     <Box>
-                      <Chip label="Inactive" size="small"
-                        sx={{ bgcolor: "action.selected", color: "text.secondary", fontWeight: 600, fontSize: "0.6875rem" }} />
+                      <Chip
+                        label="Inactive"
+                        size="small"
+                        sx={{
+                          bgcolor: "action.selected",
+                          color: "text.secondary",
+                          fontWeight: 600,
+                          fontSize: "0.6875rem",
+                        }}
+                      />
                       {t.moveOutDate && (
-                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: "block", mt: 0.25 }}
+                        >
                           Out: {new Date(t.moveOutDate).toLocaleDateString()}
                         </Typography>
                       )}
@@ -1458,26 +2131,42 @@ function TenantTable({
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="View profile">
-                    <IconButton component={Link} href={`/admin/property/tenants/${t.id}`} size="small">
+                    <IconButton
+                      component={Link}
+                      href={`/admin/property/tenants/${t.id}`}
+                      size="small"
+                    >
                       <ExternalLink size={15} />
                     </IconButton>
                   </Tooltip>
                   {onAssignUnit && row.id.startsWith("unassigned-") && (
                     <Tooltip title="Assign to unit">
-                      <IconButton size="small" color="warning" onClick={() => onAssignUnit(t.id, t.name)}>
+                      <IconButton
+                        size="small"
+                        color="warning"
+                        onClick={() => onAssignUnit(t.id, t.name)}
+                      >
                         <MapPin size={15} />
                       </IconButton>
                     </Tooltip>
                   )}
                   {t.isActive ? (
                     <Tooltip title="Deactivate">
-                      <IconButton size="small" color="error" onClick={() => onDeactivate(t.id, t.name)}>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => onDeactivate(t.id, t.name)}
+                      >
                         <UserX size={15} />
                       </IconButton>
                     </Tooltip>
                   ) : (
                     <Tooltip title="Re-activate">
-                      <IconButton size="small" color="success" onClick={() => onActivate(t.id, t.name)}>
+                      <IconButton
+                        size="small"
+                        color="success"
+                        onClick={() => onActivate(t.id, t.name)}
+                      >
                         <UserPlus size={15} />
                       </IconButton>
                     </Tooltip>

@@ -31,7 +31,9 @@ import {
 import { Plus, Pencil, PowerOff, ChevronDown } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 
-function fmt(n: number) { return `৳${n.toLocaleString()}`; }
+function fmt(n: number) {
+  return `৳${n.toLocaleString()}`;
+}
 
 type ServiceEntry = {
   id: string;
@@ -83,7 +85,9 @@ export default function ServicesPage() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const openAddService = () => {
     setEditingService(null);
@@ -105,7 +109,9 @@ export default function ServicesPage() {
     setSaving(true);
     setError(null);
     try {
-      const url = editingService ? `/api/admin/property/services/${editingService.id}` : "/api/admin/property/services";
+      const url = editingService
+        ? `/api/admin/property/services/${editingService.id}`
+        : "/api/admin/property/services";
       const res = await fetch(url, {
         method: editingService ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
@@ -161,7 +167,10 @@ export default function ServicesPage() {
 
   return (
     <Box>
-      <PageHeader title="Add-On Services" subtitle="Manage service catalog and tenant subscriptions" />
+      <PageHeader
+        title="Add-On Services"
+        subtitle="Manage service catalog and tenant subscriptions"
+      />
 
       <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
         <Button variant="contained" startIcon={<Plus size={16} />} onClick={openAddService}>
@@ -184,16 +193,22 @@ export default function ServicesPage() {
       </Box>
 
       {loading ? (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>
+        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+          <CircularProgress />
+        </Box>
       ) : (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {services.map((s) => (
             <Accordion key={s.id} sx={{ bgcolor: "background.paper" }}>
               <AccordionSummary expandIcon={<ChevronDown size={16} />}>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 2, width: "100%" }}>
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{s.name}</Typography>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    {s.name}
+                  </Typography>
                   {s.description && (
-                    <Typography variant="caption" color="text.secondary">{s.description}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {s.description}
+                    </Typography>
                   )}
                   <Box sx={{ ml: "auto", display: "flex", gap: 1, alignItems: "center" }}>
                     <Chip
@@ -204,16 +219,35 @@ export default function ServicesPage() {
                     <Chip
                       label={s.isActive ? "Active" : "Inactive"}
                       size="small"
-                      sx={{ bgcolor: s.isActive ? "success.main" : "error.main", color: "#fff", fontSize: "0.6875rem" }}
+                      sx={{
+                        bgcolor: s.isActive ? "success.main" : "error.main",
+                        color: "#fff",
+                        fontSize: "0.6875rem",
+                      }}
                     />
                     <Tooltip title="Edit">
-                      <IconButton component="div" size="small" onClick={(e) => { e.stopPropagation(); openEditService(s); }}>
+                      <IconButton
+                        component="div"
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditService(s);
+                        }}
+                      >
                         <Pencil size={14} />
                       </IconButton>
                     </Tooltip>
                     {s.isActive && (
                       <Tooltip title="Deactivate">
-                        <IconButton component="div" size="small" color="error" onClick={(e) => { e.stopPropagation(); deactivate(s.id); }}>
+                        <IconButton
+                          component="div"
+                          size="small"
+                          color="error"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deactivate(s.id);
+                          }}
+                        >
                           <PowerOff size={14} />
                         </IconButton>
                       </Tooltip>
@@ -241,11 +275,18 @@ export default function ServicesPage() {
                         {s.tenants.map((t) => (
                           <TableRow key={t.id}>
                             <TableCell>
-                              <Typography variant="body2" sx={{ fontWeight: 600 }}>{t.tenantName}</Typography>
-                              <Typography variant="caption" color="text.secondary">{t.tenantCode}</Typography>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {t.tenantName}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {t.tenantCode}
+                              </Typography>
                             </TableCell>
                             <TableCell>
-                              <Typography variant="body2" sx={{ fontWeight: 600, color: "primary.main" }}>
+                              <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 600, color: "primary.main" }}
+                              >
                                 {fmt(t.monthlyFee)}/mo
                               </Typography>
                             </TableCell>
@@ -256,7 +297,11 @@ export default function ServicesPage() {
                             </TableCell>
                             <TableCell>
                               <Tooltip title="End subscription">
-                                <IconButton size="small" color="error" onClick={() => endAssignment(t.id)}>
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  onClick={() => endAssignment(t.id)}
+                                >
                                   <PowerOff size={14} />
                                 </IconButton>
                               </Tooltip>
@@ -273,7 +318,9 @@ export default function ServicesPage() {
           {services.length === 0 && (
             <Card sx={{ bgcolor: "background.paper" }}>
               <CardContent sx={{ textAlign: "center", py: 6 }}>
-                <Typography color="text.secondary">No services defined yet. Add your first service.</Typography>
+                <Typography color="text.secondary">
+                  No services defined yet. Add your first service.
+                </Typography>
               </CardContent>
             </Card>
           )}
@@ -287,20 +334,33 @@ export default function ServicesPage() {
             {editingService ? "Edit Service" : "Add Service"}
           </Typography>
           <TextField
-            label="Service Name" size="small" fullWidth
+            label="Service Name"
+            size="small"
+            fullWidth
             value={serviceName}
             onChange={(e) => setServiceName(e.target.value)}
             sx={{ mb: 2 }}
             placeholder="e.g. WiFi, Parking, Generator"
           />
           <TextField
-            label="Description (optional)" size="small" fullWidth
+            label="Description (optional)"
+            size="small"
+            fullWidth
             value={serviceDesc}
             onChange={(e) => setServiceDesc(e.target.value)}
             sx={{ mb: 2 }}
           />
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          <Button variant="contained" fullWidth onClick={saveService} disabled={saving || !serviceName}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          <Button
+            variant="contained"
+            fullWidth
+            onClick={saveService}
+            disabled={saving || !serviceName}
+          >
             {saving ? "Saving…" : editingService ? "Save Changes" : "Add Service"}
           </Button>
         </Box>
@@ -309,41 +369,74 @@ export default function ServicesPage() {
       {/* Assign Service Drawer */}
       <Drawer anchor="right" open={assignDrawer} onClose={() => setAssignDrawer(false)}>
         <Box sx={{ width: 360, p: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>Assign Service to Tenant</Typography>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+            Assign Service to Tenant
+          </Typography>
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Tenant</InputLabel>
-            <Select label="Tenant" value={assignTenant} onChange={(e) => setAssignTenant(e.target.value)}>
+            <Select
+              label="Tenant"
+              value={assignTenant}
+              onChange={(e) => setAssignTenant(e.target.value)}
+            >
               {tenants.map((t) => (
                 <MenuItem key={t.id} value={t.id}>
-                  {t.tenantCode ? `${t.tenantCode} · ` : ""}{t.name}
+                  {t.tenantCode ? `${t.tenantCode} · ` : ""}
+                  {t.name}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Service</InputLabel>
-            <Select label="Service" value={assignService} onChange={(e) => setAssignService(e.target.value)}>
-              {services.filter((s) => s.isActive).map((s) => (
-                <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
-              ))}
+            <Select
+              label="Service"
+              value={assignService}
+              onChange={(e) => setAssignService(e.target.value)}
+            >
+              {services
+                .filter((s) => s.isActive)
+                .map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
           <TextField
-            label="Monthly Fee (৳)" type="number" size="small" fullWidth
+            label="Monthly Fee (৳)"
+            type="number"
+            size="small"
+            fullWidth
             value={assignFee}
             onChange={(e) => setAssignFee(e.target.value)}
             sx={{ mb: 2 }}
           />
           <TextField
-            label="Start Date" type="date" size="small" fullWidth
+            label="Start Date"
+            type="date"
+            size="small"
+            fullWidth
             value={assignDate}
             onChange={(e) => setAssignDate(e.target.value)}
             sx={{ mb: 2 }}
           />
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
           <Button
-            variant="contained" fullWidth onClick={saveAssignment}
-            disabled={saving || !assignTenant || !assignService || assignFee === "" || parseFloat(assignFee) < 0}
+            variant="contained"
+            fullWidth
+            onClick={saveAssignment}
+            disabled={
+              saving ||
+              !assignTenant ||
+              !assignService ||
+              assignFee === "" ||
+              parseFloat(assignFee) < 0
+            }
           >
             {saving ? "Saving…" : "Assign Service"}
           </Button>
