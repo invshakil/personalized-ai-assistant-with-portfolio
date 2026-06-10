@@ -40,6 +40,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# tenant document uploads — files live on disk, not in git
+/uploads/
+
 # Env files — NEVER commit these
 .env.local
 .env.development.local

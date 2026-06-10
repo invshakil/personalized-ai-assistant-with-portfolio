@@ -135,6 +135,7 @@ model Tenant {
   payments       Payment[]
   services       TenantService[]
   rentChanges    RentChange[]
+  documents      TenantDocument[]
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 }
@@ -225,6 +226,20 @@ model RentChange {
   reason        String?
   appliedAt     DateTime?  // null = pending; set when payment generation picks it up
   createdAt     DateTime  @default(now())
+}
+
+// ─── Tenant Documents ─────────────────────────────────────────────────────────
+
+model TenantDocument {
+  id         String   @id @default(cuid())
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenantId   String
+  fileName   String   // original filename shown to user
+  storedName String   // unique name on disk (avoids collisions)
+  mimeType   String
+  size       Int      // bytes
+  label      String?  // optional label e.g. "NID Front", "Contract"
+  uploadedAt DateTime @default(now())
 }
 
 // ─── Income & Expenses ────────────────────────────────────────────────────────
