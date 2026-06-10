@@ -61,6 +61,19 @@ const s = StyleSheet.create({
   },
   signatureLine: { borderTop: "0.5 solid #aaa", width: 100, paddingTop: 3, fontSize: 7, color: "#888" },
   copyBadge: { fontSize: 7, color: "#999", marginBottom: 4, fontFamily: "Helvetica-Bold" },
+  paidWatermark: {
+    position: "absolute",
+    top: 110,
+    left: 0,
+    right: 0,
+    textAlign: "center",
+    fontSize: 72,
+    fontFamily: "Helvetica-Bold",
+    color: "#000",
+    opacity: 0.07,
+    letterSpacing: 12,
+    transform: "rotate(-22deg)",
+  },
 });
 
 function fmt(n: number) {
@@ -105,6 +118,7 @@ function ReceiptHalf(props: HalfProps) {
 
   return (
     <View style={s.half}>
+      {status === "PAID" && <Text style={s.paidWatermark}>PAID</Text>}
       <Text style={s.copyBadge}>[{label}]</Text>
       <View style={s.header}>
         <Text style={s.propertyName}>{propertyName}</Text>
