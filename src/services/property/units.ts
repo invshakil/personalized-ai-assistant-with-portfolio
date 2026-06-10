@@ -43,7 +43,7 @@ export async function getUnits() {
         phone: t.phone,
         isActive: t.isActive,
         isExternal: t.isExternal,
-        tenantStatus: t.tenantStatus as string,
+        tenantStatus: t.tenantStatus === "CURRENT" && t.moveInDate > today ? "FUTURE" : (t.tenantStatus as string),
         moveInDate: t.moveInDate.toISOString(),
         leaseEndDate: t.leaseEndDate?.toISOString() ?? null,
         advancePaid: t.advancePaid,
