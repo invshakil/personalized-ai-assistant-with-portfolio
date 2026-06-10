@@ -34,6 +34,7 @@ import {
   Pencil,
   Check,
   X,
+  FileDown,
 } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
@@ -497,17 +498,32 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                               }}
                             />
                           </TableCell>
-                          <TableCell sx={{ width: 40 }}>
-                            <Tooltip title="Delete payment">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                disabled={deletingPaymentId === p.id}
-                                onClick={(e) => deletePayment(p.id, e)}
-                              >
-                                <Trash2 size={14} />
-                              </IconButton>
-                            </Tooltip>
+                          <TableCell sx={{ width: 80 }}>
+                            <Box sx={{ display: "flex", gap: 0.5 }}>
+                              <Tooltip title="Download receipt">
+                                <IconButton
+                                  size="small"
+                                  color="primary"
+                                  component="a"
+                                  href={`/api/admin/property/payments/${p.id}/receipt`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                >
+                                  <FileDown size={14} />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Delete payment">
+                                <IconButton
+                                  size="small"
+                                  color="error"
+                                  disabled={deletingPaymentId === p.id}
+                                  onClick={(e) => deletePayment(p.id, e)}
+                                >
+                                  <Trash2 size={14} />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
                           </TableCell>
                         </TableRow>
 
