@@ -5,8 +5,11 @@ const db = new PrismaClient();
 
 async function main() {
   // ─── Admin user ───────────────────────────────────────────────────────────
-  const adminEmail = process.env.ADMIN_EMAIL ?? "inverse.shakil@gmail.com";
-  const adminPassword = process.env.ADMIN_PASSWORD ?? "isshakil32!";
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  if (!adminEmail || !adminPassword) {
+    throw new Error("ADMIN_EMAIL and ADMIN_PASSWORD must be set in the environment.");
+  }
   const hash = await bcrypt.hash(adminPassword, 12);
   await db.user.upsert({
     where: { email: adminEmail },
