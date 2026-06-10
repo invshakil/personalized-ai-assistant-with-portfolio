@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   Box, Card, CardContent, Typography, Chip, Grid, Tabs, Tab,
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
+import TenantDocuments from "@/components/admin/TenantDocuments";
 import type { UnitWithTenant, TenantSummary } from "@/types";
 
 function fmt(n: number) { return `৳${n.toLocaleString()}`; }
@@ -97,6 +98,8 @@ export default function PropertyPage() {
   // Add tenant / external member drawer
   const [addOpen, setAddOpen] = useState(false);
   const [isAddingExternal, setIsAddingExternal] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const addFileInputRef = useRef<HTMLInputElement>(null);
   const [addForm, setAddForm] = useState<AddTenantForm>({
     name: "", phone: "", unitId: "", customRent: "",
     moveInDate: "", leaseEndDate: "", advancePaid: false, advanceAmount: "",
@@ -355,12 +358,14 @@ export default function PropertyPage() {
 
   const openAddTenant = (unitId = "") => {
     setIsAddingExternal(false);
+    setPendingFiles([]);
     setAddForm({ name: "", phone: "", unitId, customRent: "", moveInDate: "", leaseEndDate: "", advancePaid: false, advanceAmount: "" });
     setAddOpen(true);
   };
 
   const openAddExternal = () => {
     setIsAddingExternal(true);
+    setPendingFiles([]);
     setAddForm({ name: "", phone: "", unitId: "", customRent: "", moveInDate: "", leaseEndDate: "", advancePaid: false, advanceAmount: "" });
     setAddOpen(true);
   };
@@ -414,6 +419,13 @@ export default function PropertyPage() {
           }),
         });
       }
+      // Upload any pending documents to the newly created tenant
+      if (newTenant?.id && pendingFiles.length > 0) {
+        const fd = new FormData();
+        pendingFiles.forEach((f) => fd.append("files", f));
+        await fetch(`/api/admin/property/tenants/${newTenant.id}/documents`, { method: "POST", body: fd });
+      }
+      setPendingFiles([]);
       setAddOpen(false);
       setDrawerUnit(null);
       await load();
@@ -1001,6 +1013,10 @@ export default function PropertyPage() {
               </Box>
             )}
 
+            {/* Documents */}
+            <Divider sx={{ my: 2.5 }} />
+            <TenantDocuments tenantId={editTenantRow.tenant.id} compact />
+
             {editTenantRow.tenant.isActive && (
               <>
                 <Divider sx={{ my: 2.5 }} />
@@ -1261,6 +1277,46 @@ export default function PropertyPage() {
                 onChange={(e) => setAddForm((p) => ({ ...p, advanceAmount: e.target.value }))}
                 size="small" fullWidth />
             )}
+
+            {/* Document upload (queued until tenant is saved) */}
+            <Box>
+              <Divider sx={{ mb: 1.5 }} />
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+                Documents (optional — uploaded after tenant is saved)
+              </Typography>
+              <input
+                ref={addFileInputRef}
+                type="file"
+                multiple
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  setPendingFiles((prev) => [...prev, ...files]);
+                  if (addFileInputRef.current) addFileInputRef.current.value = "";
+                }}
+              />
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={() => addFileInputRef.current?.click()}
+                sx={{ fontSize: "0.75rem", mb: pendingFiles.length > 0 ? 1 : 0 }}
+              >
+                Select Files
+              </Button>
+              {pendingFiles.length > 0 && (
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                  {pendingFiles.map((f, i) => (
+                    <Box key={i} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", bgcolor: "action.hover", px: 1, py: 0.5, borderRadius: 1 }}>
+                      <Typography variant="caption" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{f.name}</Typography>
+                      <IconButton size="small" onClick={() => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}>
+                        <X size={12} />
+                      </IconButton>
+                    </Box>
+                  ))}
+                </Box>
+              )}
+            </Box>
 
             <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
               <Button variant="outlined" size="small" fullWidth onClick={() => setAddOpen(false)} disabled={saving}>Cancel</Button>
