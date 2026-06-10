@@ -664,8 +664,13 @@ export default function PaymentsPage() {
       )}
 
       {/* Edit payment drawer */}
-      <Drawer anchor="right" open={!!editPayment} onClose={() => setEditPayment(null)}>
-        <Box sx={{ width: 340, p: 3 }}>
+      <Drawer
+        anchor="right"
+        open={!!editPayment}
+        onClose={() => setEditPayment(null)}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 400 } } } }}
+      >
+        <Box sx={{ width: "100%", p: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
             Edit Payment
           </Typography>
@@ -728,8 +733,13 @@ export default function PaymentsPage() {
       </Drawer>
 
       {/* Edit transaction drawer */}
-      <Drawer anchor="right" open={!!editTx} onClose={() => setEditTx(null)}>
-        <Box sx={{ width: 340, p: 3 }}>
+      <Drawer
+        anchor="right"
+        open={!!editTx}
+        onClose={() => setEditTx(null)}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 400 } } } }}
+      >
+        <Box sx={{ width: "100%", p: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
             Edit Transaction
           </Typography>
@@ -799,8 +809,13 @@ export default function PaymentsPage() {
       </Drawer>
 
       {/* Payment / Advance drawer */}
-      <Drawer anchor="right" open={!!drawer} onClose={() => setDrawer(null)}>
-        <Box sx={{ width: 360, p: 3 }}>
+      <Drawer
+        anchor="right"
+        open={!!drawer}
+        onClose={() => setDrawer(null)}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 420 } } } }}
+      >
+        <Box sx={{ width: "100%", p: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
             {drawer?.mode === "advance" ? "Apply Advance" : "Record Payment"}
           </Typography>
