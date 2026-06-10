@@ -31,6 +31,7 @@ import {
   PieChart,
   ChevronDown,
   ChevronRight,
+  SlidersHorizontal,
 } from "lucide-react";
 
 const SIDEBAR_WIDTH = 260;
@@ -61,6 +62,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
           { href: "/admin/property/expenses", label: "Expenses", icon: Receipt },
           { href: "/admin/property/services", label: "Services", icon: Wifi },
           { href: "/admin/property/dashboard", label: "Dashboard", icon: PieChart },
+          { href: "/admin/property/settings", label: "Settings", icon: SlidersHorizontal },
         ],
       },
       { href: "/admin/finance", label: "Finance", icon: BarChart3, exact: false },
