@@ -50,8 +50,11 @@ export async function getTenants(filter: TenantFilter = "active") {
   const lastRentMap: Record<string, number> = {};
   for (const p of lastPayments) lastRentMap[p.tenantId] = toNum(p.rentDue);
 
+  const today = new Date();
   return tenants.map((t) => ({
     ...serializeTenant(t),
+    // CURRENT tenants who haven't reached their moveInDate display as FUTURE (Scheduled badge)
+    tenantStatus: t.isActive && t.tenantStatus === "CURRENT" && t.moveInDate > today ? "FUTURE" : t.tenantStatus,
     lastRent: t.isActive ? null : (lastRentMap[t.id] ?? null),
     services: t.services.map((s) => ({
       id: s.id,
@@ -255,26 +258,34 @@ export async function deactivateTenant(id: string) {
   if (!tenant) throw new Error("Not found");
 
   const unitId = tenant.unitId;
+  const now = new Date();
+
+  // Find a queued future tenant — also covers CURRENT tenants with a future moveInDate
   const futureTenant = unitId
     ? await db.tenant.findFirst({
         where: { unitId, tenantStatus: "FUTURE", isActive: true, id: { not: id } },
-        select: { id: true },
+        select: { id: true, moveInDate: true },
       })
     : null;
+
+  // Only promote if the future tenant has already reached their move-in date
+  const shouldPromote = !!futureTenant && futureTenant.moveInDate <= now;
 
   await db.$transaction(async (tx) => {
     await tx.tenant.update({
       where: { id },
-      data: { isActive: false, tenantStatus: "PAST", unitId: null, moveOutDate: new Date() },
+      data: { isActive: false, tenantStatus: "PAST", unitId: null, moveOutDate: now },
     });
-    if (futureTenant) {
+    if (shouldPromote && futureTenant) {
       await tx.tenant.update({ where: { id: futureTenant.id }, data: { tenantStatus: "CURRENT" } });
+      // Unit stays occupied
     } else if (unitId) {
+      // No eligible current tenant — unit is now vacant
       await tx.unit.update({ where: { id: unitId }, data: { isOccupied: false } });
     }
   });
 
-  return { deactivated: true, promoted: !!futureTenant };
+  return { deactivated: true, promoted: shouldPromote };
 }
 
 export async function activateTenant(id: string) {
@@ -421,16 +432,18 @@ export async function autoDeactivateExpired() {
     const futureTenant = unitId
       ? await db.tenant.findFirst({
           where: { unitId, tenantStatus: "FUTURE", isActive: true, id: { not: tenant.id } },
-          select: { id: true },
+          select: { id: true, moveInDate: true },
         })
       : null;
+
+    const shouldPromote = !!futureTenant && futureTenant.moveInDate <= now;
 
     await db.$transaction(async (tx) => {
       await tx.tenant.update({
         where: { id: tenant.id },
         data: { isActive: false, tenantStatus: "PAST", unitId: null, moveOutDate: now },
       });
-      if (futureTenant) {
+      if (shouldPromote && futureTenant) {
         await tx.tenant.update({ where: { id: futureTenant.id }, data: { tenantStatus: "CURRENT" } });
         promoted++;
       } else if (unitId) {

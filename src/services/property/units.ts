@@ -28,8 +28,11 @@ export async function getUnits() {
   });
 
   return units.map((u) => {
-    const currentTenant = u.tenants.find((t) => t.tenantStatus === "CURRENT") ?? null;
-    const futureTenant = u.tenants.find((t) => t.tenantStatus === "FUTURE") ?? null;
+    const today = new Date();
+    // A tenant is "current" only if they are CURRENT and have actually moved in.
+    // CURRENT tenants with a future moveInDate were promoted early — treat them as future.
+    const currentTenant = u.tenants.find((t) => t.tenantStatus === "CURRENT" && t.moveInDate <= today) ?? null;
+    const futureTenant = u.tenants.find((t) => t.tenantStatus === "FUTURE" || (t.tenantStatus === "CURRENT" && t.moveInDate > today)) ?? null;
 
     const serialize = (t: typeof currentTenant) => {
       if (!t) return null;
@@ -101,7 +104,7 @@ export async function getUnit(id: string) {
     monthlyRent: toNum(unit.monthlyRent),
     description: unit.description,
     notes: unit.notes,
-    isOccupied: unit.tenants.some((t) => t.tenantStatus === "CURRENT" && t.isActive),
+    isOccupied: unit.tenants.some((t) => t.tenantStatus === "CURRENT" && t.isActive && t.moveInDate <= new Date()),
     tenants: unit.tenants.map((t) => ({
       id: t.id,
       tenantCode: t.tenantCode,
