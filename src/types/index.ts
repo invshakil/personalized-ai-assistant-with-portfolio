@@ -25,6 +25,17 @@ export type ExpenseCategory =
   | "OTHER";
 export type RenovationStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
 
+// Property settings singleton
+export interface PropertySettings {
+  id: string;
+  propertyName: string;
+  ownerName: string;
+  ownerPhone: string;
+  address: string;
+  bankAccount: string | null;
+  updatedAt: string;
+}
+
 // Property management — domain types
 export interface UnitWithTenant {
   id: string;

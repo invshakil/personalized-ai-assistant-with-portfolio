@@ -9,3 +9,4 @@ export * from "./expenses";
 export * from "./addOnServices";
 export * from "./rentChanges";
 export * from "./dashboard";
+export * from "./propertySettings";
