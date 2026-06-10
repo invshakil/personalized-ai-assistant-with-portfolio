@@ -70,8 +70,22 @@ export async function GET(req: NextRequest) {
     },
   });
 
+  // For inactive tenants, look up last payment's rentDue as lastRent
+  const inactiveIds = tenants.filter((t) => !t.isActive).map((t) => t.id);
+  const lastPayments = inactiveIds.length > 0
+    ? await db.payment.findMany({
+        where: { tenantId: { in: inactiveIds } },
+        orderBy: [{ year: "desc" }, { month: "desc" }],
+        select: { tenantId: true, rentDue: true },
+        distinct: ["tenantId"],
+      })
+    : [];
+  const lastRentMap: Record<string, number> = {};
+  for (const p of lastPayments) lastRentMap[p.tenantId] = Number(p.rentDue);
+
   const data = tenants.map((t) => ({
     ...serializeTenant(t),
+    lastRent: t.isActive ? null : (lastRentMap[t.id] ?? null),
     services: t.services.map((s) => ({
       id: s.id,
       serviceId: s.serviceId,

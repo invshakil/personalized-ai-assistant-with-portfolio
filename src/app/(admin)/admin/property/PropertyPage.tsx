@@ -5,10 +5,11 @@ import {
   Box, Card, CardContent, Typography, Chip, Grid, Tabs, Tab,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Button, Drawer, IconButton, Divider, CircularProgress, Tooltip,
-  TextField, Switch, FormControlLabel,
+  TextField, Switch, FormControlLabel, Select, MenuItem, FormControl, InputLabel, Alert,
+  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
 } from "@mui/material";
 import {
-  Building2, X, Phone, Calendar, DollarSign, UserCheck, UserX,
+  Building2, X, Phone, Calendar, DollarSign, UserCheck, UserX, UserPlus,
   ExternalLink, Plus, Pencil, TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
@@ -30,12 +31,55 @@ function StatusChip({ isOccupied }: { isOccupied: boolean }) {
 interface UnitForm { unitNumber: string; floor: string; monthlyRent: string; description: string; notes: string; }
 interface TenantForm { name: string; phone: string; moveInDate: string; leaseEndDate: string; advancePaid: boolean; advanceAmount: string; }
 interface RentChangeForm { effectiveDate: string; newRent: string; reason: string; }
+interface AddTenantForm {
+  name: string; phone: string; unitId: string; customRent: string;
+  moveInDate: string; leaseEndDate: string; advancePaid: boolean; advanceAmount: string;
+}
 
 export default function PropertyPage() {
   const [tab, setTab] = useState(0);
   const [units, setUnits] = useState<UnitWithTenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [tenantView, setTenantView] = useState<"active" | "past">("active");
+  const [inactiveRows, setInactiveRows] = useState<UnitWithTenant[]>([]);
+  const [inactiveLoading, setInactiveLoading] = useState(false);
+  const [unassignedRows, setUnassignedRows] = useState<UnitWithTenant[]>([]);
+  const [extView, setExtView] = useState<"active" | "past">("active");
+  const [serviceCatalog, setServiceCatalog] = useState<{ id: string; name: string }[]>([]);
+  const [addSvcId, setAddSvcId] = useState("");
+  const [addSvcFee, setAddSvcFee] = useState("");
+  const [addSvcDate, setAddSvcDate] = useState("");
+
+  // Confirmation dialog
+  const [confirmDialog, setConfirmDialog] = useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    confirmColor?: "error" | "warning" | "success" | "primary";
+    onConfirm: () => Promise<void>;
+  } | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+
+  const openConfirm = (
+    title: string,
+    message: string,
+    onConfirm: () => Promise<void>,
+    opts?: { confirmLabel?: string; confirmColor?: "error" | "warning" | "success" | "primary" },
+  ) => {
+    setConfirmDialog({ title, message, onConfirm, ...opts });
+  };
+
+  const runConfirm = async () => {
+    if (!confirmDialog) return;
+    setConfirmLoading(true);
+    try {
+      await confirmDialog.onConfirm();
+    } finally {
+      setConfirmLoading(false);
+      setConfirmDialog(null);
+    }
+  };
 
   // Unit drawer
   const [drawerUnit, setDrawerUnit] = useState<UnitWithTenant | null>(null);
@@ -48,18 +92,113 @@ export default function PropertyPage() {
   const [showRcForm, setShowRcForm] = useState(false);
   const [rcForm, setRcForm] = useState<RentChangeForm>({ effectiveDate: "", newRent: "", reason: "" });
 
+  // Add tenant / external member drawer
+  const [addOpen, setAddOpen] = useState(false);
+  const [isAddingExternal, setIsAddingExternal] = useState(false);
+  const [addForm, setAddForm] = useState<AddTenantForm>({
+    name: "", phone: "", unitId: "", customRent: "",
+    moveInDate: "", leaseEndDate: "", advancePaid: false, advanceAmount: "",
+  });
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/property/units");
-      const json = await res.json();
-      setUnits(json.data ?? []);
+      const [unitsRes, tenantsRes] = await Promise.all([
+        fetch("/api/admin/property/units"),
+        fetch("/api/admin/property/tenants?filter=active"),
+      ]);
+      const [unitsJson, tenantsJson] = await Promise.all([unitsRes.json(), tenantsRes.json()]);
+      const unitData: UnitWithTenant[] = unitsJson.data ?? [];
+      setUnits(unitData);
+
+      // Active tenants with no unit (e.g. after re-activation before unit reassignment)
+      const unitTenantIds = new Set(unitData.map((u) => u.tenant?.id).filter(Boolean));
+      type ActiveTenant = {
+        id: string; tenantCode: string | null; name: string; phone: string | null;
+        isExternal: boolean; moveInDate: string; moveOutDate: string | null;
+        leaseEndDate: string | null; advancePaid: boolean; advanceAmount: number;
+        advanceSettled: boolean;
+        services?: { id: string; serviceName: string; monthlyFee: number }[];
+      };
+      const unassigned: UnitWithTenant[] = ((tenantsJson.data ?? []) as ActiveTenant[])
+        .filter((t) => !unitTenantIds.has(t.id))
+        .map((t) => ({
+          id: `unassigned-${t.id}`,
+          unitNumber: "Unassigned",
+          floor: "—",
+          monthlyRent: 0,
+          description: null,
+          isOccupied: false,
+          notes: null,
+          tenant: {
+            id: t.id,
+            tenantCode: t.tenantCode,
+            name: t.name,
+            phone: t.phone,
+            isActive: true,
+            isExternal: t.isExternal,
+            moveInDate: t.moveInDate,
+            moveOutDate: t.moveOutDate ?? null,
+            leaseEndDate: t.leaseEndDate,
+            advancePaid: t.advancePaid,
+            advanceAmount: t.advanceAmount,
+            advanceSettled: t.advanceSettled,
+            services: t.services ?? [],
+          },
+        }));
+      setUnassignedRows(unassigned);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  const loadInactive = useCallback(async () => {
+    setInactiveLoading(true);
+    try {
+      const res = await fetch("/api/admin/property/tenants?filter=inactive");
+      const json = await res.json();
+      type InactiveTenant = {
+        id: string; tenantCode: string | null; name: string; phone: string | null;
+        isExternal: boolean; moveInDate: string; moveOutDate: string | null;
+        leaseEndDate: string | null; advancePaid: boolean; advanceAmount: number;
+        advanceSettled: boolean; lastRent: number | null;
+      };
+      setInactiveRows(
+        (json.data ?? []).map((t: InactiveTenant) => ({
+          id: t.id,
+          unitNumber: "—",
+          floor: "—",
+          monthlyRent: t.lastRent ?? 0,
+          description: null,
+          isOccupied: false,
+          notes: null,
+          tenant: {
+            id: t.id,
+            tenantCode: t.tenantCode,
+            name: t.name,
+            phone: t.phone,
+            isActive: false,
+            isExternal: t.isExternal,
+            moveInDate: t.moveInDate,
+            moveOutDate: t.moveOutDate ?? null,
+            leaseEndDate: t.leaseEndDate,
+            advancePaid: t.advancePaid,
+            advanceAmount: t.advanceAmount,
+            advanceSettled: t.advanceSettled,
+          },
+        }))
+      );
+    } finally {
+      setInactiveLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    fetch("/api/admin/property/services")
+      .then((r) => r.json())
+      .then((j) => setServiceCatalog((j.data ?? []).filter((s: { isActive: boolean }) => s.isActive).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }))));
+  }, [load]);
 
   const openUnitDrawer = (unit: UnitWithTenant) => {
     setDrawerUnit(unit);
@@ -98,6 +237,9 @@ export default function PropertyPage() {
 
   const openTenantEdit = (row: UnitWithTenant) => {
     const t = row.tenant!;
+    setAddSvcId("");
+    setAddSvcFee("");
+    setAddSvcDate(new Date().toISOString().split("T")[0]);
     setEditTenantRow(row);
     setTenantForm({
       name: t.name,
@@ -154,8 +296,135 @@ export default function PropertyPage() {
     }
   };
 
-  const activeTenants = units.filter((u) => u.tenant && !u.tenant.isExternal).map((u) => u.tenant!);
-  const externalTenants = units.filter((u) => u.tenant?.isExternal).map((u) => u.tenant!);
+  const refreshEditRow = async (tenantId: string) => {
+    const res = await fetch("/api/admin/property/units");
+    const json = await res.json();
+    const fresh: UnitWithTenant[] = json.data ?? [];
+    setUnits(fresh);
+    const freshRow = fresh.find((u) => u.tenant?.id === tenantId);
+    if (freshRow) setEditTenantRow(freshRow);
+  };
+
+  const assignService = async () => {
+    if (!editTenantRow?.tenant || !addSvcId || addSvcFee === "") return;
+    setSaving(true);
+    try {
+      await fetch("/api/admin/property/services/assign", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tenantId: editTenantRow.tenant.id,
+          serviceId: addSvcId,
+          monthlyFee: parseFloat(addSvcFee),
+          startDate: addSvcDate || new Date().toISOString().split("T")[0],
+        }),
+      });
+      setAddSvcId("");
+      setAddSvcFee("");
+      setAddSvcDate(new Date().toISOString().split("T")[0]);
+      await refreshEditRow(editTenantRow.tenant.id);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeService = (tenantServiceId: string, tenantId: string) => {
+    openConfirm(
+      "End Service",
+      "End this service subscription for the tenant?",
+      async () => {
+        await fetch(`/api/admin/property/services/assign/${tenantServiceId}`, { method: "DELETE" });
+        await refreshEditRow(tenantId);
+      },
+      { confirmLabel: "End Subscription", confirmColor: "error" },
+    );
+  };
+
+  const openAddTenant = (unitId = "") => {
+    setIsAddingExternal(false);
+    setAddForm({ name: "", phone: "", unitId, customRent: "", moveInDate: "", leaseEndDate: "", advancePaid: false, advanceAmount: "" });
+    setAddOpen(true);
+  };
+
+  const openAddExternal = () => {
+    setIsAddingExternal(true);
+    setAddForm({ name: "", phone: "", unitId: "", customRent: "", moveInDate: "", leaseEndDate: "", advancePaid: false, advanceAmount: "" });
+    setAddOpen(true);
+  };
+
+  const saveNewTenant = async () => {
+    if (!addForm.name || !addForm.moveInDate) return;
+    if (!isAddingExternal && !addForm.unitId) return;
+    setSaving(true);
+    try {
+      // Update unit rent first if a custom rent was specified and differs from default
+      if (!isAddingExternal && addForm.customRent && addForm.unitId) {
+        const unit = units.find((u) => u.id === addForm.unitId);
+        if (unit && Number(addForm.customRent) !== unit.monthlyRent) {
+          await fetch(`/api/admin/property/units/${addForm.unitId}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ monthlyRent: Number(addForm.customRent) }),
+          });
+        }
+      }
+      await fetch("/api/admin/property/tenants", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: addForm.name,
+          phone: addForm.phone || null,
+          unitId: isAddingExternal ? null : (addForm.unitId || null),
+          moveInDate: addForm.moveInDate,
+          leaseEndDate: addForm.leaseEndDate || null,
+          advancePaid: addForm.advancePaid,
+          advanceAmount: addForm.advancePaid ? Number(addForm.advanceAmount) : 0,
+          isExternal: isAddingExternal,
+        }),
+      });
+      setAddOpen(false);
+      setDrawerUnit(null);
+      await load();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deactivateTenant = (id: string, name: string) => {
+    openConfirm(
+      "Deactivate Tenant",
+      `Are you sure you want to deactivate ${name}? They will be unassigned from their unit.`,
+      async () => {
+        await fetch(`/api/admin/property/tenants/${id}/deactivate`, { method: "POST" });
+        await load();
+      },
+      { confirmLabel: "Deactivate", confirmColor: "error" },
+    );
+  };
+
+  const activateTenant = (id: string, name: string) => {
+    openConfirm(
+      "Re-activate Tenant",
+      `Re-activate ${name}? Their record will be restored as active. You can then assign them to a unit.`,
+      async () => {
+        await fetch(`/api/admin/property/tenants/${id}/activate`, { method: "POST" });
+        await loadInactive();
+        await load();
+      },
+      { confirmLabel: "Re-activate", confirmColor: "success" },
+    );
+  };
+
+  const vacantUnits = units.filter((u) => !u.isOccupied);
+  const selectedUnit = units.find((u) => u.id === addForm.unitId);
+  const activeTenants = [
+    ...units.filter((u) => u.tenant && !u.tenant.isExternal).map((u) => u.tenant!),
+    ...unassignedRows.filter((r) => !r.tenant?.isExternal).map((r) => r.tenant!),
+  ];
+  const externalTenants = [
+    ...units.filter((u) => u.tenant?.isExternal).map((u) => u.tenant!),
+    ...unassignedRows.filter((r) => r.tenant?.isExternal).map((r) => r.tenant!),
+  ];
 
   return (
     <Box>
@@ -177,24 +446,36 @@ export default function PropertyPage() {
         ))}
       </Box>
 
-      <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3, borderBottom: "1px solid", borderColor: "divider" }}>
-        <Tab label={`Units (${units.length})`} />
-        <Tab label={`Tenants (${activeTenants.length})`} />
-        <Tab label={`External Members (${externalTenants.length})`} />
-      </Tabs>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+        <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
+          <Tab label={`Units (${units.length})`} />
+          <Tab label={`Tenants (${activeTenants.length})`} />
+          <Tab label={`External Members (${externalTenants.length})`} />
+        </Tabs>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          {tab === 2 ? (
+            <Button variant="contained" size="small" startIcon={<Plus size={14} />} onClick={openAddExternal}>
+              Add External Member
+            </Button>
+          ) : (
+            <Button variant="contained" size="small" startIcon={<Plus size={14} />} onClick={() => openAddTenant()}>
+              Add Tenant
+            </Button>
+          )}
+        </Box>
+      </Box>
 
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}><CircularProgress /></Box>
       ) : (
-        <>
+        <Box sx={{ mt: 3 }}>
           {tab === 0 && (
             <Grid container spacing={2}>
               {units.map((unit) => (
                 <Grid key={unit.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
                   <Card
                     sx={{
-                      cursor: "pointer",
-                      borderLeft: "4px solid",
+                      cursor: "pointer", borderLeft: "4px solid",
                       borderColor: unit.isOccupied ? "success.main" : "warning.main",
                       bgcolor: "background.paper",
                       "&:hover": { bgcolor: "action.hover" },
@@ -228,21 +509,87 @@ export default function PropertyPage() {
           )}
 
           {tab === 1 && (
-            <TenantTable
-              tenants={units.filter((u) => u.tenant && !u.tenant.isExternal && u.tenant.isActive)}
-              showUnit
-              onEdit={openTenantEdit}
-            />
+            <>
+              <Box sx={{ display: "flex", gap: 1, mb: 2, mt: 1 }}>
+                <Chip
+                  label="Active" clickable
+                  color={tenantView === "active" ? "primary" : "default"}
+                  onClick={() => setTenantView("active")}
+                  sx={{ fontWeight: 600 }}
+                />
+                <Chip
+                  label="Past Tenants" clickable
+                  color={tenantView === "past" ? "primary" : "default"}
+                  onClick={() => { setTenantView("past"); loadInactive(); }}
+                  sx={{ fontWeight: 600 }}
+                />
+              </Box>
+              {tenantView === "active" ? (
+                <TenantTable
+                  tenants={[
+                    ...units.filter((u) => u.tenant && !u.tenant.isExternal && u.tenant.isActive),
+                    ...unassignedRows.filter((r) => !r.tenant?.isExternal),
+                  ]}
+                  showUnit
+                  onEdit={openTenantEdit}
+                  onDeactivate={deactivateTenant}
+                  onActivate={activateTenant}
+                />
+              ) : inactiveLoading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+              ) : (
+                <TenantTable
+                  tenants={inactiveRows.filter((r) => !r.tenant?.isExternal)}
+                  showUnit
+                  onEdit={openTenantEdit}
+                  onDeactivate={deactivateTenant}
+                  onActivate={activateTenant}
+                />
+              )}
+            </>
           )}
 
           {tab === 2 && (
-            <TenantTable
-              tenants={units.filter((u) => u.tenant?.isExternal)}
-              showUnit={false}
-              onEdit={openTenantEdit}
-            />
+            <>
+              <Box sx={{ display: "flex", gap: 1, mb: 2, mt: 1 }}>
+                <Chip
+                  label="Active" clickable
+                  color={extView === "active" ? "primary" : "default"}
+                  onClick={() => setExtView("active")}
+                  sx={{ fontWeight: 600 }}
+                />
+                <Chip
+                  label="Past Members" clickable
+                  color={extView === "past" ? "primary" : "default"}
+                  onClick={() => { setExtView("past"); loadInactive(); }}
+                  sx={{ fontWeight: 600 }}
+                />
+              </Box>
+              {extView === "active" ? (
+                <TenantTable
+                  tenants={[
+                    ...units.filter((u) => u.tenant?.isExternal && u.tenant.isActive),
+                    ...unassignedRows.filter((r) => r.tenant?.isExternal),
+                  ]}
+                  showUnit={false}
+                  onEdit={openTenantEdit}
+                  onDeactivate={deactivateTenant}
+                  onActivate={activateTenant}
+                />
+              ) : inactiveLoading ? (
+                <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}><CircularProgress /></Box>
+              ) : (
+                <TenantTable
+                  tenants={inactiveRows.filter((r) => r.tenant?.isExternal)}
+                  showUnit={false}
+                  onEdit={openTenantEdit}
+                  onDeactivate={deactivateTenant}
+                  onActivate={activateTenant}
+                />
+              )}
+            </>
           )}
-        </>
+        </Box>
       )}
 
       {/* ── Unit info / edit drawer ─────────────────────────────────── */}
@@ -328,6 +675,31 @@ export default function PropertyPage() {
                       <Button component={Link} href="/admin/property/payments" variant="outlined" size="small" fullWidth>
                         Record Payment
                       </Button>
+                      <Divider sx={{ my: 0.5 }} />
+                      <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        fullWidth
+                        startIcon={<UserX size={14} />}
+                        onClick={() => {
+                          if (!drawerUnit.tenant) return;
+                          const unitId = drawerUnit.id;
+                          openConfirm(
+                            "Move Out Tenant",
+                            `Move out ${drawerUnit.tenant.name}? They will be unassigned from this unit so you can add a new tenant.`,
+                            async () => {
+                              await fetch(`/api/admin/property/tenants/${drawerUnit.tenant!.id}/deactivate`, { method: "POST" });
+                              setDrawerUnit(null);
+                              await load();
+                              openAddTenant(unitId);
+                            },
+                            { confirmLabel: "Move Out", confirmColor: "error" },
+                          );
+                        }}
+                      >
+                        Move Out &amp; Add New Tenant
+                      </Button>
                     </Box>
                   </Box>
                 ) : (
@@ -341,7 +713,8 @@ export default function PropertyPage() {
                       onClick={() => setUnitEditMode(true)} sx={{ mb: 1 }}>
                       Edit Unit
                     </Button>
-                    <Button variant="outlined" size="small" fullWidth startIcon={<Plus size={14} />}>
+                    <Button variant="contained" size="small" fullWidth startIcon={<Plus size={14} />}
+                      onClick={() => { setDrawerUnit(null); openAddTenant(drawerUnit.id); }}>
                       Add Tenant
                     </Button>
                   </Box>
@@ -360,6 +733,25 @@ export default function PropertyPage() {
               <Typography variant="h6" sx={{ fontWeight: 700 }}>Edit Tenant</Typography>
               <IconButton onClick={() => setEditTenantRow(null)} size="small"><X size={18} /></IconButton>
             </Box>
+
+            {!editTenantRow.tenant.isActive && (
+              <Alert severity="warning" sx={{ mb: 2, fontSize: "0.8125rem" }}>
+                Inactive — moved out. Changes save to their record only and won&apos;t affect any unit.
+              </Alert>
+            )}
+
+            {!editTenantRow.tenant.isActive && editTenantRow.monthlyRent > 0 && (
+              <Box sx={{ bgcolor: "action.selected", px: 2, py: 1.5, borderRadius: 1, mb: 2 }}>
+                <Typography variant="caption" color="text.secondary">Last Rent</Typography>
+                <Typography variant="body2" sx={{ fontWeight: 700 }}>{fmt(editTenantRow.monthlyRent)}/month</Typography>
+                {editTenantRow.tenant.moveOutDate && (
+                  <>
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>Moved Out</Typography>
+                    <Typography variant="body2">{new Date(editTenantRow.tenant.moveOutDate).toLocaleDateString()}</Typography>
+                  </>
+                )}
+              </Box>
+            )}
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <TextField label="Full Name" value={tenantForm.name}
@@ -391,48 +783,263 @@ export default function PropertyPage() {
               </Box>
             </Box>
 
+            {/* ── Add-On Services ─────────────────────────────────── */}
             <Divider sx={{ my: 2.5 }} />
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>Add-On Services</Typography>
 
-            {/* Rent change scheduling */}
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <TrendingUp size={15} />
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Schedule Rent Change</Typography>
+            {/* Current services */}
+            {editTenantRow.tenant.services && editTenantRow.tenant.services.length > 0 ? (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mb: 1.5 }}>
+                {editTenantRow.tenant.services.map((sv) => (
+                  <Box key={sv.id} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", bgcolor: "action.selected", px: 1.5, py: 0.75, borderRadius: 1 }}>
+                    <Box>
+                      <Typography variant="body2" sx={{ fontWeight: 600 }}>{sv.serviceName}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {sv.monthlyFee > 0 ? `${fmt(sv.monthlyFee)}/month` : "Free"}
+                      </Typography>
+                    </Box>
+                    <Tooltip title="Remove service">
+                      <IconButton size="small" color="error" onClick={() => removeService(sv.id, editTenantRow.tenant!.id)}>
+                        <X size={14} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ))}
               </Box>
-              {!showRcForm && (
-                <Button size="small" startIcon={<Plus size={13} />} onClick={() => setShowRcForm(true)}>Add</Button>
-              )}
-            </Box>
+            ) : (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>No services assigned.</Typography>
+            )}
 
-            {showRcForm ? (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Current rent: {fmt(editTenantRow.monthlyRent)}
-                </Typography>
-                <TextField label="Effective Date" type="date" value={rcForm.effectiveDate}
-                  onChange={(e) => setRcForm((p) => ({ ...p, effectiveDate: e.target.value }))}
-                  size="small" fullWidth slotProps={{ inputLabel: { shrink: true } }} />
-                <TextField label="New Rent (৳)" type="number" value={rcForm.newRent}
-                  onChange={(e) => setRcForm((p) => ({ ...p, newRent: e.target.value }))}
-                  size="small" fullWidth />
-                <TextField label="Reason (optional)" value={rcForm.reason}
-                  onChange={(e) => setRcForm((p) => ({ ...p, reason: e.target.value }))}
-                  size="small" fullWidth />
+            {/* Assign new service */}
+            {serviceCatalog.filter((c) => !editTenantRow.tenant!.services?.some((sv) => sv.serviceName === c.name)).length > 0 && (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                 <Box sx={{ display: "flex", gap: 1 }}>
-                  <Button variant="outlined" size="small" fullWidth onClick={() => setShowRcForm(false)} disabled={saving}>Cancel</Button>
-                  <Button variant="contained" size="small" fullWidth onClick={saveRentChange}
-                    disabled={saving || !rcForm.effectiveDate || !rcForm.newRent}>
-                    {saving ? "Saving…" : "Schedule"}
+                  <FormControl size="small" sx={{ flex: 2 }}>
+                    <InputLabel>Service</InputLabel>
+                    <Select label="Service" value={addSvcId} onChange={(e) => setAddSvcId(e.target.value as string)}>
+                      {serviceCatalog
+                        .filter((c) => !editTenantRow.tenant!.services?.some((sv) => sv.serviceName === c.name))
+                        .map((c) => (
+                          <MenuItem key={c.id} value={c.id}>{c.name}</MenuItem>
+                        ))}
+                    </Select>
+                  </FormControl>
+                  <TextField
+                    label="Fee (৳)" type="number" size="small" sx={{ flex: 1 }}
+                    value={addSvcFee}
+                    onChange={(e) => setAddSvcFee(e.target.value)}
+                    placeholder="0"
+                  />
+                </Box>
+                <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                  <TextField
+                    label="Start Date" type="date" size="small" sx={{ flex: 1 }}
+                    value={addSvcDate}
+                    onChange={(e) => setAddSvcDate(e.target.value)}
+                    slotProps={{ inputLabel: { shrink: true } }}
+                  />
+                  <Button
+                    variant="contained" size="small"
+                    onClick={assignService}
+                    disabled={saving || !addSvcId || addSvcFee === "" || !addSvcDate}
+                  >
+                    Assign
                   </Button>
                 </Box>
               </Box>
-            ) : (
-              <Typography variant="caption" color="text.secondary">
-                Changes scheduled here are applied automatically when payments are generated for the effective month.
-              </Typography>
+            )}
+
+            {editTenantRow.tenant.isActive && (
+              <>
+                <Divider sx={{ my: 2.5 }} />
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <TrendingUp size={15} />
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Scheduled Rent Changes</Typography>
+                  </Box>
+                  {!showRcForm && (
+                    <Button size="small" startIcon={<Plus size={13} />} onClick={() => setShowRcForm(true)}>Add</Button>
+                  )}
+                </Box>
+
+                {showRcForm ? (
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+                    <Typography variant="caption" color="text.secondary">
+                      Current rent: {fmt(editTenantRow.monthlyRent)}
+                    </Typography>
+                    <TextField label="Effective Date" type="date" value={rcForm.effectiveDate}
+                      onChange={(e) => setRcForm((p) => ({ ...p, effectiveDate: e.target.value }))}
+                      size="small" fullWidth slotProps={{ inputLabel: { shrink: true } }} />
+                    <TextField label="New Rent (৳)" type="number" value={rcForm.newRent}
+                      onChange={(e) => setRcForm((p) => ({ ...p, newRent: e.target.value }))}
+                      size="small" fullWidth />
+                    <TextField label="Reason (optional)" value={rcForm.reason}
+                      onChange={(e) => setRcForm((p) => ({ ...p, reason: e.target.value }))}
+                      size="small" fullWidth />
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <Button variant="outlined" size="small" fullWidth onClick={() => setShowRcForm(false)} disabled={saving}>Cancel</Button>
+                      <Button variant="contained" size="small" fullWidth onClick={saveRentChange}
+                        disabled={saving || !rcForm.effectiveDate || !rcForm.newRent}>
+                        {saving ? "Saving…" : "Schedule"}
+                      </Button>
+                    </Box>
+                  </Box>
+                ) : (
+                  <Typography variant="caption" color="text.secondary">
+                    Changes are applied automatically when payments are generated for the effective month.
+                  </Typography>
+                )}
+              </>
             )}
           </Box>
         )}
+      </Drawer>
+
+      {/* ── Confirmation dialog ─────────────────────────────────────── */}
+      <Dialog
+        open={!!confirmDialog}
+        onClose={() => !confirmLoading && setConfirmDialog(null)}
+        PaperProps={{ sx: { bgcolor: "background.paper", borderRadius: 2, minWidth: 340 } }}
+      >
+        <DialogTitle sx={{ pb: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 36, height: 36, borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                bgcolor: confirmDialog?.confirmColor === "error" ? "error.main"
+                  : confirmDialog?.confirmColor === "success" ? "success.main"
+                  : confirmDialog?.confirmColor === "warning" ? "warning.main"
+                  : "primary.main",
+                flexShrink: 0,
+              }}
+            >
+              {confirmDialog?.confirmColor === "error" ? (
+                <UserX size={18} color="#fff" />
+              ) : confirmDialog?.confirmColor === "success" ? (
+                <UserPlus size={18} color="#fff" />
+              ) : (
+                <TrendingUp size={18} color="#fff" />
+              )}
+            </Box>
+            <Typography variant="h6" sx={{ fontWeight: 700, fontSize: "1rem" }}>
+              {confirmDialog?.title}
+            </Typography>
+          </Box>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 0.5 }}>
+          <DialogContentText sx={{ color: "text.secondary", fontSize: "0.9rem" }}>
+            {confirmDialog?.message}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={() => setConfirmDialog(null)}
+            disabled={confirmLoading}
+            sx={{ flex: 1 }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            size="small"
+            color={confirmDialog?.confirmColor ?? "primary"}
+            onClick={runConfirm}
+            disabled={confirmLoading}
+            sx={{ flex: 1 }}
+          >
+            {confirmLoading ? "Please wait…" : (confirmDialog?.confirmLabel ?? "Confirm")}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── Add Tenant / External Member drawer ─────────────────────── */}
+      <Drawer anchor="right" open={addOpen} onClose={() => setAddOpen(false)}>
+        <Box sx={{ width: 380, p: 3 }}>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {isAddingExternal ? "Add External Member" : "Add Tenant"}
+            </Typography>
+            <IconButton onClick={() => setAddOpen(false)} size="small"><X size={18} /></IconButton>
+          </Box>
+
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <TextField label="Full Name" value={addForm.name}
+              onChange={(e) => setAddForm((p) => ({ ...p, name: e.target.value }))}
+              size="small" fullWidth required />
+            <TextField label="Phone" value={addForm.phone}
+              onChange={(e) => setAddForm((p) => ({ ...p, phone: e.target.value }))}
+              size="small" fullWidth />
+
+            {!isAddingExternal && (
+              <>
+                <FormControl size="small" fullWidth required>
+                  <InputLabel>Unit</InputLabel>
+                  <Select
+                    label="Unit"
+                    value={addForm.unitId}
+                    onChange={(e) => {
+                      const uid = e.target.value as string;
+                      const u = units.find((x) => x.id === uid);
+                      setAddForm((p) => ({ ...p, unitId: uid, customRent: u ? String(u.monthlyRent) : "" }));
+                    }}
+                  >
+                    {vacantUnits.length === 0 && (
+                      <MenuItem disabled value="">No vacant units</MenuItem>
+                    )}
+                    {vacantUnits.map((u) => (
+                      <MenuItem key={u.id} value={u.id}>
+                        {u.unitNumber} — {u.floor} ({fmt(u.monthlyRent)}/mo)
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+
+                {addForm.unitId && (
+                  <TextField
+                    label="Monthly Rent (৳)"
+                    type="number"
+                    value={addForm.customRent}
+                    onChange={(e) => setAddForm((p) => ({ ...p, customRent: e.target.value }))}
+                    size="small" fullWidth
+                    helperText={selectedUnit && Number(addForm.customRent) !== selectedUnit.monthlyRent
+                      ? `Default: ${fmt(selectedUnit.monthlyRent)} — saving will update the unit's rent`
+                      : "Leave as default or enter a custom rent for this tenant"}
+                  />
+                )}
+              </>
+            )}
+
+            <TextField label="Move-in Date" type="date" value={addForm.moveInDate}
+              onChange={(e) => setAddForm((p) => ({ ...p, moveInDate: e.target.value }))}
+              size="small" fullWidth required slotProps={{ inputLabel: { shrink: true } }} />
+            <TextField label="Lease End Date" type="date" value={addForm.leaseEndDate}
+              onChange={(e) => setAddForm((p) => ({ ...p, leaseEndDate: e.target.value }))}
+              size="small" fullWidth slotProps={{ inputLabel: { shrink: true } }} />
+
+            <FormControlLabel
+              control={<Switch checked={addForm.advancePaid}
+                onChange={(e) => setAddForm((p) => ({ ...p, advancePaid: e.target.checked }))} />}
+              label="Advance Paid" />
+            {addForm.advancePaid && (
+              <TextField label="Advance Amount (৳)" type="number" value={addForm.advanceAmount}
+                onChange={(e) => setAddForm((p) => ({ ...p, advanceAmount: e.target.value }))}
+                size="small" fullWidth />
+            )}
+
+            <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+              <Button variant="outlined" size="small" fullWidth onClick={() => setAddOpen(false)} disabled={saving}>Cancel</Button>
+              <Button
+                variant="contained" size="small" fullWidth onClick={saveNewTenant}
+                disabled={saving || !addForm.name || !addForm.moveInDate || (!isAddingExternal && !addForm.unitId)}
+              >
+                {saving ? "Saving…" : isAddingExternal ? "Add Member" : "Add Tenant"}
+              </Button>
+            </Box>
+          </Box>
+        </Box>
       </Drawer>
     </Box>
   );
@@ -442,10 +1049,14 @@ function TenantTable({
   tenants,
   showUnit,
   onEdit,
+  onDeactivate,
+  onActivate,
 }: {
   tenants: UnitWithTenant[];
   showUnit: boolean;
   onEdit: (row: UnitWithTenant) => void;
+  onDeactivate: (id: string, name: string) => void;
+  onActivate: (id: string, name: string) => void;
 }) {
   if (tenants.length === 0) {
     return (
@@ -465,6 +1076,7 @@ function TenantTable({
             <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
             {showUnit && <TableCell sx={{ fontWeight: 700 }}>Unit</TableCell>}
             <TableCell sx={{ fontWeight: 700 }}>Rent</TableCell>
+            <TableCell sx={{ fontWeight: 700 }}>Services</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Move-in</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Advance Held</TableCell>
             <TableCell sx={{ fontWeight: 700 }}>Lease End</TableCell>
@@ -494,6 +1106,23 @@ function TenantTable({
                   <Typography variant="body2">{fmt(row.monthlyRent)}</Typography>
                 </TableCell>
                 <TableCell>
+                  {t.services && t.services.length > 0 ? (
+                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                      {t.services.map((sv) => (
+                        <Chip
+                          key={sv.serviceName}
+                          label={sv.monthlyFee > 0 ? `${sv.serviceName} ${fmt(sv.monthlyFee)}` : sv.serviceName}
+                          size="small"
+                          variant="outlined"
+                          sx={{ fontSize: "0.65rem", height: 18 }}
+                        />
+                      ))}
+                    </Box>
+                  ) : (
+                    <Typography variant="caption" color="text.secondary">—</Typography>
+                  )}
+                </TableCell>
+                <TableCell>
                   <Typography variant="body2">
                     {new Date(t.moveInDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                   </Typography>
@@ -513,13 +1142,23 @@ function TenantTable({
                   )}
                 </TableCell>
                 <TableCell>
-                  <Chip
-                    label={t.isActive ? "Active" : "Inactive"} size="small"
-                    sx={{ bgcolor: t.isActive ? "success.main" : "error.main", color: "#fff", fontWeight: 600, fontSize: "0.6875rem" }}
-                  />
+                  {t.isActive ? (
+                    <Chip label="Active" size="small"
+                      sx={{ bgcolor: "success.main", color: "#fff", fontWeight: 600, fontSize: "0.6875rem" }} />
+                  ) : (
+                    <Box>
+                      <Chip label="Inactive" size="small"
+                        sx={{ bgcolor: "action.selected", color: "text.secondary", fontWeight: 600, fontSize: "0.6875rem" }} />
+                      {t.moveOutDate && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.25 }}>
+                          Out: {new Date(t.moveOutDate).toLocaleDateString()}
+                        </Typography>
+                      )}
+                    </Box>
+                  )}
                 </TableCell>
                 <TableCell>
-                  <Tooltip title="Edit tenant">
+                  <Tooltip title="Edit">
                     <IconButton size="small" onClick={() => onEdit(row)}>
                       <Pencil size={15} />
                     </IconButton>
@@ -529,6 +1168,19 @@ function TenantTable({
                       <ExternalLink size={15} />
                     </IconButton>
                   </Tooltip>
+                  {t.isActive ? (
+                    <Tooltip title="Deactivate">
+                      <IconButton size="small" color="error" onClick={() => onDeactivate(t.id, t.name)}>
+                        <UserX size={15} />
+                      </IconButton>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip title="Re-activate">
+                      <IconButton size="small" color="success" onClick={() => onActivate(t.id, t.name)}>
+                        <UserPlus size={15} />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </TableCell>
               </TableRow>
             );
