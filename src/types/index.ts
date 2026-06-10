@@ -53,6 +53,7 @@ export interface TenantSummary {
   advanceAmount: number;
   advanceSettled: boolean;
   services?: { id: string; serviceName: string; monthlyFee: number }[];
+  scheduledRent?: number | null;  // pending RentChange for FUTURE tenants
 }
 
 export interface TenantWithUnit extends TenantSummary {
