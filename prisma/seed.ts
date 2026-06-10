@@ -69,7 +69,12 @@ async function main() {
         await tx.unit.upsert({
           where: { unitNumber: u.unitNumber },
           update: { floor: u.floor, monthlyRent: u.monthlyRent },
-          create: { unitNumber: u.unitNumber, floor: u.floor, monthlyRent: u.monthlyRent, isOccupied: false },
+          create: {
+            unitNumber: u.unitNumber,
+            floor: u.floor,
+            monthlyRent: u.monthlyRent,
+            isOccupied: false,
+          },
         });
       }
       console.log("  ✓ 13 units seeded");
@@ -104,13 +109,90 @@ async function main() {
 
       // ── Current tenants ────────────────────────────────────────────────────
       const tenantData = [
-        { tenantCode: "T01", name: "James Brown",   phone: "01700-000001", unitNumber: "Flat 4E", moveInDate: new Date("2026-03-01"), leaseEndDate: new Date("2027-12-31"), monthlyRent: 7000,  advancePaid: true,  advanceAmount: 7000, notes: null },
-        { tenantCode: "T02", name: "William Jones",    phone: "01700-000002", unitNumber: "Flat 4D", moveInDate: new Date("2024-04-01"), leaseEndDate: new Date("2027-12-31"), monthlyRent: 9500,  advancePaid: false, advanceAmount: 0,    notes: null },
-        { tenantCode: "T03", name: "Richard Miller",    phone: "01700-000003", unitNumber: "Flat 5A", moveInDate: new Date("2026-04-01"), leaseEndDate: new Date("2027-12-31"), monthlyRent: 5000,  advancePaid: true,  advanceAmount: 4500, notes: null },
-        { tenantCode: "T04", name: "Thomas Moore",    phone: "01700-000004", unitNumber: "Flat 2D", moveInDate: new Date("2026-06-01"), leaseEndDate: new Date("2027-06-29"), monthlyRent: 8500,  advancePaid: true,  advanceAmount: 6000, notes: null },
-        { tenantCode: "T05", name: "Charles Taylor",   phone: "01700000005",  unitNumber: "Flat 2A", moveInDate: new Date("2026-07-01"), leaseEndDate: new Date("2027-06-29"), monthlyRent: 9000,  advancePaid: true,  advanceAmount: 9000, notes: "Rent increase ৳500 effective July 1, 2026" },
-        { tenantCode: "T06", name: "Daniel Anderson",   phone: "01700000006",  unitNumber: "Flat 2E", moveInDate: new Date("2026-06-01"), leaseEndDate: new Date("2027-06-29"), monthlyRent: 7000,  advancePaid: true,  advanceAmount: 7000, notes: null },
-        { tenantCode: "T07", name: "Matthew Thomas", phone: "01700000007",  unitNumber: "Flat 2C", moveInDate: new Date("2026-07-01"), leaseEndDate: new Date("2027-06-29"), monthlyRent: 8000,  advancePaid: true,  advanceAmount: 8000, notes: null },
+        {
+          tenantCode: "T01",
+          name: "James Brown",
+          phone: "01700-000001",
+          unitNumber: "Flat 4E",
+          moveInDate: new Date("2026-03-01"),
+          leaseEndDate: new Date("2027-12-31"),
+          monthlyRent: 7000,
+          advancePaid: true,
+          advanceAmount: 7000,
+          notes: null,
+        },
+        {
+          tenantCode: "T02",
+          name: "William Jones",
+          phone: "01700-000002",
+          unitNumber: "Flat 4D",
+          moveInDate: new Date("2024-04-01"),
+          leaseEndDate: new Date("2027-12-31"),
+          monthlyRent: 9500,
+          advancePaid: false,
+          advanceAmount: 0,
+          notes: null,
+        },
+        {
+          tenantCode: "T03",
+          name: "Richard Miller",
+          phone: "01700-000003",
+          unitNumber: "Flat 5A",
+          moveInDate: new Date("2026-04-01"),
+          leaseEndDate: new Date("2027-12-31"),
+          monthlyRent: 5000,
+          advancePaid: true,
+          advanceAmount: 4500,
+          notes: null,
+        },
+        {
+          tenantCode: "T04",
+          name: "Thomas Moore",
+          phone: "01700-000004",
+          unitNumber: "Flat 2D",
+          moveInDate: new Date("2026-06-01"),
+          leaseEndDate: new Date("2027-06-29"),
+          monthlyRent: 8500,
+          advancePaid: true,
+          advanceAmount: 6000,
+          notes: null,
+        },
+        {
+          tenantCode: "T05",
+          name: "Charles Taylor",
+          phone: "01700000005",
+          unitNumber: "Flat 2A",
+          moveInDate: new Date("2026-07-01"),
+          leaseEndDate: new Date("2027-06-29"),
+          monthlyRent: 9000,
+          advancePaid: true,
+          advanceAmount: 9000,
+          notes: "Rent increase ৳500 effective July 1, 2026",
+        },
+        {
+          tenantCode: "T06",
+          name: "Daniel Anderson",
+          phone: "01700000006",
+          unitNumber: "Flat 2E",
+          moveInDate: new Date("2026-06-01"),
+          leaseEndDate: new Date("2027-06-29"),
+          monthlyRent: 7000,
+          advancePaid: true,
+          advanceAmount: 7000,
+          notes: null,
+        },
+        {
+          tenantCode: "T07",
+          name: "Matthew Thomas",
+          phone: "01700000007",
+          unitNumber: "Flat 2C",
+          moveInDate: new Date("2026-07-01"),
+          leaseEndDate: new Date("2027-06-29"),
+          monthlyRent: 8000,
+          advancePaid: true,
+          advanceAmount: 8000,
+          notes: null,
+        },
       ];
 
       // Clear unit assignments first to avoid unique constraint conflicts
@@ -124,8 +206,30 @@ async function main() {
         const unitId = unitMap[t.unitNumber];
         await tx.tenant.upsert({
           where: { tenantCode: t.tenantCode },
-          update: { name: t.name, phone: t.phone, unitId, moveInDate: t.moveInDate, leaseEndDate: t.leaseEndDate, advancePaid: t.advancePaid, advanceAmount: t.advanceAmount, notes: t.notes, isActive: true },
-          create: { tenantCode: t.tenantCode, name: t.name, phone: t.phone, unitId, moveInDate: t.moveInDate, leaseEndDate: t.leaseEndDate, advancePaid: t.advancePaid, advanceAmount: t.advanceAmount, notes: t.notes, isActive: true, isExternal: false },
+          update: {
+            name: t.name,
+            phone: t.phone,
+            unitId,
+            moveInDate: t.moveInDate,
+            leaseEndDate: t.leaseEndDate,
+            advancePaid: t.advancePaid,
+            advanceAmount: t.advanceAmount,
+            notes: t.notes,
+            isActive: true,
+          },
+          create: {
+            tenantCode: t.tenantCode,
+            name: t.name,
+            phone: t.phone,
+            unitId,
+            moveInDate: t.moveInDate,
+            leaseEndDate: t.leaseEndDate,
+            advancePaid: t.advancePaid,
+            advanceAmount: t.advanceAmount,
+            notes: t.notes,
+            isActive: true,
+            isExternal: false,
+          },
         });
         await tx.unit.update({
           where: { id: unitId },
@@ -137,10 +241,18 @@ async function main() {
       // ── Rent change for T05 (Charles Taylor) ───────────────────────────────────────
       const alamin = await tx.tenant.findUnique({ where: { tenantCode: "T05" } });
       if (alamin) {
-        const existing = await tx.rentChange.findFirst({ where: { tenantId: alamin.id, appliedAt: null } });
+        const existing = await tx.rentChange.findFirst({
+          where: { tenantId: alamin.id, appliedAt: null },
+        });
         if (!existing) {
           await tx.rentChange.create({
-            data: { tenantId: alamin.id, effectiveDate: new Date("2026-07-01"), previousRent: 9000, newRent: 9500, reason: "Annual rent increase (per Excel notes)" },
+            data: {
+              tenantId: alamin.id,
+              effectiveDate: new Date("2026-07-01"),
+              previousRent: 9000,
+              newRent: 9500,
+              reason: "Annual rent increase (per Excel notes)",
+            },
           });
           console.log("  ✓ Rent change seeded for T05 Charles Taylor (৳9,000 → ৳9,500 from Jul 1, 2026)");
         }
@@ -149,17 +261,107 @@ async function main() {
       // ── Historical payments ────────────────────────────────────────────────
       const flat2dId = unitMap["Flat 2D"];
 
-      type PaymentEntry = { tenantCode: string; unitNumber: string; month: number; year: number; rentDue: number; amountPaid: number; paidDate: Date; status: PaymentStatus };
+      type PaymentEntry = {
+        tenantCode: string;
+        unitNumber: string;
+        month: number;
+        year: number;
+        rentDue: number;
+        amountPaid: number;
+        paidDate: Date;
+        status: PaymentStatus;
+      };
       const paymentHistory: PaymentEntry[] = [
-        { tenantCode: "T01", unitNumber: "Flat 4E", month: 3, year: 2026, rentDue: 7000, amountPaid: 7000, paidDate: new Date("2026-03-12"), status: PaymentStatus.PAID },
-        { tenantCode: "T01", unitNumber: "Flat 4E", month: 4, year: 2026, rentDue: 7000, amountPaid: 7000, paidDate: new Date("2026-04-12"), status: PaymentStatus.PAID },
-        { tenantCode: "T01", unitNumber: "Flat 4E", month: 5, year: 2026, rentDue: 7000, amountPaid: 7000, paidDate: new Date("2026-05-18"), status: PaymentStatus.PAID },
-        { tenantCode: "T02", unitNumber: "Flat 4D", month: 4, year: 2026, rentDue: 9500, amountPaid: 9500, paidDate: new Date("2026-04-10"), status: PaymentStatus.PAID },
-        { tenantCode: "T02", unitNumber: "Flat 4D", month: 5, year: 2026, rentDue: 9500, amountPaid: 9500, paidDate: new Date("2026-05-06"), status: PaymentStatus.PAID },
-        { tenantCode: "T03", unitNumber: "Flat 5A", month: 4, year: 2026, rentDue: 5000, amountPaid: 5000, paidDate: new Date("2026-04-10"), status: PaymentStatus.PAID },
-        { tenantCode: "T03", unitNumber: "Flat 5A", month: 5, year: 2026, rentDue: 5000, amountPaid: 5000, paidDate: new Date("2026-05-09"), status: PaymentStatus.PAID },
-        { tenantCode: "T00", unitNumber: "Flat 2D", month: 3, year: 2026, rentDue: 8500, amountPaid: 7000, paidDate: new Date("2026-03-01"), status: PaymentStatus.PAID },
-        { tenantCode: "T00", unitNumber: "Flat 2D", month: 4, year: 2026, rentDue: 8500, amountPaid: 7000, paidDate: new Date("2026-03-02"), status: PaymentStatus.PAID },
+        {
+          tenantCode: "T01",
+          unitNumber: "Flat 4E",
+          month: 3,
+          year: 2026,
+          rentDue: 7000,
+          amountPaid: 7000,
+          paidDate: new Date("2026-03-12"),
+          status: PaymentStatus.PAID,
+        },
+        {
+          tenantCode: "T01",
+          unitNumber: "Flat 4E",
+          month: 4,
+          year: 2026,
+          rentDue: 7000,
+          amountPaid: 7000,
+          paidDate: new Date("2026-04-12"),
+          status: PaymentStatus.PAID,
+        },
+        {
+          tenantCode: "T01",
+          unitNumber: "Flat 4E",
+          month: 5,
+          year: 2026,
+          rentDue: 7000,
+          amountPaid: 7000,
+          paidDate: new Date("2026-05-18"),
+          status: PaymentStatus.PAID,
+        },
+        {
+          tenantCode: "T02",
+          unitNumber: "Flat 4D",
+          month: 4,
+          year: 2026,
+          rentDue: 9500,
+          amountPaid: 9500,
+          paidDate: new Date("2026-04-10"),
+          status: PaymentStatus.PAID,
+        },
+        {
+          tenantCode: "T02",
+          unitNumber: "Flat 4D",
+          month: 5,
+          year: 2026,
+          rentDue: 9500,
+          amountPaid: 9500,
+          paidDate: new Date("2026-05-06"),
+          status: PaymentStatus.PAID,
+        },
+        {
+          tenantCode: "T03",
+          unitNumber: "Flat 5A",
+          month: 4,
+          year: 2026,
+          rentDue: 5000,
+          amountPaid: 5000,
+          paidDate: new Date("2026-04-10"),
+          status: PaymentStatus.PAID,
+        },
+        {
+          tenantCode: "T03",
+          unitNumber: "Flat 5A",
+          month: 5,
+          year: 2026,
+          rentDue: 5000,
+          amountPaid: 5000,
+          paidDate: new Date("2026-05-09"),
+          status: PaymentStatus.PAID,
+        },
+        {
+          tenantCode: "T00",
+          unitNumber: "Flat 2D",
+          month: 3,
+          year: 2026,
+          rentDue: 8500,
+          amountPaid: 7000,
+          paidDate: new Date("2026-03-01"),
+          status: PaymentStatus.PAID,
+        },
+        {
+          tenantCode: "T00",
+          unitNumber: "Flat 2D",
+          month: 4,
+          year: 2026,
+          rentDue: 8500,
+          amountPaid: 7000,
+          paidDate: new Date("2026-03-02"),
+          status: PaymentStatus.PAID,
+        },
       ];
 
       // Remove stale payments not present in the Excel source
@@ -184,13 +386,34 @@ async function main() {
         const unitId = p.tenantCode === "T00" ? flat2dId : unitMap[p.unitNumber];
         const payment = await tx.payment.upsert({
           where: { tenantId_month_year: { tenantId: tenant.id, month: p.month, year: p.year } },
-          update: { amountPaid: p.amountPaid, status: p.status, paidDate: p.paidDate, rentDue: p.rentDue },
-          create: { tenantId: tenant.id, unitId, month: p.month, year: p.year, rentDue: p.rentDue, amountPaid: p.amountPaid, advanceApplied: 0, status: p.status, paidDate: p.paidDate },
+          update: {
+            amountPaid: p.amountPaid,
+            status: p.status,
+            paidDate: p.paidDate,
+            rentDue: p.rentDue,
+          },
+          create: {
+            tenantId: tenant.id,
+            unitId,
+            month: p.month,
+            year: p.year,
+            rentDue: p.rentDue,
+            amountPaid: p.amountPaid,
+            advanceApplied: 0,
+            status: p.status,
+            paidDate: p.paidDate,
+          },
         });
         const txCount = await tx.paymentTransaction.count({ where: { paymentId: payment.id } });
         if (txCount === 0) {
           await tx.paymentTransaction.create({
-            data: { paymentId: payment.id, type: TransactionType.CASH, amount: p.amountPaid, date: p.paidDate, notes: "Migrated from Excel" },
+            data: {
+              paymentId: payment.id,
+              type: TransactionType.CASH,
+              amount: p.amountPaid,
+              date: p.paidDate,
+              notes: "Migrated from Excel",
+            },
           });
         }
         paymentCount++;
@@ -205,10 +428,23 @@ async function main() {
       ];
 
       for (const e of expenseHistory) {
-        const existing = await tx.expense.findFirst({ where: { month: e.month, year: e.year, paidTo: "Mr. Walker", category: ExpenseCategory.SALARY } });
+        const existing = await tx.expense.findFirst({
+          where: { month: e.month, year: e.year, paidTo: "Mr. Walker", category: ExpenseCategory.SALARY },
+        });
         if (!existing) {
           await tx.expense.create({
-            data: { description: "Monthly caretaker salary", amount: 13000, currency: "BDT", category: ExpenseCategory.SALARY, month: e.month, year: e.year, expenseDate: e.expenseDate, paidTo: "Mr. Walker", paymentMode: "Cash", notes: "Fixed monthly caretaker payment" },
+            data: {
+              description: "Monthly caretaker salary",
+              amount: 13000,
+              currency: "BDT",
+              category: ExpenseCategory.SALARY,
+              month: e.month,
+              year: e.year,
+              expenseDate: e.expenseDate,
+              paidTo: "Mr. Walker",
+              paymentMode: "Cash",
+              notes: "Fixed monthly caretaker payment",
+            },
           });
         }
       }
