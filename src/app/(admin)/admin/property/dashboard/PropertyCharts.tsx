@@ -43,7 +43,7 @@ interface Props {
 export default function PropertyCharts({ data, month, year }: Props) {
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 3, mb: 3 }}>
-      <Card sx={{ bgcolor: "background.paper" }}>
+      <Card sx={{ bgcolor: "background.paper", minWidth: 0 }}>
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, fontWeight: 600 }}>
             {MONTHS[month - 1]} {year} — Financial Overview
@@ -75,7 +75,7 @@ export default function PropertyCharts({ data, month, year }: Props) {
         </CardContent>
       </Card>
 
-      <Card sx={{ bgcolor: "background.paper" }}>
+      <Card sx={{ bgcolor: "background.paper", minWidth: 0 }}>
         <CardContent>
           <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2, fontWeight: 600 }}>
             {year} — Yearly Trend
