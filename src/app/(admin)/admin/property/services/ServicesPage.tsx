@@ -328,8 +328,13 @@ export default function ServicesPage() {
       )}
 
       {/* Add/Edit Service Drawer */}
-      <Drawer anchor="right" open={serviceDrawer} onClose={() => setServiceDrawer(false)}>
-        <Box sx={{ width: 340, p: 3 }}>
+      <Drawer
+        anchor="right"
+        open={serviceDrawer}
+        onClose={() => setServiceDrawer(false)}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 400 } } } }}
+      >
+        <Box sx={{ width: "100%", p: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
             {editingService ? "Edit Service" : "Add Service"}
           </Typography>
@@ -367,8 +372,13 @@ export default function ServicesPage() {
       </Drawer>
 
       {/* Assign Service Drawer */}
-      <Drawer anchor="right" open={assignDrawer} onClose={() => setAssignDrawer(false)}>
-        <Box sx={{ width: 360, p: 3 }}>
+      <Drawer
+        anchor="right"
+        open={assignDrawer}
+        onClose={() => setAssignDrawer(false)}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 400 } } } }}
+      >
+        <Box sx={{ width: "100%", p: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
             Assign Service to Tenant
           </Typography>

@@ -315,8 +315,13 @@ export default function ExpensesPage() {
       )}
 
       {/* Add/Edit Drawer */}
-      <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Box sx={{ width: 360, p: 3 }}>
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 420 } } } }}
+      >
+        <Box sx={{ width: "100%", p: 3 }}>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
             {editing ? "Edit Expense" : "Add Expense"}
           </Typography>

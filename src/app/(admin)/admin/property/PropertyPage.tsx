@@ -924,9 +924,14 @@ export default function PropertyPage() {
       )}
 
       {/* ── Unit info / edit drawer ─────────────────────────────────── */}
-      <Drawer anchor="right" open={!!drawerUnit} onClose={() => setDrawerUnit(null)}>
+      <Drawer
+        anchor="right"
+        open={!!drawerUnit}
+        onClose={() => setDrawerUnit(null)}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 400 } } } }}
+      >
         {drawerUnit && (
-          <Box sx={{ width: 360, p: 3 }}>
+          <Box sx={{ width: "100%", p: 3 }}>
             <Box
               sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}
             >
@@ -1235,9 +1240,14 @@ export default function PropertyPage() {
       </Drawer>
 
       {/* ── Tenant edit drawer ──────────────────────────────────────── */}
-      <Drawer anchor="right" open={!!editTenantRow} onClose={() => setEditTenantRow(null)}>
+      <Drawer
+        anchor="right"
+        open={!!editTenantRow}
+        onClose={() => setEditTenantRow(null)}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 420 } } } }}
+      >
         {editTenantRow?.tenant && (
-          <Box sx={{ width: 380, p: 3 }}>
+          <Box sx={{ width: "100%", p: 3 }}>
             <Box
               sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}
             >
@@ -1715,8 +1725,13 @@ export default function PropertyPage() {
       </Dialog>
 
       {/* ── Add Tenant / External Member drawer ─────────────────────── */}
-      <Drawer anchor="right" open={addOpen} onClose={() => setAddOpen(false)}>
-        <Box sx={{ width: 380, p: 3 }}>
+      <Drawer
+        anchor="right"
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 420 } } } }}
+      >
+        <Box sx={{ width: "100%", p: 3 }}>
           <Box
             sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}
           >
