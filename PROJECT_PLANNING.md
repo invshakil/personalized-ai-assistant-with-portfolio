@@ -64,7 +64,7 @@ Defined in `prisma/schema.prisma`. Do not modify schema without updating this do
 | `IncomeSource`                            | Financial Tracker — client/income source config (MapX, DevArena+DevCourt…); `name` unique                    |
 | `BizExpenseCategory`                      | Financial Tracker — tool/subscription expense category config; `name` unique                                 |
 | `Earning`                                 | Financial Tracker — client income; `sourceId`, `remittance` (REM/NON_REM), `amount`, `fiscalYear`            |
-| `EmployeePayment`                         | Financial Tracker — salary payments; `employeeId`, `type`, `reference`, `amount`, `fiscalYear`               |
+| `EmployeePayment`                         | Financial Tracker — salary payments; `employeeId`, `type`, `amount`, `fiscalYear`, `reference` (note); m2m `clients`→`IncomeSource` (`PaymentClients`) |
 | `BizExpense`                              | Financial Tracker — business expenses; `categoryId`, `isRecurring`, `amount`, `fiscalYear`, `subscriptionId?` |
 | `Subscription`                            | Financial Tracker — recurring service; `monthlyAmount`, `startDate`, `endDate?`; auto-generates monthly `BizExpense` charges |
 
@@ -244,7 +244,8 @@ See **FINANCIAL_TRACKER.md** for the full design, data model, and progress track
 - `/admin/finance` — dashboard: per-FY P&L (income, emp costs, tools, net profit, margin), monthly
   income trend + income-by-client charts, per-employee×FY salary matrix, remittance split
 - `/admin/finance/earnings` — client income log (REM/Non-rem), FY filter, add/edit drawer
-- `/admin/finance/payments` — employee salary payments, employee + FY filters
+- `/admin/finance/payments` — employee salary payments, employee + FY filters; each salary links to
+  one or more **clients** (multi-select from the unified client list) + an optional note
 - `/admin/finance/expenses` — one-off business expenses; subscription-generated charges shown read-only
 - `/admin/finance/subscriptions` — recurring services: start, **stop from a month**, resume, per-month
   spend history, Active/Ended status; each active month auto-generates one expense charge (idempotent)

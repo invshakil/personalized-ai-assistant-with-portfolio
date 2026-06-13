@@ -18,9 +18,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const { id } = await params;
   const p = await db.employeePayment.findUnique({
     where: { id },
-    include: { employee: { select: { name: true } } },
+    include: {
+      employee: { select: { name: true } },
+      clients: { select: { name: true }, orderBy: { name: "asc" } },
+    },
   });
   if (!p) return Response.json({ error: "Not found" }, { status: 404 });
+
+  const clientNames = p.clients.map((c) => c.name).join(", ");
 
   const buffer = await renderToBuffer(
     <ReceiptDocument
@@ -29,7 +34,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       fields={[
         { label: "Employee", value: p.employee.name },
         { label: "Payment type", value: KIND[p.type] ?? p.type },
-        { label: "Reference", value: p.reference ?? "—" },
+        { label: "Client(s)", value: clientNames || "—" },
+        ...(p.reference ? [{ label: "Note", value: p.reference }] : []),
         { label: "Payment date", value: pdfDate(p.date.toISOString()) },
         { label: "Fiscal year", value: p.fiscalYear },
       ]}

@@ -81,14 +81,14 @@ export default function PaymentsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pRes, eRes] = await Promise.all([
+      const [pRes, eRes, cRes] = await Promise.all([
         fetch("/api/admin/finance/payments"),
         fetch("/api/admin/finance/employees"),
+        fetch("/api/admin/finance/sources"),
       ]);
-      const pJson = await pRes.json();
-      const eJson = await eRes.json();
-      setPayments(pJson.data ?? []);
-      setEmployees(eJson.data ?? []);
+      setPayments((await pRes.json()).data ?? []);
+      setEmployees((await eRes.json()).data ?? []);
+      setClients((await cRes.json()).data ?? []);
     } finally {
       setLoading(false);
     }
@@ -130,6 +130,7 @@ export default function PaymentsPage() {
       employeeId: p.employeeId,
       type: p.type,
       reference: p.reference ?? "",
+      clientIds: p.clients.map((c) => c.id),
       amount: String(p.amount),
       fiscalYear: p.fiscalYear,
       notes: p.notes ?? "",
@@ -150,6 +151,7 @@ export default function PaymentsPage() {
         employeeId: form.employeeId,
         type: form.type,
         reference: form.reference || null,
+        clientIds: form.clientIds,
         amount: parseFloat(form.amount),
         fiscalYear: form.fiscalYear,
         notes: form.notes || null,
@@ -242,7 +244,7 @@ export default function PaymentsPage() {
                 <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Employee</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Reference</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Clients</TableCell>
                 <TableCell align="right" sx={{ fontWeight: 700 }}>
                   Amount
                 </TableCell>
@@ -271,9 +273,26 @@ export default function PaymentsPage() {
                       />
                     </TableCell>
                     <TableCell>
-                      <Typography variant="caption" color="text.secondary">
-                        {p.reference ?? "—"}
-                      </Typography>
+                      {p.clients.length > 0 ? (
+                        <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", gap: 0.5 }}>
+                          {p.clients.map((c) => (
+                            <Chip key={c.id} size="small" label={c.name} variant="outlined" />
+                          ))}
+                        </Stack>
+                      ) : (
+                        <Typography variant="caption" color="text.secondary">
+                          —
+                        </Typography>
+                      )}
+                      {p.reference && (
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: "block", mt: p.clients.length ? 0.5 : 0 }}
+                        >
+                          {p.reference}
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell align="right" sx={{ fontWeight: 600, color: "warning.main" }}>
                       {fmt(p.amount)}
@@ -358,13 +377,42 @@ export default function PaymentsPage() {
               ))}
             </Select>
           </FormControl>
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel>Client(s)</InputLabel>
+            <Select
+              multiple
+              label="Client(s)"
+              value={form.clientIds}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  clientIds: typeof e.target.value === "string" ? e.target.value.split(",") : e.target.value,
+                }))
+              }
+              input={<OutlinedInput label="Client(s)" />}
+              renderValue={(selected) => (
+                <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", gap: 0.5 }}>
+                  {(selected as string[]).map((id) => {
+                    const c = clients.find((x) => x.id === id);
+                    return <Chip key={id} size="small" label={c?.name ?? id} />;
+                  })}
+                </Stack>
+              )}
+            >
+              {clients.map((c) => (
+                <MenuItem key={c.id} value={c.id}>
+                  {c.name}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <TextField
-            label="Reference (funding client)"
+            label="Note (optional)"
             size="small"
             fullWidth
             value={form.reference}
             onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))}
-            placeholder="e.g. savannah, christoph"
+            placeholder="e.g. wedding bonus"
             sx={{ mb: 2 }}
           />
           <TextField
