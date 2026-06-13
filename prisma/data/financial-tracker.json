@@ -1,0 +1,1592 @@
+{
+  "meta": {
+    "currency": "BDT",
+    "fiscalYearRule": "July-June",
+    "exportedFrom": "Financial Tracker.xlsx"
+  },
+  "employees": [
+    "Mayenuddin Kabir",
+    "Rashidul Islam",
+    "Shafayet Bayejid",
+    "Tanvir Reza Anik"
+  ],
+  "incomeSources": [
+    "DevArena+DevCourt",
+    "Freelance project",
+    "Incentive",
+    "MapX"
+  ],
+  "expenseCategories": [
+    "AI Tool Subscription",
+    "Hardware",
+    "Office/Electricity",
+    "Social",
+    "Software License"
+  ],
+  "earnings": [
+    {
+      "date": "2023-08-02",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 271577.19,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-08-02",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 271577.19,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-05",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 327412.41,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-25",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 328305.76,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-11-09",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 329794.67,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-11-09",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 329794.67,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-11-21",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 431415.55,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-11-21",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 439773.85,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-12-03",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 437788.42,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-12-14",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 458642.8,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-12-26",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 163242.07,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-12-28",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 108841.27,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-01-01",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 132150.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-01-01",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 264300.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-01-22",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 271953.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-01-22",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 149302.68,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-02-22",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 265434.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-03-07",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 434400.71,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-03-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 241965.59,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-03-21",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 447275.41,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-04-04",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 448106.93,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-04-21",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 377577.71,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-05-08",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 383205.16,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-05-19",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 63104.67,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-05-19",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 456555.27,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-05-19",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 362030.8,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-05",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 72080.78,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-06",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 495953.78,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-11",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 217017.61,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 469432.92,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-07-04",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 432641.98,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-07-18",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 488820.97,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-07-18",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 36863.16,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-07-18",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 53776.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-08-04",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 79764.28,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-08-06",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 498839.07,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-08-18",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 41893.49,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-08-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 495432.9,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-09",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 261122.64,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-15",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 273753.15,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-18",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 490796.27,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-08",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 260055.73,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-14",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 269811.37,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 86936.8,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 244367.63,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-27",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 127623.14,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-29",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 152524.93,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-06",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 49124.62,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-10",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 114036.27,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-17",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 158297.45,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-24",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 432201.16,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-28",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 250313.39,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-12-08",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 250456.02,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-12-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 249612.85,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-05",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 249305.8,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-09",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 185072.77,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-16",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 311186.44,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-28",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 381063.24,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-02-16",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 443145.23,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-02-27",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 494939.12,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-06",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 498872.96,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-18",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 402452.04,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-04-09",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 412741.93,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-04-10",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 434472.87,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-04-13",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 482899.02,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-10",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 322956.11,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 478164.77,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-25",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 497969.66,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-15",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 462186.75,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-25",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 461833.33,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-08-04",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 29500.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-15",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 26500.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-20",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 31500.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-05",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 105000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-12",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 39500.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-02-09",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 75000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-11",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 82000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-11",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 82000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-11",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 50000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-11",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 82000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-15",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 126000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-25",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 126000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-29",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 112140.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-30",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 10816.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-31",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 12211.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-01",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 1344.4,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-02",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 12471.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-03",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 1047.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-04",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 12386.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-05",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 2173.42,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-07-24",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 494006.75,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-07-24",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 492061.08,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-08-14",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 309779.49,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-08-31",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 423116.93,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-07",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 343798.9,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-16",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 446509.2,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-24",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 492689.38,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 487246.76,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-05",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 479794.25,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-16",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 495606.09,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-26",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 476060.62,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-11",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 444818.04,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-24",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 493891.93,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-15",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 496095.88,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-25",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 498581.14,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-02-10",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 499135.25,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-01",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 464406.79,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-07-10",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 204120.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-07-24",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 136080.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-08-05",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 136080.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-08-24",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 136080.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-02",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 136080.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-10",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 119448.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-05",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 204120.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-16",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 172368.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-22",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 88452.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-01",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 102060.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-06",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 68040.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-15",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 65520.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-01",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 239274.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-15",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 223776.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-07",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 333396.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-21",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 114030.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-28",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 53046.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-02-14",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 280476.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-02-14",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 167076.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-03",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 320544.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-08",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 448480.41,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-17",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 340000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-01",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 447448.24,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-07",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 224910.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-23",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 297360.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-28",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 497505.31,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-05-03",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 498953.38,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-05-10",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 184900.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-05-24",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 492568.0,
+      "fiscalYear": "2025-2026"
+    }
+  ],
+  "employeePayments": [
+    {
+      "date": "2023-08-30",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 10000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-08-31",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 35000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-01",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 20000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-02",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 30000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-03",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 10000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-04",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 11000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-05",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 15000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-06",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 15000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-01-10",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 10000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-03-07",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 33500.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-04-10",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 82000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-05-08",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 40000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-05-15",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 26000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-03",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 50000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-20",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 19500.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-30",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Habib",
+      "amount": 6000.0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-07-04",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 50000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-07-26",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "christoph",
+      "amount": 25000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-08-06",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "savannah+ahsan+christoph+wedding bonus",
+      "amount": 90000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-05",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "christoph",
+      "amount": 9000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-09",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 50000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-15",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "ahsan",
+      "amount": 10500.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-08",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 50000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-20",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "christoph+ahsan bhai",
+      "amount": 21000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-07",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "christoph+ahsan bhai",
+      "amount": 56000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-10",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 50000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-12-09",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 50000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-09",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 50000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-12",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "christoph+ahsan bhai",
+      "amount": 27000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-02-06",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 50000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-02-09",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "ahsan bhai",
+      "amount": 35000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-06",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 65000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-11",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Ahsan bhai",
+      "amount": 33000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-04-09",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 65000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-11",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Ahsan bhai",
+      "amount": 37500.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-08-21",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 30000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-13",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 20000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-16",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 40000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-08",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 20000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-02-10",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 33900.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-04-10",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 42000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-10",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 48000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-16",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 48000.0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-07-07",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 48000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-08-10",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 48000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-07",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 60000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-16",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 60000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-10",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 48000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-16",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 80000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-08",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 60000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-14",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 36500.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-07",
+      "employee": "Rashidul Islam",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 140910.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-08",
+      "employee": "Rashidul Islam",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 166500.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-09",
+      "employee": "Rashidul Islam",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 152500.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-20",
+      "employee": "Rashidul Islam",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 159000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-11",
+      "employee": "Rashidul Islam",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 159500.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-12",
+      "employee": "Rashidul Islam",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 145200.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-16",
+      "employee": "Rashidul Islam",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 165500.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-02-13",
+      "employee": "Rashidul Islam",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 158400.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-16",
+      "employee": "Shafayet Bayejid",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 12000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-15",
+      "employee": "Shafayet Bayejid",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 12000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-02-14",
+      "employee": "Shafayet Bayejid",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 40000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-04",
+      "employee": "Shafayet Bayejid",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 14500.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-04",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 56400.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-04",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 80500.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-09",
+      "employee": "Rashidul Islam",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 145200.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-18",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 43500.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-09",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 52200.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-09",
+      "employee": "Shafayet Bayejid",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 10000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-09",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 50500.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-28",
+      "employee": "Rashidul Islam",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 159100.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-05-10",
+      "employee": "Tanvir Reza Anik",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 60600.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-05-10",
+      "employee": "Mayenuddin Kabir",
+      "type": "SALARY",
+      "reference": "Christoph",
+      "amount": 36000.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-05-24",
+      "employee": "Rashidul Islam",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 159000.0,
+      "fiscalYear": "2025-2026"
+    }
+  ],
+  "bizExpenses": [
+    {
+      "date": "2026-01-23",
+      "name": "Google Pro",
+      "category": "AI Tool Subscription",
+      "isRecurring": true,
+      "amount": 2500.0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2024-07-04",
+      "name": "Youtube Premium",
+      "category": "Social",
+      "isRecurring": true,
+      "amount": 499.0,
+      "fiscalYear": "2024-2025"
+    }
+  ]
+}

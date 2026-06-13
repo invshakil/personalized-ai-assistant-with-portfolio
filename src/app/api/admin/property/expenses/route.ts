@@ -30,6 +30,8 @@ export async function POST(req: NextRequest) {
     paidTo,
     paymentMode,
     unitId,
+    payeeId,
+    serviceTypeId,
     notes,
   } = body;
 
@@ -50,6 +52,8 @@ export async function POST(req: NextRequest) {
     paidTo,
     paymentMode,
     unitId,
+    payeeId,
+    serviceTypeId,
     notes,
   });
   return Response.json({ data }, { status: 201 });

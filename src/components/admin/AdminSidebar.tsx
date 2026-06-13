@@ -33,6 +33,10 @@ import {
   ChevronDown,
   ChevronRight,
   SlidersHorizontal,
+  TrendingUp,
+  RefreshCw,
+  UserCircle,
+  Tag,
 } from "lucide-react";
 
 const SIDEBAR_WIDTH = 260;
@@ -62,11 +66,26 @@ const navGroups: { label: string; items: NavItem[] }[] = [
           { href: "/admin/property/payments", label: "Payments", icon: CreditCard },
           { href: "/admin/property/expenses", label: "Expenses", icon: Receipt },
           { href: "/admin/property/services", label: "Services", icon: Wifi },
+          { href: "/admin/property/payees", label: "Payees", icon: UserCircle },
+          { href: "/admin/property/service-types", label: "Service Types", icon: Tag },
           { href: "/admin/property/dashboard", label: "Dashboard", icon: PieChart },
           { href: "/admin/property/settings", label: "Settings", icon: SlidersHorizontal },
         ],
       },
-      { href: "/admin/finance", label: "Finance", icon: BarChart3, exact: false },
+      {
+        href: "/admin/finance",
+        label: "Financial Tracker",
+        icon: BarChart3,
+        exact: false,
+        children: [
+          { href: "/admin/finance", label: "Dashboard", icon: PieChart },
+          { href: "/admin/finance/earnings", label: "Earnings", icon: TrendingUp },
+          { href: "/admin/finance/payments", label: "Salaries", icon: Users },
+          { href: "/admin/finance/expenses", label: "Expenses", icon: Receipt },
+          { href: "/admin/finance/subscriptions", label: "Subscriptions", icon: RefreshCw },
+          { href: "/admin/finance/settings", label: "Settings", icon: SlidersHorizontal },
+        ],
+      },
       { href: "/admin/renovation", label: "Renovation", icon: Wrench, exact: false },
     ],
   },
@@ -154,7 +173,7 @@ function SidebarContents({ onClose }: { onClose?: () => void }) {
                 const active = isActive(item.href, item.exact);
                 const Icon = item.icon;
                 const hasChildren = !!item.children?.length;
-                const expanded = hasChildren && pathname.startsWith("/admin/property");
+                const expanded = hasChildren && pathname.startsWith(item.href);
                 const ChevronIcon = expanded ? ChevronDown : ChevronRight;
 
                 return (
@@ -182,9 +201,11 @@ function SidebarContents({ onClose }: { onClose?: () => void }) {
                     {hasChildren && expanded && (
                       <List dense disablePadding sx={{ pl: 2, mb: 0.5 }}>
                         {item.children!.map((child) => {
+                          // The index child (same href as its parent) matches
+                          // exactly; deeper children match by prefix.
                           const childActive =
-                            child.href === "/admin/property"
-                              ? pathname === "/admin/property"
+                            child.href === item.href
+                              ? pathname === child.href
                               : pathname.startsWith(child.href);
                           const ChildIcon = child.icon;
                           return (

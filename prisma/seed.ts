@@ -1,5 +1,6 @@
 import { ExpenseCategory, PaymentStatus, PrismaClient, TransactionType } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedFinancial } from "./seed-financial";
 
 const db = new PrismaClient();
 
@@ -17,6 +18,30 @@ async function main() {
     create: { email: adminEmail, name: "Shakil", password: hash, role: "ADMIN" },
   });
   console.log("✓ Admin user seeded");
+
+  // ─── Financial Tracker (own guard; runs before the property early-return) ──
+  await seedFinancial(db);
+
+  // ─── Property Service Types (idempotent — always runs) ───────────────────
+  const serviceTypes: { name: string; category: ExpenseCategory; description?: string }[] = [
+    { name: "Electricity Bill", category: ExpenseCategory.UTILITY, description: "Monthly electricity" },
+    { name: "Water Bill", category: ExpenseCategory.UTILITY, description: "Monthly water supply" },
+    { name: "Gas Bill", category: ExpenseCategory.UTILITY, description: "Monthly gas supply" },
+    { name: "Internet / WiFi", category: ExpenseCategory.SUBSCRIPTION, description: "Internet service" },
+    { name: "Plumbing", category: ExpenseCategory.MAINTENANCE, description: "Plumbing repairs" },
+    { name: "General Maintenance", category: ExpenseCategory.MAINTENANCE, description: "Miscellaneous repairs" },
+    { name: "Caretaker Salary", category: ExpenseCategory.SALARY, description: "Monthly caretaker pay" },
+    { name: "Security Salary", category: ExpenseCategory.SALARY, description: "Monthly security guard pay" },
+    { name: "Cleaning", category: ExpenseCategory.SALARY, description: "Cleaning services" },
+  ];
+  for (const st of serviceTypes) {
+    await db.propertyServiceType.upsert({
+      where: { name: st.name },
+      update: { category: st.category, description: st.description ?? null },
+      create: { name: st.name, category: st.category, description: st.description ?? null },
+    });
+  }
+  console.log(`✓ Property service types seeded (${serviceTypes.length})`);
 
   // ─── Already-seeded guard ─────────────────────────────────────────────────
   // Property data is seeded once. If units already exist we skip the entire
