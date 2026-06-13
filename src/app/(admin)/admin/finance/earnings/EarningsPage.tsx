@@ -302,9 +302,9 @@ export default function EarningsPage() {
             sx={{ mb: 2 }}
           />
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel>Client / Source</InputLabel>
+            <InputLabel>Client</InputLabel>
             <Select
-              label="Client / Source"
+              label="Client"
               value={form.sourceId}
               onChange={(e) => setForm((f) => ({ ...f, sourceId: e.target.value }))}
             >

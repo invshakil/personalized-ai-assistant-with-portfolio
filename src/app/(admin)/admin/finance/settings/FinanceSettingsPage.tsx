@@ -36,7 +36,7 @@ const ENDPOINT: Record<Kind, string> = {
 };
 const TITLE: Record<Kind, string> = {
   employee: "Employees",
-  source: "Income Sources",
+  source: "Clients",
   category: "Expense Categories",
 };
 
@@ -211,7 +211,7 @@ export default function FinanceSettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Income sources */}
+        {/* Clients */}
         <Card sx={{ bgcolor: "background.paper" }}>
           <CardContent>
             <Box sx={{ display: "flex", alignItems: "center", mb: 1.5 }}>

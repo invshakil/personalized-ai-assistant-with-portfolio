@@ -7,7 +7,8 @@
 **Status:** ✅ Phases 1–6 + enhancement round 2 (Phases 8–12) complete. Live at `/admin/finance`:
 dashboard (with **date-range filter**), earnings, salaries, expenses, **subscriptions** (start/stop +
 per-month history), settings. **Per-row PDF receipts** + **report PDF**, themed **delete confirmations**,
-and **current-fiscal-year defaults** throughout. Build + lint + typecheck pass; HTTP smoke tests pass.
+and **current-fiscal-year defaults** throughout. Salary payments link to **one unified client list**
+(multi-select) with an optional note. Build + lint + typecheck pass; HTTP smoke tests pass.
 Phase 7 (optional AI assistant tools) remains.
 
 > Living source-of-truth for the Financial Tracker feature. Claude Code and Syful both update the
@@ -233,6 +234,24 @@ Decisions: **Subscription entity + monthly auto-charge**; **confirm dialog on de
 | 10 | Dashboard **date-range filter** — This month / Last 3 / Last 6 / Last 1yr / Last 2yr / This FY (default) / All | ✅ done (2026-06-13) — `getFinanceDashboard({from,to})`; verified June-2026=৳0, FY=৳9,750,000, All=৳29,350,000 |
 | 11 | **PDF downloads** — per-row salary receipt, earning receipt, expense receipt + dashboard report PDF (`@react-pdf/renderer`, mirrors property receipt route) | ✅ done (2026-06-13) — `services/finance/pdfKit.tsx` + 4 routes; per-row Download buttons; report PDF honors the active date range. BDT rendered as "BDT n" (standard fonts lack ৳) |
 | 12 | Verify (build/lint/typecheck + reconcile); update this doc + PROJECT_PLANNING | ✅ done (2026-06-13) — build/lint/tsc clean; authenticated HTTP smoke tests for ranges, PDFs, and full subscription lifecycle all pass |
+
+## 11. Enhancement round 3 (2026-06-13 — clients on salaries) ✅ complete
+
+Decisions: **unified client list** (rename "Income Sources" → **Clients**; one list for earnings +
+salaries); salary form uses a **multi-select of clients + optional free-text note**.
+
+- Schema: many-to-many `EmployeePayment` ↔ `IncomeSource` via implicit relation `PaymentClients`
+  (join table `_PaymentClients`). `reference` repurposed as the optional note. Migration
+  `20260613200000_add_payment_clients` (applied directly via `db execute` — local DB history was
+  out of sync from the reset; the migration file is committed for clean deploys).
+- Services/API: `createEmployeePayment`/`updateEmployeePayment` accept `clientIds[]`
+  (connect / `set`); `getEmployeePayments` returns `clients: {id,name}[]`.
+- UI: Salaries page has a MUI multi-select (chips) of clients + a "Note (optional)" field; the table
+  shows client chips. Settings section relabeled **Clients**; earnings field relabeled **Client**.
+- PDF: salary receipt lists the client(s) and the note.
+- Verified over HTTP: create with 2 clients → update to 1 → receipt PDF → delete, all correct.
+- **Existing salary rows** keep their free-text reference as the note (no clients linked); attach
+  clients going forward by editing.
 
 > **Note (2026-06-13):** the local dev database was reset during this round (the project's
 > `npm run seed` was being edited for property service types and appears to fail partway, leaving
