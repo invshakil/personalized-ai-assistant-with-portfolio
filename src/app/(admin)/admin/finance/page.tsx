@@ -1,7 +1,7 @@
-import FinancePage from "./FinancePage";
+import FinanceDashboardPage from "./FinanceDashboardPage";
 
-export const metadata = { title: "Finance" };
+export const metadata = { title: "Financial Tracker" };
 
 export default function Page() {
-  return <FinancePage />;
+  return <FinanceDashboardPage />;
 }

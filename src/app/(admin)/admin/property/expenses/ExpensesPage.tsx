@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import {
   Box,
   Card,
@@ -26,45 +27,22 @@ import {
 } from "@mui/material";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
-import type { PropertyExpense, ExpenseCategory } from "@/types";
+import type { PropertyExpense, ExpenseCategory, Payee, PropertyServiceType } from "@/types";
 
 const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 const CATEGORIES: ExpenseCategory[] = [
-  "MAINTENANCE",
-  "UTILITY",
-  "SALARY",
-  "SUBSCRIPTION",
-  "CONSTRUCTION",
-  "OTHER",
+  "MAINTENANCE", "UTILITY", "SALARY", "SUBSCRIPTION", "CONSTRUCTION", "OTHER",
 ];
 const CAT_LABELS: Record<ExpenseCategory, string> = {
-  MAINTENANCE: "Maintenance",
-  UTILITY: "Utility",
-  SALARY: "Salary",
-  SUBSCRIPTION: "Subscription",
-  CONSTRUCTION: "Construction",
-  OTHER: "Other",
+  MAINTENANCE: "Maintenance", UTILITY: "Utility", SALARY: "Salary",
+  SUBSCRIPTION: "Subscription", CONSTRUCTION: "Construction", OTHER: "Other",
 };
 const CAT_COLORS: Record<ExpenseCategory, string> = {
-  MAINTENANCE: "warning.main",
-  UTILITY: "info.main",
-  SALARY: "success.main",
-  SUBSCRIPTION: "primary.main",
-  CONSTRUCTION: "error.main",
-  OTHER: "text.secondary",
+  MAINTENANCE: "warning.main", UTILITY: "info.main", SALARY: "success.main",
+  SUBSCRIPTION: "primary.main", CONSTRUCTION: "error.main", OTHER: "text.secondary",
 };
 
 function fmt(n: number) {
@@ -78,6 +56,8 @@ type ExpenseForm = {
   expenseDate: string;
   paidTo: string;
   paymentMode: string;
+  payeeId: string;
+  serviceTypeId: string;
   notes: string;
 };
 
@@ -88,20 +68,36 @@ const BLANK: ExpenseForm = {
   expenseDate: new Date().toISOString().split("T")[0],
   paidTo: "",
   paymentMode: "Cash",
+  payeeId: "",
+  serviceTypeId: "",
   notes: "",
 };
 
 export default function ExpensesPage() {
+  const router = useRouter();
   const now = new Date();
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [year, setYear] = useState(now.getFullYear());
   const [expenses, setExpenses] = useState<PropertyExpense[]>([]);
+  const [payees, setPayees] = useState<Payee[]>([]);
+  const [serviceTypes, setServiceTypes] = useState<PropertyServiceType[]>([]);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<ExpenseForm>(BLANK);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Load payees and service types once on mount
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/admin/property/payees").then((r) => r.json()),
+      fetch("/api/admin/property/service-types").then((r) => r.json()),
+    ]).then(([p, s]) => {
+      setPayees(p.data ?? []);
+      setServiceTypes((s.data ?? []).filter((t: PropertyServiceType) => t.isActive));
+    });
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -134,6 +130,8 @@ export default function ExpensesPage() {
       expenseDate: e.expenseDate ? e.expenseDate.split("T")[0] : "",
       paidTo: e.paidTo ?? "",
       paymentMode: e.paymentMode ?? "Cash",
+      payeeId: e.payeeId ?? "",
+      serviceTypeId: e.serviceTypeId ?? "",
       notes: e.notes ?? "",
     });
     setError(null);
@@ -153,6 +151,8 @@ export default function ExpensesPage() {
         expenseDate: form.expenseDate || null,
         paidTo: form.paidTo || null,
         paymentMode: form.paymentMode || null,
+        payeeId: form.payeeId || null,
+        serviceTypeId: form.serviceTypeId || null,
         notes: form.notes || null,
       };
       const url = editing
@@ -191,9 +191,7 @@ export default function ExpensesPage() {
           <InputLabel>Month</InputLabel>
           <Select label="Month" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
             {MONTHS.map((m, i) => (
-              <MenuItem key={i + 1} value={i + 1}>
-                {m}
-              </MenuItem>
+              <MenuItem key={i + 1} value={i + 1}>{m}</MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -201,9 +199,7 @@ export default function ExpensesPage() {
           <InputLabel>Year</InputLabel>
           <Select label="Year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
             {[2025, 2026, 2027, 2028].map((y) => (
-              <MenuItem key={y} value={y}>
-                {y}
-              </MenuItem>
+              <MenuItem key={y} value={y}>{y}</MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -214,18 +210,11 @@ export default function ExpensesPage() {
         </Box>
       </Box>
 
-      {/* Total */}
       {expenses.length > 0 && (
-        <Card
-          sx={{ bgcolor: "background.paper", mb: 2, display: "inline-flex", px: 3, py: 1.5, mr: 2 }}
-        >
+        <Card sx={{ bgcolor: "background.paper", mb: 2, display: "inline-flex", px: 3, py: 1.5, mr: 2 }}>
           <Box>
-            <Typography variant="caption" color="text.secondary">
-              Total Expenses
-            </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: "error.main" }}>
-              {fmt(total)}
-            </Typography>
+            <Typography variant="caption" color="text.secondary">Total Expenses</Typography>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: "error.main" }}>{fmt(total)}</Typography>
           </Box>
         </Card>
       )}
@@ -241,9 +230,10 @@ export default function ExpensesPage() {
               <TableRow>
                 <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Category</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Service Type</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Description</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Amount</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Paid To</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Payee</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Mode</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Notes</TableCell>
                 <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
@@ -252,7 +242,7 @@ export default function ExpensesPage() {
             <TableBody>
               {expenses.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} sx={{ textAlign: "center", py: 4 }}>
+                  <TableCell colSpan={9} sx={{ textAlign: "center", py: 4 }}>
                     <Typography color="text.secondary">No expenses for this period</Typography>
                   </TableCell>
                 </TableRow>
@@ -262,7 +252,7 @@ export default function ExpensesPage() {
                     <TableCell>
                       <Typography variant="body2">
                         {e.expenseDate
-                          ? new Date(e.expenseDate).toLocaleDateString()
+                          ? new Date(e.expenseDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
                           : `${MONTHS[e.month - 1]} ${e.year}`}
                       </Typography>
                     </TableCell>
@@ -270,12 +260,15 @@ export default function ExpensesPage() {
                       <Chip
                         label={CAT_LABELS[e.category]}
                         size="small"
-                        sx={{
-                          bgcolor: CAT_COLORS[e.category],
-                          color: "#fff",
-                          fontSize: "0.6875rem",
-                        }}
+                        sx={{ bgcolor: CAT_COLORS[e.category], color: "#fff", fontSize: "0.6875rem" }}
                       />
+                    </TableCell>
+                    <TableCell>
+                      {e.serviceTypeName ? (
+                        <Chip label={e.serviceTypeName} size="small" variant="outlined" sx={{ fontSize: "0.7rem" }} />
+                      ) : (
+                        <Typography variant="caption" color="text.secondary">—</Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">{e.description}</Typography>
@@ -285,12 +278,24 @@ export default function ExpensesPage() {
                         {fmt(e.amount)}
                       </Typography>
                     </TableCell>
-                    <TableCell>{e.paidTo ?? "—"}</TableCell>
+                    <TableCell>
+                      {e.payeeId ? (
+                        <Chip
+                          label={e.payeeName ?? "—"}
+                          size="small"
+                          clickable
+                          sx={{ fontSize: "0.7rem", cursor: "pointer" }}
+                          onClick={() => router.push(`/admin/property/payees/${e.payeeId}`)}
+                        />
+                      ) : (
+                        <Typography variant="caption" color="text.secondary">
+                          {e.paidTo ?? "—"}
+                        </Typography>
+                      )}
+                    </TableCell>
                     <TableCell>{e.paymentMode ?? "—"}</TableCell>
                     <TableCell>
-                      <Typography variant="caption" color="text.secondary">
-                        {e.notes ?? "—"}
-                      </Typography>
+                      <Typography variant="caption" color="text.secondary">{e.notes ?? "—"}</Typography>
                     </TableCell>
                     <TableCell>
                       <Box sx={{ display: "flex" }}>
@@ -325,6 +330,7 @@ export default function ExpensesPage() {
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
             {editing ? "Edit Expense" : "Add Expense"}
           </Typography>
+
           <TextField
             label="Description"
             size="small"
@@ -342,22 +348,50 @@ export default function ExpensesPage() {
             onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
             sx={{ mb: 2 }}
           />
+
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Category</InputLabel>
             <Select
               label="Category"
               value={form.category}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, category: e.target.value as ExpenseCategory }))
-              }
+              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as ExpenseCategory }))}
             >
               {CATEGORIES.map((c) => (
-                <MenuItem key={c} value={c}>
-                  {CAT_LABELS[c]}
+                <MenuItem key={c} value={c}>{CAT_LABELS[c]}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel>Service Type</InputLabel>
+            <Select
+              label="Service Type"
+              value={form.serviceTypeId}
+              onChange={(e) => setForm((f) => ({ ...f, serviceTypeId: e.target.value }))}
+            >
+              <MenuItem value="">— None —</MenuItem>
+              {serviceTypes.map((t) => (
+                <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel>Payee</InputLabel>
+            <Select
+              label="Payee"
+              value={form.payeeId}
+              onChange={(e) => setForm((f) => ({ ...f, payeeId: e.target.value }))}
+            >
+              <MenuItem value="">— None —</MenuItem>
+              {payees.filter((p) => p.isActive).map((p) => (
+                <MenuItem key={p.id} value={p.id}>
+                  {p.name} · {p.role}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
+
           <TextField
             label="Date"
             type="date"
@@ -367,14 +401,7 @@ export default function ExpensesPage() {
             onChange={(e) => setForm((f) => ({ ...f, expenseDate: e.target.value }))}
             sx={{ mb: 2 }}
           />
-          <TextField
-            label="Paid To"
-            size="small"
-            fullWidth
-            value={form.paidTo}
-            onChange={(e) => setForm((f) => ({ ...f, paidTo: e.target.value }))}
-            sx={{ mb: 2 }}
-          />
+
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Payment Mode</InputLabel>
             <Select
@@ -383,12 +410,11 @@ export default function ExpensesPage() {
               onChange={(e) => setForm((f) => ({ ...f, paymentMode: e.target.value }))}
             >
               {["Cash", "Bank Transfer", "Mobile Banking", "Other"].map((m) => (
-                <MenuItem key={m} value={m}>
-                  {m}
-                </MenuItem>
+                <MenuItem key={m} value={m}>{m}</MenuItem>
               ))}
             </Select>
           </FormControl>
+
           <TextField
             label="Notes"
             size="small"
@@ -399,11 +425,9 @@ export default function ExpensesPage() {
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             sx={{ mb: 2 }}
           />
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+
+          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+
           <Button
             variant="contained"
             fullWidth

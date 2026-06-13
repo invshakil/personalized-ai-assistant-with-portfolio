@@ -138,6 +138,37 @@ export interface PaymentTransaction {
   createdAt: string;
 }
 
+export interface Payee {
+  id: string;
+  name: string;
+  role: string;
+  phone: string | null;
+  email: string | null;
+  address: string | null;
+  nidNumber: string | null;
+  notes: string | null;
+  isActive: boolean;
+}
+
+export interface PayeeDocument {
+  id: string;
+  payeeId: string;
+  fileName: string;
+  storedName: string;
+  mimeType: string;
+  size: number;
+  label: string | null;
+  uploadedAt: string;
+}
+
+export interface PropertyServiceType {
+  id: string;
+  name: string;
+  category: ExpenseCategory;
+  description: string | null;
+  isActive: boolean;
+}
+
 export interface PropertyExpense {
   id: string;
   description: string;
@@ -151,6 +182,10 @@ export interface PropertyExpense {
   paymentMode: string | null;
   unitId: string | null;
   unitNumber: string | null;
+  payeeId: string | null;
+  payeeName: string | null;
+  serviceTypeId: string | null;
+  serviceTypeName: string | null;
   notes: string | null;
 }
 

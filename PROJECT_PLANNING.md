@@ -58,11 +58,21 @@ Defined in `prisma/schema.prisma`. Do not modify schema without updating this do
 | `AddOnService`                            | Service catalog (WiFi, Parking, Generator…)                                                                  |
 | `TenantService`                           | Per-tenant service fee (same service can cost different amounts per tenant); `@@unique[tenantId, serviceId]` |
 | `RentChange`                              | Scheduled rent increases — `effectiveDate`, `appliedAt` (null = pending, set by payment generation)          |
-| `Income`                                  | Salary, freelance, rental income entries by month/year                                                       |
 | `Expense`                                 | Maintenance, utility, salary, subscription expenses; `expenseDate`, `paidTo`, `paymentMode`                  |
 | `RenovationItem`                          | Construction cost line items with category, amount, vendor, status                                           |
+| `Employee`                                | Financial Tracker — business employees (config); `name` unique, `isActive`                                   |
+| `IncomeSource`                            | Financial Tracker — client/income source config (MapX, DevArena+DevCourt…); `name` unique                    |
+| `BizExpenseCategory`                      | Financial Tracker — tool/subscription expense category config; `name` unique                                 |
+| `Earning`                                 | Financial Tracker — client income; `sourceId`, `remittance` (REM/NON_REM), `amount`, `fiscalYear`            |
+| `EmployeePayment`                         | Financial Tracker — salary payments; `employeeId`, `type`, `reference`, `amount`, `fiscalYear`               |
+| `BizExpense`                              | Financial Tracker — business expenses; `categoryId`, `isRecurring`, `amount`, `fiscalYear`, `subscriptionId?` |
+| `Subscription`                            | Financial Tracker — recurring service; `monthlyAmount`, `startDate`, `endDate?`; auto-generates monthly `BizExpense` charges |
 
 Currency: **BDT (Bangladeshi Taka ৳)** throughout. All `Decimal` fields are BDT unless noted.
+
+> **Note:** the former generic `Income` model + `IncomeCategory` enum were removed (unused). The
+> business-finance domain now uses the dedicated Financial Tracker models above. The `Expense` model
+> is retained — it backs the property expense tracker. See `FINANCIAL_TRACKER.md` for the full design.
 
 ---
 
@@ -224,11 +234,37 @@ All sections use `padding: var(--px)` for horizontal spacing. Do not hardcode pa
 - Move-out is two-step: preview settlement → admin confirms
 - External members (no unit, service-only billing) supported
 
-### 2. Finance (`/admin/finance`)
+### 2. Financial Tracker (`/admin/finance`) ✅ complete (Phases 1–6)
 
-- Income entries (salary, freelance, rental) by month/year
-- Expense entries by category
-- Monthly P&L summary
+Business/agency finance (distinct from property finance). Ported from `Financial Tracker.xlsx`.
+See **FINANCIAL_TRACKER.md** for the full design, data model, and progress tracker.
+
+**Routes:**
+
+- `/admin/finance` — dashboard: per-FY P&L (income, emp costs, tools, net profit, margin), monthly
+  income trend + income-by-client charts, per-employee×FY salary matrix, remittance split
+- `/admin/finance/earnings` — client income log (REM/Non-rem), FY filter, add/edit drawer
+- `/admin/finance/payments` — employee salary payments, employee + FY filters
+- `/admin/finance/expenses` — one-off business expenses; subscription-generated charges shown read-only
+- `/admin/finance/subscriptions` — recurring services: start, **stop from a month**, resume, per-month
+  spend history, Active/Ended status; each active month auto-generates one expense charge (idempotent)
+- `/admin/finance/settings` — manage employees / income sources / expense categories (DB config)
+
+**Round-2 enhancements (2026-06-13):** all list pages default to the **current fiscal year**; the
+dashboard has a **date-range filter** (this month / last 3·6 mo / last 1·2 yr / this FY / all);
+**PDF downloads** for each salary, earning, expense + a dashboard **report PDF** (`@react-pdf/renderer`,
+`services/finance/pdfKit.tsx`); themed **delete-confirmation dialog** (`components/admin/ConfirmDialog.tsx`)
+replacing `window.confirm`.
+
+**Data:** `Employee`, `IncomeSource`, `BizExpenseCategory`, `Earning`, `EmployeePayment`,
+`BizExpense` (currency BDT, fiscal year July→June stored per row). Seeded from
+`prisma/data/financial-tracker.json` (212 rows) via `npm run seed:financial`. All Excel totals
+reconcile (total income ৳29,350,000).
+
+**API:** `src/app/api/admin/finance/` — earnings, payments, expenses, employees, sources,
+categories (each + `[id]`), dashboard. Services in `src/services/finance/`.
+
+> Note: the old generic `Income` model + `IncomeCategory` enum were removed (unused).
 
 ### 3. Renovation Tracker (`/admin/renovation`)
 
@@ -338,6 +374,8 @@ certbot --nginx -d sshakil.com -d www.sshakil.com
 | 2026-06-08 | Local PostgreSQL set up, `.env` + `.env.local` configured, `npx prisma db push` verified                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 2026-06-08 | **Portfolio fully ported** — `sass` installed; 13-file SCSS architecture; all 7 portfolio components implemented from `portfolio.html`; Nav + Footer; root layout with full SEO metadata + geo tags + 3× JSON-LD structured data; build passes zero errors                                                                                                                                                                                                                                            |
 | 2026-06-08 | **Admin panel v1** — migrated from `/dashboard` to `/admin`; DB-backed auth (bcrypt passwords, seeded admin user); APP_VERSION session invalidation; dark sidebar + header layout; full route set (property/finance/renovation stubs, AI assistant streaming chat, settings, account, login)                                                                                                                                                                                                          |
+| 2026-06-13 | **Financial Tracker round 2** — current-FY defaults on all list pages; dashboard date-range filter (month/3·6mo/1·2yr/FY/all); `Subscription` model + migration with idempotent monthly auto-charge generation, start/stop/resume + per-month history (`/admin/finance/subscriptions`); per-row PDF receipts (salary/income/expense) + dashboard report PDF; themed `ConfirmDialog` replacing `window.confirm`. Build/lint/tsc + HTTP smoke tests pass. |
+| 2026-06-13 | **Financial Tracker module** — ported `Financial Tracker.xlsx` (business finance). 6 new Prisma models + migration; removed unused `Income` model; `fiscalYear.ts` helper; exported 212 rows to `prisma/data/financial-tracker.json` + idempotent seeder (all Excel totals reconcile); `src/services/finance/` + 13 API routes; dashboard (P&L/charts/per-employee/remittance) + earnings/salaries/expenses CRUD + settings pages; sidebar "Financial Tracker" sub-nav. Build + lint + typecheck pass; authenticated end-to-end smoke test verified. Tracked in `FINANCIAL_TRACKER.md`. |
 | 2026-06-09 | **Admin panel v2 — MUI migration** — replaced Tailwind in all admin components with Material UI v9; Materio-inspired dark theme (`adminTheme.ts`); `AdminShell.tsx` provides `AppRouterCacheProvider` + `ThemeProvider` scoped to admin; rebuilt: sidebar (MUI List nav), header (MUI Box + Avatar), overview (animated stat cards, vivid colors), login (MUI TextField + Alert), AI chat (MUI Card + TextField multiline), settings (MUI Switch + TextField), account (MUI profile + password cards) |
 
 ---
@@ -350,5 +388,5 @@ In priority order:
 2. **Deploy to DigitalOcean** — push all commits → set up droplet → Nginx + SSL + PM2
 3. **Lesson 1.4 — tool use** — add Claude tool calls to `api/admin/ai/route.ts` querying the DB (`get_payment_summary`, `get_overdue_tenants`, `get_monthly_expenses`, `get_renovation_total`)
 4. **Property module** — units list, tenant details, payment tracker (mark PAID/PARTIAL/OVERDUE), due tracker
-5. **Finance module** — income/expense entries, monthly P&L summary
+5. ~~**Finance module**~~ ✅ done — see Financial Tracker (`FINANCIAL_TRACKER.md`)
 6. **Renovation module** — line items from spreadsheet data, totals by category

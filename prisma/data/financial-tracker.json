@@ -1,0 +1,1592 @@
+{
+  "meta": {
+    "currency": "BDT",
+    "fiscalYearRule": "July-June",
+    "exportedFrom": "Financial Tracker.xlsx"
+  },
+  "employees": [
+    "Robert Johnson",
+    "Jane Smith",
+    "Emily Davis",
+    "John Doe"
+  ],
+  "incomeSources": [
+    "DevArena+DevCourt",
+    "Freelance project",
+    "Incentive",
+    "MapX"
+  ],
+  "expenseCategories": [
+    "AI Tool Subscription",
+    "Hardware",
+    "Office/Electricity",
+    "Social",
+    "Software License"
+  ],
+  "earnings": [
+    {
+      "date": "2023-08-02",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-08-02",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-05",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-25",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-11-09",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-11-09",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-11-21",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-11-21",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-12-03",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-12-14",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-12-26",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-12-28",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-01-01",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-01-01",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-01-22",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-01-22",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-02-22",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-03-07",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-03-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-03-21",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-04-04",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-04-21",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-05-08",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-05-19",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-05-19",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-05-19",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-05",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-06",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-11",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-07-04",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-07-18",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-07-18",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-07-18",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-08-04",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-08-06",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-08-18",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-08-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-09",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-15",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-18",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-08",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-14",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-27",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-29",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-06",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-10",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-17",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-24",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-28",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-12-08",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-12-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-05",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-09",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-16",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-28",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-02-16",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-02-27",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-06",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-18",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-04-09",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-04-10",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-04-13",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-10",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-25",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-15",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-25",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-08-04",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-15",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-20",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-05",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-12",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-02-09",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-11",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-11",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-11",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-11",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-15",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-25",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-29",
+      "source": "Freelance project",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-30",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-31",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-01",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-02",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-03",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-04",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-05",
+      "source": "Incentive",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-07-24",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-07-24",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-08-14",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-08-31",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-07",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-16",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-24",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-20",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-05",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-16",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-26",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-11",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-24",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-15",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-25",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-02-10",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-01",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-07-10",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-07-24",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-08-05",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-08-24",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-02",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-10",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-05",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-16",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-22",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-01",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-06",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-15",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-01",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-15",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-07",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-21",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-28",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-02-14",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-02-14",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-03",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-08",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-17",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-01",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-07",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-23",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-28",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-05-03",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-05-10",
+      "source": "DevArena+DevCourt",
+      "remittance": "NON_REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-05-24",
+      "source": "MapX",
+      "remittance": "REM",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    }
+  ],
+  "employeePayments": [
+    {
+      "date": "2023-08-30",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-08-31",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-01",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-02",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-03",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-04",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-05",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2023-09-06",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-01-10",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-03-07",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-04-10",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-05-08",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-05-15",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-03",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-20",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-06-30",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "David",
+      "amount": 0,
+      "fiscalYear": "2023-2024"
+    },
+    {
+      "date": "2024-07-04",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-07-26",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-08-06",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "savannah+Michael+Christopher+wedding bonus",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-05",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-09",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-09-15",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Michael",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-08",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-10-20",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher+Michael bhai",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-07",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher+Michael bhai",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-11-10",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2024-12-09",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-09",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-01-12",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher+Michael bhai",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-02-06",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-02-09",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Michael bhai",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-06",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-03-11",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Michael bhai",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-04-09",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "savannah",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-11",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Michael bhai",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-08-21",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-13",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-16",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-08",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-02-10",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-04-10",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-05-10",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-06-16",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    },
+    {
+      "date": "2025-07-07",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-08-10",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-07",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-16",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-10",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-16",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-08",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-14",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-09-07",
+      "employee": "Jane Smith",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-08",
+      "employee": "Jane Smith",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-09",
+      "employee": "Jane Smith",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-20",
+      "employee": "Jane Smith",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-10-11",
+      "employee": "Jane Smith",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-11-12",
+      "employee": "Jane Smith",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-16",
+      "employee": "Jane Smith",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-02-13",
+      "employee": "Jane Smith",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2025-12-16",
+      "employee": "Emily Davis",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-01-15",
+      "employee": "Emily Davis",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-02-14",
+      "employee": "Emily Davis",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-04",
+      "employee": "Emily Davis",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-04",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-04",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-09",
+      "employee": "Jane Smith",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-03-18",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-09",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-09",
+      "employee": "Emily Davis",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-09",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-04-28",
+      "employee": "Jane Smith",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-05-10",
+      "employee": "John Doe",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-05-10",
+      "employee": "Robert Johnson",
+      "type": "SALARY",
+      "reference": "Christopher",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2026-05-24",
+      "employee": "Jane Smith",
+      "type": "SALARY",
+      "reference": "Mapx",
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    }
+  ],
+  "bizExpenses": [
+    {
+      "date": "2026-01-23",
+      "name": "Google Pro",
+      "category": "AI Tool Subscription",
+      "isRecurring": true,
+      "amount": 0,
+      "fiscalYear": "2025-2026"
+    },
+    {
+      "date": "2024-07-04",
+      "name": "Youtube Premium",
+      "category": "Social",
+      "isRecurring": true,
+      "amount": 0,
+      "fiscalYear": "2024-2025"
+    }
+  ]
+}

@@ -228,6 +228,36 @@ model RentChange {
   createdAt     DateTime  @default(now())
 }
 
+// ─── Payee Profiles ───────────────────────────────────────────────────────────
+
+model Payee {
+  id        String          @id @default(cuid())
+  name      String
+  role      String          // free text: "Caretaker", "Electrician", "Plumber"
+  phone     String?
+  email     String?
+  address   String?
+  nidNumber String?
+  notes     String?
+  isActive  Boolean         @default(true)
+  expenses  Expense[]
+  documents PayeeDocument[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model PayeeDocument {
+  id         String   @id @default(cuid())
+  payee      Payee    @relation(fields: [payeeId], references: [id], onDelete: Cascade)
+  payeeId    String
+  fileName   String
+  storedName String
+  mimeType   String
+  size       Int
+  label      String?  // "NID Front", "NID Back", "Contract"
+  uploadedAt DateTime @default(now())
+}
+
 // ─── Tenant Documents ─────────────────────────────────────────────────────────
 
 model TenantDocument {
@@ -242,44 +272,41 @@ model TenantDocument {
   uploadedAt DateTime @default(now())
 }
 
-// ─── Income & Expenses ────────────────────────────────────────────────────────
+// ─── Property Service Types ───────────────────────────────────────────────────
 
-model Income {
-  id          String      @id @default(cuid())
-  source      String      // e.g. "Savannah Group", "Christopher - AI Project"
-  amount      Decimal     @db.Decimal(10, 2)
-  currency    String      @default("BDT")
-  month       Int
-  year        Int
-  category    IncomeCategory
-  notes       String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-}
-
-enum IncomeCategory {
-  SALARY
-  FREELANCE
-  RENTAL
-  OTHER
-}
-
-model Expense {
+model PropertyServiceType {
   id          String          @id @default(cuid())
-  description String
-  amount      Decimal         @db.Decimal(10, 2)
-  currency    String          @default("BDT")
-  category    ExpenseCategory
-  month       Int
-  year        Int
-  expenseDate DateTime?
-  paidTo      String?
-  paymentMode String?
-  unitId      String?
-  unit        Unit?           @relation(fields: [unitId], references: [id])
-  notes       String?
+  name        String          @unique  // "Electricity", "Plumbing", "Caretaker Salary"
+  category    ExpenseCategory          // coarse group for reporting
+  description String?
+  isActive    Boolean         @default(true)
+  expenses    Expense[]
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+}
+
+// ─── Property Expenses ────────────────────────────────────────────────────────
+
+model Expense {
+  id            String               @id @default(cuid())
+  description   String
+  amount        Decimal              @db.Decimal(10, 2)
+  currency      String               @default("BDT")
+  category      ExpenseCategory
+  month         Int
+  year          Int
+  expenseDate   DateTime?
+  paidTo        String?              // legacy free-text; use payeeId for new records
+  paymentMode   String?
+  unitId        String?
+  unit          Unit?                @relation(fields: [unitId], references: [id])
+  payeeId       String?
+  payee         Payee?               @relation(fields: [payeeId], references: [id])
+  serviceTypeId String?
+  serviceType   PropertyServiceType? @relation(fields: [serviceTypeId], references: [id])
+  notes         String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 }
 
 enum ExpenseCategory {
@@ -312,4 +339,126 @@ enum RenovationStatus {
   IN_PROGRESS
   COMPLETED
   CANCELLED
+}
+
+// ─── Financial Tracker (business / agency) ──────────────────────────────────────
+// Tracks the software business — client income, employee salaries, tool
+// subscriptions, fiscal-year P&L. Distinct from property/rental finance above.
+// Currency: BDT throughout. Fiscal year = July→June, stored as "YYYY-YYYY".
+
+model Employee {
+  id        String            @id @default(cuid())
+  name      String            @unique
+  isActive  Boolean           @default(true)
+  notes     String?
+  payments  EmployeePayment[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+}
+
+// A client / income source. Used both as the origin of an Earning and as the
+// client(s) a salary payment is attributed to (many-to-many via EmployeePayment).
+model IncomeSource {
+  id             String            @id @default(cuid())
+  name           String            @unique
+  notes          String?
+  earnings       Earning[]
+  salaryPayments EmployeePayment[] @relation("PaymentClients")
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+}
+
+model BizExpenseCategory {
+  id            String         @id @default(cuid())
+  name          String         @unique
+  expenses      BizExpense[]
+  subscriptions Subscription[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+// A recurring subscription. Each active month auto-generates one BizExpense
+// charge (idempotent), so per-month history and reports come for free.
+// endDate null = active/ongoing; set when stopped (last month still charged).
+model Subscription {
+  id            String             @id @default(cuid())
+  name          String
+  categoryId    String
+  category      BizExpenseCategory @relation(fields: [categoryId], references: [id])
+  monthlyAmount Decimal            @db.Decimal(12, 2) // BDT
+  startDate     DateTime // normalized to the 1st of the start month
+  endDate       DateTime? // null = active; else last charged month (1st)
+  notes         String?
+  charges       BizExpense[]
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([endDate])
+}
+
+model Earning {
+  id         String         @id @default(cuid())
+  date       DateTime
+  sourceId   String
+  source     IncomeSource   @relation(fields: [sourceId], references: [id])
+  remittance RemittanceType @default(NON_REM)
+  amount     Decimal        @db.Decimal(12, 2) // BDT
+  fiscalYear String // "2023-2024"
+  notes      String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@index([fiscalYear])
+  @@index([sourceId])
+}
+
+model EmployeePayment {
+  id         String      @id @default(cuid())
+  date       DateTime
+  employeeId String
+  employee   Employee    @relation(fields: [employeeId], references: [id])
+  type       PaymentKind @default(SALARY)
+  reference  String? // optional free-text note (e.g. "wedding bonus"); legacy funding client
+  clients    IncomeSource[] @relation("PaymentClients") // client(s) this salary is attributed to
+  amount     Decimal     @db.Decimal(12, 2) // BDT
+  fiscalYear String
+  notes      String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+
+  @@index([fiscalYear])
+  @@index([employeeId])
+}
+
+model BizExpense {
+  id             String             @id @default(cuid())
+  date           DateTime
+  name           String // tool / service
+  categoryId     String
+  category       BizExpenseCategory @relation(fields: [categoryId], references: [id])
+  isRecurring    Boolean            @default(false)
+  amount         Decimal            @db.Decimal(12, 2) // BDT
+  fiscalYear     String
+  notes          String?
+  // Set when this row was auto-generated from a subscription. One charge per
+  // (subscription, month) — the date is normalized to the 1st of the month.
+  subscriptionId String?
+  subscription   Subscription?      @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@unique([subscriptionId, date])
+  @@index([fiscalYear])
+}
+
+enum RemittanceType {
+  REM
+  NON_REM
+}
+
+enum PaymentKind {
+  SALARY
+  BONUS
+  ADVANCE
+  OTHER
 }

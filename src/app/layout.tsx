@@ -65,7 +65,12 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${dmSans.variable} ${dmSerifDisplay.variable}`}>
-      <body className="font-sans antialiased text-gray-900">{children}</body>
+      {/* suppressHydrationWarning: browser extensions (e.g. Grammarly) inject
+          attributes like data-gr-ext-installed onto <body> before React
+          hydrates, which would otherwise log a benign hydration mismatch. */}
+      <body className="font-sans antialiased text-gray-900" suppressHydrationWarning>
+        {children}
+      </body>
     </html>
   );
 }
