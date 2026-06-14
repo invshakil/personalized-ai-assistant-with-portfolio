@@ -14,7 +14,12 @@ export interface FinanceDashboard {
     margin: number; // 0–1
   }[];
   totals: { income: number; empCosts: number; toolSubs: number; netProfit: number; margin: number };
-  byEmployee: { employeeId: string; name: string; byFiscalYear: Record<string, number>; total: number }[];
+  byEmployee: {
+    employeeId: string;
+    name: string;
+    byFiscalYear: Record<string, number>;
+    total: number;
+  }[];
   bySource: { sourceId: string; name: string; total: number; count: number }[];
   remittance: { rem: number; nonRem: number };
   monthlyIncome: { period: string; amount: number }[]; // "YYYY-MM", oldest first
@@ -40,21 +45,34 @@ export async function getFinanceDashboard(range: DashboardRange = {}): Promise<F
         }
       : {};
 
-  const [earningsByFy, paymentsByFy, expensesByFy, paymentsByEmpFy, employees, sources, remitGroups, allEarnings] =
-    await Promise.all([
-      db.earning.groupBy({ by: ["fiscalYear"], where: dateFilter, _sum: { amount: true } }),
-      db.employeePayment.groupBy({ by: ["fiscalYear"], where: dateFilter, _sum: { amount: true } }),
-      db.bizExpense.groupBy({ by: ["fiscalYear"], where: dateFilter, _sum: { amount: true } }),
-      db.employeePayment.groupBy({
-        by: ["employeeId", "fiscalYear"],
-        where: dateFilter,
-        _sum: { amount: true },
-      }),
-      db.employee.findMany({ select: { id: true, name: true } }),
-      db.earning.groupBy({ by: ["sourceId"], where: dateFilter, _sum: { amount: true }, _count: true }),
-      db.earning.groupBy({ by: ["remittance"], where: dateFilter, _sum: { amount: true } }),
-      db.earning.findMany({ where: dateFilter, select: { date: true, amount: true } }),
-    ]);
+  const [
+    earningsByFy,
+    paymentsByFy,
+    expensesByFy,
+    paymentsByEmpFy,
+    employees,
+    sources,
+    remitGroups,
+    allEarnings,
+  ] = await Promise.all([
+    db.earning.groupBy({ by: ["fiscalYear"], where: dateFilter, _sum: { amount: true } }),
+    db.employeePayment.groupBy({ by: ["fiscalYear"], where: dateFilter, _sum: { amount: true } }),
+    db.bizExpense.groupBy({ by: ["fiscalYear"], where: dateFilter, _sum: { amount: true } }),
+    db.employeePayment.groupBy({
+      by: ["employeeId", "fiscalYear"],
+      where: dateFilter,
+      _sum: { amount: true },
+    }),
+    db.employee.findMany({ select: { id: true, name: true } }),
+    db.earning.groupBy({
+      by: ["sourceId"],
+      where: dateFilter,
+      _sum: { amount: true },
+      _count: true,
+    }),
+    db.earning.groupBy({ by: ["remittance"], where: dateFilter, _sum: { amount: true } }),
+    db.earning.findMany({ where: dateFilter, select: { date: true, amount: true } }),
+  ]);
 
   const sourceNames = await db.incomeSource.findMany({ select: { id: true, name: true } });
   const sourceNameById = new Map(sourceNames.map((s) => [s.id, s.name]));
@@ -77,7 +95,14 @@ export async function getFinanceDashboard(range: DashboardRange = {}): Promise<F
     const empCosts = empByFy.get(fy) ?? 0;
     const toolSubs = toolByFy.get(fy) ?? 0;
     const netProfit = income - (empCosts + toolSubs);
-    return { fiscalYear: fy, income, empCosts, toolSubs, netProfit, margin: income ? netProfit / income : 0 };
+    return {
+      fiscalYear: fy,
+      income,
+      empCosts,
+      toolSubs,
+      netProfit,
+      margin: income ? netProfit / income : 0,
+    };
   });
 
   const totIncome = pnl.reduce((s, r) => s + r.income, 0);

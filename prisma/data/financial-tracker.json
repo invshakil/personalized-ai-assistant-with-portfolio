@@ -4,18 +4,8 @@
     "fiscalYearRule": "July-June",
     "exportedFrom": "Financial Tracker.xlsx"
   },
-  "employees": [
-    "Robert Johnson",
-    "Jane Smith",
-    "Emily Davis",
-    "John Doe"
-  ],
-  "incomeSources": [
-    "DevArena+DevCourt",
-    "Freelance project",
-    "Incentive",
-    "MapX"
-  ],
+  "employees": ["Robert Johnson", "Jane Smith", "Emily Davis", "John Doe"],
+  "incomeSources": ["DevArena+DevCourt", "Freelance project", "Incentive", "MapX"],
   "expenseCategories": [
     "AI Tool Subscription",
     "Hardware",

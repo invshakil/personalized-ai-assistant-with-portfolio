@@ -101,7 +101,12 @@ export default function BizExpensesPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ ...BLANK, date: todayInput(), fiscalYear: fiscalYearOf(new Date()), categoryId: categories[0]?.id ?? "" });
+    setForm({
+      ...BLANK,
+      date: todayInput(),
+      fiscalYear: fiscalYearOf(new Date()),
+      categoryId: categories[0]?.id ?? "",
+    });
     setError(null);
     setDrawerOpen(true);
   };
@@ -122,7 +127,11 @@ export default function BizExpensesPage() {
   };
 
   const onDateChange = (date: string) =>
-    setForm((f) => ({ ...f, date, fiscalYear: date ? fiscalYearOf(new Date(date)) : f.fiscalYear }));
+    setForm((f) => ({
+      ...f,
+      date,
+      fiscalYear: date ? fiscalYearOf(new Date(date)) : f.fiscalYear,
+    }));
 
   const save = async () => {
     setSaving(true);
@@ -167,7 +176,11 @@ export default function BizExpensesPage() {
       <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel>Fiscal Year</InputLabel>
-          <Select label="Fiscal Year" value={fyFilter} onChange={(e) => setFyFilter(e.target.value)}>
+          <Select
+            label="Fiscal Year"
+            value={fyFilter}
+            onChange={(e) => setFyFilter(e.target.value)}
+          >
             <MenuItem value="ALL">All fiscal years</MenuItem>
             {fiscalYears.map((fy) => (
               <MenuItem key={fy} value={fy}>
@@ -240,13 +253,20 @@ export default function BizExpensesPage() {
                 filtered.map((e) => (
                   <TableRow key={e.id} hover>
                     <TableCell data-label="Date">{fmtDate(e.date)}</TableCell>
-                    <TableCell data-label="Tool / Service" sx={{ fontWeight: 600 }}>{e.name}</TableCell>
+                    <TableCell data-label="Tool / Service" sx={{ fontWeight: 600 }}>
+                      {e.name}
+                    </TableCell>
                     <TableCell data-label="Category">
                       <Chip size="small" label={e.categoryName} variant="outlined" />
                     </TableCell>
                     <TableCell data-label="Recurring">
                       {e.subscriptionId ? (
-                        <Chip size="small" label="Subscription" color="primary" variant="outlined" />
+                        <Chip
+                          size="small"
+                          label="Subscription"
+                          color="primary"
+                          variant="outlined"
+                        />
                       ) : e.isRecurring ? (
                         <Chip size="small" label="Recurring" color="info" variant="outlined" />
                       ) : (
@@ -255,7 +275,11 @@ export default function BizExpensesPage() {
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell align="right" data-label="Amount" sx={{ fontWeight: 600, color: "error.main" }}>
+                    <TableCell
+                      align="right"
+                      data-label="Amount"
+                      sx={{ fontWeight: 600, color: "error.main" }}
+                    >
                       {fmt(e.amount)}
                     </TableCell>
                     <TableCell data-label="Fiscal Year">{e.fiscalYear}</TableCell>

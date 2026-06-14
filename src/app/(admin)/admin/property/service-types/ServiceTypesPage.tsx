@@ -111,10 +111,7 @@ export default function ServiceTypesPage() {
 
   return (
     <Box>
-      <PageHeader
-        title="Service Types"
-        subtitle="Categories for property expense classification"
-      />
+      <PageHeader title="Service Types" subtitle="Categories for property expense classification" />
 
       <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 3 }}>
         <Button variant="contained" startIcon={<Plus size={16} />} onClick={openAdd}>
@@ -222,7 +219,9 @@ export default function ServiceTypesPage() {
           <Select
             label="Category *"
             value={form.category}
-            onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as ExpenseCategory }))}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, category: e.target.value as ExpenseCategory }))
+            }
           >
             {CATEGORIES.map((c) => (
               <MenuItem key={c} value={c}>
@@ -243,14 +242,13 @@ export default function ServiceTypesPage() {
           sx={{ mb: 2 }}
         />
 
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
 
-        <Button
-          variant="contained"
-          fullWidth
-          disabled={!form.name || saving}
-          onClick={save}
-        >
+        <Button variant="contained" fullWidth disabled={!form.name || saving} onClick={save}>
           {saving ? "Saving…" : editing ? "Save Changes" : "Add Service Type"}
         </Button>
       </Drawer>

@@ -102,7 +102,12 @@ export default function EarningsPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ ...BLANK, date: todayInput(), fiscalYear: fiscalYearOf(new Date()), sourceId: sources[0]?.id ?? "" });
+    setForm({
+      ...BLANK,
+      date: todayInput(),
+      fiscalYear: fiscalYearOf(new Date()),
+      sourceId: sources[0]?.id ?? "",
+    });
     setError(null);
     setDrawerOpen(true);
   };
@@ -122,7 +127,11 @@ export default function EarningsPage() {
   };
 
   const onDateChange = (date: string) =>
-    setForm((f) => ({ ...f, date, fiscalYear: date ? fiscalYearOf(new Date(date)) : f.fiscalYear }));
+    setForm((f) => ({
+      ...f,
+      date,
+      fiscalYear: date ? fiscalYearOf(new Date(date)) : f.fiscalYear,
+    }));
 
   const save = async () => {
     setSaving(true);
@@ -166,7 +175,11 @@ export default function EarningsPage() {
       <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel>Fiscal Year</InputLabel>
-          <Select label="Fiscal Year" value={fyFilter} onChange={(e) => setFyFilter(e.target.value)}>
+          <Select
+            label="Fiscal Year"
+            value={fyFilter}
+            onChange={(e) => setFyFilter(e.target.value)}
+          >
             <MenuItem value="ALL">All fiscal years</MenuItem>
             {fiscalYears.map((fy) => (
               <MenuItem key={fy} value={fy}>
@@ -248,7 +261,11 @@ export default function EarningsPage() {
                         variant="outlined"
                       />
                     </TableCell>
-                    <TableCell align="right" data-label="Amount" sx={{ fontWeight: 600, color: "info.main" }}>
+                    <TableCell
+                      align="right"
+                      data-label="Amount"
+                      sx={{ fontWeight: 600, color: "info.main" }}
+                    >
                       {fmt(e.amount)}
                     </TableCell>
                     <TableCell data-label="Fiscal Year">{e.fiscalYear}</TableCell>
@@ -275,7 +292,11 @@ export default function EarningsPage() {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => setPendingDelete(e.id)}>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => setPendingDelete(e.id)}
+                          >
                             <Trash2 size={14} />
                           </IconButton>
                         </Tooltip>
@@ -327,7 +348,9 @@ export default function EarningsPage() {
             <Select
               label="Type"
               value={form.remittance}
-              onChange={(e) => setForm((f) => ({ ...f, remittance: e.target.value as RemittanceType }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, remittance: e.target.value as RemittanceType }))
+              }
             >
               <MenuItem value="REM">Remittance</MenuItem>
               <MenuItem value="NON_REM">Non-remittance</MenuItem>

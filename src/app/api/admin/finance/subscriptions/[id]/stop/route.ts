@@ -10,6 +10,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
-  const data = body.resume ? await resumeSubscription(id) : await stopSubscription(id, body.endDate);
+  const data = body.resume
+    ? await resumeSubscription(id)
+    : await stopSubscription(id, body.endDate);
   return Response.json({ data });
 }

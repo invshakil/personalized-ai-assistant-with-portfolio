@@ -318,13 +318,15 @@ export default function PropertyPage() {
 
   useEffect(() => {
     load();
-    propertyApi.listServices().then((services) =>
-      setServiceCatalog(
-        ((services ?? []) as { id: string; name: string; isActive: boolean }[])
-          .filter((s) => s.isActive)
-          .map((s) => ({ id: s.id, name: s.name }))
-      )
-    );
+    propertyApi
+      .listServices()
+      .then((services) =>
+        setServiceCatalog(
+          ((services ?? []) as { id: string; name: string; isActive: boolean }[])
+            .filter((s) => s.isActive)
+            .map((s) => ({ id: s.id, name: s.name }))
+        )
+      );
   }, [load]);
 
   const saveUnit = async () => {

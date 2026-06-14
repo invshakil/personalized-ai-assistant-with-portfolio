@@ -30,12 +30,12 @@ export const propertyApi = {
   activateTenant: (id: string) => apiPost(`/property/tenants/${id}/activate`),
   deactivateTenant: (id: string, body?: unknown) =>
     apiPost(`/property/tenants/${id}/deactivate`, body),
-  addRentChange: (id: string, body: unknown) => apiPost(`/property/tenants/${id}/rent-change`, body),
+  addRentChange: (id: string, body: unknown) =>
+    apiPost(`/property/tenants/${id}/rent-change`, body),
   autoDeactivateExpired: () => apiPost("/property/tenants/auto-deactivate-expired"),
 
   // ── Tenant documents ───────────────────────────────────────────────────
-  listTenantDocuments: (tenantId: string) =>
-    apiGet(`/property/tenants/${tenantId}/documents`),
+  listTenantDocuments: (tenantId: string) => apiGet(`/property/tenants/${tenantId}/documents`),
   uploadTenantDocuments: (tenantId: string, formData: FormData) =>
     apiUpload(`/property/tenants/${tenantId}/documents`, formData),
   deleteTenantDocument: (tenantId: string, docId: string) =>
@@ -53,8 +53,7 @@ export const propertyApi = {
     apiPost(`/property/payments/${paymentId}/transactions`, body),
   updatePaymentTransaction: (txId: string, body: unknown) =>
     apiPut(`/property/payments/transactions/${txId}`, body),
-  deletePaymentTransaction: (txId: string) =>
-    apiDelete(`/property/payments/transactions/${txId}`),
+  deletePaymentTransaction: (txId: string) => apiDelete(`/property/payments/transactions/${txId}`),
 
   // ── Rent changes ─────────────────────────────────────────────────────────
   updateRentChange: (rcId: string, body: unknown) => apiPut(`/property/rent-changes/${rcId}`, body),
@@ -89,7 +88,8 @@ export const propertyApi = {
   createPayee: (body: unknown) => apiPost<Payee>("/property/payees", body),
   updatePayee: (id: string, body: unknown) => apiPut<Payee>(`/property/payees/${id}`, body),
   deletePayee: (id: string) => apiDelete(`/property/payees/${id}`),
-  listPayeeDocuments: (payeeId: string) => apiGet<PayeeDocument[]>(`/property/payees/${payeeId}/documents`),
+  listPayeeDocuments: (payeeId: string) =>
+    apiGet<PayeeDocument[]>(`/property/payees/${payeeId}/documents`),
   uploadPayeeDocuments: (payeeId: string, formData: FormData) =>
     apiUpload(`/property/payees/${payeeId}/documents`, formData),
   deletePayeeDocument: (payeeId: string, docId: string) =>
@@ -97,7 +97,8 @@ export const propertyApi = {
 
   // ── Service types ──────────────────────────────────────────────────────
   listServiceTypes: () => apiGet<PropertyServiceType[]>("/property/service-types"),
-  createServiceType: (body: unknown) => apiPost<PropertyServiceType>("/property/service-types", body),
+  createServiceType: (body: unknown) =>
+    apiPost<PropertyServiceType>("/property/service-types", body),
   updateServiceType: (id: string, body: unknown) =>
     apiPut<PropertyServiceType>(`/property/service-types/${id}`, body),
   deleteServiceType: (id: string) => apiDelete(`/property/service-types/${id}`),

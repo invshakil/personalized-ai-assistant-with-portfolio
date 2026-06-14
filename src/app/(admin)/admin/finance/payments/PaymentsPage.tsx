@@ -120,7 +120,12 @@ export default function PaymentsPage() {
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ ...BLANK, date: todayInput(), fiscalYear: fiscalYearOf(new Date()), employeeId: employees[0]?.id ?? "" });
+    setForm({
+      ...BLANK,
+      date: todayInput(),
+      fiscalYear: fiscalYearOf(new Date()),
+      employeeId: employees[0]?.id ?? "",
+    });
     setError(null);
     setDrawerOpen(true);
   };
@@ -142,7 +147,11 @@ export default function PaymentsPage() {
   };
 
   const onDateChange = (date: string) =>
-    setForm((f) => ({ ...f, date, fiscalYear: date ? fiscalYearOf(new Date(date)) : f.fiscalYear }));
+    setForm((f) => ({
+      ...f,
+      date,
+      fiscalYear: date ? fiscalYearOf(new Date(date)) : f.fiscalYear,
+    }));
 
   const save = async () => {
     setSaving(true);
@@ -188,7 +197,11 @@ export default function PaymentsPage() {
       <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
         <FormControl size="small" sx={{ minWidth: 160 }}>
           <InputLabel>Fiscal Year</InputLabel>
-          <Select label="Fiscal Year" value={fyFilter} onChange={(e) => setFyFilter(e.target.value)}>
+          <Select
+            label="Fiscal Year"
+            value={fyFilter}
+            onChange={(e) => setFyFilter(e.target.value)}
+          >
             <MenuItem value="ALL">All fiscal years</MenuItem>
             {fiscalYears.map((fy) => (
               <MenuItem key={fy} value={fy}>
@@ -277,7 +290,13 @@ export default function PaymentsPage() {
                       <Chip
                         size="small"
                         label={KIND_LABEL[p.type]}
-                        color={p.type === "SALARY" ? "primary" : p.type === "BONUS" ? "success" : "default"}
+                        color={
+                          p.type === "SALARY"
+                            ? "primary"
+                            : p.type === "BONUS"
+                              ? "success"
+                              : "default"
+                        }
                         variant="outlined"
                       />
                     </TableCell>
@@ -303,7 +322,11 @@ export default function PaymentsPage() {
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell align="right" data-label="Amount" sx={{ fontWeight: 600, color: "warning.main" }}>
+                    <TableCell
+                      align="right"
+                      data-label="Amount"
+                      sx={{ fontWeight: 600, color: "warning.main" }}
+                    >
                       {fmt(p.amount)}
                     </TableCell>
                     <TableCell data-label="Fiscal Year">{p.fiscalYear}</TableCell>
@@ -325,7 +348,11 @@ export default function PaymentsPage() {
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => setPendingDelete(p.id)}>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => setPendingDelete(p.id)}
+                          >
                             <Trash2 size={14} />
                           </IconButton>
                         </Tooltip>
@@ -395,7 +422,8 @@ export default function PaymentsPage() {
               onChange={(e) =>
                 setForm((f) => ({
                   ...f,
-                  clientIds: typeof e.target.value === "string" ? e.target.value.split(",") : e.target.value,
+                  clientIds:
+                    typeof e.target.value === "string" ? e.target.value.split(",") : e.target.value,
                 }))
               }
               input={<OutlinedInput label="Client(s)" />}

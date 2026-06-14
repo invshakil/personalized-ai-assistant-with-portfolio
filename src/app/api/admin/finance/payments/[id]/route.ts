@@ -10,7 +10,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const { id } = await params;
   const body = await req.json();
   if (body.type && !(body.type in PaymentKind)) {
-    return Response.json({ error: "type must be SALARY, BONUS, ADVANCE or OTHER" }, { status: 400 });
+    return Response.json(
+      { error: "type must be SALARY, BONUS, ADVANCE or OTHER" },
+      { status: 400 }
+    );
   }
   const data = await updateEmployeePayment(id, {
     ...body,

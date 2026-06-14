@@ -26,7 +26,10 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "date, employeeId and amount are required" }, { status: 400 });
   }
   if (type && !(type in PaymentKind)) {
-    return Response.json({ error: "type must be SALARY, BONUS, ADVANCE or OTHER" }, { status: 400 });
+    return Response.json(
+      { error: "type must be SALARY, BONUS, ADVANCE or OTHER" },
+      { status: 400 }
+    );
   }
 
   const data = await createEmployeePayment({

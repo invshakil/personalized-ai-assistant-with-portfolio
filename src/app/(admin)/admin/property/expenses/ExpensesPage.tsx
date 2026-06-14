@@ -32,19 +32,42 @@ import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { PropertyExpense, ExpenseCategory, Payee, PropertyServiceType } from "@/types";
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 const CATEGORIES: ExpenseCategory[] = [
-  "MAINTENANCE", "UTILITY", "SALARY", "SUBSCRIPTION", "CONSTRUCTION", "OTHER",
+  "MAINTENANCE",
+  "UTILITY",
+  "SALARY",
+  "SUBSCRIPTION",
+  "CONSTRUCTION",
+  "OTHER",
 ];
 const CAT_LABELS: Record<ExpenseCategory, string> = {
-  MAINTENANCE: "Maintenance", UTILITY: "Utility", SALARY: "Salary",
-  SUBSCRIPTION: "Subscription", CONSTRUCTION: "Construction", OTHER: "Other",
+  MAINTENANCE: "Maintenance",
+  UTILITY: "Utility",
+  SALARY: "Salary",
+  SUBSCRIPTION: "Subscription",
+  CONSTRUCTION: "Construction",
+  OTHER: "Other",
 };
 const CAT_COLORS: Record<ExpenseCategory, string> = {
-  MAINTENANCE: "warning.main", UTILITY: "info.main", SALARY: "success.main",
-  SUBSCRIPTION: "primary.main", CONSTRUCTION: "error.main", OTHER: "text.secondary",
+  MAINTENANCE: "warning.main",
+  UTILITY: "info.main",
+  SALARY: "success.main",
+  SUBSCRIPTION: "primary.main",
+  CONSTRUCTION: "error.main",
+  OTHER: "text.secondary",
 };
 
 function fmt(n: number) {
@@ -180,7 +203,9 @@ export default function ExpensesPage() {
           <InputLabel>Month</InputLabel>
           <Select label="Month" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
             {MONTHS.map((m, i) => (
-              <MenuItem key={i + 1} value={i + 1}>{m}</MenuItem>
+              <MenuItem key={i + 1} value={i + 1}>
+                {m}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -188,7 +213,9 @@ export default function ExpensesPage() {
           <InputLabel>Year</InputLabel>
           <Select label="Year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
             {[2025, 2026, 2027, 2028].map((y) => (
-              <MenuItem key={y} value={y}>{y}</MenuItem>
+              <MenuItem key={y} value={y}>
+                {y}
+              </MenuItem>
             ))}
           </Select>
         </FormControl>
@@ -200,10 +227,16 @@ export default function ExpensesPage() {
       </Box>
 
       {expenses.length > 0 && (
-        <Card sx={{ bgcolor: "background.paper", mb: 2, display: "inline-flex", px: 3, py: 1.5, mr: 2 }}>
+        <Card
+          sx={{ bgcolor: "background.paper", mb: 2, display: "inline-flex", px: 3, py: 1.5, mr: 2 }}
+        >
           <Box>
-            <Typography variant="caption" color="text.secondary">Total Expenses</Typography>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: "error.main" }}>{fmt(total)}</Typography>
+            <Typography variant="caption" color="text.secondary">
+              Total Expenses
+            </Typography>
+            <Typography variant="h6" sx={{ fontWeight: 700, color: "error.main" }}>
+              {fmt(total)}
+            </Typography>
           </Box>
         </Card>
       )}
@@ -241,7 +274,10 @@ export default function ExpensesPage() {
                     <TableCell data-label="Date">
                       <Typography variant="body2">
                         {e.expenseDate
-                          ? new Date(e.expenseDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
+                          ? new Date(e.expenseDate).toLocaleDateString("en-GB", {
+                              day: "2-digit",
+                              month: "short",
+                            })
                           : `${MONTHS[e.month - 1]} ${e.year}`}
                       </Typography>
                     </TableCell>
@@ -249,14 +285,25 @@ export default function ExpensesPage() {
                       <Chip
                         label={CAT_LABELS[e.category]}
                         size="small"
-                        sx={{ bgcolor: CAT_COLORS[e.category], color: "#fff", fontSize: "0.6875rem" }}
+                        sx={{
+                          bgcolor: CAT_COLORS[e.category],
+                          color: "#fff",
+                          fontSize: "0.6875rem",
+                        }}
                       />
                     </TableCell>
                     <TableCell data-label="Service Type">
                       {e.serviceTypeName ? (
-                        <Chip label={e.serviceTypeName} size="small" variant="outlined" sx={{ fontSize: "0.7rem" }} />
+                        <Chip
+                          label={e.serviceTypeName}
+                          size="small"
+                          variant="outlined"
+                          sx={{ fontSize: "0.7rem" }}
+                        />
                       ) : (
-                        <Typography variant="caption" color="text.secondary">—</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          —
+                        </Typography>
                       )}
                     </TableCell>
                     <TableCell data-label="Description">
@@ -284,7 +331,9 @@ export default function ExpensesPage() {
                     </TableCell>
                     <TableCell data-label="Mode">{e.paymentMode ?? "—"}</TableCell>
                     <TableCell data-label="Notes">
-                      <Typography variant="caption" color="text.secondary">{e.notes ?? "—"}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {e.notes ?? "—"}
+                      </Typography>
                     </TableCell>
                     <TableCell data-label="Actions">
                       <Box sx={{ display: "flex" }}>
@@ -343,10 +392,14 @@ export default function ExpensesPage() {
             <Select
               label="Category"
               value={form.category}
-              onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as ExpenseCategory }))}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, category: e.target.value as ExpenseCategory }))
+              }
             >
               {CATEGORIES.map((c) => (
-                <MenuItem key={c} value={c}>{CAT_LABELS[c]}</MenuItem>
+                <MenuItem key={c} value={c}>
+                  {CAT_LABELS[c]}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -360,7 +413,9 @@ export default function ExpensesPage() {
             >
               <MenuItem value="">— None —</MenuItem>
               {serviceTypes.map((t) => (
-                <MenuItem key={t.id} value={t.id}>{t.name}</MenuItem>
+                <MenuItem key={t.id} value={t.id}>
+                  {t.name}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -373,11 +428,13 @@ export default function ExpensesPage() {
               onChange={(e) => setForm((f) => ({ ...f, payeeId: e.target.value }))}
             >
               <MenuItem value="">— None —</MenuItem>
-              {payees.filter((p) => p.isActive).map((p) => (
-                <MenuItem key={p.id} value={p.id}>
-                  {p.name} · {p.role}
-                </MenuItem>
-              ))}
+              {payees
+                .filter((p) => p.isActive)
+                .map((p) => (
+                  <MenuItem key={p.id} value={p.id}>
+                    {p.name} · {p.role}
+                  </MenuItem>
+                ))}
             </Select>
           </FormControl>
 
@@ -399,7 +456,9 @@ export default function ExpensesPage() {
               onChange={(e) => setForm((f) => ({ ...f, paymentMode: e.target.value }))}
             >
               {["Cash", "Bank Transfer", "Mobile Banking", "Other"].map((m) => (
-                <MenuItem key={m} value={m}>{m}</MenuItem>
+                <MenuItem key={m} value={m}>
+                  {m}
+                </MenuItem>
               ))}
             </Select>
           </FormControl>
@@ -415,7 +474,11 @@ export default function ExpensesPage() {
             sx={{ mb: 2 }}
           />
 
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
 
           <Button
             variant="contained"

@@ -24,14 +24,34 @@ async function main() {
 
   // ─── Property Service Types (idempotent — always runs) ───────────────────
   const serviceTypes: { name: string; category: ExpenseCategory; description?: string }[] = [
-    { name: "Electricity Bill", category: ExpenseCategory.UTILITY, description: "Monthly electricity" },
+    {
+      name: "Electricity Bill",
+      category: ExpenseCategory.UTILITY,
+      description: "Monthly electricity",
+    },
     { name: "Water Bill", category: ExpenseCategory.UTILITY, description: "Monthly water supply" },
     { name: "Gas Bill", category: ExpenseCategory.UTILITY, description: "Monthly gas supply" },
-    { name: "Internet / WiFi", category: ExpenseCategory.SUBSCRIPTION, description: "Internet service" },
+    {
+      name: "Internet / WiFi",
+      category: ExpenseCategory.SUBSCRIPTION,
+      description: "Internet service",
+    },
     { name: "Plumbing", category: ExpenseCategory.MAINTENANCE, description: "Plumbing repairs" },
-    { name: "General Maintenance", category: ExpenseCategory.MAINTENANCE, description: "Miscellaneous repairs" },
-    { name: "Caretaker Salary", category: ExpenseCategory.SALARY, description: "Monthly caretaker pay" },
-    { name: "Security Salary", category: ExpenseCategory.SALARY, description: "Monthly security guard pay" },
+    {
+      name: "General Maintenance",
+      category: ExpenseCategory.MAINTENANCE,
+      description: "Miscellaneous repairs",
+    },
+    {
+      name: "Caretaker Salary",
+      category: ExpenseCategory.SALARY,
+      description: "Monthly caretaker pay",
+    },
+    {
+      name: "Security Salary",
+      category: ExpenseCategory.SALARY,
+      description: "Monthly security guard pay",
+    },
     { name: "Cleaning", category: ExpenseCategory.SALARY, description: "Cleaning services" },
   ];
   for (const st of serviceTypes) {

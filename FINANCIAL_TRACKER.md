@@ -38,14 +38,14 @@ is captured separately for tax context; no FX conversion stored.
 
 ## 2. Source spreadsheet analysis
 
-| Sheet | Maps to | Columns | Rows |
-| ----- | ------- | ------- | ---- |
-| 💰 Earnings Log | `Earning` | Date, Source, Reference (Rem/Non-rem), Amount, Fiscal Year | 136 |
-| 👤 Employee Expenses | `EmployeePayment` | Date, Employee Name, Type (Salary), Reference (funding client), Amount, Fiscal Year | 74 |
-| 🛠️ Business Expenses | `BizExpense` | Date, Tool/Service, Category, Is Recurring?, Amount, Fiscal Year | 2 |
-| ⚙️ Settings | config tables | Employee Names, Income Sources, Expense Categories | — |
-| 🔄 Subscriptions | — | empty, ignored | 0 |
-| 📊 Dashboard | reports (not stored) | Per-FY P&L + per-employee × FY breakdown (computed) | — |
+| Sheet                | Maps to              | Columns                                                                             | Rows |
+| -------------------- | -------------------- | ----------------------------------------------------------------------------------- | ---- |
+| 💰 Earnings Log      | `Earning`            | Date, Source, Reference (Rem/Non-rem), Amount, Fiscal Year                          | 136  |
+| 👤 Employee Expenses | `EmployeePayment`    | Date, Employee Name, Type (Salary), Reference (funding client), Amount, Fiscal Year | 74   |
+| 🛠️ Business Expenses | `BizExpense`         | Date, Tool/Service, Category, Is Recurring?, Amount, Fiscal Year                    | 2    |
+| ⚙️ Settings          | config tables        | Employee Names, Income Sources, Expense Categories                                  | —    |
+| 🔄 Subscriptions     | —                    | empty, ignored                                                                      | 0    |
+| 📊 Dashboard         | reports (not stored) | Per-FY P&L + per-employee × FY breakdown (computed)                                 | —    |
 
 ### Decoded facts
 
@@ -162,19 +162,19 @@ enum PaymentKind    { SALARY BONUS ADVANCE OTHER }
 
 All return `{ data, error }`; all check `auth()` at the top (401 if missing); all validate input.
 
-| Route | Methods | Purpose |
-| ----- | ------- | ------- |
-| `earnings/route.ts` | GET (filter by FY/source), POST | list/create earnings |
-| `earnings/[id]/route.ts` | PUT, DELETE | edit/delete earning |
-| `employees/route.ts` | GET, POST | employee config |
-| `employees/[id]/route.ts` | PUT, DELETE | edit/deactivate |
-| `payments/route.ts` | GET (filter), POST | employee salary payments |
-| `payments/[id]/route.ts` | PUT, DELETE | edit/delete payment |
-| `expenses/route.ts` | GET, POST | business expenses |
-| `expenses/[id]/route.ts` | PUT, DELETE | edit/delete |
-| `sources/route.ts` + `[id]` | GET/POST/PUT/DELETE | income source config |
-| `categories/route.ts` + `[id]` | GET/POST/PUT/DELETE | expense category config |
-| `dashboard/route.ts` | GET | aggregated P&L + per-employee + trends |
+| Route                          | Methods                         | Purpose                                |
+| ------------------------------ | ------------------------------- | -------------------------------------- |
+| `earnings/route.ts`            | GET (filter by FY/source), POST | list/create earnings                   |
+| `earnings/[id]/route.ts`       | PUT, DELETE                     | edit/delete earning                    |
+| `employees/route.ts`           | GET, POST                       | employee config                        |
+| `employees/[id]/route.ts`      | PUT, DELETE                     | edit/deactivate                        |
+| `payments/route.ts`            | GET (filter), POST              | employee salary payments               |
+| `payments/[id]/route.ts`       | PUT, DELETE                     | edit/delete payment                    |
+| `expenses/route.ts`            | GET, POST                       | business expenses                      |
+| `expenses/[id]/route.ts`       | PUT, DELETE                     | edit/delete                            |
+| `sources/route.ts` + `[id]`    | GET/POST/PUT/DELETE             | income source config                   |
+| `categories/route.ts` + `[id]` | GET/POST/PUT/DELETE             | expense category config                |
+| `dashboard/route.ts`           | GET                             | aggregated P&L + per-employee + trends |
 
 ---
 
@@ -204,16 +204,16 @@ committed so the import is reproducible without the .xlsx.
 
 ## 7. Phase plan & progress tracker
 
-| Phase | Deliverable | Status |
-| ----- | ----------- | ------ |
-| 0 | Excel analysis + plan + this doc | ✅ done (2026-06-13) |
-| 1 | Prisma models + migration + `fiscalYear.ts` helper + update PROJECT_PLANNING.md schema table | ✅ done (2026-06-13) |
-| 2 | Export Excel → `financial-tracker.json` + seeder (212 rows + config) | ✅ done (2026-06-13) — all 9 verification targets reconcile |
-| 3 | API routes — earnings, payments, expenses, config, dashboard | ✅ done (2026-06-13) — service layer `src/services/finance/` + 13 route handlers; dashboard reconciles to Excel |
-| 4 | Dashboard page (P&L, margins, charts, per-employee, remittance split) | ✅ done (2026-06-13) — `FinanceDashboardPage` + `FinanceCharts` (recharts) |
-| 5 | CRUD pages — earnings, payments, expenses | ✅ done (2026-06-13) — Drawer add/edit, FY filter, create+delete verified via API |
-| 6 | Settings page — employees / sources / categories config | ✅ done (2026-06-13) — `FinanceSettingsPage`; delete guarded when referenced |
-| 7 | Wire AI assistant tools (optional); final polish | 🔲 — see notes below |
+| Phase | Deliverable                                                                                  | Status                                                                                                          |
+| ----- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 0     | Excel analysis + plan + this doc                                                             | ✅ done (2026-06-13)                                                                                            |
+| 1     | Prisma models + migration + `fiscalYear.ts` helper + update PROJECT_PLANNING.md schema table | ✅ done (2026-06-13)                                                                                            |
+| 2     | Export Excel → `financial-tracker.json` + seeder (212 rows + config)                         | ✅ done (2026-06-13) — all 9 verification targets reconcile                                                     |
+| 3     | API routes — earnings, payments, expenses, config, dashboard                                 | ✅ done (2026-06-13) — service layer `src/services/finance/` + 13 route handlers; dashboard reconciles to Excel |
+| 4     | Dashboard page (P&L, margins, charts, per-employee, remittance split)                        | ✅ done (2026-06-13) — `FinanceDashboardPage` + `FinanceCharts` (recharts)                                      |
+| 5     | CRUD pages — earnings, payments, expenses                                                    | ✅ done (2026-06-13) — Drawer add/edit, FY filter, create+delete verified via API                               |
+| 6     | Settings page — employees / sources / categories config                                      | ✅ done (2026-06-13) — `FinanceSettingsPage`; delete guarded when referenced                                    |
+| 7     | Wire AI assistant tools (optional); final polish                                             | 🔲 — see notes below                                                                                            |
 
 ### Phase 7 candidates (optional)
 
@@ -227,13 +227,13 @@ committed so the import is reproducible without the .xlsx.
 
 Decisions: **Subscription entity + monthly auto-charge**; **confirm dialog on delete only**.
 
-| Phase | Deliverable | Status |
-| ----- | ----------- | ------ |
-| 8 | Reusable `ConfirmDialog` (themed) replacing `window.confirm`; **default every list page to the current fiscal year** (switch to past years / All) | ✅ done (2026-06-13) — `src/components/admin/ConfirmDialog.tsx`; earnings/payments/expenses/settings all default to current FY + themed delete confirm |
-| 9 | `Subscription` model + migration; monthly auto-charge generation (idempotent, like property rent); APIs; Subscriptions page — start, **stop from a month**, per-month spend history, start date + Active/Ended status; generated charges flow into reports automatically | ✅ done (2026-06-13) — migration `20260613100000_add_subscriptions`; `services/finance/subscriptions.ts`; `/admin/finance/subscriptions` page; generation also runs on expenses/dashboard reads; verified create→4 charges, stop, resume, delete cascade |
-| 10 | Dashboard **date-range filter** — This month / Last 3 / Last 6 / Last 1yr / Last 2yr / This FY (default) / All | ✅ done (2026-06-13) — `getFinanceDashboard({from,to})`; verified June-2026=৳0, FY=৳9,750,000, All=৳29,350,000 |
-| 11 | **PDF downloads** — per-row salary receipt, earning receipt, expense receipt + dashboard report PDF (`@react-pdf/renderer`, mirrors property receipt route) | ✅ done (2026-06-13) — `services/finance/pdfKit.tsx` + 4 routes; per-row Download buttons; report PDF honors the active date range. BDT rendered as "BDT n" (standard fonts lack ৳) |
-| 12 | Verify (build/lint/typecheck + reconcile); update this doc + PROJECT_PLANNING | ✅ done (2026-06-13) — build/lint/tsc clean; authenticated HTTP smoke tests for ranges, PDFs, and full subscription lifecycle all pass |
+| Phase | Deliverable                                                                                                                                                                                                                                                              | Status                                                                                                                                                                                                                                                   |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 8     | Reusable `ConfirmDialog` (themed) replacing `window.confirm`; **default every list page to the current fiscal year** (switch to past years / All)                                                                                                                        | ✅ done (2026-06-13) — `src/components/admin/ConfirmDialog.tsx`; earnings/payments/expenses/settings all default to current FY + themed delete confirm                                                                                                   |
+| 9     | `Subscription` model + migration; monthly auto-charge generation (idempotent, like property rent); APIs; Subscriptions page — start, **stop from a month**, per-month spend history, start date + Active/Ended status; generated charges flow into reports automatically | ✅ done (2026-06-13) — migration `20260613100000_add_subscriptions`; `services/finance/subscriptions.ts`; `/admin/finance/subscriptions` page; generation also runs on expenses/dashboard reads; verified create→4 charges, stop, resume, delete cascade |
+| 10    | Dashboard **date-range filter** — This month / Last 3 / Last 6 / Last 1yr / Last 2yr / This FY (default) / All                                                                                                                                                           | ✅ done (2026-06-13) — `getFinanceDashboard({from,to})`; verified June-2026=৳0, FY=৳9,750,000, All=৳29,350,000                                                                                                                                          |
+| 11    | **PDF downloads** — per-row salary receipt, earning receipt, expense receipt + dashboard report PDF (`@react-pdf/renderer`, mirrors property receipt route)                                                                                                              | ✅ done (2026-06-13) — `services/finance/pdfKit.tsx` + 4 routes; per-row Download buttons; report PDF honors the active date range. BDT rendered as "BDT n" (standard fonts lack ৳)                                                                      |
+| 12    | Verify (build/lint/typecheck + reconcile); update this doc + PROJECT_PLANNING                                                                                                                                                                                            | ✅ done (2026-06-13) — build/lint/tsc clean; authenticated HTTP smoke tests for ranges, PDFs, and full subscription lifecycle all pass                                                                                                                   |
 
 ## 12. Enhancement round 4 (2026-06-14 — bulk PDF export, richer headers, employee phone) ✅ complete
 
@@ -291,17 +291,17 @@ charges are read-only on the Expenses page (managed from the Subscriptions page)
 
 ## 8. Verification targets (must match Excel after seed)
 
-| Check | Expected |
-| ----- | -------- |
-| Total income, all FYs | ৳29,350,000 |
-| FY 2023-2024 income | ৳9,200,000 |
-| FY 2024-2025 income | ৳10,400,000 |
-| FY 2025-2026 income | ৳9,750,000 |
-| MapX total | ৳22,800,000 (92 rows) |
-| John total paid | ৳1,420,000 (44 rows) |
-| Jane total paid | ৳1,180,000 (11 rows) |
-| Earnings row count | 136 |
-| Employee payment row count | 74 |
+| Check                      | Expected              |
+| -------------------------- | --------------------- |
+| Total income, all FYs      | ৳29,350,000           |
+| FY 2023-2024 income        | ৳9,200,000            |
+| FY 2024-2025 income        | ৳10,400,000           |
+| FY 2025-2026 income        | ৳9,750,000           |
+| MapX total                 | ৳22,800,000 (92 rows) |
+| John total paid          | ৳1,420,000 (44 rows)  |
+| Jane total paid        | ৳1,180,000 (11 rows)  |
+| Earnings row count         | 136                   |
+| Employee payment row count | 74                    |
 
 ---
 
