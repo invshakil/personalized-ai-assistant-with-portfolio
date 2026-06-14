@@ -25,7 +25,15 @@ import { Plus, Pencil, Trash2 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { financeApi } from "@/lib/api/finance";
-import type { EmployeeRow, SourceRow, CategoryRow } from "../types";
+import type { EmployeeRow, SourceRow, CategoryRow, BusinessProfile } from "../types";
+
+const BLANK_BUSINESS: BusinessProfile = {
+  name: "",
+  tagline: "",
+  address: "",
+  phone: "",
+  email: "",
+};
 import { fmt } from "../format";
 
 type Kind = "employee" | "source" | "category";
@@ -61,22 +69,42 @@ export default function FinanceSettingsPage() {
   const [toast, setToast] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<{ kind: Kind; id: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [business, setBusiness] = useState<BusinessProfile>(BLANK_BUSINESS);
+  const [bizSaving, setBizSaving] = useState(false);
+  const [bizSaved, setBizSaved] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [e, s, c] = await Promise.all([
+      const [e, s, c, b] = await Promise.all([
         financeApi.listEmployees(),
         financeApi.listClients(),
         financeApi.listCategories(),
+        financeApi.getBusinessProfile(),
       ]);
       setEmployees(e ?? []);
       setSources(s ?? []);
       setCategories(c ?? []);
+      if (b) setBusiness(b);
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const saveBusiness = async () => {
+    setBizSaving(true);
+    setBizSaved(false);
+    try {
+      const saved = await financeApi.updateBusinessProfile(business);
+      setBusiness(saved);
+      setBizSaved(true);
+      setTimeout(() => setBizSaved(false), 3000);
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Failed to save business profile");
+    } finally {
+      setBizSaving(false);
+    }
+  };
 
   useEffect(() => {
     load();
@@ -154,6 +182,62 @@ export default function FinanceSettingsPage() {
   return (
     <Box>
       <PageHeader title="Financial Tracker Settings" subtitle="Manage employees, clients & categories" />
+
+      {/* Business profile — printed on all receipts, statements & reports */}
+      <Card sx={{ bgcolor: "background.paper", mb: 3 }}>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
+            <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1 }}>
+              Business Profile
+            </Typography>
+            {bizSaved && <Chip size="small" color="success" label="Saved" />}
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+            Shown as the letterhead on every receipt, statement and report PDF.
+          </Typography>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
+            <TextField
+              label="Company / name"
+              size="small"
+              value={business.name}
+              onChange={(e) => setBusiness((b) => ({ ...b, name: e.target.value }))}
+            />
+            <TextField
+              label="Tagline"
+              size="small"
+              value={business.tagline}
+              onChange={(e) => setBusiness((b) => ({ ...b, tagline: e.target.value }))}
+            />
+            <TextField
+              label="Address"
+              size="small"
+              value={business.address}
+              onChange={(e) => setBusiness((b) => ({ ...b, address: e.target.value }))}
+            />
+            <TextField
+              label="Phone"
+              size="small"
+              value={business.phone}
+              onChange={(e) => setBusiness((b) => ({ ...b, phone: e.target.value }))}
+            />
+            <TextField
+              label="Email"
+              size="small"
+              value={business.email}
+              onChange={(e) => setBusiness((b) => ({ ...b, email: e.target.value }))}
+            />
+          </Box>
+          <Box sx={{ mt: 2 }}>
+            <Button
+              variant="contained"
+              onClick={saveBusiness}
+              disabled={bizSaving || !business.name.trim()}
+            >
+              {bizSaving ? "Saving…" : "Save Business Profile"}
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 3 }}>
         {/* Employees */}

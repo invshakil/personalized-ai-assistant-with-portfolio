@@ -175,7 +175,8 @@ UI (Claude proposes → user approves → you call). Each throws on validation f
 `createService`/`updateService`/`deactivateService`/`assignService`/`updateServiceAssignment`/`endServiceAssignment` ·
 `createRentChange`/`updateRentChange`/`deleteRentChange` · document upload/delete helpers.
 
-**Admin:** `updateDisplayName` · `changePassword` · `upsertSiteSettings`.
+**Admin:** `updateDisplayName` · `changePassword` · `upsertSiteSettings` ·
+`getBusinessProfile`/`updateBusinessProfile` (PDF letterhead identity).
 
 ---
 

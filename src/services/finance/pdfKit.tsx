@@ -3,19 +3,15 @@
    so amounts are rendered as "BDT 1,23,456" (en-IN grouping). */
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
 
-// ── Business identity shown on every document header ─────────────────────────
-// EDIT these to your real company details — they appear on all receipts/reports.
-export const BUSINESS = {
-  name: "Syful Islam Shakil",
-  tagline: "Software Engineering & Consulting",
-  address: "Dhaka, Bangladesh",
-  phone: "+880 1675 332 265",
-  email: "syful.shakil.it@gmail.com",
-};
-
-// Back-compat aliases (older imports).
-export const BUSINESS_NAME = BUSINESS.name;
-export const BUSINESS_TAGLINE = BUSINESS.tagline;
+// Business identity shown on every document header. Managed in admin settings
+// (Financial Tracker → Settings → Business Profile) and passed in per render.
+export interface Business {
+  name: string;
+  tagline: string;
+  address: string;
+  phone: string;
+  email: string;
+}
 
 export function pdfMoney(n: number): string {
   return `BDT ${Math.round(n).toLocaleString("en-IN")}`;
@@ -65,17 +61,17 @@ export const s = StyleSheet.create({
 });
 
 /** Letterhead block: business name + tagline on the left, contact info right. */
-export function BusinessHeader() {
+export function BusinessHeader({ business }: { business: Business }) {
   return (
     <View style={s.headerRow}>
       <View>
-        <Text style={s.brand}>{BUSINESS.name}</Text>
-        <Text style={s.tagline}>{BUSINESS.tagline}</Text>
+        <Text style={s.brand}>{business.name}</Text>
+        {business.tagline ? <Text style={s.tagline}>{business.tagline}</Text> : null}
       </View>
       <View style={s.contactBlock}>
-        <Text style={s.contact}>{BUSINESS.address}</Text>
-        <Text style={s.contact}>{BUSINESS.phone}</Text>
-        <Text style={s.contact}>{BUSINESS.email}</Text>
+        {business.address ? <Text style={s.contact}>{business.address}</Text> : null}
+        {business.phone ? <Text style={s.contact}>{business.phone}</Text> : null}
+        {business.email ? <Text style={s.contact}>{business.email}</Text> : null}
       </View>
     </View>
   );
@@ -88,6 +84,7 @@ export interface ReceiptField {
 
 /** A single-record receipt/voucher (salary, income, expense). */
 export function ReceiptDocument(props: {
+  business: Business;
   docType: string;
   generatedAt: string;
   fields: ReceiptField[];
@@ -100,7 +97,7 @@ export function ReceiptDocument(props: {
   return (
     <Document>
       <Page size="A4" style={s.page}>
-        <BusinessHeader />
+        <BusinessHeader business={props.business} />
         <Text style={s.docType}>{props.docType}</Text>
         <Text style={s.meta}>Generated {props.generatedAt}</Text>
         <View style={s.divider} />
@@ -132,6 +129,7 @@ export interface ListColumn {
 
 /** A multi-row listing/statement PDF (e.g. "download all" exports). */
 export function ListDocument(props: {
+  business: Business;
   docType: string;
   generatedAt: string;
   subtitle?: string;
@@ -155,7 +153,7 @@ export function ListDocument(props: {
   return (
     <Document>
       <Page size="A4" style={s.page}>
-        <BusinessHeader />
+        <BusinessHeader business={props.business} />
         <Text style={s.docType}>{props.docType}</Text>
         <Text style={s.meta}>
           {props.subtitle ? `${props.subtitle} · ` : ""}
@@ -177,7 +175,7 @@ export function ListDocument(props: {
           </View>
         )}
 
-        <Text style={s.footer}>{props.footerNote ?? `Computer-generated — ${BUSINESS.name}`}</Text>
+        <Text style={s.footer}>{props.footerNote ?? `Computer-generated — ${props.business.name}`}</Text>
       </Page>
     </Document>
   );

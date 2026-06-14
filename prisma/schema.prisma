@@ -78,6 +78,18 @@ model SiteSettings {
   updatedAt         DateTime @updatedAt
 }
 
+// Business identity printed on Financial Tracker PDFs (receipts, statements,
+// reports). Admin-editable singleton; falls back to defaults if unset.
+model BusinessProfile {
+  id        String   @id @default("singleton")
+  name      String   @default("Syful Islam Shakil")
+  tagline   String   @default("Software Engineering & Consulting")
+  address   String   @default("")
+  phone     String   @default("")
+  email     String   @default("")
+  updatedAt DateTime @updatedAt
+}
+
 // ─── Property Settings (singleton) ───────────────────────────────────────────
 
 model PropertySettings {

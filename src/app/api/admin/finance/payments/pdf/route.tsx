@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getEmployeePayments } from "@/services/finance";
 import { ListDocument, pdfResponse, pdfMoney, pdfDate } from "@/services/finance/pdfKit";
+import { getBusinessProfile } from "@/services/admin";
 
 const KIND: Record<string, string> = {
   SALARY: "Salary",
@@ -22,8 +23,11 @@ export async function GET(req: NextRequest) {
   const rows = await getEmployeePayments({ fiscalYear, employeeId });
   const total = rows.reduce((sum, r) => sum + r.amount, 0);
 
+  const business = await getBusinessProfile();
+
   const buffer = await renderToBuffer(
     <ListDocument
+      business={business}
       docType="Salary Payments Statement"
       generatedAt={pdfDate(new Date().toISOString())}
       subtitle={fiscalYear ? `FY ${fiscalYear}` : "All fiscal years"}

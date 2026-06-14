@@ -89,6 +89,14 @@ export interface CategoryRow {
   expenseCount: number;
 }
 
+export interface BusinessProfile {
+  name: string;
+  tagline: string;
+  address: string;
+  phone: string;
+  email: string;
+}
+
 export interface FinanceDashboardData {
   fiscalYears: string[];
   pnl: {
