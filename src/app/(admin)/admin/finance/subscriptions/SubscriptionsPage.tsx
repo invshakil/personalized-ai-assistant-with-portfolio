@@ -29,6 +29,7 @@ import { Plus, Pencil, Trash2, CircleStop, Play, History } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { financeApi } from "@/lib/api/finance";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { SubscriptionRow, SubscriptionDetail, CategoryRow } from "../types";
 import { fmt, fmtMonth, thisMonthInput } from "../format";
 
@@ -190,7 +191,7 @@ export default function SubscriptionsPage() {
         </Box>
       ) : (
         <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
-          <Table size="small">
+          <Table size="small" sx={mobileCardTableSx}>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700 }}>Service</TableCell>
@@ -216,13 +217,13 @@ export default function SubscriptionsPage() {
               ) : (
                 subs.map((s) => (
                   <TableRow key={s.id} hover>
-                    <TableCell sx={{ fontWeight: 600 }}>{s.name}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Service" sx={{ fontWeight: 600 }}>{s.name}</TableCell>
+                    <TableCell data-label="Category">
                       <Chip size="small" label={s.categoryName} variant="outlined" />
                     </TableCell>
-                    <TableCell align="right">{fmt(s.monthlyAmount)}</TableCell>
-                    <TableCell>{fmtMonth(s.startDate)}</TableCell>
-                    <TableCell>
+                    <TableCell align="right" data-label="Monthly">{fmt(s.monthlyAmount)}</TableCell>
+                    <TableCell data-label="Started">{fmtMonth(s.startDate)}</TableCell>
+                    <TableCell data-label="Status">
                       {s.isActive ? (
                         <Chip size="small" label="Active" color="success" variant="outlined" />
                       ) : (
@@ -234,13 +235,13 @@ export default function SubscriptionsPage() {
                         />
                       )}
                     </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, color: "error.main" }}>
+                    <TableCell align="right" data-label="Total Spent" sx={{ fontWeight: 600, color: "error.main" }}>
                       {fmt(s.totalSpent)}
                       <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                         {s.monthsCharged} mo
                       </Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Actions">
                       <Box sx={{ display: "flex" }}>
                         <Tooltip title="Monthly history">
                           <IconButton size="small" onClick={() => openHistory(s.id)}>
@@ -388,7 +389,7 @@ export default function SubscriptionsPage() {
               </Typography>
             </Box>
             <Divider sx={{ mb: 1 }} />
-            <Table size="small">
+            <Table size="small" sx={mobileCardTableSx}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 700 }}>Month</TableCell>
@@ -401,9 +402,9 @@ export default function SubscriptionsPage() {
               <TableBody>
                 {detail.charges.map((c) => (
                   <TableRow key={c.id}>
-                    <TableCell>{fmtMonth(c.date)}</TableCell>
-                    <TableCell>{c.fiscalYear}</TableCell>
-                    <TableCell align="right">{fmt(c.amount)}</TableCell>
+                    <TableCell data-label="Month">{fmtMonth(c.date)}</TableCell>
+                    <TableCell data-label="Fiscal Year">{c.fiscalYear}</TableCell>
+                    <TableCell align="right" data-label="Amount">{fmt(c.amount)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

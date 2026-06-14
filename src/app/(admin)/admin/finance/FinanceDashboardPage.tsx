@@ -26,6 +26,7 @@ import {
 import { Download } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import { financeApi } from "@/lib/api/finance";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { FinanceDashboardData } from "./types";
 import { fmt, fmtPct, rangeBounds, RANGE_LABELS, type RangePreset } from "./format";
 
@@ -164,7 +165,7 @@ export default function FinanceDashboardPage() {
             Business Performance by Fiscal Year
           </Typography>
           <TableContainer>
-            <Table size="small">
+            <Table size="small" sx={mobileCardTableSx}>
               <TableHead>
                 <TableRow>
                   <TableCell>Fiscal Year</TableCell>
@@ -178,18 +179,18 @@ export default function FinanceDashboardPage() {
               <TableBody>
                 {data.pnl.map((r) => (
                   <TableRow key={r.fiscalYear} hover>
-                    <TableCell sx={{ fontWeight: 600 }}>{r.fiscalYear}</TableCell>
-                    <TableCell align="right">{fmt(r.income)}</TableCell>
-                    <TableCell align="right" sx={{ color: "warning.main" }}>
+                    <TableCell data-label="Fiscal Year" sx={{ fontWeight: 600 }}>{r.fiscalYear}</TableCell>
+                    <TableCell align="right" data-label="Income">{fmt(r.income)}</TableCell>
+                    <TableCell align="right" data-label="Emp Costs" sx={{ color: "warning.main" }}>
                       {fmt(r.empCosts)}
                     </TableCell>
-                    <TableCell align="right" sx={{ color: "warning.main" }}>
+                    <TableCell align="right" data-label="Tools/Subs" sx={{ color: "warning.main" }}>
                       {fmt(r.toolSubs)}
                     </TableCell>
-                    <TableCell align="right" sx={{ color: "success.main", fontWeight: 600 }}>
+                    <TableCell align="right" data-label="Net Profit" sx={{ color: "success.main", fontWeight: 600 }}>
                       {fmt(r.netProfit)}
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" data-label="Margin">
                       <Chip
                         size="small"
                         label={fmtPct(r.margin)}
@@ -213,7 +214,7 @@ export default function FinanceDashboardPage() {
               Salaries Paid by Employee
             </Typography>
             <TableContainer>
-              <Table size="small">
+              <Table size="small" sx={mobileCardTableSx}>
                 <TableHead>
                   <TableRow>
                     <TableCell>Employee</TableCell>
@@ -228,13 +229,13 @@ export default function FinanceDashboardPage() {
                 <TableBody>
                   {data.byEmployee.map((e) => (
                     <TableRow key={e.employeeId} hover>
-                      <TableCell sx={{ fontWeight: 600 }}>{e.name}</TableCell>
+                      <TableCell data-label="Employee" sx={{ fontWeight: 600 }}>{e.name}</TableCell>
                       {data.fiscalYears.map((fy) => (
-                        <TableCell key={fy} align="right">
+                        <TableCell key={fy} align="right" data-label={fy}>
                           {e.byFiscalYear[fy] ? fmt(e.byFiscalYear[fy]) : "—"}
                         </TableCell>
                       ))}
-                      <TableCell align="right" sx={{ fontWeight: 600 }}>
+                      <TableCell align="right" data-label="Total" sx={{ fontWeight: 600 }}>
                         {fmt(e.total)}
                       </TableCell>
                     </TableRow>

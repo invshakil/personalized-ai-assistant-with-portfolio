@@ -31,6 +31,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { financeApi } from "@/lib/api/finance";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { BizExpenseRow, CategoryRow } from "../types";
 import { fmt, fmtDate, todayInput, currentFiscalYear } from "../format";
 
@@ -201,7 +202,7 @@ export default function BizExpensesPage() {
         </Box>
       ) : (
         <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
-          <Table size="small">
+          <Table size="small" sx={mobileCardTableSx}>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
@@ -225,12 +226,12 @@ export default function BizExpensesPage() {
               ) : (
                 filtered.map((e) => (
                   <TableRow key={e.id} hover>
-                    <TableCell>{fmtDate(e.date)}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{e.name}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Date">{fmtDate(e.date)}</TableCell>
+                    <TableCell data-label="Tool / Service" sx={{ fontWeight: 600 }}>{e.name}</TableCell>
+                    <TableCell data-label="Category">
                       <Chip size="small" label={e.categoryName} variant="outlined" />
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Recurring">
                       {e.subscriptionId ? (
                         <Chip size="small" label="Subscription" color="primary" variant="outlined" />
                       ) : e.isRecurring ? (
@@ -241,11 +242,11 @@ export default function BizExpensesPage() {
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, color: "error.main" }}>
+                    <TableCell align="right" data-label="Amount" sx={{ fontWeight: 600, color: "error.main" }}>
                       {fmt(e.amount)}
                     </TableCell>
-                    <TableCell>{e.fiscalYear}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Fiscal Year">{e.fiscalYear}</TableCell>
+                    <TableCell data-label="Actions">
                       <Box sx={{ display: "flex", alignItems: "center" }}>
                         <Tooltip title="Download voucher">
                           <IconButton
