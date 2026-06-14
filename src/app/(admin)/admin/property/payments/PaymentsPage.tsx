@@ -299,6 +299,19 @@ export default function PaymentsPage() {
         >
           {generating ? "Generating…" : "Re-Generate Month"}
         </Button>
+        <Box sx={{ ml: "auto" }}>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<Download size={16} />}
+            disabled={payments.length === 0}
+            onClick={() =>
+              window.open(`/api/admin/property/payments/pdf?month=${month}&year=${year}`, "_blank")
+            }
+          >
+            Download all
+          </Button>
+        </Box>
       </Box>
 
       {genMsg && (

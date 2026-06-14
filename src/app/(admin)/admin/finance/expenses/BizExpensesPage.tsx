@@ -176,7 +176,20 @@ export default function BizExpensesPage() {
             ))}
           </Select>
         </FormControl>
-        <Box sx={{ ml: "auto" }}>
+        <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
+          <Button
+            variant="outlined"
+            startIcon={<Download size={16} />}
+            disabled={filtered.length === 0}
+            onClick={() =>
+              window.open(
+                `/api/admin/finance/expenses/pdf${fyFilter !== "ALL" ? `?fiscalYear=${fyFilter}` : ""}`,
+                "_blank"
+              )
+            }
+          >
+            Download all
+          </Button>
           <Button variant="contained" startIcon={<Plus size={16} />} onClick={openAdd}>
             Add Expense
           </Button>
