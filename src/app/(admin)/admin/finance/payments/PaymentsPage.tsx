@@ -31,6 +31,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { financeApi } from "@/lib/api/finance";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { PaymentRow, EmployeeRow, SourceRow, PaymentKind } from "../types";
 import { fmt, fmtDate, todayInput, currentFiscalYear } from "../format";
 
@@ -233,7 +234,7 @@ export default function PaymentsPage() {
         </Box>
       ) : (
         <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
-          <Table size="small">
+          <Table size="small" sx={mobileCardTableSx}>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
@@ -257,9 +258,9 @@ export default function PaymentsPage() {
               ) : (
                 filtered.map((p) => (
                   <TableRow key={p.id} hover>
-                    <TableCell>{fmtDate(p.date)}</TableCell>
-                    <TableCell>{p.employeeName}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Date">{fmtDate(p.date)}</TableCell>
+                    <TableCell data-label="Employee">{p.employeeName}</TableCell>
+                    <TableCell data-label="Type">
                       <Chip
                         size="small"
                         label={KIND_LABEL[p.type]}
@@ -267,7 +268,7 @@ export default function PaymentsPage() {
                         variant="outlined"
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Clients">
                       {p.clients.length > 0 ? (
                         <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", gap: 0.5 }}>
                           {p.clients.map((c) => (
@@ -289,11 +290,11 @@ export default function PaymentsPage() {
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, color: "warning.main" }}>
+                    <TableCell align="right" data-label="Amount" sx={{ fontWeight: 600, color: "warning.main" }}>
                       {fmt(p.amount)}
                     </TableCell>
-                    <TableCell>{p.fiscalYear}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Fiscal Year">{p.fiscalYear}</TableCell>
+                    <TableCell data-label="Actions">
                       <Box sx={{ display: "flex" }}>
                         <Tooltip title="Download salary receipt">
                           <IconButton

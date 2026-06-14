@@ -29,6 +29,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { financeApi } from "@/lib/api/finance";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { EarningRow, SourceRow, RemittanceType } from "../types";
 import { fmt, fmtDate, todayInput, currentFiscalYear } from "../format";
 
@@ -200,7 +201,7 @@ export default function EarningsPage() {
         </Box>
       ) : (
         <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
-          <Table size="small">
+          <Table size="small" sx={mobileCardTableSx}>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
@@ -224,9 +225,9 @@ export default function EarningsPage() {
               ) : (
                 filtered.map((e) => (
                   <TableRow key={e.id} hover>
-                    <TableCell>{fmtDate(e.date)}</TableCell>
-                    <TableCell>{e.sourceName}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Date">{fmtDate(e.date)}</TableCell>
+                    <TableCell data-label="Client">{e.sourceName}</TableCell>
+                    <TableCell data-label="Type">
                       <Chip
                         size="small"
                         label={REMITTANCE_LABEL[e.remittance]}
@@ -234,16 +235,16 @@ export default function EarningsPage() {
                         variant="outlined"
                       />
                     </TableCell>
-                    <TableCell align="right" sx={{ fontWeight: 600, color: "info.main" }}>
+                    <TableCell align="right" data-label="Amount" sx={{ fontWeight: 600, color: "info.main" }}>
                       {fmt(e.amount)}
                     </TableCell>
-                    <TableCell>{e.fiscalYear}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Fiscal Year">{e.fiscalYear}</TableCell>
+                    <TableCell data-label="Notes">
                       <Typography variant="caption" color="text.secondary">
                         {e.notes ?? "—"}
                       </Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Actions">
                       <Box sx={{ display: "flex" }}>
                         <Tooltip title="Download receipt">
                           <IconButton
