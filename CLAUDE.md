@@ -82,7 +82,9 @@ Two distinct surfaces:
 src/app/(portfolio)/              ← public portfolio pages
 src/app/(admin)/                  ← auth-gated admin pages (MUI themed via AdminShell)
 src/app/admin/login/              ← login page (outside admin group — no sidebar; has its own ThemeProvider)
-src/app/api/admin/                ← admin API route handlers
+src/app/api/admin/                ← admin API route handlers (thin; delegate to src/services/)
+src/services/<domain>/            ← server services: business logic + Prisma (finance, property)
+src/lib/api/                      ← client API layer (Axios) — components call these, not fetch()
 src/components/portfolio/         ← portfolio section components (Tailwind)
 src/components/admin/             ← shared admin components (MUI)
 src/components/shared/            ← layout components shared across portfolio (Nav, Footer)
@@ -114,6 +116,16 @@ components/admin/
 - All API routes return `{ data, error }` shaped JSON
 - Always validate input — never trust request body directly
 - Auth-protected routes must check session at the top: `const session = await auth(); if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 })`
+- Route handlers stay thin: delegate business/DB logic to a function in `src/services/<domain>/` (reusable by AI tool calls too). Don't put `db.*` queries directly in a route when the domain has a service layer.
+
+### Data-access layers (do not bypass)
+
+Two distinct layers — keep them separate:
+
+- **Server services** (`src/services/<domain>/`) — business logic + Prisma access. Used by API routes and AI tools. Returns JSON-safe data (see `_serializers.ts`).
+- **Client API** (`src/lib/api/`) — Axios-based typed client. **Client components must call these, never `fetch()` with inline URLs.** `client.ts` exposes `apiGet/apiPost/apiPut/apiDelete/apiUpload` (baseURL `/api/admin`, unwraps `{data,error}`, throws `Error(error)` on failure); per-domain modules: `finance.ts`, `property.ts`, `admin.ts`.
+  - Pattern: `const rows = await financeApi.listPayments(); setRows(rows ?? [])`; mutations go in `try/catch` and read `e.message`.
+  - Exceptions that stay on native APIs: PDF downloads (`window.open(routeUrl)`) and the AI streaming endpoint (`fetch` + `ReadableStream`).
 
 ---
 

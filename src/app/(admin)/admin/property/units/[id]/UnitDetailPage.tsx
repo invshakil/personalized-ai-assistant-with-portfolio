@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
+import { propertyApi } from "@/lib/api/property";
 
 function fmt(n: number) {
   return `৳${n.toLocaleString()}`;
@@ -115,13 +116,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/property/units/${unitId}`);
-      const json = await res.json();
-      if (json.error) {
-        router.push("/admin/property");
-        return;
-      }
-      const u: UnitDetail = json.data;
+      const u = await propertyApi.getUnit<UnitDetail>(unitId);
       setUnit(u);
       setEditForm({
         unitNumber: u.unitNumber,
@@ -130,6 +125,8 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         description: u.description ?? "",
         notes: u.notes ?? "",
       });
+    } catch {
+      router.push("/admin/property");
     } finally {
       setLoading(false);
     }
@@ -142,16 +139,12 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
   const saveUnit = async () => {
     setSaving(true);
     try {
-      await fetch(`/api/admin/property/units/${unitId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          unitNumber: editForm.unitNumber,
-          floor: editForm.floor,
-          monthlyRent: Number(editForm.monthlyRent),
-          description: editForm.description || null,
-          notes: editForm.notes || null,
-        }),
+      await propertyApi.updateUnit(unitId, {
+        unitNumber: editForm.unitNumber,
+        floor: editForm.floor,
+        monthlyRent: Number(editForm.monthlyRent),
+        description: editForm.description || null,
+        notes: editForm.notes || null,
       });
       setEditMode(false);
       await load();
@@ -189,7 +182,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
       "Move Out",
       "error",
       async () => {
-        await fetch(`/api/admin/property/tenants/${t.id}/deactivate`, { method: "POST" });
+        await propertyApi.deactivateTenant(t.id);
         await load();
       }
     );
@@ -202,7 +195,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
       "Promote",
       "warning",
       async () => {
-        await fetch(`/api/admin/property/tenants/${current.id}/deactivate`, { method: "POST" });
+        await propertyApi.deactivateTenant(current.id);
         await load();
       }
     );
@@ -212,21 +205,16 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
     if (!addFutureForm.name || !addFutureForm.moveInDate) return;
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/property/tenants", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: addFutureForm.name,
-          phone: addFutureForm.phone || null,
-          unitId,
-          moveInDate: addFutureForm.moveInDate,
-          leaseEndDate: addFutureForm.leaseEndDate || null,
-          advancePaid: addFutureForm.advancePaid,
-          advanceAmount: addFutureForm.advancePaid ? Number(addFutureForm.advanceAmount) : 0,
-          isExternal: false,
-        }),
-      });
-      const newTenant = (await res.json())?.data;
+      const newTenant = (await propertyApi.createTenant({
+        name: addFutureForm.name,
+        phone: addFutureForm.phone || null,
+        unitId,
+        moveInDate: addFutureForm.moveInDate,
+        leaseEndDate: addFutureForm.leaseEndDate || null,
+        advancePaid: addFutureForm.advancePaid,
+        advanceAmount: addFutureForm.advancePaid ? Number(addFutureForm.advanceAmount) : 0,
+        isExternal: false,
+      })) as { id?: string } | null;
       // Schedule a rent change effective on move-in date if a custom rent was provided
       if (
         newTenant?.id &&
@@ -234,14 +222,10 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         unit &&
         Number(addFutureForm.newRent) !== unit.monthlyRent
       ) {
-        await fetch(`/api/admin/property/tenants/${newTenant.id}/rent-change`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            effectiveDate: addFutureForm.moveInDate,
-            newRent: Number(addFutureForm.newRent),
-            reason: "Scheduled with future tenant",
-          }),
+        await propertyApi.addRentChange(newTenant.id, {
+          effectiveDate: addFutureForm.moveInDate,
+          newRent: Number(addFutureForm.newRent),
+          reason: "Scheduled with future tenant",
         });
       }
       setAddFutureOpen(false);

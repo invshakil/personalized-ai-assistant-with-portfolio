@@ -13,6 +13,7 @@ import {
   Alert,
 } from "@mui/material";
 import { FileUp, FileDown, Trash2, File, FileImage, FileText } from "lucide-react";
+import { propertyApi } from "@/lib/api/property";
 
 type Doc = {
   id: string;
@@ -52,9 +53,7 @@ export default function TenantDocuments({ tenantId, compact = false }: Props) {
   const fetchDocs = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/property/tenants/${tenantId}/documents`);
-      const json = await res.json();
-      setDocs(json.data ?? []);
+      setDocs(((await propertyApi.listTenantDocuments(tenantId)) as Doc[]) ?? []);
     } finally {
       setLoading(false);
     }
@@ -71,12 +70,7 @@ export default function TenantDocuments({ tenantId, compact = false }: Props) {
     try {
       const formData = new FormData();
       Array.from(files).forEach((f) => formData.append("files", f));
-      const res = await fetch(`/api/admin/property/tenants/${tenantId}/documents`, {
-        method: "POST",
-        body: formData,
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Upload failed");
+      await propertyApi.uploadTenantDocuments(tenantId, formData);
       await fetchDocs();
     } catch (err) {
       setError((err as Error).message);
@@ -89,9 +83,7 @@ export default function TenantDocuments({ tenantId, compact = false }: Props) {
   const handleDelete = async (docId: string) => {
     setDeletingId(docId);
     try {
-      await fetch(`/api/admin/property/tenants/${tenantId}/documents/${docId}`, {
-        method: "DELETE",
-      });
+      await propertyApi.deleteTenantDocument(tenantId, docId);
       setDocs((prev) => prev.filter((d) => d.id !== docId));
     } finally {
       setDeletingId(null);

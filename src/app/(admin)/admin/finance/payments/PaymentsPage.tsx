@@ -30,6 +30,7 @@ import { Plus, Pencil, Trash2, Download } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { fiscalYearOf } from "@/lib/fiscalYear";
+import { financeApi } from "@/lib/api/finance";
 import type { PaymentRow, EmployeeRow, SourceRow, PaymentKind } from "../types";
 import { fmt, fmtDate, todayInput, currentFiscalYear } from "../format";
 
@@ -81,14 +82,14 @@ export default function PaymentsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [pRes, eRes, cRes] = await Promise.all([
-        fetch("/api/admin/finance/payments"),
-        fetch("/api/admin/finance/employees"),
-        fetch("/api/admin/finance/sources"),
+      const [paymentsData, employeesData, clientsData] = await Promise.all([
+        financeApi.listPayments(),
+        financeApi.listEmployees(),
+        financeApi.listClients(),
       ]);
-      setPayments((await pRes.json()).data ?? []);
-      setEmployees((await eRes.json()).data ?? []);
-      setClients((await cRes.json()).data ?? []);
+      setPayments(paymentsData ?? []);
+      setEmployees(employeesData ?? []);
+      setClients(clientsData ?? []);
     } finally {
       setLoading(false);
     }
@@ -156,14 +157,8 @@ export default function PaymentsPage() {
         fiscalYear: form.fiscalYear,
         notes: form.notes || null,
       };
-      const url = editing ? `/api/admin/finance/payments/${editing}` : "/api/admin/finance/payments";
-      const res = await fetch(url, {
-        method: editing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
+      if (editing) await financeApi.updatePayment(editing, body);
+      else await financeApi.createPayment(body);
       setDrawerOpen(false);
       load();
     } catch (e: unknown) {
@@ -177,7 +172,7 @@ export default function PaymentsPage() {
     if (!pendingDelete) return;
     setDeleting(true);
     try {
-      await fetch(`/api/admin/finance/payments/${pendingDelete}`, { method: "DELETE" });
+      await financeApi.deletePayment(pendingDelete);
       setPendingDelete(null);
       load();
     } finally {

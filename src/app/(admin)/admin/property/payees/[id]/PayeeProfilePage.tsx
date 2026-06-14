@@ -25,6 +25,7 @@ import {
 import { ArrowLeft, Pencil } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import PayeeDocuments from "@/components/admin/PayeeDocuments";
+import { propertyApi } from "@/lib/api/property";
 import type { Payee, PropertyExpense } from "@/types";
 
 function initials(name: string) {
@@ -59,15 +60,12 @@ export default function PayeeProfilePage({ id }: Props) {
     setLoading(true);
     setError(null);
     try {
-      const [pRes, eRes] = await Promise.all([
-        fetch(`/api/admin/property/payees/${id}`),
-        fetch(`/api/admin/property/expenses?payeeId=${id}`),
+      const [payeeData, expensesData] = await Promise.all([
+        propertyApi.getPayee<Payee>(id),
+        propertyApi.listExpenses({ payeeId: id }),
       ]);
-      const pJson = await pRes.json();
-      const eJson = await eRes.json();
-      if (!pRes.ok) throw new Error(pJson.error ?? "Payee not found");
-      setPayee(pJson.data);
-      setExpenses(eJson.data ?? []);
+      setPayee(payeeData);
+      setExpenses(expensesData ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -84,13 +82,7 @@ export default function PayeeProfilePage({ id }: Props) {
     setSaving(true);
     setSaveError(null);
     try {
-      const res = await fetch(`/api/admin/property/payees/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(editForm),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to save");
+      await propertyApi.updatePayee(id, editForm);
       setEditOpen(false);
       await load();
     } catch (e) {

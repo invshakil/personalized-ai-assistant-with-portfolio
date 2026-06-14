@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { Check } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import { adminApi } from "@/lib/api/admin";
 import type { SettingsFormData } from "./types";
 
 interface SettingsPageProps {
@@ -36,18 +37,12 @@ export default function SettingsPage({ initialData }: SettingsPageProps) {
     setError("");
     setSaved(false);
 
-    const res = await fetch("/api/admin/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
-    });
-
-    if (res.ok) {
+    try {
+      await adminApi.updateSiteSettings(form);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } else {
-      const data = await res.json();
-      setError(data.error ?? "Failed to save. Try again.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save. Try again.");
     }
     setSaving(false);
   };

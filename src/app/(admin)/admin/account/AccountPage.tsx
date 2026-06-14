@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { Check, User, Lock } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import { adminApi } from "@/lib/api/admin";
 import type { ProfileFormData, PasswordFormData } from "./types";
 
 interface AccountPageProps {
@@ -42,18 +43,12 @@ export default function AccountPage({ initialName, email }: AccountPageProps) {
     setProfileError("");
     setProfileMsg("");
 
-    const res = await fetch("/api/admin/account", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: profile.name }),
-    });
-
-    if (res.ok) {
+    try {
+      await adminApi.updateAccount({ name: profile.name });
       setProfileMsg("Saved");
       setTimeout(() => setProfileMsg(""), 3000);
-    } else {
-      const data = await res.json();
-      setProfileError(data.error ?? "Failed to update.");
+    } catch (e) {
+      setProfileError(e instanceof Error ? e.message : "Failed to update.");
     }
     setSavingProfile(false);
   };
@@ -73,19 +68,16 @@ export default function AccountPage({ initialName, email }: AccountPageProps) {
 
     setSavingPwd(true);
 
-    const res = await fetch("/api/admin/account", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currentPassword: pwd.currentPassword, newPassword: pwd.newPassword }),
-    });
-
-    if (res.ok) {
+    try {
+      await adminApi.updateAccount({
+        currentPassword: pwd.currentPassword,
+        newPassword: pwd.newPassword,
+      });
       setPwdMsg("Saved");
       setPwd({ currentPassword: "", newPassword: "", confirmPassword: "" });
       setTimeout(() => setPwdMsg(""), 3000);
-    } else {
-      const data = await res.json();
-      setPwdError(data.error ?? "Failed to update password.");
+    } catch (e) {
+      setPwdError(e instanceof Error ? e.message : "Failed to update password.");
     }
     setSavingPwd(false);
   };

@@ -17,6 +17,7 @@ import {
 } from "@mui/material";
 import { Plus } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import { propertyApi } from "@/lib/api/property";
 import type { Payee } from "@/types";
 
 type PayeeForm = {
@@ -60,9 +61,7 @@ export default function PayeesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/property/payees");
-      const json = await res.json();
-      setPayees(json.data ?? []);
+      setPayees((await propertyApi.listPayees()) ?? []);
     } finally {
       setLoading(false);
     }
@@ -77,13 +76,7 @@ export default function PayeesPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/property/payees", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to save");
+      await propertyApi.createPayee(form);
       setDrawerOpen(false);
       setForm(EMPTY_FORM);
       await load();

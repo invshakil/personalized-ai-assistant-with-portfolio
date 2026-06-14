@@ -30,6 +30,7 @@ import { Plus, Pencil, Trash2, Download } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { fiscalYearOf } from "@/lib/fiscalYear";
+import { financeApi } from "@/lib/api/finance";
 import type { BizExpenseRow, CategoryRow } from "../types";
 import { fmt, fmtDate, todayInput, currentFiscalYear } from "../format";
 
@@ -69,14 +70,12 @@ export default function BizExpensesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [eRes, cRes] = await Promise.all([
-        fetch("/api/admin/finance/expenses"),
-        fetch("/api/admin/finance/categories"),
+      const [expensesData, categoriesData] = await Promise.all([
+        financeApi.listExpenses(),
+        financeApi.listCategories(),
       ]);
-      const eJson = await eRes.json();
-      const cJson = await cRes.json();
-      setExpenses(eJson.data ?? []);
-      setCategories(cJson.data ?? []);
+      setExpenses(expensesData ?? []);
+      setCategories(categoriesData ?? []);
     } finally {
       setLoading(false);
     }
@@ -137,14 +136,8 @@ export default function BizExpensesPage() {
         fiscalYear: form.fiscalYear,
         notes: form.notes || null,
       };
-      const url = editing ? `/api/admin/finance/expenses/${editing}` : "/api/admin/finance/expenses";
-      const res = await fetch(url, {
-        method: editing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
+      if (editing) await financeApi.updateExpense(editing, body);
+      else await financeApi.createExpense(body);
       setDrawerOpen(false);
       load();
     } catch (e: unknown) {
@@ -158,7 +151,7 @@ export default function BizExpensesPage() {
     if (!pendingDelete) return;
     setDeleting(true);
     try {
-      await fetch(`/api/admin/finance/expenses/${pendingDelete}`, { method: "DELETE" });
+      await financeApi.deleteExpense(pendingDelete);
       setPendingDelete(null);
       load();
     } finally {
