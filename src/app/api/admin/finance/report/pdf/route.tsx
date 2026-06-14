@@ -3,14 +3,7 @@ import { NextRequest } from "next/server";
 import { Document, Page, View, Text } from "@react-pdf/renderer";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getFinanceDashboard } from "@/services/finance";
-import {
-  s,
-  pdfMoney,
-  pdfDate,
-  pdfResponse,
-  BUSINESS_NAME,
-  BUSINESS_TAGLINE,
-} from "@/services/finance/pdfKit";
+import { s, pdfMoney, pdfDate, pdfResponse, BUSINESS, BusinessHeader } from "@/services/finance/pdfKit";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -27,8 +20,7 @@ export async function GET(req: NextRequest) {
   const buffer = await renderToBuffer(
     <Document>
       <Page size="A4" style={s.page}>
-        <Text style={s.brand}>{BUSINESS_NAME}</Text>
-        <Text style={s.tagline}>{BUSINESS_TAGLINE}</Text>
+        <BusinessHeader />
         <Text style={s.docType}>Financial Report — {label}</Text>
         <Text style={s.meta}>
           {from ? `${pdfDate(from)} to ${pdfDate(to)}` : "All recorded history"} · generated{" "}
@@ -107,7 +99,7 @@ export async function GET(req: NextRequest) {
           <Text style={s.value}>{pdfMoney(d.remittance.nonRem)}</Text>
         </View>
 
-        <Text style={s.footer}>Computer-generated financial report — {BUSINESS_NAME}</Text>
+        <Text style={s.footer}>Computer-generated financial report — {BUSINESS.name}</Text>
       </Page>
     </Document>
   );

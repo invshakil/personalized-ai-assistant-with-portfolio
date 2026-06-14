@@ -175,7 +175,20 @@ export default function EarningsPage() {
             ))}
           </Select>
         </FormControl>
-        <Box sx={{ ml: "auto" }}>
+        <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
+          <Button
+            variant="outlined"
+            startIcon={<Download size={16} />}
+            disabled={filtered.length === 0}
+            onClick={() =>
+              window.open(
+                `/api/admin/finance/earnings/pdf${fyFilter !== "ALL" ? `?fiscalYear=${fyFilter}` : ""}`,
+                "_blank"
+              )
+            }
+          >
+            Download all
+          </Button>
           <Button variant="contained" startIcon={<Plus size={16} />} onClick={openAdd}>
             Add Earning
           </Button>

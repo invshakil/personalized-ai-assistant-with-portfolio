@@ -208,7 +208,20 @@ export default function PaymentsPage() {
             ))}
           </Select>
         </FormControl>
-        <Box sx={{ ml: "auto" }}>
+        <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
+          <Button
+            variant="outlined"
+            startIcon={<Download size={16} />}
+            disabled={filtered.length === 0}
+            onClick={() => {
+              const qs = new URLSearchParams();
+              if (fyFilter !== "ALL") qs.set("fiscalYear", fyFilter);
+              if (empFilter !== "ALL") qs.set("employeeId", empFilter);
+              window.open(`/api/admin/finance/payments/pdf?${qs.toString()}`, "_blank");
+            }}
+          >
+            Download all
+          </Button>
           <Button variant="contained" startIcon={<Plus size={16} />} onClick={openAdd}>
             Add Payment
           </Button>
