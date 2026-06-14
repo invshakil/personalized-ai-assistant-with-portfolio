@@ -105,11 +105,19 @@ export default function FinanceDashboardPage() {
 
   const header = (
     <>
-      <PageHeader title="Financial Tracker" subtitle="Business income, costs & profit by date range" />
+      <PageHeader
+        title="Financial Tracker"
+        subtitle="Business income, costs & profit by date range"
+      />
       <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
         {rangeSelector}
         <Box sx={{ ml: "auto" }}>
-          <a href={reportPdfHref} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none" }}>
+          <a
+            href={reportPdfHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ textDecoration: "none" }}
+          >
             <Button variant="outlined" startIcon={<Download size={16} />}>
               Download report PDF
             </Button>
@@ -179,15 +187,23 @@ export default function FinanceDashboardPage() {
               <TableBody>
                 {data.pnl.map((r) => (
                   <TableRow key={r.fiscalYear} hover>
-                    <TableCell data-label="Fiscal Year" sx={{ fontWeight: 600 }}>{r.fiscalYear}</TableCell>
-                    <TableCell align="right" data-label="Income">{fmt(r.income)}</TableCell>
+                    <TableCell data-label="Fiscal Year" sx={{ fontWeight: 600 }}>
+                      {r.fiscalYear}
+                    </TableCell>
+                    <TableCell align="right" data-label="Income">
+                      {fmt(r.income)}
+                    </TableCell>
                     <TableCell align="right" data-label="Emp Costs" sx={{ color: "warning.main" }}>
                       {fmt(r.empCosts)}
                     </TableCell>
                     <TableCell align="right" data-label="Tools/Subs" sx={{ color: "warning.main" }}>
                       {fmt(r.toolSubs)}
                     </TableCell>
-                    <TableCell align="right" data-label="Net Profit" sx={{ color: "success.main", fontWeight: 600 }}>
+                    <TableCell
+                      align="right"
+                      data-label="Net Profit"
+                      sx={{ color: "success.main", fontWeight: 600 }}
+                    >
                       {fmt(r.netProfit)}
                     </TableCell>
                     <TableCell align="right" data-label="Margin">
@@ -210,7 +226,11 @@ export default function FinanceDashboardPage() {
         {/* Per-employee × fiscal year */}
         <Card sx={{ bgcolor: "background.paper" }}>
           <CardContent>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1.5, fontWeight: 600 }}>
+            <Typography
+              variant="subtitle2"
+              color="text.secondary"
+              sx={{ mb: 1.5, fontWeight: 600 }}
+            >
               Salaries Paid by Employee
             </Typography>
             <TableContainer>
@@ -229,7 +249,9 @@ export default function FinanceDashboardPage() {
                 <TableBody>
                   {data.byEmployee.map((e) => (
                     <TableRow key={e.employeeId} hover>
-                      <TableCell data-label="Employee" sx={{ fontWeight: 600 }}>{e.name}</TableCell>
+                      <TableCell data-label="Employee" sx={{ fontWeight: 600 }}>
+                        {e.name}
+                      </TableCell>
                       {data.fiscalYears.map((fy) => (
                         <TableCell key={fy} align="right" data-label={fy}>
                           {e.byFiscalYear[fy] ? fmt(e.byFiscalYear[fy]) : "—"}
@@ -261,7 +283,12 @@ export default function FinanceDashboardPage() {
             <LinearProgress
               variant="determinate"
               value={remPct}
-              sx={{ height: 8, borderRadius: 4, mb: 2, "& .MuiLinearProgress-bar": { bgcolor: "success.main" } }}
+              sx={{
+                height: 8,
+                borderRadius: 4,
+                mb: 2,
+                "& .MuiLinearProgress-bar": { bgcolor: "success.main" },
+              }}
             />
             <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
               <Typography variant="body2" sx={{ color: "info.main", fontWeight: 600 }}>
@@ -272,7 +299,11 @@ export default function FinanceDashboardPage() {
             <LinearProgress
               variant="determinate"
               value={100 - remPct}
-              sx={{ height: 8, borderRadius: 4, "& .MuiLinearProgress-bar": { bgcolor: "info.main" } }}
+              sx={{
+                height: 8,
+                borderRadius: 4,
+                "& .MuiLinearProgress-bar": { bgcolor: "info.main" },
+              }}
             />
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
               {fmtPct(remPct / 100)} of total income received as foreign remittance.

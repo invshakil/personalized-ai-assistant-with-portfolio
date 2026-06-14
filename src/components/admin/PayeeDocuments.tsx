@@ -164,11 +164,21 @@ export default function PayeeDocuments({ payeeId }: Props) {
                 >
                   {doc.fileName}
                 </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mt: 0.25, flexWrap: "wrap" }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.75,
+                    mt: 0.25,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <Typography variant="caption" color="text.secondary">
                     {fmtSize(doc.size)}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">·</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    ·
+                  </Typography>
                   <Typography variant="caption" color="text.secondary">
                     {new Date(doc.uploadedAt).toLocaleDateString("en-GB", {
                       day: "2-digit",
@@ -177,7 +187,12 @@ export default function PayeeDocuments({ payeeId }: Props) {
                     })}
                   </Typography>
                   {doc.label && (
-                    <Chip label={doc.label} size="small" variant="outlined" sx={{ height: 16, fontSize: "0.6rem" }} />
+                    <Chip
+                      label={doc.label}
+                      size="small"
+                      variant="outlined"
+                      sx={{ height: 16, fontSize: "0.6rem" }}
+                    />
                   )}
                 </Box>
               </Box>

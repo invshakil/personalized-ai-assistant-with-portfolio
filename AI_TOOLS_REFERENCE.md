@@ -2,7 +2,7 @@
 
 > **Purpose:** a self-contained catalog of the app's server-side **service functions** that are
 > ready to be exposed as Claude **tools** (tool use). Paste this whole file into a Claude chat (or
-> attach it) and say *"these are my available functions — help me wire them as tools"* to learn /
+> attach it) and say _"these are my available functions — help me wire them as tools"_ to learn /
 > build AI tool integration against this codebase.
 
 ---
@@ -30,6 +30,7 @@ AI tool handler     ─┘     (the single source of truth)
 ## 2. The pattern — turning a service function into a Claude tool
 
 The chat endpoint already uses the Anthropic SDK (`src/app/api/admin/ai/route.ts`). A tool is:
+
 1. a **schema** (name + description + JSON-Schema `input_schema` mirroring the function's params), and
 2. a **handler** that runs the service function and returns its result as a `tool_result`.
 
@@ -55,7 +56,8 @@ const tools: Anthropic.Tool[] = [
   },
   {
     name: "list_salary_payments",
-    description: "List salary/bonus payments to employees, optionally filtered by fiscal year or employee id.",
+    description:
+      "List salary/bonus payments to employees, optionally filtered by fiscal year or employee id.",
     input_schema: {
       type: "object",
       properties: {
@@ -115,36 +117,36 @@ These are safe, read-only, and answer "what / how much / who" questions. Suggest
 
 ### Financial Tracker — `@/services/finance`
 
-| Suggested tool | Function | Params | Returns |
-| -------------- | -------- | ------ | ------- |
-| `get_finance_summary` | `getFinanceDashboard(range?)` | `{ from?, to? }` ISO dates | P&L per fiscal year (income, empCosts, toolSubs, netProfit, margin), totals, `byEmployee[]`, `bySource[]`, remittance split, `monthlyIncome[]` |
-| `list_earnings` | `getEarnings(opts?)` | `{ fiscalYear?, sourceId? }` | Earnings rows: date, client, REM/NON_REM, amount, fiscalYear |
-| `list_salary_payments` | `getEmployeePayments(opts?)` | `{ fiscalYear?, employeeId? }` | Salary rows: date, employee, type, clients[], amount, note |
-| `list_business_expenses` | `getBizExpenses(opts?)` | `{ fiscalYear?, categoryId? }` | Expense rows: date, name, category, recurring, amount |
-| `list_subscriptions` | `getSubscriptions()` | — | Recurring subscriptions: monthly amount, start/end, active, totalSpent, monthsCharged |
-| `get_subscription` | `getSubscriptionDetail(id)` | `id` | One subscription + per-month charge history |
-| `list_employees` | `getEmployees()` | — | Employees + phone, paymentCount, totalPaid |
-| `list_clients` | `getIncomeSources()` | — | Clients/income sources + earning counts |
-| `list_expense_categories` | `getExpenseCategories()` | — | Categories + expense counts |
+| Suggested tool            | Function                      | Params                         | Returns                                                                                                                                        |
+| ------------------------- | ----------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `get_finance_summary`     | `getFinanceDashboard(range?)` | `{ from?, to? }` ISO dates     | P&L per fiscal year (income, empCosts, toolSubs, netProfit, margin), totals, `byEmployee[]`, `bySource[]`, remittance split, `monthlyIncome[]` |
+| `list_earnings`           | `getEarnings(opts?)`          | `{ fiscalYear?, sourceId? }`   | Earnings rows: date, client, REM/NON_REM, amount, fiscalYear                                                                                   |
+| `list_salary_payments`    | `getEmployeePayments(opts?)`  | `{ fiscalYear?, employeeId? }` | Salary rows: date, employee, type, clients[], amount, note                                                                                     |
+| `list_business_expenses`  | `getBizExpenses(opts?)`       | `{ fiscalYear?, categoryId? }` | Expense rows: date, name, category, recurring, amount                                                                                          |
+| `list_subscriptions`      | `getSubscriptions()`          | —                              | Recurring subscriptions: monthly amount, start/end, active, totalSpent, monthsCharged                                                          |
+| `get_subscription`        | `getSubscriptionDetail(id)`   | `id`                           | One subscription + per-month charge history                                                                                                    |
+| `list_employees`          | `getEmployees()`              | —                              | Employees + phone, paymentCount, totalPaid                                                                                                     |
+| `list_clients`            | `getIncomeSources()`          | —                              | Clients/income sources + earning counts                                                                                                        |
+| `list_expense_categories` | `getExpenseCategories()`      | —                              | Categories + expense counts                                                                                                                    |
 
 ### Property Management — `@/services/property`
 
-| Suggested tool | Function | Params | Returns |
-| -------------- | -------- | ------ | ------- |
-| `get_property_dashboard` | `getDashboardStats(month, year)` | `month` (1–12), `year` | Expected vs collected, expenses, net profit, occupancy, due tracker, yearly trend |
-| `list_units` | `getUnits()` | — | All units + current/future tenant, rent, occupancy |
-| `get_unit` | `getUnit(id)` | `id` | One unit + tenants + payment history |
-| `list_tenants` | `getTenants(filter?)` | `"active" \| "inactive" \| "all"` | Tenants + unit, rent, advance balance, status |
-| `get_tenant` | `getTenant(id)` | `id` | Tenant profile: services, rent changes, payment history, advance |
-| `list_rent_payments` | `getPayments(opts?)` | `{ month?, year?, tenantId? }` | Rent payments: tenant, unit, due, paid, balance, status, receipt no. |
-| `get_rent_payment` | `getPayment(id)` | `id` | One payment + transactions |
-| `list_property_expenses` | `getExpenses(opts?)` | `{ month?, year?, payeeId? }` | Property expenses by category/payee |
-| `list_payees` | `getPayees()` | — | Vendors/staff paid for property work |
-| `get_payee` | `getPayee(id)` | `id` | One payee |
-| `list_service_types` | `getServiceTypes()` | — | Property service-type catalog |
-| `list_addon_services` | `getServices()` | — | Add-on services (WiFi, parking…) |
-| `get_move_out_preview` | `getMoveOutPreview(id, date)` | `id`, ISO `date` | Settlement preview for a tenant move-out |
-| `get_property_settings` | `getPropertySettings()` | — | Property/owner profile singleton |
+| Suggested tool           | Function                         | Params                            | Returns                                                                           |
+| ------------------------ | -------------------------------- | --------------------------------- | --------------------------------------------------------------------------------- |
+| `get_property_dashboard` | `getDashboardStats(month, year)` | `month` (1–12), `year`            | Expected vs collected, expenses, net profit, occupancy, due tracker, yearly trend |
+| `list_units`             | `getUnits()`                     | —                                 | All units + current/future tenant, rent, occupancy                                |
+| `get_unit`               | `getUnit(id)`                    | `id`                              | One unit + tenants + payment history                                              |
+| `list_tenants`           | `getTenants(filter?)`            | `"active" \| "inactive" \| "all"` | Tenants + unit, rent, advance balance, status                                     |
+| `get_tenant`             | `getTenant(id)`                  | `id`                              | Tenant profile: services, rent changes, payment history, advance                  |
+| `list_rent_payments`     | `getPayments(opts?)`             | `{ month?, year?, tenantId? }`    | Rent payments: tenant, unit, due, paid, balance, status, receipt no.              |
+| `get_rent_payment`       | `getPayment(id)`                 | `id`                              | One payment + transactions                                                        |
+| `list_property_expenses` | `getExpenses(opts?)`             | `{ month?, year?, payeeId? }`     | Property expenses by category/payee                                               |
+| `list_payees`            | `getPayees()`                    | —                                 | Vendors/staff paid for property work                                              |
+| `get_payee`              | `getPayee(id)`                   | `id`                              | One payee                                                                         |
+| `list_service_types`     | `getServiceTypes()`              | —                                 | Property service-type catalog                                                     |
+| `list_addon_services`    | `getServices()`                  | —                                 | Add-on services (WiFi, parking…)                                                  |
+| `get_move_out_preview`   | `getMoveOutPreview(id, date)`    | `id`, ISO `date`                  | Settlement preview for a tenant move-out                                          |
+| `get_property_settings`  | `getPropertySettings()`          | —                                 | Property/owner profile singleton                                                  |
 
 > **Good "AI question" examples these answer:** "What was my net profit last fiscal year?",
 > "How much have I paid Rashidul in total?", "Which tenants are overdue this month?",
@@ -185,7 +187,7 @@ UI (Claude proposes → user approves → you call). Each throws on validation f
 - **Start read-only.** Wire 2–3 read tools (`get_finance_summary`, `list_rent_payments`,
   `list_tenants`) and ask the assistant business questions. No risk.
 - **Descriptions matter more than names.** Claude picks tools from the `description` — be explicit
-  about *when* to use each and what each param means.
+  about _when_ to use each and what each param means.
 - **Keep results small.** For big lists, prefer a filtered/summarized function (e.g.
   `getFinanceDashboard` over dumping every earning) so you don't blow the context window.
 - **Validate at the route, business rules in the service.** Tool inputs are model-generated — treat

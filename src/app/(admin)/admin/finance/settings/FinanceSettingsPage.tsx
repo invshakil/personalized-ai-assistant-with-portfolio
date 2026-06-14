@@ -171,7 +171,10 @@ export default function FinanceSettingsPage() {
   if (loading) {
     return (
       <Box>
-        <PageHeader title="Financial Tracker Settings" subtitle="Manage employees, clients & categories" />
+        <PageHeader
+          title="Financial Tracker Settings"
+          subtitle="Manage employees, clients & categories"
+        />
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
           <CircularProgress />
         </Box>
@@ -181,7 +184,10 @@ export default function FinanceSettingsPage() {
 
   return (
     <Box>
-      <PageHeader title="Financial Tracker Settings" subtitle="Manage employees, clients & categories" />
+      <PageHeader
+        title="Financial Tracker Settings"
+        subtitle="Manage employees, clients & categories"
+      />
 
       {/* Business profile — printed on all receipts, statements & reports */}
       <Card sx={{ bgcolor: "background.paper", mb: 3 }}>
@@ -247,7 +253,11 @@ export default function FinanceSettingsPage() {
               <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1 }}>
                 {TITLE.employee}
               </Typography>
-              <Button size="small" startIcon={<Plus size={14} />} onClick={() => openAdd("employee")}>
+              <Button
+                size="small"
+                startIcon={<Plus size={14} />}
+                onClick={() => openAdd("employee")}
+              >
                 Add
               </Button>
             </Box>
@@ -265,10 +275,10 @@ export default function FinanceSettingsPage() {
                       </Tooltip>
                       <Tooltip title="Delete">
                         <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => setPendingDelete({ kind: "employee", id: emp.id })}
-                      >
+                          size="small"
+                          color="error"
+                          onClick={() => setPendingDelete({ kind: "employee", id: emp.id })}
+                        >
                           <Trash2 size={13} />
                         </IconButton>
                       </Tooltip>
@@ -317,10 +327,10 @@ export default function FinanceSettingsPage() {
                       </Tooltip>
                       <Tooltip title="Delete">
                         <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => setPendingDelete({ kind: "source", id: s.id })}
-                      >
+                          size="small"
+                          color="error"
+                          onClick={() => setPendingDelete({ kind: "source", id: s.id })}
+                        >
                           <Trash2 size={13} />
                         </IconButton>
                       </Tooltip>
@@ -341,7 +351,11 @@ export default function FinanceSettingsPage() {
               <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1 }}>
                 {TITLE.category}
               </Typography>
-              <Button size="small" startIcon={<Plus size={14} />} onClick={() => openAdd("category")}>
+              <Button
+                size="small"
+                startIcon={<Plus size={14} />}
+                onClick={() => openAdd("category")}
+              >
                 Add
               </Button>
             </Box>
@@ -359,10 +373,10 @@ export default function FinanceSettingsPage() {
                       </Tooltip>
                       <Tooltip title="Delete">
                         <IconButton
-                        size="small"
-                        color="error"
-                        onClick={() => setPendingDelete({ kind: "category", id: c.id })}
-                      >
+                          size="small"
+                          color="error"
+                          onClick={() => setPendingDelete({ kind: "category", id: c.id })}
+                        >
                           <Trash2 size={13} />
                         </IconButton>
                       </Tooltip>
@@ -424,7 +438,9 @@ export default function FinanceSettingsPage() {
                 control={
                   <Switch
                     checked={drawer.isActive}
-                    onChange={(e) => setDrawer((d) => (d ? { ...d, isActive: e.target.checked } : d))}
+                    onChange={(e) =>
+                      setDrawer((d) => (d ? { ...d, isActive: e.target.checked } : d))
+                    }
                   />
                 }
                 label="Active"
@@ -436,7 +452,12 @@ export default function FinanceSettingsPage() {
                 {error}
               </Alert>
             )}
-            <Button variant="contained" fullWidth onClick={save} disabled={saving || !drawer.name.trim()}>
+            <Button
+              variant="contained"
+              fullWidth
+              onClick={save}
+              disabled={saving || !drawer.name.trim()}
+            >
               {saving ? "Saving…" : drawer.editingId ? "Save Changes" : "Add"}
             </Button>
           </Box>

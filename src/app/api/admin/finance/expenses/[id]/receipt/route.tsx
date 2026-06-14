@@ -25,7 +25,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       fields={[
         { label: "Tool / Service", value: x.name },
         { label: "Category", value: x.category.name },
-        { label: "Recurring", value: x.subscriptionId ? "Subscription charge" : x.isRecurring ? "Yes" : "No" },
+        {
+          label: "Recurring",
+          value: x.subscriptionId ? "Subscription charge" : x.isRecurring ? "Yes" : "No",
+        },
         { label: "Date", value: pdfDate(x.date.toISOString()) },
         { label: "Fiscal year", value: x.fiscalYear },
       ]}

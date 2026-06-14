@@ -4,18 +4,8 @@
     "fiscalYearRule": "July-June",
     "exportedFrom": "Financial Tracker.xlsx"
   },
-  "employees": [
-    "Mayenuddin Kabir",
-    "Rashidul Islam",
-    "Shafayet Bayejid",
-    "Tanvir Reza Anik"
-  ],
-  "incomeSources": [
-    "DevArena+DevCourt",
-    "Freelance project",
-    "Incentive",
-    "MapX"
-  ],
+  "employees": ["Mayenuddin Kabir", "Rashidul Islam", "Shafayet Bayejid", "Tanvir Reza Anik"],
+  "incomeSources": ["DevArena+DevCourt", "Freelance project", "Incentive", "MapX"],
   "expenseCategories": [
     "AI Tool Subscription",
     "Hardware",

@@ -19,7 +19,11 @@ export function pdfMoney(n: number): string {
 
 export function pdfDate(iso: string | null | undefined): string {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 export const s = StyleSheet.create({
@@ -49,7 +53,15 @@ export const s = StyleSheet.create({
   amountValue: { fontSize: 16, fontFamily: "Helvetica-Bold", color: "#1a1a2e" },
   signRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 50 },
   signLine: { borderTop: "0.5 solid #aaa", width: 160, paddingTop: 4, fontSize: 8, color: "#888" },
-  footer: { position: "absolute", bottom: 28, left: 40, right: 40, fontSize: 7, color: "#aaa", textAlign: "center" },
+  footer: {
+    position: "absolute",
+    bottom: 28,
+    left: 40,
+    right: 40,
+    fontSize: 7,
+    color: "#aaa",
+    textAlign: "center",
+  },
   // table
   th: { flexDirection: "row", borderBottom: "1 solid #ccc", paddingBottom: 4, marginBottom: 2 },
   thText: { fontFamily: "Helvetica-Bold", fontSize: 8, color: "#555" },
@@ -57,7 +69,13 @@ export const s = StyleSheet.create({
   trText: { fontSize: 8 },
   totalRow: { flexDirection: "row", paddingTop: 6, marginTop: 2, borderTop: "1 solid #ccc" },
   totalText: { fontFamily: "Helvetica-Bold", fontSize: 9 },
-  sectionTitle: { fontSize: 10, fontFamily: "Helvetica-Bold", color: "#1a1a2e", marginTop: 16, marginBottom: 6 },
+  sectionTitle: {
+    fontSize: 10,
+    fontFamily: "Helvetica-Bold",
+    color: "#1a1a2e",
+    marginTop: 16,
+    marginBottom: 6,
+  },
 });
 
 /** Letterhead block: business name + tagline on the left, contact info right. */
@@ -175,7 +193,9 @@ export function ListDocument(props: {
           </View>
         )}
 
-        <Text style={s.footer}>{props.footerNote ?? `Computer-generated — ${props.business.name}`}</Text>
+        <Text style={s.footer}>
+          {props.footerNote ?? `Computer-generated — ${props.business.name}`}
+        </Text>
       </Page>
     </Document>
   );

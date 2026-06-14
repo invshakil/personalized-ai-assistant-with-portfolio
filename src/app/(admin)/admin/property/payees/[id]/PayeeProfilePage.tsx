@@ -168,7 +168,9 @@ export default function PayeeProfilePage({ id }: Props) {
 
           <Divider sx={{ my: 1.5 }} />
 
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}>
+          <Box
+            sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 1.5 }}
+          >
             {[
               ["Phone", payee.phone],
               ["Email", payee.email],
@@ -206,7 +208,9 @@ export default function PayeeProfilePage({ id }: Props) {
       {/* Payment history */}
       <Card sx={{ bgcolor: "background.paper" }}>
         <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}>
+          <Box
+            sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 2 }}
+          >
             <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
               Payment History
             </Typography>
@@ -237,12 +241,20 @@ export default function PayeeProfilePage({ id }: Props) {
                     <TableRow key={e.id} hover>
                       <TableCell data-label="Date">
                         {e.expenseDate
-                          ? new Date(e.expenseDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
+                          ? new Date(e.expenseDate).toLocaleDateString("en-GB", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })
                           : `${e.month}/${e.year}`}
                       </TableCell>
                       <TableCell data-label="Service Type">
                         {e.serviceTypeName ? (
-                          <Chip label={e.serviceTypeName} size="small" sx={{ fontSize: "0.7rem" }} />
+                          <Chip
+                            label={e.serviceTypeName}
+                            size="small"
+                            sx={{ fontSize: "0.7rem" }}
+                          />
                         ) : (
                           <Typography variant="caption" color="text.secondary">
                             {e.category}
@@ -303,7 +315,11 @@ export default function PayeeProfilePage({ id }: Props) {
           sx={{ mb: 2 }}
         />
 
-        {saveError && <Alert severity="error" sx={{ mb: 2 }}>{saveError}</Alert>}
+        {saveError && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {saveError}
+          </Alert>
+        )}
 
         <Box sx={{ display: "flex", gap: 1 }}>
           <Button variant="outlined" fullWidth onClick={() => setEditOpen(false)}>

@@ -59,7 +59,10 @@ export async function updateEmployee(
 export async function deleteEmployee(id: string) {
   const count = await db.employeePayment.count({ where: { employeeId: id } });
   if (count > 0) {
-    return { deleted: false, error: `Employee has ${count} payment(s); reassign or delete those first.` };
+    return {
+      deleted: false,
+      error: `Employee has ${count} payment(s); reassign or delete those first.`,
+    };
   }
   await db.employee.delete({ where: { id } });
   return { deleted: true };
@@ -100,7 +103,10 @@ export async function updateIncomeSource(
 export async function deleteIncomeSource(id: string) {
   const count = await db.earning.count({ where: { sourceId: id } });
   if (count > 0) {
-    return { deleted: false, error: `Source has ${count} earning(s); reassign or delete those first.` };
+    return {
+      deleted: false,
+      error: `Source has ${count} earning(s); reassign or delete those first.`,
+    };
   }
   await db.incomeSource.delete({ where: { id } });
   return { deleted: true };
@@ -134,7 +140,10 @@ export async function updateExpenseCategory(id: string, input: { name?: string }
 export async function deleteExpenseCategory(id: string) {
   const count = await db.bizExpense.count({ where: { categoryId: id } });
   if (count > 0) {
-    return { deleted: false, error: `Category has ${count} expense(s); reassign or delete those first.` };
+    return {
+      deleted: false,
+      error: `Category has ${count} expense(s); reassign or delete those first.`,
+    };
   }
   await db.bizExpenseCategory.delete({ where: { id } });
   return { deleted: true };

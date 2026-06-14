@@ -111,7 +111,11 @@ export default function PayeesPage() {
         <Button
           variant="contained"
           startIcon={<Plus size={16} />}
-          onClick={() => { setForm(EMPTY_FORM); setError(null); setDrawerOpen(true); }}
+          onClick={() => {
+            setForm(EMPTY_FORM);
+            setError(null);
+            setDrawerOpen(true);
+          }}
         >
           Add Payee
         </Button>
@@ -130,11 +134,21 @@ export default function PayeesPage() {
           </CardContent>
         </Card>
       ) : (
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "1fr 1fr 1fr" }, gap: 2 }}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr", lg: "1fr 1fr 1fr" },
+            gap: 2,
+          }}
+        >
           {payees.map((p) => (
             <Card
               key={p.id}
-              sx={{ bgcolor: "background.paper", cursor: "pointer", "&:hover": { bgcolor: "action.hover" } }}
+              sx={{
+                bgcolor: "background.paper",
+                cursor: "pointer",
+                "&:hover": { bgcolor: "action.hover" },
+              }}
               onClick={() => router.push(`/admin/property/payees/${p.id}`)}
             >
               <CardContent sx={{ display: "flex", alignItems: "center", gap: 2 }}>
@@ -149,7 +163,12 @@ export default function PayeesPage() {
                     {p.role}
                   </Typography>
                   {p.phone && (
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }} noWrap>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block" }}
+                      noWrap
+                    >
                       {p.phone}
                     </Typography>
                   )}
@@ -187,7 +206,11 @@ export default function PayeesPage() {
         {field("nidNumber", "NID Number")}
         {field("notes", "Notes", true)}
 
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        {error && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        )}
 
         <Button
           variant="contained"

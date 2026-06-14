@@ -165,7 +165,10 @@ export default function SubscriptionsPage() {
 
   return (
     <Box>
-      <PageHeader title="Subscriptions" subtitle="Recurring tools & services — auto-charged monthly" />
+      <PageHeader
+        title="Subscriptions"
+        subtitle="Recurring tools & services — auto-charged monthly"
+      />
 
       <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
         <Card sx={{ bgcolor: "background.paper", display: "inline-flex", px: 3, py: 1.5 }}>
@@ -217,11 +220,15 @@ export default function SubscriptionsPage() {
               ) : (
                 subs.map((s) => (
                   <TableRow key={s.id} hover>
-                    <TableCell data-label="Service" sx={{ fontWeight: 600 }}>{s.name}</TableCell>
+                    <TableCell data-label="Service" sx={{ fontWeight: 600 }}>
+                      {s.name}
+                    </TableCell>
                     <TableCell data-label="Category">
                       <Chip size="small" label={s.categoryName} variant="outlined" />
                     </TableCell>
-                    <TableCell align="right" data-label="Monthly">{fmt(s.monthlyAmount)}</TableCell>
+                    <TableCell align="right" data-label="Monthly">
+                      {fmt(s.monthlyAmount)}
+                    </TableCell>
                     <TableCell data-label="Started">{fmtMonth(s.startDate)}</TableCell>
                     <TableCell data-label="Status">
                       {s.isActive ? (
@@ -235,9 +242,17 @@ export default function SubscriptionsPage() {
                         />
                       )}
                     </TableCell>
-                    <TableCell align="right" data-label="Total Spent" sx={{ fontWeight: 600, color: "error.main" }}>
+                    <TableCell
+                      align="right"
+                      data-label="Total Spent"
+                      sx={{ fontWeight: 600, color: "error.main" }}
+                    >
                       {fmt(s.totalSpent)}
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ display: "block" }}
+                      >
                         {s.monthsCharged} mo
                       </Typography>
                     </TableCell>
@@ -255,7 +270,11 @@ export default function SubscriptionsPage() {
                         </Tooltip>
                         {s.isActive ? (
                           <Tooltip title="Stop subscription">
-                            <IconButton size="small" color="warning" onClick={() => setPendingStop(s)}>
+                            <IconButton
+                              size="small"
+                              color="warning"
+                              onClick={() => setPendingStop(s)}
+                            >
                               <CircleStop size={14} />
                             </IconButton>
                           </Tooltip>
@@ -267,7 +286,11 @@ export default function SubscriptionsPage() {
                           </Tooltip>
                         )}
                         <Tooltip title="Delete">
-                          <IconButton size="small" color="error" onClick={() => setPendingDelete(s.id)}>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => setPendingDelete(s.id)}
+                          >
                             <Trash2 size={14} />
                           </IconButton>
                         </Tooltip>
@@ -358,7 +381,8 @@ export default function SubscriptionsPage() {
           </Button>
           {editing && (
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5 }}>
-              Editing the amount applies to future months only; past charges keep their original value.
+              Editing the amount applies to future months only; past charges keep their original
+              value.
             </Typography>
           )}
         </Box>
@@ -377,7 +401,8 @@ export default function SubscriptionsPage() {
               {detail.name}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              {detail.categoryName} · {fmt(detail.monthlyAmount)}/mo · started {fmtMonth(detail.startDate)}
+              {detail.categoryName} · {fmt(detail.monthlyAmount)}/mo · started{" "}
+              {fmtMonth(detail.startDate)}
               {detail.isActive ? " · active" : ` · ended ${fmtMonth(detail.endDate)}`}
             </Typography>
             <Box sx={{ display: "flex", justifyContent: "space-between", my: 1.5 }}>
@@ -404,7 +429,9 @@ export default function SubscriptionsPage() {
                   <TableRow key={c.id}>
                     <TableCell data-label="Month">{fmtMonth(c.date)}</TableCell>
                     <TableCell data-label="Fiscal Year">{c.fiscalYear}</TableCell>
-                    <TableCell align="right" data-label="Amount">{fmt(c.amount)}</TableCell>
+                    <TableCell align="right" data-label="Amount">
+                      {fmt(c.amount)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

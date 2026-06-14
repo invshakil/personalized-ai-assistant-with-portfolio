@@ -26,14 +26,28 @@ const tooltipStyle = {
 function MonthLabel(period: string) {
   // "2025-08" → "Aug'25"
   const [y, m] = period.split("-");
-  const month = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][
-    Number(m) - 1
-  ];
+  const month = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ][Number(m) - 1];
   return `${month}'${y.slice(2)}`;
 }
 
 export default function FinanceCharts({ data }: { data: FinanceDashboardData }) {
-  const monthly = data.monthlyIncome.map((m) => ({ label: MonthLabel(m.period), amount: m.amount }));
+  const monthly = data.monthlyIncome.map((m) => ({
+    label: MonthLabel(m.period),
+    amount: m.amount,
+  }));
   const sources = data.bySource.map((s) => ({ name: s.name, value: s.total }));
 
   return (
@@ -46,8 +60,16 @@ export default function FinanceCharts({ data }: { data: FinanceDashboardData }) 
           <ResponsiveContainer width="99%" height={240} debounce={50}>
             <LineChart data={monthly} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-              <XAxis dataKey="label" tick={{ fontSize: 10, fill: "#8692a8" }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10, fill: "#8692a8" }} tickFormatter={(v) => fmtShort(v)} width={56} />
+              <XAxis
+                dataKey="label"
+                tick={{ fontSize: 10, fill: "#8692a8" }}
+                interval="preserveStartEnd"
+              />
+              <YAxis
+                tick={{ fontSize: 10, fill: "#8692a8" }}
+                tickFormatter={(v) => fmtShort(v)}
+                width={56}
+              />
               <Tooltip formatter={(v) => [fmt(Number(v ?? 0)), "Income"]} {...tooltipStyle} />
               <Line
                 type="monotone"
@@ -71,7 +93,11 @@ export default function FinanceCharts({ data }: { data: FinanceDashboardData }) 
             <BarChart data={sources} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
               <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#8692a8" }} />
-              <YAxis tick={{ fontSize: 10, fill: "#8692a8" }} tickFormatter={(v) => fmtShort(v)} width={56} />
+              <YAxis
+                tick={{ fontSize: 10, fill: "#8692a8" }}
+                tickFormatter={(v) => fmtShort(v)}
+                width={56}
+              />
               <Tooltip formatter={(v) => [fmt(Number(v ?? 0)), "Income"]} {...tooltipStyle} />
               <Bar dataKey="value" radius={[4, 4, 0, 0]} isAnimationActive={false}>
                 {sources.map((_, i) => (
