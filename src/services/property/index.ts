@@ -11,3 +11,6 @@ export * from "./rentChanges";
 export * from "./dashboard";
 export * from "./propertySettings";
 export * from "./tenantDocuments";
+export * from "./payeeDocuments";
+export * from "./payees";
+export * from "./serviceTypes";

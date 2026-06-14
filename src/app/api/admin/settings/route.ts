@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { upsertSiteSettings } from "@/services/admin";
 
 export async function PUT(req: Request) {
   const session = await auth();
@@ -14,19 +14,12 @@ export async function PUT(req: Request) {
     return Response.json({ error: "availableForWork must be a boolean" }, { status: 400 });
   }
 
-  const settings = await db.siteSettings.upsert({
-    where: { id: "singleton" },
-    update: { availableForWork, heroTagline, heroBio, metaDescription, cvUrl },
-    create: {
-      id: "singleton",
-      availableForWork,
-      heroTagline: heroTagline ?? "Tech Lead & Full-Stack Engineer",
-      heroBio: heroBio ?? "",
-      metaDescription: metaDescription ?? "",
-      metaKeywords: "",
-      cvUrl: cvUrl ?? "",
-    },
+  const settings = await upsertSiteSettings({
+    availableForWork,
+    heroTagline,
+    heroBio,
+    metaDescription,
+    cvUrl,
   });
-
   return Response.json({ data: settings });
 }
