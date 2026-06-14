@@ -10,6 +10,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json();
   const data = await updateEmployee(id, {
     name: body.name,
+    phone: body.phone,
     isActive: body.isActive,
     notes: body.notes,
   });

@@ -69,6 +69,7 @@ export interface SubscriptionDetail extends Omit<SubscriptionRow, "monthsCharged
 export interface EmployeeRow {
   id: string;
   name: string;
+  phone: string | null;
   isActive: boolean;
   notes: string | null;
   paymentCount: number;

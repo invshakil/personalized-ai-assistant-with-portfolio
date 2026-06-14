@@ -349,6 +349,7 @@ enum RenovationStatus {
 model Employee {
   id        String            @id @default(cuid())
   name      String            @unique
+  phone     String?
   isActive  Boolean           @default(true)
   notes     String?
   payments  EmployeePayment[]
