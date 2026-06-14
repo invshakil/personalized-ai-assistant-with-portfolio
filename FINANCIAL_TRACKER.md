@@ -235,6 +235,25 @@ Decisions: **Subscription entity + monthly auto-charge**; **confirm dialog on de
 | 11 | **PDF downloads** — per-row salary receipt, earning receipt, expense receipt + dashboard report PDF (`@react-pdf/renderer`, mirrors property receipt route) | ✅ done (2026-06-13) — `services/finance/pdfKit.tsx` + 4 routes; per-row Download buttons; report PDF honors the active date range. BDT rendered as "BDT n" (standard fonts lack ৳) |
 | 12 | Verify (build/lint/typecheck + reconcile); update this doc + PROJECT_PLANNING | ✅ done (2026-06-13) — build/lint/tsc clean; authenticated HTTP smoke tests for ranges, PDFs, and full subscription lifecycle all pass |
 
+## 12. Enhancement round 4 (2026-06-14 — bulk PDF export, richer headers, employee phone) ✅ complete
+
+- **Business letterhead on all PDFs:** `pdfKit.tsx` now has a `BUSINESS` constant
+  (name, tagline, address, phone, email) + a `BusinessHeader` component used by every receipt,
+  the dashboard report, and the new bulk exports. ⚠️ **Edit `BUSINESS` in `src/services/finance/pdfKit.tsx`
+  with the real company name / address** — currently pre-filled with known contact data + a Dhaka placeholder.
+- **Employee phone:** added `Employee.phone` (migration `20260614000000_add_employee_phone`, applied via
+  `db execute`); captured in the Settings employee form, shown in the employees list, and printed on the
+  salary receipt ("Employee phone").
+- **Bulk "Download all" PDF** for every list that has per-row downloads, honoring the active filters:
+  - `GET /api/admin/finance/earnings/pdf` (Earnings Statement)
+  - `GET /api/admin/finance/payments/pdf` (Salary Payments Statement)
+  - `GET /api/admin/finance/expenses/pdf` (Business Expenses Statement)
+  - `GET /api/admin/property/payments/pdf` (Rent Collection Statement)
+  - Rendered by a reusable `ListDocument` (paginates automatically; e.g. 136 earnings → 2 pages),
+    each with a totals row. "Download all" buttons added to the four list-page toolbars.
+- Verified: PDF text extraction confirms the business header + employee phone + totals appear; all 4
+  exports return valid multi-page PDFs. build + lint + tsc clean.
+
 ## 11. Enhancement round 3 (2026-06-13 — clients on salaries) ✅ complete
 
 Decisions: **unified client list** (rename "Income Sources" → **Clients**; one list for earnings +
