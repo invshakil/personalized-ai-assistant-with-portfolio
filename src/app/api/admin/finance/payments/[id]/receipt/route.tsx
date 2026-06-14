@@ -19,7 +19,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const p = await db.employeePayment.findUnique({
     where: { id },
     include: {
-      employee: { select: { name: true } },
+      employee: { select: { name: true, phone: true } },
       clients: { select: { name: true }, orderBy: { name: "asc" } },
     },
   });
@@ -33,6 +33,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       generatedAt={pdfDate(new Date().toISOString())}
       fields={[
         { label: "Employee", value: p.employee.name },
+        { label: "Employee phone", value: p.employee.phone ?? "—" },
         { label: "Payment type", value: KIND[p.type] ?? p.type },
         { label: "Client(s)", value: clientNames || "—" },
         ...(p.reference ? [{ label: "Note", value: p.reference }] : []),

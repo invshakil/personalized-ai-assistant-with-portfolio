@@ -45,6 +45,7 @@ type DrawerState = {
   kind: Kind;
   editingId: string | null;
   name: string;
+  phone: string;
   notes: string;
   isActive: boolean;
 };
@@ -83,7 +84,7 @@ export default function FinanceSettingsPage() {
 
   const openAdd = (kind: Kind) => {
     setError(null);
-    setDrawer({ kind, editingId: null, name: "", notes: "", isActive: true });
+    setDrawer({ kind, editingId: null, name: "", phone: "", notes: "", isActive: true });
   };
   const openEdit = (kind: Kind, item: EmployeeRow | SourceRow | CategoryRow) => {
     setError(null);
@@ -91,6 +92,7 @@ export default function FinanceSettingsPage() {
       kind,
       editingId: item.id,
       name: item.name,
+      phone: "phone" in item ? (item.phone ?? "") : "",
       notes: "notes" in item ? (item.notes ?? "") : "",
       isActive: "isActive" in item ? item.isActive : true,
     });
@@ -101,9 +103,9 @@ export default function FinanceSettingsPage() {
     setSaving(true);
     setError(null);
     try {
-      const { kind, editingId, name, notes, isActive } = drawer;
+      const { kind, editingId, name, phone, notes, isActive } = drawer;
       if (kind === "employee") {
-        const payload = { name, notes: notes || null, isActive };
+        const payload = { name, phone: phone || null, notes: notes || null, isActive };
         if (editingId) await financeApi.updateEmployee(editingId, payload);
         else await financeApi.createEmployee(payload);
       } else if (kind === "source") {
@@ -198,7 +200,7 @@ export default function FinanceSettingsPage() {
                         )}
                       </Box>
                     }
-                    secondary={`${emp.paymentCount} payments · ${fmt(emp.totalPaid)}`}
+                    secondary={`${emp.phone ? emp.phone + " · " : ""}${emp.paymentCount} payments · ${fmt(emp.totalPaid)}`}
                   />
                 </ListItem>
               ))}
@@ -310,6 +312,17 @@ export default function FinanceSettingsPage() {
               onChange={(e) => setDrawer((d) => (d ? { ...d, name: e.target.value } : d))}
               sx={{ mb: 2 }}
             />
+            {drawer.kind === "employee" && (
+              <TextField
+                label="Phone"
+                size="small"
+                fullWidth
+                value={drawer.phone}
+                onChange={(e) => setDrawer((d) => (d ? { ...d, phone: e.target.value } : d))}
+                placeholder="e.g. +880 1XXX XXXXXX"
+                sx={{ mb: 2 }}
+              />
+            )}
             {(drawer.kind === "employee" || drawer.kind === "source") && (
               <TextField
                 label="Notes"

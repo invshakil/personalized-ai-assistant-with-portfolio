@@ -17,6 +17,7 @@ export async function getEmployees() {
   return employees.map((e) => ({
     id: e.id,
     name: e.name,
+    phone: e.phone,
     isActive: e.isActive,
     notes: e.notes,
     paymentCount: e._count.payments,
@@ -24,20 +25,31 @@ export async function getEmployees() {
   }));
 }
 
-export async function createEmployee(input: { name: string; isActive?: boolean; notes?: string | null }) {
+export async function createEmployee(input: {
+  name: string;
+  phone?: string | null;
+  isActive?: boolean;
+  notes?: string | null;
+}) {
   return db.employee.create({
-    data: { name: input.name, isActive: input.isActive ?? true, notes: input.notes ?? null },
+    data: {
+      name: input.name,
+      phone: input.phone ?? null,
+      isActive: input.isActive ?? true,
+      notes: input.notes ?? null,
+    },
   });
 }
 
 export async function updateEmployee(
   id: string,
-  input: { name?: string; isActive?: boolean; notes?: string | null }
+  input: { name?: string; phone?: string | null; isActive?: boolean; notes?: string | null }
 ) {
   return db.employee.update({
     where: { id },
     data: {
       ...(input.name && { name: input.name }),
+      ...(input.phone !== undefined && { phone: input.phone }),
       ...(input.isActive != null && { isActive: input.isActive }),
       ...(input.notes !== undefined && { notes: input.notes }),
     },

@@ -17,6 +17,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   if (!body.name) return Response.json({ error: "name is required" }, { status: 400 });
 
-  const data = await createEmployee({ name: body.name, isActive: body.isActive, notes: body.notes });
+  const data = await createEmployee({
+    name: body.name,
+    phone: body.phone,
+    isActive: body.isActive,
+    notes: body.notes,
+  });
   return Response.json({ data }, { status: 201 });
 }

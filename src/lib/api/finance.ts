@@ -97,11 +97,15 @@ export const financeApi = {
 
   // ── Config: employees / clients (sources) / categories ───────────────────
   listEmployees: () => apiGet<EmployeeRow[]>("/finance/employees"),
-  createEmployee: (body: { name: string; isActive?: boolean; notes?: string | null }) =>
-    apiPost<EmployeeRow>("/finance/employees", body),
+  createEmployee: (body: {
+    name: string;
+    phone?: string | null;
+    isActive?: boolean;
+    notes?: string | null;
+  }) => apiPost<EmployeeRow>("/finance/employees", body),
   updateEmployee: (
     id: string,
-    body: { name?: string; isActive?: boolean; notes?: string | null }
+    body: { name?: string; phone?: string | null; isActive?: boolean; notes?: string | null }
   ) => apiPut<EmployeeRow>(`/finance/employees/${id}`, body),
   deleteEmployee: (id: string) => apiDelete(`/finance/employees/${id}`),
 
