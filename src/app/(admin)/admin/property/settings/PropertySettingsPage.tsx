@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import { Save, Building2, User, Phone, MapPin, CreditCard } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import { propertyApi } from "@/lib/api/property";
 import type { PropertySettings } from "@/types";
 
 interface Props {
@@ -46,19 +47,13 @@ export default function PropertySettingsPage({ initial }: Props) {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await fetch("/api/admin/property/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          propertyName: form.propertyName,
-          ownerName: form.ownerName,
-          ownerPhone: form.ownerPhone,
-          address: form.address,
-          bankAccount: form.bankAccount || null,
-        }),
+      await propertyApi.updateSettings({
+        propertyName: form.propertyName,
+        ownerName: form.ownerName,
+        ownerPhone: form.ownerPhone,
+        address: form.address,
+        bankAccount: form.bankAccount || null,
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Save failed");
       setToast({ open: true, message: "Settings saved successfully", severity: "success" });
     } catch (err) {
       setToast({ open: true, message: (err as Error).message, severity: "error" });

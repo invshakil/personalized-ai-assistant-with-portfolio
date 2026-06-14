@@ -38,6 +38,7 @@ import {
   Pencil,
 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import { propertyApi } from "@/lib/api/property";
 import type { PaymentWithTenant, PaymentTransaction } from "@/types";
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
@@ -110,9 +111,7 @@ export default function PaymentsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/property/payments?month=${month}&year=${year}`);
-      const json = await res.json();
-      setPayments(json.data ?? []);
+      setPayments((await propertyApi.listPayments({ month, year })) ?? []);
     } finally {
       setLoading(false);
     }
@@ -120,23 +119,20 @@ export default function PaymentsPage() {
 
   // Auto-generate on load if no payments exist for this month
   const autoGenerate = useCallback(async () => {
-    const res = await fetch(`/api/admin/property/payments?month=${month}&year=${year}`);
-    const json = await res.json();
-    if ((json.data ?? []).length === 0) {
+    const data = (await propertyApi.listPayments({ month, year })) ?? [];
+    if (data.length === 0) {
       setGenerating(true);
-      const gen = await fetch("/api/admin/property/payments/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month, year }),
-      });
-      const genJson = await gen.json();
-      if (genJson.data?.created > 0) {
-        setGenMsg(genJson.data.message);
+      const gen = (await propertyApi.generatePayments({ month, year })) as {
+        created?: number;
+        message?: string;
+      } | null;
+      if (gen?.created && gen.created > 0) {
+        setGenMsg(gen.message ?? null);
       }
       setGenerating(false);
       await load();
     } else {
-      setPayments(json.data);
+      setPayments(data);
       setLoading(false);
     }
   }, [month, year, load]);
@@ -172,18 +168,12 @@ export default function PaymentsPage() {
     setTxLoading(true);
     setTxError(null);
     try {
-      const res = await fetch(`/api/admin/property/payments/${drawer.payment.id}/transactions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: txType,
-          amount: parseFloat(txAmount),
-          date: txDate,
-          notes: txNotes || null,
-        }),
+      await propertyApi.addPaymentTransaction(drawer.payment.id, {
+        type: txType,
+        amount: parseFloat(txAmount),
+        date: txDate,
+        notes: txNotes || null,
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
       setDrawer(null);
       load();
     } catch (e: unknown) {
@@ -198,16 +188,10 @@ export default function PaymentsPage() {
     setEditPaymentLoading(true);
     setEditPaymentError(null);
     try {
-      const res = await fetch(`/api/admin/property/payments/${editPayment.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          rentDue: parseFloat(editPayment.rentDue),
-          notes: editPayment.notes || null,
-        }),
+      await propertyApi.updatePayment(editPayment.id, {
+        rentDue: parseFloat(editPayment.rentDue),
+        notes: editPayment.notes || null,
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
       setEditPayment(null);
       load();
     } catch (e: unknown) {
@@ -224,7 +208,7 @@ export default function PaymentsPage() {
       )
     )
       return;
-    await fetch(`/api/admin/property/payments/${id}`, { method: "DELETE" });
+    await propertyApi.deletePayment(id);
     load();
   };
 
@@ -242,7 +226,7 @@ export default function PaymentsPage() {
       ? "Delete this advance entry? The advance amount will be restored to the tenant's balance."
       : "Delete this transaction?";
     if (!window.confirm(msg)) return;
-    await fetch(`/api/admin/property/payments/transactions/${txId}`, { method: "DELETE" });
+    await propertyApi.deletePaymentTransaction(txId);
     load();
   };
 
@@ -251,18 +235,12 @@ export default function PaymentsPage() {
     setEditTxLoading(true);
     setEditTxError(null);
     try {
-      const res = await fetch(`/api/admin/property/payments/transactions/${editTx.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: editTxType,
-          amount: parseFloat(editTxAmount),
-          date: editTxDate,
-          notes: editTxNotes || null,
-        }),
+      await propertyApi.updatePaymentTransaction(editTx.id, {
+        type: editTxType,
+        amount: parseFloat(editTxAmount),
+        date: editTxDate,
+        notes: editTxNotes || null,
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
       setEditTx(null);
       load();
     } catch (e: unknown) {
@@ -309,13 +287,10 @@ export default function PaymentsPage() {
           size="small"
           onClick={async () => {
             setGenerating(true);
-            const res = await fetch("/api/admin/property/payments/generate", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ month, year }),
-            });
-            const json = await res.json();
-            setGenMsg(json.data?.message ?? null);
+            const gen = (await propertyApi.generatePayments({ month, year })) as {
+              message?: string;
+            } | null;
+            setGenMsg(gen?.message ?? null);
             setGenerating(false);
             load();
           }}

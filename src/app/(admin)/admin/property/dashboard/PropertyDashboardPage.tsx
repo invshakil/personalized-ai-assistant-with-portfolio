@@ -24,6 +24,7 @@ import {
 
 import { TrendingUp, AlertTriangle } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import { propertyApi } from "@/lib/api/property";
 import type { PropertyDashboardStats } from "@/types";
 
 const PropertyCharts = dynamic(() => import("./PropertyCharts"), {
@@ -97,10 +98,7 @@ export default function PropertyDashboardPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/property/dashboard?month=${month}&year=${year}`);
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to load dashboard");
-      setData(json.data ?? null);
+      setData((await propertyApi.dashboard({ month, year })) ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load dashboard");
     } finally {

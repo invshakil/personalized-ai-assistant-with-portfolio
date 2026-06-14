@@ -55,6 +55,7 @@ import {
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
 import TenantDocuments from "@/components/admin/TenantDocuments";
+import { propertyApi } from "@/lib/api/property";
 import type { UnitWithTenant } from "@/types";
 
 function fmt(n: number) {
@@ -202,23 +203,19 @@ export default function PropertyPage() {
     setLoading(true);
     try {
       // Auto-deactivate any tenants whose lease has expired (fire-and-forget; silent)
-      fetch("/api/admin/property/tenants/auto-deactivate-expired", { method: "POST" }).catch(
-        () => {}
-      );
+      propertyApi.autoDeactivateExpired().catch(() => {});
 
-      const [unitsRes, tenantsRes] = await Promise.all([
-        fetch("/api/admin/property/units"),
-        fetch("/api/admin/property/tenants?filter=active"),
+      const [unitData, activeTenants] = await Promise.all([
+        propertyApi.listUnits(),
+        propertyApi.listTenants("active"),
       ]);
-      const [unitsJson, tenantsJson] = await Promise.all([unitsRes.json(), tenantsRes.json()]);
-      const unitData: UnitWithTenant[] = unitsJson.data ?? [];
-      setUnits(unitData);
+      setUnits(unitData ?? []);
 
       // Active tenants with no unit (e.g. after re-activation before unit reassignment)
       // Include futureTenant IDs so scheduled tenants aren't also listed under "Unassigned"
       const unitTenantIds = new Set([
-        ...unitData.map((u) => u.tenant?.id).filter(Boolean),
-        ...unitData.map((u) => u.futureTenant?.id).filter(Boolean),
+        ...(unitData ?? []).map((u) => u.tenant?.id).filter(Boolean),
+        ...(unitData ?? []).map((u) => u.futureTenant?.id).filter(Boolean),
       ]);
       type ActiveTenant = {
         id: string;
@@ -234,7 +231,7 @@ export default function PropertyPage() {
         advanceSettled: boolean;
         services?: { id: string; serviceName: string; monthlyFee: number }[];
       };
-      const unassigned: UnitWithTenant[] = ((tenantsJson.data ?? []) as ActiveTenant[])
+      const unassigned: UnitWithTenant[] = ((activeTenants ?? []) as unknown as ActiveTenant[])
         .filter((t) => !unitTenantIds.has(t.id))
         .map((t) => ({
           id: `unassigned-${t.id}`,
@@ -271,8 +268,7 @@ export default function PropertyPage() {
   const loadInactive = useCallback(async () => {
     setInactiveLoading(true);
     try {
-      const res = await fetch("/api/admin/property/tenants?filter=inactive");
-      const json = await res.json();
+      const inactiveTenants = await propertyApi.listTenants("inactive");
       type InactiveTenant = {
         id: string;
         tenantCode: string | null;
@@ -288,7 +284,7 @@ export default function PropertyPage() {
         lastRent: number | null;
       };
       setInactiveRows(
-        (json.data ?? []).map((t: InactiveTenant) => ({
+        ((inactiveTenants ?? []) as unknown as InactiveTenant[]).map((t) => ({
           id: t.id,
           unitNumber: "—",
           floor: "—",
@@ -321,31 +317,25 @@ export default function PropertyPage() {
 
   useEffect(() => {
     load();
-    fetch("/api/admin/property/services")
-      .then((r) => r.json())
-      .then((j) =>
-        setServiceCatalog(
-          (j.data ?? [])
-            .filter((s: { isActive: boolean }) => s.isActive)
-            .map((s: { id: string; name: string }) => ({ id: s.id, name: s.name }))
-        )
-      );
+    propertyApi.listServices().then((services) =>
+      setServiceCatalog(
+        ((services ?? []) as { id: string; name: string; isActive: boolean }[])
+          .filter((s) => s.isActive)
+          .map((s) => ({ id: s.id, name: s.name }))
+      )
+    );
   }, [load]);
 
   const saveUnit = async () => {
     if (!drawerUnit) return;
     setSaving(true);
     try {
-      await fetch(`/api/admin/property/units/${drawerUnit.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          unitNumber: unitForm.unitNumber,
-          floor: unitForm.floor,
-          monthlyRent: Number(unitForm.monthlyRent),
-          description: unitForm.description || null,
-          notes: unitForm.notes || null,
-        }),
+      await propertyApi.updateUnit(drawerUnit.id, {
+        unitNumber: unitForm.unitNumber,
+        floor: unitForm.floor,
+        monthlyRent: Number(unitForm.monthlyRent),
+        description: unitForm.description || null,
+        notes: unitForm.notes || null,
       });
       setUnitEditMode(false);
       setDrawerUnit(null);
@@ -377,17 +367,13 @@ export default function PropertyPage() {
     if (!editTenantRow?.tenant) return;
     setSaving(true);
     try {
-      await fetch(`/api/admin/property/tenants/${editTenantRow.tenant.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: tenantForm.name,
-          phone: tenantForm.phone || null,
-          moveInDate: tenantForm.moveInDate,
-          leaseEndDate: tenantForm.leaseEndDate || null,
-          advancePaid: tenantForm.advancePaid,
-          advanceAmount: Number(tenantForm.advanceAmount),
-        }),
+      await propertyApi.updateTenant(editTenantRow.tenant.id, {
+        name: tenantForm.name,
+        phone: tenantForm.phone || null,
+        moveInDate: tenantForm.moveInDate,
+        leaseEndDate: tenantForm.leaseEndDate || null,
+        advancePaid: tenantForm.advancePaid,
+        advanceAmount: Number(tenantForm.advanceAmount),
       });
       setEditTenantRow(null);
       await load();
@@ -400,14 +386,10 @@ export default function PropertyPage() {
     if (!editTenantRow?.tenant || !rcForm.effectiveDate || !rcForm.newRent) return;
     setSaving(true);
     try {
-      await fetch(`/api/admin/property/tenants/${editTenantRow.tenant.id}/rent-change`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          effectiveDate: rcForm.effectiveDate,
-          newRent: Number(rcForm.newRent),
-          reason: rcForm.reason || null,
-        }),
+      await propertyApi.addRentChange(editTenantRow.tenant.id, {
+        effectiveDate: rcForm.effectiveDate,
+        newRent: Number(rcForm.newRent),
+        reason: rcForm.reason || null,
       });
       setShowRcForm(false);
       setRcForm({ effectiveDate: "", newRent: String(editTenantRow.monthlyRent), reason: "" });
@@ -417,9 +399,7 @@ export default function PropertyPage() {
   };
 
   const refreshEditRow = async (tenantId: string) => {
-    const res = await fetch("/api/admin/property/units");
-    const json = await res.json();
-    const fresh: UnitWithTenant[] = json.data ?? [];
+    const fresh: UnitWithTenant[] = (await propertyApi.listUnits()) ?? [];
     setUnits(fresh);
     const freshRow = fresh.find((u) => u.tenant?.id === tenantId);
     if (freshRow) setEditTenantRow(freshRow);
@@ -429,15 +409,11 @@ export default function PropertyPage() {
     if (!editTenantRow?.tenant || !addSvcId || addSvcFee === "") return;
     setSaving(true);
     try {
-      await fetch("/api/admin/property/services/assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tenantId: editTenantRow.tenant.id,
-          serviceId: addSvcId,
-          monthlyFee: parseFloat(addSvcFee),
-          startDate: addSvcDate || new Date().toISOString().split("T")[0],
-        }),
+      await propertyApi.assignService({
+        tenantId: editTenantRow.tenant.id,
+        serviceId: addSvcId,
+        monthlyFee: parseFloat(addSvcFee),
+        startDate: addSvcDate || new Date().toISOString().split("T")[0],
       });
       setAddSvcId("");
       setAddSvcFee("");
@@ -453,7 +429,7 @@ export default function PropertyPage() {
       "End Service",
       "End this service subscription for the tenant?",
       async () => {
-        await fetch(`/api/admin/property/services/assign/${tenantServiceId}`, { method: "DELETE" });
+        await propertyApi.removeAssignedService(tenantServiceId);
         await refreshEditRow(tenantId);
       },
       { confirmLabel: "End Subscription", confirmColor: "error" }
@@ -507,28 +483,21 @@ export default function PropertyPage() {
         !selectedUnitData.isOccupied
       ) {
         if (Number(addForm.customRent) !== selectedUnitData.monthlyRent) {
-          await fetch(`/api/admin/property/units/${addForm.unitId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ monthlyRent: Number(addForm.customRent) }),
+          await propertyApi.updateUnit(addForm.unitId, {
+            monthlyRent: Number(addForm.customRent),
           });
         }
       }
-      const res = await fetch("/api/admin/property/tenants", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: addForm.name,
-          phone: addForm.phone || null,
-          unitId: isAddingExternal ? null : addForm.unitId || null,
-          moveInDate: addForm.moveInDate,
-          leaseEndDate: addForm.leaseEndDate || null,
-          advancePaid: addForm.advancePaid,
-          advanceAmount: addForm.advancePaid ? Number(addForm.advanceAmount) : 0,
-          isExternal: isAddingExternal,
-        }),
-      });
-      const newTenant = (await res.json())?.data;
+      const newTenant = (await propertyApi.createTenant({
+        name: addForm.name,
+        phone: addForm.phone || null,
+        unitId: isAddingExternal ? null : addForm.unitId || null,
+        moveInDate: addForm.moveInDate,
+        leaseEndDate: addForm.leaseEndDate || null,
+        advancePaid: addForm.advancePaid,
+        advanceAmount: addForm.advancePaid ? Number(addForm.advanceAmount) : 0,
+        isExternal: isAddingExternal,
+      })) as { id?: string; tenantStatus?: string } | null;
       // For occupied units: schedule a rent change for the future tenant's move-in date
       if (
         newTenant?.id &&
@@ -537,24 +506,17 @@ export default function PropertyPage() {
         selectedUnitData &&
         Number(addForm.customRent) !== selectedUnitData.monthlyRent
       ) {
-        await fetch(`/api/admin/property/tenants/${newTenant.id}/rent-change`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            effectiveDate: addForm.moveInDate,
-            newRent: Number(addForm.customRent),
-            reason: "Scheduled with future tenant",
-          }),
+        await propertyApi.addRentChange(newTenant.id, {
+          effectiveDate: addForm.moveInDate,
+          newRent: Number(addForm.customRent),
+          reason: "Scheduled with future tenant",
         });
       }
       // Upload any pending documents to the newly created tenant
       if (newTenant?.id && pendingFiles.length > 0) {
         const fd = new FormData();
         pendingFiles.forEach((f) => fd.append("files", f));
-        await fetch(`/api/admin/property/tenants/${newTenant.id}/documents`, {
-          method: "POST",
-          body: fd,
-        });
+        await propertyApi.uploadTenantDocuments(newTenant.id, fd);
       }
       setPendingFiles([]);
       setAddOpen(false);
@@ -570,7 +532,7 @@ export default function PropertyPage() {
       "Deactivate Tenant",
       `Are you sure you want to deactivate ${name}? They will be unassigned from their unit.`,
       async () => {
-        await fetch(`/api/admin/property/tenants/${id}/deactivate`, { method: "POST" });
+        await propertyApi.deactivateTenant(id);
         await load();
       },
       { confirmLabel: "Deactivate", confirmColor: "error" }
@@ -582,7 +544,7 @@ export default function PropertyPage() {
       "Re-activate Tenant",
       `Re-activate ${name}? Their record will be restored as active. You can then assign them to a unit.`,
       async () => {
-        await fetch(`/api/admin/property/tenants/${id}/activate`, { method: "POST" });
+        await propertyApi.activateTenant(id);
         await loadInactive();
         await load();
       },
@@ -603,12 +565,9 @@ export default function PropertyPage() {
     if (!assignUnitDialog || !assigningUnitId) return;
     setAssignSaving(true);
     try {
-      const res = await fetch(`/api/admin/property/tenants/${assignUnitDialog.tenantId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ unitId: assigningUnitId }),
-      });
-      const newTenant = (await res.json())?.data;
+      const newTenant = (await propertyApi.updateTenant(assignUnitDialog.tenantId, {
+        unitId: assigningUnitId,
+      })) as { id?: string; tenantStatus?: string; moveInDate?: string } | null;
       const targetUnit = units.find((u) => u.id === assigningUnitId);
       if (
         newTenant?.id &&
@@ -618,21 +577,13 @@ export default function PropertyPage() {
       ) {
         if (newTenant.tenantStatus === "CURRENT") {
           // Vacant unit: update the unit's base rent immediately
-          await fetch(`/api/admin/property/units/${assigningUnitId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ monthlyRent: Number(assignRent) }),
-          });
+          await propertyApi.updateUnit(assigningUnitId, { monthlyRent: Number(assignRent) });
         } else {
           // Occupied unit: schedule a rent change effective on move-in date
-          await fetch(`/api/admin/property/tenants/${newTenant.id}/rent-change`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              effectiveDate: newTenant.moveInDate,
-              newRent: Number(assignRent),
-              reason: "Set when assigning unit",
-            }),
+          await propertyApi.addRentChange(newTenant.id, {
+            effectiveDate: newTenant.moveInDate,
+            newRent: Number(assignRent),
+            reason: "Set when assigning unit",
           });
         }
       }
@@ -1095,10 +1046,7 @@ export default function PropertyPage() {
                               ? `Move out ${drawerUnit.tenant.name}? ${drawerUnit.futureTenant!.name} will automatically become the current tenant.`
                               : `Move out ${drawerUnit.tenant.name}? They will be unassigned from this unit.`,
                             async () => {
-                              await fetch(
-                                `/api/admin/property/tenants/${drawerUnit.tenant!.id}/deactivate`,
-                                { method: "POST" }
-                              );
+                              await propertyApi.deactivateTenant(drawerUnit.tenant!.id);
                               setDrawerUnit(null);
                               await load();
                               if (!hasFuture) openAddTenant(unitId);
@@ -1167,10 +1115,7 @@ export default function PropertyPage() {
                                   "Promote to Current Tenant",
                                   `Promote ${ft.name} to current tenant now? ${drawerUnit.tenant!.name} will be moved out.`,
                                   async () => {
-                                    await fetch(
-                                      `/api/admin/property/tenants/${drawerUnit.tenant!.id}/deactivate`,
-                                      { method: "POST" }
-                                    );
+                                    await propertyApi.deactivateTenant(drawerUnit.tenant!.id);
                                     setDrawerUnit(null);
                                     await load();
                                   },

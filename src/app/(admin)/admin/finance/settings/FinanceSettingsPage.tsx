@@ -24,15 +24,16 @@ import {
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import { financeApi } from "@/lib/api/finance";
 import type { EmployeeRow, SourceRow, CategoryRow } from "../types";
 import { fmt } from "../format";
 
 type Kind = "employee" | "source" | "category";
 
-const ENDPOINT: Record<Kind, string> = {
-  employee: "/api/admin/finance/employees",
-  source: "/api/admin/finance/sources",
-  category: "/api/admin/finance/categories",
+const deleteFns: Record<Kind, (id: string) => Promise<unknown>> = {
+  employee: financeApi.deleteEmployee,
+  source: financeApi.deleteClient,
+  category: financeApi.deleteCategory,
 };
 const TITLE: Record<Kind, string> = {
   employee: "Employees",
@@ -64,13 +65,13 @@ export default function FinanceSettingsPage() {
     setLoading(true);
     try {
       const [e, s, c] = await Promise.all([
-        fetch(ENDPOINT.employee).then((r) => r.json()),
-        fetch(ENDPOINT.source).then((r) => r.json()),
-        fetch(ENDPOINT.category).then((r) => r.json()),
+        financeApi.listEmployees(),
+        financeApi.listClients(),
+        financeApi.listCategories(),
       ]);
-      setEmployees(e.data ?? []);
-      setSources(s.data ?? []);
-      setCategories(c.data ?? []);
+      setEmployees(e ?? []);
+      setSources(s ?? []);
+      setCategories(c ?? []);
     } finally {
       setLoading(false);
     }
@@ -100,22 +101,19 @@ export default function FinanceSettingsPage() {
     setSaving(true);
     setError(null);
     try {
-      const body: Record<string, unknown> = { name: drawer.name };
-      if (drawer.kind === "employee") {
-        body.notes = drawer.notes || null;
-        body.isActive = drawer.isActive;
-      } else if (drawer.kind === "source") {
-        body.notes = drawer.notes || null;
+      const { kind, editingId, name, notes, isActive } = drawer;
+      if (kind === "employee") {
+        const payload = { name, notes: notes || null, isActive };
+        if (editingId) await financeApi.updateEmployee(editingId, payload);
+        else await financeApi.createEmployee(payload);
+      } else if (kind === "source") {
+        const payload = { name, notes: notes || null };
+        if (editingId) await financeApi.updateClient(editingId, payload);
+        else await financeApi.createClient(payload);
+      } else {
+        if (editingId) await financeApi.updateCategory(editingId, { name });
+        else await financeApi.createCategory({ name });
       }
-      const base = ENDPOINT[drawer.kind];
-      const url = drawer.editingId ? `${base}/${drawer.editingId}` : base;
-      const res = await fetch(url, {
-        method: drawer.editingId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
       setDrawer(null);
       load();
     } catch (e: unknown) {
@@ -130,13 +128,10 @@ export default function FinanceSettingsPage() {
     const { kind, id } = pendingDelete;
     setDeleting(true);
     try {
-      const res = await fetch(`${ENDPOINT[kind]}/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        setToast(json.error ?? "Cannot delete — it is still referenced.");
-        return;
-      }
+      await deleteFns[kind](id);
       load();
+    } catch (e: unknown) {
+      setToast(e instanceof Error ? e.message : "Cannot delete — it is still referenced.");
     } finally {
       setDeleting(false);
       setPendingDelete(null);

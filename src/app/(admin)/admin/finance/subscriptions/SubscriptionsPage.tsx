@@ -28,6 +28,7 @@ import {
 import { Plus, Pencil, Trash2, CircleStop, Play, History } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import { financeApi } from "@/lib/api/finance";
 import type { SubscriptionRow, SubscriptionDetail, CategoryRow } from "../types";
 import { fmt, fmtMonth, thisMonthInput } from "../format";
 
@@ -65,12 +66,12 @@ export default function SubscriptionsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [sRes, cRes] = await Promise.all([
-        fetch("/api/admin/finance/subscriptions"),
-        fetch("/api/admin/finance/categories"),
+      const [subsData, categoriesData] = await Promise.all([
+        financeApi.listSubscriptions(),
+        financeApi.listCategories(),
       ]);
-      setSubs((await sRes.json()).data ?? []);
-      setCategories((await cRes.json()).data ?? []);
+      setSubs(subsData ?? []);
+      setCategories(categoriesData ?? []);
     } finally {
       setLoading(false);
     }
@@ -111,16 +112,8 @@ export default function SubscriptionsPage() {
         startDate: `${form.startMonth}-01`,
         notes: form.notes || null,
       };
-      const url = editing
-        ? `/api/admin/finance/subscriptions/${editing}`
-        : "/api/admin/finance/subscriptions";
-      const res = await fetch(url, {
-        method: editing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
+      if (editing) await financeApi.updateSubscription(editing, body);
+      else await financeApi.createSubscription(body);
       setDrawerOpen(false);
       load();
     } catch (e: unknown) {
@@ -134,7 +127,7 @@ export default function SubscriptionsPage() {
     if (!pendingDelete) return;
     setBusy(true);
     try {
-      await fetch(`/api/admin/finance/subscriptions/${pendingDelete}`, { method: "DELETE" });
+      await financeApi.deleteSubscription(pendingDelete);
       setPendingDelete(null);
       load();
     } finally {
@@ -146,11 +139,7 @@ export default function SubscriptionsPage() {
     if (!pendingStop) return;
     setBusy(true);
     try {
-      await fetch(`/api/admin/finance/subscriptions/${pendingStop.id}/stop`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}), // stop effective this month
-      });
+      await financeApi.stopSubscription(pendingStop.id); // effective this month
       setPendingStop(null);
       load();
     } finally {
@@ -159,18 +148,16 @@ export default function SubscriptionsPage() {
   };
 
   const resume = async (id: string) => {
-    await fetch(`/api/admin/finance/subscriptions/${id}/stop`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ resume: true }),
-    });
+    await financeApi.resumeSubscription(id);
     load();
   };
 
   const openHistory = async (id: string) => {
-    const res = await fetch(`/api/admin/finance/subscriptions/${id}`);
-    const json = await res.json();
-    if (res.ok) setDetail(json.data);
+    try {
+      setDetail(await financeApi.getSubscription(id));
+    } catch {
+      // ignore — detail drawer simply won't open
+    }
   };
 
   const activeMonthly = subs.filter((s) => s.isActive).reduce((sum, s) => sum + s.monthlyAmount, 0);

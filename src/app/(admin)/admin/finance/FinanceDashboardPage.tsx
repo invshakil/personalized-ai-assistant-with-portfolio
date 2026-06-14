@@ -25,6 +25,7 @@ import {
 } from "@mui/material";
 import { Download } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import { financeApi } from "@/lib/api/finance";
 import type { FinanceDashboardData } from "./types";
 import { fmt, fmtPct, rangeBounds, RANGE_LABELS, type RangePreset } from "./format";
 
@@ -67,13 +68,8 @@ export default function FinanceDashboardPage() {
       setError(null);
       try {
         const { from, to } = rangeBounds(range);
-        const qs = new URLSearchParams();
-        if (from) qs.set("from", from);
-        if (to) qs.set("to", to);
-        const res = await fetch(`/api/admin/finance/dashboard?${qs.toString()}`);
-        const json = await res.json();
-        if (!res.ok) throw new Error(json.error ?? "Failed to load dashboard");
-        setData(json.data ?? null);
+        const data = await financeApi.dashboard({ from, to });
+        setData(data ?? null);
       } catch (e) {
         setError(e instanceof Error ? e.message : "Failed to load dashboard");
       } finally {

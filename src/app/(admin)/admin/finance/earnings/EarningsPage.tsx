@@ -28,6 +28,7 @@ import { Plus, Pencil, Trash2, Download } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { fiscalYearOf } from "@/lib/fiscalYear";
+import { financeApi } from "@/lib/api/finance";
 import type { EarningRow, SourceRow, RemittanceType } from "../types";
 import { fmt, fmtDate, todayInput, currentFiscalYear } from "../format";
 
@@ -70,14 +71,12 @@ export default function EarningsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [eRes, sRes] = await Promise.all([
-        fetch("/api/admin/finance/earnings"),
-        fetch("/api/admin/finance/sources"),
+      const [earningsData, clientsData] = await Promise.all([
+        financeApi.listEarnings(),
+        financeApi.listClients(),
       ]);
-      const eJson = await eRes.json();
-      const sJson = await sRes.json();
-      setEarnings(eJson.data ?? []);
-      setSources(sJson.data ?? []);
+      setEarnings(earningsData ?? []);
+      setSources(clientsData ?? []);
     } finally {
       setLoading(false);
     }
@@ -136,14 +135,8 @@ export default function EarningsPage() {
         fiscalYear: form.fiscalYear,
         notes: form.notes || null,
       };
-      const url = editing ? `/api/admin/finance/earnings/${editing}` : "/api/admin/finance/earnings";
-      const res = await fetch(url, {
-        method: editing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
+      if (editing) await financeApi.updateEarning(editing, body);
+      else await financeApi.createEarning(body);
       setDrawerOpen(false);
       load();
     } catch (e: unknown) {
@@ -157,7 +150,7 @@ export default function EarningsPage() {
     if (!pendingDelete) return;
     setDeleting(true);
     try {
-      await fetch(`/api/admin/finance/earnings/${pendingDelete}`, { method: "DELETE" });
+      await financeApi.deleteEarning(pendingDelete);
       setPendingDelete(null);
       load();
     } finally {

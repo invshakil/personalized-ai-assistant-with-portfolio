@@ -27,6 +27,7 @@ import {
 } from "@mui/material";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import { propertyApi } from "@/lib/api/property";
 import type { PropertyExpense, ExpenseCategory, Payee, PropertyServiceType } from "@/types";
 
 const MONTHS = [
@@ -90,21 +91,16 @@ export default function ExpensesPage() {
 
   // Load payees and service types once on mount
   useEffect(() => {
-    Promise.all([
-      fetch("/api/admin/property/payees").then((r) => r.json()),
-      fetch("/api/admin/property/service-types").then((r) => r.json()),
-    ]).then(([p, s]) => {
-      setPayees(p.data ?? []);
-      setServiceTypes((s.data ?? []).filter((t: PropertyServiceType) => t.isActive));
+    Promise.all([propertyApi.listPayees(), propertyApi.listServiceTypes()]).then(([p, s]) => {
+      setPayees(p ?? []);
+      setServiceTypes((s ?? []).filter((t) => t.isActive));
     });
   }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/property/expenses?month=${month}&year=${year}`);
-      const json = await res.json();
-      setExpenses(json.data ?? []);
+      setExpenses((await propertyApi.listExpenses({ month, year })) ?? []);
     } finally {
       setLoading(false);
     }
@@ -155,16 +151,8 @@ export default function ExpensesPage() {
         serviceTypeId: form.serviceTypeId || null,
         notes: form.notes || null,
       };
-      const url = editing
-        ? `/api/admin/property/expenses/${editing}`
-        : "/api/admin/property/expenses";
-      const res = await fetch(url, {
-        method: editing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
+      if (editing) await propertyApi.updateExpense(editing, body);
+      else await propertyApi.createExpense(body);
       setDrawerOpen(false);
       load();
     } catch (e: unknown) {
@@ -176,7 +164,7 @@ export default function ExpensesPage() {
 
   const del = async (id: string) => {
     if (!confirm("Delete this expense?")) return;
-    await fetch(`/api/admin/property/expenses/${id}`, { method: "DELETE" });
+    await propertyApi.deleteExpense(id);
     load();
   };
 

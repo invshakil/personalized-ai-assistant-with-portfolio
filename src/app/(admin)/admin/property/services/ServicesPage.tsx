@@ -30,6 +30,7 @@ import {
 } from "@mui/material";
 import { Plus, Pencil, PowerOff, ChevronDown } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import { propertyApi } from "@/lib/api/property";
 
 function fmt(n: number) {
   return `৳${n.toLocaleString()}`;
@@ -73,13 +74,12 @@ export default function ServicesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [sRes, tRes] = await Promise.all([
-        fetch("/api/admin/property/services"),
-        fetch("/api/admin/property/tenants?filter=all"),
+      const [servicesData, tenantsData] = await Promise.all([
+        propertyApi.listServices(),
+        propertyApi.listTenants("all"),
       ]);
-      const [sJson, tJson] = await Promise.all([sRes.json(), tRes.json()]);
-      setServices(sJson.data ?? []);
-      setTenants(tJson.data ?? []);
+      setServices((servicesData as ServiceEntry[]) ?? []);
+      setTenants((tenantsData as unknown as TenantOption[]) ?? []);
     } finally {
       setLoading(false);
     }
@@ -109,16 +109,9 @@ export default function ServicesPage() {
     setSaving(true);
     setError(null);
     try {
-      const url = editingService
-        ? `/api/admin/property/services/${editingService.id}`
-        : "/api/admin/property/services";
-      const res = await fetch(url, {
-        method: editingService ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: serviceName, description: serviceDesc || null }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
+      const body = { name: serviceName, description: serviceDesc || null };
+      if (editingService) await propertyApi.updateService(editingService.id, body);
+      else await propertyApi.createService(body);
       setServiceDrawer(false);
       load();
     } catch (e: unknown) {
@@ -130,13 +123,13 @@ export default function ServicesPage() {
 
   const deactivate = async (id: string) => {
     if (!confirm("Deactivate this service?")) return;
-    await fetch(`/api/admin/property/services/${id}`, { method: "DELETE" });
+    await propertyApi.deleteService(id);
     load();
   };
 
   const endAssignment = async (tsId: string) => {
     if (!confirm("End this service subscription?")) return;
-    await fetch(`/api/admin/property/services/assign/${tsId}`, { method: "DELETE" });
+    await propertyApi.removeAssignedService(tsId);
     load();
   };
 
@@ -144,18 +137,12 @@ export default function ServicesPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/property/services/assign", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          tenantId: assignTenant,
-          serviceId: assignService,
-          monthlyFee: parseFloat(assignFee),
-          startDate: assignDate,
-        }),
+      await propertyApi.assignService({
+        tenantId: assignTenant,
+        serviceId: assignService,
+        monthlyFee: parseFloat(assignFee),
+        startDate: assignDate,
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed");
       setAssignDrawer(false);
       load();
     } catch (e: unknown) {

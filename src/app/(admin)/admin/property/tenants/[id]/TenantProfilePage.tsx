@@ -39,6 +39,7 @@ import {
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
 import TenantDocuments from "@/components/admin/TenantDocuments";
+import { propertyApi } from "@/lib/api/property";
 import type { TenantWithUnit, PaymentWithTenant } from "@/types";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -69,9 +70,10 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/property/tenants/${id}`);
-      const json = await res.json();
-      setTenant(json.data ?? null);
+      setTenant(
+        (await propertyApi.getTenant<TenantWithUnit & { payments: PaymentWithTenant[] }>(id)) ??
+          null
+      );
     } finally {
       setLoading(false);
     }
@@ -95,7 +97,7 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
     if (!confirm("Delete this payment record? This cannot be undone.")) return;
     setDeletingPaymentId(pid);
     try {
-      await fetch(`/api/admin/property/payments/${pid}`, { method: "DELETE" });
+      await propertyApi.deletePayment(pid);
       await load();
     } finally {
       setDeletingPaymentId(null);
@@ -118,14 +120,10 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
     if (!editRcId) return;
     setRcSaving(true);
     try {
-      await fetch(`/api/admin/property/rent-changes/${editRcId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          effectiveDate: editRcDate,
-          newRent: Number(editRcRent),
-          reason: editRcReason || null,
-        }),
+      await propertyApi.updateRentChange(editRcId, {
+        effectiveDate: editRcDate,
+        newRent: Number(editRcRent),
+        reason: editRcReason || null,
       });
       setEditRcId(null);
       await load();
@@ -136,7 +134,7 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
 
   const deleteRc = async (rcId: string) => {
     if (!confirm("Delete this scheduled rent change?")) return;
-    await fetch(`/api/admin/property/rent-changes/${rcId}`, { method: "DELETE" });
+    await propertyApi.deleteRentChange(rcId);
     await load();
   };
 

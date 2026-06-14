@@ -27,6 +27,7 @@ import {
 } from "@mui/material";
 import { Plus, Pencil, ToggleLeft, ToggleRight } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import { propertyApi } from "@/lib/api/property";
 import type { PropertyServiceType, ExpenseCategory } from "@/types";
 
 const CATEGORIES: ExpenseCategory[] = [
@@ -62,9 +63,7 @@ export default function ServiceTypesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/admin/property/service-types");
-      const json = await res.json();
-      setTypes(json.data ?? []);
+      setTypes((await propertyApi.listServiceTypes()) ?? []);
     } finally {
       setLoading(false);
     }
@@ -93,17 +92,8 @@ export default function ServiceTypesPage() {
     setSaving(true);
     setError(null);
     try {
-      const url = editing
-        ? `/api/admin/property/service-types/${editing}`
-        : "/api/admin/property/service-types";
-      const method = editing ? "PUT" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Failed to save");
+      if (editing) await propertyApi.updateServiceType(editing, form);
+      else await propertyApi.createServiceType(form);
       setDrawerOpen(false);
       await load();
     } catch (e) {
@@ -114,11 +104,7 @@ export default function ServiceTypesPage() {
   }
 
   async function toggleActive(t: PropertyServiceType) {
-    await fetch(`/api/admin/property/service-types/${t.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ isActive: !t.isActive }),
-    });
+    await propertyApi.updateServiceType(t.id, { isActive: !t.isActive });
     await load();
   }
 
