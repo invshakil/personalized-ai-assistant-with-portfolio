@@ -25,6 +25,7 @@ import {
 import { TrendingUp, AlertTriangle } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import { propertyApi } from "@/lib/api/property";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { PropertyDashboardStats } from "@/types";
 
 const PropertyCharts = dynamic(() => import("./PropertyCharts"), {
@@ -215,7 +216,7 @@ export default function PropertyDashboardPage() {
                   </Typography>
                 </Box>
                 <TableContainer>
-                  <Table size="small">
+                  <Table size="small" sx={mobileCardTableSx}>
                     <TableHead>
                       <TableRow>
                         <TableCell sx={{ fontWeight: 700 }}>Tenant</TableCell>
@@ -228,7 +229,7 @@ export default function PropertyDashboardPage() {
                     <TableBody>
                       {data.topDue.map((d) => (
                         <TableRow key={d.tenantId} hover>
-                          <TableCell>
+                          <TableCell data-label="Tenant">
                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
                               {d.tenantName}
                             </Typography>
@@ -236,8 +237,8 @@ export default function PropertyDashboardPage() {
                               {d.tenantCode}
                             </Typography>
                           </TableCell>
-                          <TableCell>{d.unitNumber ?? "—"}</TableCell>
-                          <TableCell>
+                          <TableCell data-label="Unit">{d.unitNumber ?? "—"}</TableCell>
+                          <TableCell data-label="Total Due">
                             <Typography
                               variant="body2"
                               sx={{ fontWeight: 700, color: "error.main" }}
@@ -245,8 +246,8 @@ export default function PropertyDashboardPage() {
                               {fmt(d.totalDue)}
                             </Typography>
                           </TableCell>
-                          <TableCell>{d.monthsUnpaid}</TableCell>
-                          <TableCell>
+                          <TableCell data-label="Months Unpaid">{d.monthsUnpaid}</TableCell>
+                          <TableCell data-label="Alert">
                             <Chip
                               label={d.alert}
                               size="small"

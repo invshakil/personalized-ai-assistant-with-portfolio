@@ -28,6 +28,7 @@ import {
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import { propertyApi } from "@/lib/api/property";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { PropertyExpense, ExpenseCategory, Payee, PropertyServiceType } from "@/types";
 
 const MONTHS = [
@@ -213,7 +214,7 @@ export default function ExpensesPage() {
         </Box>
       ) : (
         <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
-          <Table size="small">
+          <Table size="small" sx={mobileCardTableSx}>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
@@ -237,36 +238,36 @@ export default function ExpensesPage() {
               ) : (
                 expenses.map((e) => (
                   <TableRow key={e.id} hover>
-                    <TableCell>
+                    <TableCell data-label="Date">
                       <Typography variant="body2">
                         {e.expenseDate
                           ? new Date(e.expenseDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
                           : `${MONTHS[e.month - 1]} ${e.year}`}
                       </Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Category">
                       <Chip
                         label={CAT_LABELS[e.category]}
                         size="small"
                         sx={{ bgcolor: CAT_COLORS[e.category], color: "#fff", fontSize: "0.6875rem" }}
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Service Type">
                       {e.serviceTypeName ? (
                         <Chip label={e.serviceTypeName} size="small" variant="outlined" sx={{ fontSize: "0.7rem" }} />
                       ) : (
                         <Typography variant="caption" color="text.secondary">—</Typography>
                       )}
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Description">
                       <Typography variant="body2">{e.description}</Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Amount">
                       <Typography variant="body2" sx={{ fontWeight: 600, color: "error.main" }}>
                         {fmt(e.amount)}
                       </Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Payee">
                       {e.payeeId ? (
                         <Chip
                           label={e.payeeName ?? "—"}
@@ -281,11 +282,11 @@ export default function ExpensesPage() {
                         </Typography>
                       )}
                     </TableCell>
-                    <TableCell>{e.paymentMode ?? "—"}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Mode">{e.paymentMode ?? "—"}</TableCell>
+                    <TableCell data-label="Notes">
                       <Typography variant="caption" color="text.secondary">{e.notes ?? "—"}</Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell data-label="Actions">
                       <Box sx={{ display: "flex" }}>
                         <Tooltip title="Edit">
                           <IconButton size="small" onClick={() => openEdit(e)}>

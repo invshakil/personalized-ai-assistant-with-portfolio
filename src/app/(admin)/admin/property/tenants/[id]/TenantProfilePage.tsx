@@ -40,6 +40,7 @@ import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
 import TenantDocuments from "@/components/admin/TenantDocuments";
 import { propertyApi } from "@/lib/api/property";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { TenantWithUnit, PaymentWithTenant } from "@/types";
 
 const STATUS_COLORS: Record<string, string> = {
@@ -473,7 +474,7 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
 
           {tenant.payments && tenant.payments.length > 0 ? (
             <TableContainer>
-              <Table size="small">
+              <Table size="small" sx={mobileCardTableSx}>
                 <TableHead>
                   <TableRow>
                     <TableCell />
@@ -505,7 +506,7 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                               )}
                             </IconButton>
                           </TableCell>
-                          <TableCell>
+                          <TableCell data-label="Period">
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                               <Typography variant="body2">
                                 {monthLabels[p.month - 1]} {p.year}
@@ -520,7 +521,7 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                               )}
                             </Box>
                           </TableCell>
-                          <TableCell>
+                          <TableCell data-label="Rent Due">
                             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                               <Typography variant="body2">{fmt(p.rentDue)}</Typography>
                               {p.carryForward > 0 && (
@@ -541,8 +542,8 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                               )}
                             </Box>
                           </TableCell>
-                          <TableCell>{fmt(p.amountPaid)}</TableCell>
-                          <TableCell>
+                          <TableCell data-label="Cash Paid">{fmt(p.amountPaid)}</TableCell>
+                          <TableCell data-label="Advance Applied">
                             {p.advanceApplied > 0 ? (
                               <Typography variant="body2" color="primary.main">
                                 {fmt(p.advanceApplied)}
@@ -551,7 +552,7 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                               "—"
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell data-label="Balance">
                             <Typography
                               variant="body2"
                               color={p.balance > 0 ? "error.main" : "success.main"}
@@ -560,7 +561,7 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                               {fmt(p.balance)}
                             </Typography>
                           </TableCell>
-                          <TableCell>
+                          <TableCell data-label="Status">
                             <Chip
                               label={p.status}
                               size="small"
@@ -572,7 +573,7 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                               }}
                             />
                           </TableCell>
-                          <TableCell sx={{ width: 80 }}>
+                          <TableCell data-label="Actions" sx={{ width: 80 }}>
                             <Box sx={{ display: "flex", gap: 0.5 }}>
                               <Tooltip title="Download receipt">
                                 <IconButton

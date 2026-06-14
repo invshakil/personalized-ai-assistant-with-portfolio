@@ -56,6 +56,7 @@ import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
 import TenantDocuments from "@/components/admin/TenantDocuments";
 import { propertyApi } from "@/lib/api/property";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { UnitWithTenant } from "@/types";
 
 function fmt(n: number) {
@@ -1926,7 +1927,7 @@ function TenantTable({
 
   return (
     <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
-      <Table size="small">
+      <Table size="small" sx={mobileCardTableSx}>
         <TableHead>
           <TableRow>
             <TableCell sx={{ fontWeight: 700 }}>Code</TableCell>
@@ -1946,10 +1947,10 @@ function TenantTable({
             const t = row.tenant!;
             return (
               <TableRow key={t.id} hover>
-                <TableCell>
+                <TableCell data-label="Code">
                   <Chip label={t.tenantCode ?? "—"} size="small" variant="outlined" />
                 </TableCell>
-                <TableCell>
+                <TableCell data-label="Name">
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
                     {t.name}
                   </Typography>
@@ -1960,17 +1961,17 @@ function TenantTable({
                   )}
                 </TableCell>
                 {showUnit && (
-                  <TableCell>
+                  <TableCell data-label="Unit">
                     <Typography variant="body2">{row.unitNumber}</Typography>
                     <Typography variant="caption" color="text.secondary">
                       {row.floor}
                     </Typography>
                   </TableCell>
                 )}
-                <TableCell>
+                <TableCell data-label="Rent">
                   <Typography variant="body2">{fmt(row.monthlyRent)}</Typography>
                 </TableCell>
-                <TableCell>
+                <TableCell data-label="Services">
                   {t.services && t.services.length > 0 ? (
                     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                       {t.services.map((sv) => (
@@ -1993,7 +1994,7 @@ function TenantTable({
                     </Typography>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell data-label="Move-in">
                   <Typography variant="body2">
                     {new Date(t.moveInDate).toLocaleDateString("en-GB", {
                       day: "2-digit",
@@ -2002,7 +2003,7 @@ function TenantTable({
                     })}
                   </Typography>
                 </TableCell>
-                <TableCell>
+                <TableCell data-label="Advance Held">
                   {t.advancePaid ? (
                     <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>
                       {fmt(t.advanceAmount)}
@@ -2013,7 +2014,7 @@ function TenantTable({
                     </Typography>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell data-label="Lease End">
                   {t.leaseEndDate ? (
                     <Typography variant="body2">
                       {new Date(t.leaseEndDate).toLocaleDateString()}
@@ -2024,7 +2025,7 @@ function TenantTable({
                     </Typography>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell data-label="Status">
                   {t.tenantStatus === "FUTURE" ? (
                     <Chip
                       label="Scheduled"
@@ -2071,7 +2072,7 @@ function TenantTable({
                     </Box>
                   )}
                 </TableCell>
-                <TableCell>
+                <TableCell data-label="Actions">
                   <Tooltip title="Edit">
                     <IconButton size="small" onClick={() => onEdit(row)}>
                       <Pencil size={15} />

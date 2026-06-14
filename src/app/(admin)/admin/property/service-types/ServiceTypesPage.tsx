@@ -28,6 +28,7 @@ import {
 import { Plus, Pencil, ToggleLeft, ToggleRight } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import { propertyApi } from "@/lib/api/property";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { PropertyServiceType, ExpenseCategory } from "@/types";
 
 const CATEGORIES: ExpenseCategory[] = [
@@ -129,7 +130,7 @@ export default function ServiceTypesPage() {
         <Card sx={{ bgcolor: "background.paper" }}>
           <CardContent sx={{ p: "0 !important" }}>
             <TableContainer>
-              <Table size="small">
+              <Table size="small" sx={mobileCardTableSx}>
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 700, pl: 3 }}>Name</TableCell>
@@ -142,12 +143,12 @@ export default function ServiceTypesPage() {
                 <TableBody>
                   {types.map((t) => (
                     <TableRow key={t.id} hover sx={{ opacity: t.isActive ? 1 : 0.5 }}>
-                      <TableCell sx={{ pl: 3 }}>
+                      <TableCell data-label="Name" sx={{ pl: 3 }}>
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {t.name}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Category">
                         <Chip
                           label={t.category}
                           size="small"
@@ -158,12 +159,12 @@ export default function ServiceTypesPage() {
                           }}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Description">
                         <Typography variant="caption" color="text.secondary">
                           {t.description ?? "—"}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Status">
                         <Chip
                           label={t.isActive ? "Active" : "Inactive"}
                           size="small"
@@ -174,7 +175,7 @@ export default function ServiceTypesPage() {
                           }}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Actions">
                         <Box sx={{ display: "flex", gap: 0.5 }}>
                           <Tooltip title="Edit">
                             <IconButton size="small" onClick={() => openEdit(t)}>
