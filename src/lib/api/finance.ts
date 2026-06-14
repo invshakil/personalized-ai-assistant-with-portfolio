@@ -11,6 +11,7 @@ import type {
   SubscriptionRow,
   SubscriptionDetail,
   FinanceDashboardData,
+  BusinessProfile,
   RemittanceType,
   PaymentKind,
 } from "@/app/(admin)/admin/finance/types";
@@ -115,6 +116,11 @@ export const financeApi = {
   updateClient: (id: string, body: { name?: string; notes?: string | null }) =>
     apiPut<SourceRow>(`/finance/sources/${id}`, body),
   deleteClient: (id: string) => apiDelete(`/finance/sources/${id}`),
+
+  // ── Business profile (PDF letterhead) ────────────────────────────────────
+  getBusinessProfile: () => apiGet<BusinessProfile>("/finance/business-profile"),
+  updateBusinessProfile: (body: Partial<BusinessProfile>) =>
+    apiPut<BusinessProfile>("/finance/business-profile", body),
 
   listCategories: () => apiGet<CategoryRow[]>("/finance/categories"),
   createCategory: (body: { name: string }) => apiPost<CategoryRow>("/finance/categories", body),

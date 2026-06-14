@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { NextRequest } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { ReceiptDocument, pdfResponse, pdfDate } from "@/services/finance/pdfKit";
+import { getBusinessProfile } from "@/services/admin";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -15,8 +16,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   });
   if (!x) return Response.json({ error: "Not found" }, { status: 404 });
 
+  const business = await getBusinessProfile();
   const buffer = await renderToBuffer(
     <ReceiptDocument
+      business={business}
       docType="Expense Voucher"
       generatedAt={pdfDate(new Date().toISOString())}
       fields={[

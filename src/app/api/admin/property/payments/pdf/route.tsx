@@ -3,10 +3,21 @@ import { NextRequest } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getPayments } from "@/services/property";
 import { ListDocument, pdfResponse, pdfMoney, pdfDate } from "@/services/finance/pdfKit";
+import { getBusinessProfile } from "@/services/admin";
 
 const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 export async function GET(req: NextRequest) {
@@ -22,8 +33,11 @@ export async function GET(req: NextRequest) {
   const totalPaid = rows.reduce((sum, r) => sum + r.amountPaid, 0);
   const period = month && year ? `${MONTHS[month - 1]} ${year}` : "All periods";
 
+  const business = await getBusinessProfile();
+
   const buffer = await renderToBuffer(
     <ListDocument
+      business={business}
       docType="Rent Collection Statement"
       generatedAt={pdfDate(new Date().toISOString())}
       subtitle={period}

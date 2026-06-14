@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { NextRequest } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { ReceiptDocument, pdfResponse, pdfDate } from "@/services/finance/pdfKit";
+import { getBusinessProfile } from "@/services/admin";
 
 const KIND: Record<string, string> = {
   SALARY: "Salary",
@@ -26,9 +27,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!p) return Response.json({ error: "Not found" }, { status: 404 });
 
   const clientNames = p.clients.map((c) => c.name).join(", ");
+  const business = await getBusinessProfile();
 
   const buffer = await renderToBuffer(
     <ReceiptDocument
+      business={business}
       docType="Salary Payment Receipt"
       generatedAt={pdfDate(new Date().toISOString())}
       fields={[

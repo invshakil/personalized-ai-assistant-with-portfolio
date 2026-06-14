@@ -237,10 +237,12 @@ Decisions: **Subscription entity + monthly auto-charge**; **confirm dialog on de
 
 ## 12. Enhancement round 4 (2026-06-14 — bulk PDF export, richer headers, employee phone) ✅ complete
 
-- **Business letterhead on all PDFs:** `pdfKit.tsx` now has a `BUSINESS` constant
-  (name, tagline, address, phone, email) + a `BusinessHeader` component used by every receipt,
-  the dashboard report, and the new bulk exports. ⚠️ **Edit `BUSINESS` in `src/services/finance/pdfKit.tsx`
-  with the real company name / address** — currently pre-filled with known contact data + a Dhaka placeholder.
+- **Business letterhead on all PDFs:** every receipt, statement and report carries a `BusinessHeader`
+  (name, tagline, address, phone, email). The values are an **admin-editable singleton**
+  (`BusinessProfile` model + migration `20260614100000_add_business_profile`; service in
+  `src/services/admin/businessProfile.ts`; API `GET/PUT /api/admin/finance/business-profile`), edited
+  under **Financial Tracker → Settings → Business Profile** and fetched per PDF render. Falls back to
+  defaults until set.
 - **Employee phone:** added `Employee.phone` (migration `20260614000000_add_employee_phone`, applied via
   `db execute`); captured in the Settings employee form, shown in the employees list, and printed on the
   salary receipt ("Employee phone").

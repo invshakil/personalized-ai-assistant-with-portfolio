@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getEarnings } from "@/services/finance";
 import { ListDocument, pdfResponse, pdfMoney, pdfDate } from "@/services/finance/pdfKit";
+import { getBusinessProfile } from "@/services/admin";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -15,8 +16,11 @@ export async function GET(req: NextRequest) {
   const rows = await getEarnings({ fiscalYear, sourceId });
   const total = rows.reduce((sum, r) => sum + r.amount, 0);
 
+  const business = await getBusinessProfile();
+
   const buffer = await renderToBuffer(
     <ListDocument
+      business={business}
       docType="Earnings Statement"
       generatedAt={pdfDate(new Date().toISOString())}
       subtitle={fiscalYear ? `FY ${fiscalYear}` : "All fiscal years"}
