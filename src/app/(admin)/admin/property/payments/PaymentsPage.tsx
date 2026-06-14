@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import { propertyApi } from "@/lib/api/property";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { PaymentWithTenant, PaymentTransaction } from "@/types";
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
@@ -348,7 +349,7 @@ export default function PaymentsPage() {
         </Box>
       ) : (
         <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
-          <Table size="small">
+          <Table size="small" sx={mobileCardTableSx}>
             <TableHead>
               <TableRow>
                 <TableCell />
@@ -384,7 +385,7 @@ export default function PaymentsPage() {
                           )}
                         </IconButton>
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Tenant">
                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
                           {p.tenantName}
                         </Typography>
@@ -392,12 +393,12 @@ export default function PaymentsPage() {
                           {p.tenantCode}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Unit">
                         <Typography variant="body2">{p.unitNumber ?? "—"}</Typography>
                       </TableCell>
-                      <TableCell>{fmt(p.rentDue)}</TableCell>
-                      <TableCell>{fmt(p.amountPaid)}</TableCell>
-                      <TableCell>
+                      <TableCell data-label="Rent Due">{fmt(p.rentDue)}</TableCell>
+                      <TableCell data-label="Cash Paid">{fmt(p.amountPaid)}</TableCell>
+                      <TableCell data-label="Advance">
                         {p.advanceApplied > 0 ? (
                           <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>
                             {fmt(p.advanceApplied)}
@@ -406,7 +407,7 @@ export default function PaymentsPage() {
                           "—"
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Balance">
                         <Typography
                           variant="body2"
                           sx={{ fontWeight: 600 }}
@@ -415,7 +416,7 @@ export default function PaymentsPage() {
                           {fmt(p.balance)}
                         </Typography>
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Status">
                         <Chip
                           label={p.status}
                           size="small"
@@ -427,7 +428,7 @@ export default function PaymentsPage() {
                           }}
                         />
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Actions">
                         <Box sx={{ display: "flex", gap: 0.5 }}>
                           <Tooltip title="Edit payment">
                             <IconButton

@@ -31,6 +31,7 @@ import {
 import { Plus, Pencil, PowerOff, ChevronDown } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import { propertyApi } from "@/lib/api/property";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 
 function fmt(n: number) {
   return `৳${n.toLocaleString()}`;
@@ -249,7 +250,7 @@ export default function ServicesPage() {
                   </Typography>
                 ) : (
                   <TableContainer>
-                    <Table size="small">
+                    <Table size="small" sx={mobileCardTableSx}>
                       <TableHead>
                         <TableRow>
                           <TableCell sx={{ fontWeight: 700 }}>Tenant</TableCell>
@@ -261,7 +262,7 @@ export default function ServicesPage() {
                       <TableBody>
                         {s.tenants.map((t) => (
                           <TableRow key={t.id}>
-                            <TableCell>
+                            <TableCell data-label="Tenant">
                               <Typography variant="body2" sx={{ fontWeight: 600 }}>
                                 {t.tenantName}
                               </Typography>
@@ -269,7 +270,7 @@ export default function ServicesPage() {
                                 {t.tenantCode}
                               </Typography>
                             </TableCell>
-                            <TableCell>
+                            <TableCell data-label="Monthly Fee">
                               <Typography
                                 variant="body2"
                                 sx={{ fontWeight: 600, color: "primary.main" }}
@@ -277,12 +278,12 @@ export default function ServicesPage() {
                                 {fmt(t.monthlyFee)}/mo
                               </Typography>
                             </TableCell>
-                            <TableCell>
+                            <TableCell data-label="Start Date">
                               <Typography variant="body2">
                                 {new Date(t.startDate).toLocaleDateString()}
                               </Typography>
                             </TableCell>
-                            <TableCell>
+                            <TableCell data-label="Actions">
                               <Tooltip title="End subscription">
                                 <IconButton
                                   size="small"

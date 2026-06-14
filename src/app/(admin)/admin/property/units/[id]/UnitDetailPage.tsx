@@ -39,6 +39,7 @@ import {
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
 import { propertyApi } from "@/lib/api/property";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 
 function fmt(n: number) {
   return `৳${n.toLocaleString()}`;
@@ -667,7 +668,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         </Card>
       ) : (
         <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
-          <Table size="small">
+          <Table size="small" sx={mobileCardTableSx}>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 700 }}>Code</TableCell>
@@ -683,20 +684,20 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
             <TableBody>
               {pastTenants.map((t) => (
                 <TableRow key={t.id} hover>
-                  <TableCell>
+                  <TableCell data-label="Code">
                     <Chip label={t.tenantCode ?? "—"} size="small" variant="outlined" />
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Name">
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
                       {t.name}
                     </Typography>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Phone">
                     <Typography variant="body2" color="text.secondary">
                       {t.phone ?? "—"}
                     </Typography>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Move-in">
                     <Typography variant="body2">
                       {new Date(t.moveInDate).toLocaleDateString("en-GB", {
                         day: "2-digit",
@@ -705,7 +706,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
                       })}
                     </Typography>
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Move-out">
                     {t.moveOutDate ? (
                       <Typography variant="body2">
                         {new Date(t.moveOutDate).toLocaleDateString("en-GB", {
@@ -720,7 +721,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
                       </Typography>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Lease End">
                     {t.leaseEndDate ? (
                       <Typography variant="body2">
                         {new Date(t.leaseEndDate).toLocaleDateString("en-GB", {
@@ -735,7 +736,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
                       </Typography>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Advance">
                     {t.advancePaid ? (
                       <Box>
                         <Typography variant="body2" color="primary.main" sx={{ fontWeight: 600 }}>
@@ -753,7 +754,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
                       </Typography>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell data-label="Actions">
                     <Button
                       component={Link}
                       href={`/admin/property/tenants/${t.id}`}

@@ -26,6 +26,7 @@ import { ArrowLeft, Pencil } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import PayeeDocuments from "@/components/admin/PayeeDocuments";
 import { propertyApi } from "@/lib/api/property";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { Payee, PropertyExpense } from "@/types";
 
 function initials(name: string) {
@@ -220,7 +221,7 @@ export default function PayeeProfilePage({ id }: Props) {
             </Typography>
           ) : (
             <TableContainer>
-              <Table size="small">
+              <Table size="small" sx={mobileCardTableSx}>
                 <TableHead>
                   <TableRow>
                     <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
@@ -234,12 +235,12 @@ export default function PayeeProfilePage({ id }: Props) {
                 <TableBody>
                   {expenses.map((e) => (
                     <TableRow key={e.id} hover>
-                      <TableCell>
+                      <TableCell data-label="Date">
                         {e.expenseDate
                           ? new Date(e.expenseDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
                           : `${e.month}/${e.year}`}
                       </TableCell>
-                      <TableCell>
+                      <TableCell data-label="Service Type">
                         {e.serviceTypeName ? (
                           <Chip label={e.serviceTypeName} size="small" sx={{ fontSize: "0.7rem" }} />
                         ) : (
@@ -248,14 +249,14 @@ export default function PayeeProfilePage({ id }: Props) {
                           </Typography>
                         )}
                       </TableCell>
-                      <TableCell>{e.description}</TableCell>
-                      <TableCell>
+                      <TableCell data-label="Description">{e.description}</TableCell>
+                      <TableCell data-label="Amount">
                         <Typography variant="body2" sx={{ fontWeight: 700, color: "error.main" }}>
                           {fmt(e.amount)}
                         </Typography>
                       </TableCell>
-                      <TableCell>{e.paymentMode ?? "—"}</TableCell>
-                      <TableCell>
+                      <TableCell data-label="Mode">{e.paymentMode ?? "—"}</TableCell>
+                      <TableCell data-label="Notes">
                         <Typography variant="caption" color="text.secondary">
                           {e.notes ?? "—"}
                         </Typography>
