@@ -4,3 +4,4 @@ export * from "./siteSettings";
 export * from "./businessProfile";
 export * from "./themeSettings";
 export * from "./overview";
+export * from "./backup";

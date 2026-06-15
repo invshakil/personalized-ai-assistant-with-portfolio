@@ -1,6 +1,12 @@
-// Typed client for misc admin endpoints (account + portfolio site settings + theme + overview).
-import { apiGet, apiPut } from "./client";
-import type { AdminThemeSettings, AdminOverview } from "@/types";
+// Typed client for misc admin endpoints (account + portfolio site settings + theme + overview + backups).
+import { apiGet, apiPut, apiPost, apiDelete } from "./client";
+import type {
+  AdminThemeSettings,
+  AdminOverview,
+  AdminBackupState,
+  AdminBackupRecord,
+  BackupFrequency,
+} from "@/types";
 
 export const adminApi = {
   // Cross-domain dashboard snapshot (finance + property).
@@ -11,4 +17,11 @@ export const adminApi = {
   updateSiteSettings: (body: unknown) => apiPut("/settings", body),
   // Update the admin theme/appearance singleton.
   updateTheme: (body: AdminThemeSettings) => apiPut("/theme", body),
+  // ── Database backups ──
+  getBackupState: () => apiGet<AdminBackupState>("/backup"),
+  updateBackupSettings: (body: { frequency?: BackupFrequency; retentionCount?: number }) =>
+    apiPut("/backup", body),
+  runBackupNow: () => apiPost<AdminBackupRecord>("/backup"),
+  deleteBackup: (id: string) => apiDelete(`/backup/${id}`),
+  disconnectDrive: () => apiPost("/backup/google/disconnect"),
 };

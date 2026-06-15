@@ -90,6 +90,40 @@ model BusinessProfile {
   updatedAt DateTime @updatedAt
 }
 
+// Database backup configuration (singleton) + the encrypted Google Drive
+// OAuth refresh token (offsite upload). pg_dump runs on a schedule driven by
+// `frequency`; the refresh token is AES-256-GCM encrypted at rest.
+model BackupSettings {
+  id             String    @id @default("singleton")
+  frequency      String    @default("off") // "off" | "daily" | "weekly"
+  retentionCount Int       @default(7)
+  lastRunAt      DateTime?
+  lastStatus     String? // "ok" | "error"
+  lastError      String?   @db.Text
+  driveConnected Boolean   @default(false)
+  driveEmail     String?
+  driveFolderId  String?
+  driveTokenEnc  String?   @db.Text
+  driveTokenIv   String?
+  driveTokenTag  String?
+  updatedAt      DateTime  @updatedAt
+}
+
+// One row per backup attempt — drives the list, retention pruning, and download.
+model BackupRecord {
+  id          String   @id @default(cuid())
+  filename    String
+  sizeBytes   Int      @default(0)
+  location    String   @default("local") // "local" | "local+drive" | "drive"
+  driveFileId String?
+  trigger     String   @default("manual") // "manual" | "scheduled"
+  status      String   @default("ok") // "ok" | "error"
+  error       String?  @db.Text
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 // AI provider configuration — admin-editable. Each row is one provider
 // (e.g. "anthropic"). Exactly one row is active at a time (enforced in the
 // service layer). API keys are AES-256-GCM encrypted at rest — the ciphertext,

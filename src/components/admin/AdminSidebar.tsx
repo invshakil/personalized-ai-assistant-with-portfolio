@@ -39,6 +39,7 @@ import {
   Tag,
   Palette,
   FileBarChart,
+  Database,
 } from "lucide-react";
 
 const SIDEBAR_WIDTH = 260;
@@ -112,6 +113,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
         children: [
           { href: "/admin/settings", label: "Site Settings", icon: SlidersHorizontal },
           { href: "/admin/settings/appearance", label: "Appearance", icon: Palette },
+          { href: "/admin/settings/backup", label: "Backups", icon: Database },
         ],
       },
     ],

@@ -322,6 +322,38 @@ export interface AdminOverview {
   };
 }
 
+// ─── Database backups ─────────────────────────────────────────────────────────
+
+export type BackupFrequency = "off" | "daily" | "weekly";
+
+export interface AdminBackupSettings {
+  frequency: BackupFrequency;
+  retentionCount: number;
+  lastRunAt: string | null;
+  lastStatus: "ok" | "error" | null;
+  lastError: string | null;
+  driveConnected: boolean;
+  driveEmail: string | null;
+}
+
+export interface AdminBackupRecord {
+  id: string;
+  filename: string;
+  sizeBytes: number;
+  location: "local" | "local+drive" | "drive";
+  driveFileId: string | null;
+  trigger: "manual" | "scheduled";
+  status: "ok" | "error";
+  error: string | null;
+  createdAt: string;
+}
+
+export interface AdminBackupState {
+  settings: AdminBackupSettings;
+  records: AdminBackupRecord[];
+  driveConfigured: boolean; // OAuth client env present
+}
+
 // ─── Admin theme preferences ──────────────────────────────────────────────────
 
 export type ThemeMode = "light" | "dark" | "system";
