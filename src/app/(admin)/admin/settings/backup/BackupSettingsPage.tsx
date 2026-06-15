@@ -22,13 +22,27 @@ import {
   CircularProgress,
   IconButton,
   Tooltip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
-import { Database, Download, Trash2, Play, Cloud, CloudOff, Check } from "lucide-react";
+import {
+  Database,
+  Download,
+  Trash2,
+  Play,
+  Cloud,
+  CloudOff,
+  Check,
+  RotateCcw,
+  Copy,
+} from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { adminApi } from "@/lib/api/admin";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import type { AdminBackupState, BackupFrequency } from "@/types";
+import type { AdminBackupState, AdminBackupRecord, BackupFrequency } from "@/types";
 
 function formatBytes(n: number): string {
   if (n <= 0) return "—";
@@ -47,7 +61,34 @@ export default function BackupSettingsPage() {
   const [flash, setFlash] = useState<string>("");
   const [retention, setRetention] = useState("7");
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
+  const [restoreTarget, setRestoreTarget] = useState<AdminBackupRecord | null>(null);
+  const [copied, setCopied] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  const restoreCommand = (rec: AdminBackupRecord): string => {
+    const dir = state?.backupDir ?? "/path/to/backups";
+    const db = state?.databaseName || "your_database";
+    return [
+      `# 1) Take a fresh safety backup first (Backup now, above), then stop the app:`,
+      `pm2 stop sshakil   # use your PM2 process name`,
+      ``,
+      `# 2) Restore — REPLACES all data in "${db}":`,
+      `pg_restore --clean --if-exists --no-owner -d "$DATABASE_URL" "${dir}/${rec.filename}"`,
+      ``,
+      `# 3) Restart the app, then sign in again:`,
+      `pm2 start sshakil`,
+    ].join("\n");
+  };
+
+  const copyRestore = async (rec: AdminBackupRecord) => {
+    try {
+      await navigator.clipboard.writeText(restoreCommand(rec));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard may be unavailable; the command is visible to copy manually
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -390,14 +431,21 @@ export default function BackupSettingsPage() {
                       </TableCell>
                       <TableCell align="right" data-label="Actions">
                         {r.status === "ok" && (
-                          <Tooltip title="Download">
-                            <IconButton
-                              size="small"
-                              onClick={() => window.open(`/api/admin/backup/${r.id}`, "_blank")}
-                            >
-                              <Download size={14} />
-                            </IconButton>
-                          </Tooltip>
+                          <>
+                            <Tooltip title="Download">
+                              <IconButton
+                                size="small"
+                                onClick={() => window.open(`/api/admin/backup/${r.id}`, "_blank")}
+                              >
+                                <Download size={14} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Restore from this backup">
+                              <IconButton size="small" onClick={() => setRestoreTarget(r)}>
+                                <RotateCcw size={14} />
+                              </IconButton>
+                            </Tooltip>
+                          </>
                         )}
                         <Tooltip title="Delete">
                           <IconButton
@@ -422,6 +470,69 @@ export default function BackupSettingsPage() {
         Backups use <code>pg_dump</code> (custom format). Restore with{" "}
         <code>pg_restore -d &lt;database&gt; &lt;file&gt;.dump</code>.
       </Typography>
+
+      {/* Guided restore — shows the command; never executes a destructive restore from the browser */}
+      <Dialog open={!!restoreTarget} onClose={() => setRestoreTarget(null)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 1 }}>
+          <RotateCcw size={18} /> Restore from backup
+        </DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            Restoring <strong>replaces all current data</strong> with the contents of this backup
+            and cannot be undone. Run this on the server over SSH — for safety the dashboard won’t
+            do it for you.
+          </Alert>
+
+          {restoreTarget && (
+            <>
+              <Typography variant="body2" sx={{ mb: 0.5 }}>
+                Backup: <strong>{restoreTarget.filename}</strong>
+              </Typography>
+              {!restoreTarget.location.includes("local") && (
+                <Alert severity="info" sx={{ mb: 1.5 }}>
+                  This backup is in Google Drive. Click <strong>Download</strong> first and copy the
+                  file into <code>{state?.backupDir}</code> on the server (or adjust the path
+                  below).
+                </Alert>
+              )}
+
+              <Box
+                component="pre"
+                sx={{
+                  bgcolor: "action.hover",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  p: 1.5,
+                  fontSize: "0.78rem",
+                  fontFamily: "monospace",
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-all",
+                  m: 0,
+                }}
+              >
+                {restoreCommand(restoreTarget)}
+              </Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                Uses your <code>DATABASE_URL</code>; run it where that env var is set, or substitute
+                the connection string. After restoring you’ll likely need to sign in again.
+              </Typography>
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setRestoreTarget(null)} color="inherit">
+            Close
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={copied ? <Check size={15} /> : <Copy size={15} />}
+            onClick={() => restoreTarget && copyRestore(restoreTarget)}
+          >
+            {copied ? "Copied" : "Copy command"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <ConfirmDialog
         open={!!pendingDelete}
