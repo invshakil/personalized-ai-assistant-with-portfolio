@@ -24,6 +24,14 @@ function backupDir(): string {
   return path.resolve(process.env.BACKUP_DIR || path.join(process.cwd(), "backups"));
 }
 
+// Resolve a Postgres client binary. Honors PG_BIN_DIR (e.g. Homebrew libpq:
+// /opt/homebrew/opt/libpq/bin) so the app needn't rely on the process PATH;
+// falls back to the bare name (found on PATH).
+function pgBin(name: string): string {
+  const dir = process.env.PG_BIN_DIR;
+  return dir ? path.join(dir, name) : name;
+}
+
 function databaseName(): string {
   try {
     return new URL(process.env.DATABASE_URL ?? "").pathname.replace(/^\//, "") || "";
@@ -199,14 +207,14 @@ function pgDump(filePath: string): Promise<void> {
   ];
 
   return new Promise((resolve, reject) => {
-    const proc = spawn("pg_dump", args, { env });
+    const proc = spawn(pgBin("pg_dump"), args, { env });
     let stderr = "";
     proc.stderr.on("data", (d) => (stderr += d.toString()));
     proc.on("error", (e) =>
       reject(
         new Error(
           (e as NodeJS.ErrnoException).code === "ENOENT"
-            ? "pg_dump not found on PATH. Install PostgreSQL client tools on the server."
+            ? "pg_dump not found. Install PostgreSQL client tools, or set PG_BIN_DIR to their folder (e.g. /opt/homebrew/opt/libpq/bin)."
             : e.message
         )
       )

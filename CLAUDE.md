@@ -206,6 +206,7 @@ All vars live in `.env.local` (never committed). See `.env.example` for the full
 | `NEXT_PUBLIC_SITE_URL`                                  | Public site URL                                                                                                           |
 | `NEXT_PUBLIC_CV_URL`                                    | Google Drive CV download link                                                                                             |
 | `BACKUP_DIR`                                            | Where `pg_dump` backups are written (defaults to `./backups`)                                                             |
+| `PG_BIN_DIR`                                            | Folder holding `pg_dump`/`pg_restore` if not on PATH (macOS Homebrew libpq: `/opt/homebrew/opt/libpq/bin`)                |
 | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | OAuth client for uploading DB backups to your Google Drive (Settings → Backups). Optional — local backups work without it |
 
 ---

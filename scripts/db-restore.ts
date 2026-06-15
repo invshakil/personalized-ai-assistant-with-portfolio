@@ -33,6 +33,12 @@ function loadEnv(file: string) {
   }
 }
 
+// Resolve a Postgres client binary via PG_BIN_DIR, else rely on PATH.
+function pgBin(name: string): string {
+  const dir = process.env.PG_BIN_DIR;
+  return dir ? path.join(dir, name) : name;
+}
+
 function fail(msg: string): never {
   console.error(`\n✗ ${msg}\n`);
   process.exit(1);
@@ -49,7 +55,9 @@ function run(cmd: string, args: string[], env: NodeJS.ProcessEnv): Promise<void>
     proc.on("error", (e) =>
       reject(
         (e as NodeJS.ErrnoException).code === "ENOENT"
-          ? new Error(`${cmd} not found on PATH. Install PostgreSQL client tools.`)
+          ? new Error(
+              `${cmd} not found. Install PostgreSQL client tools, or set PG_BIN_DIR to their folder (e.g. /opt/homebrew/opt/libpq/bin).`
+            )
           : e
       )
     );
@@ -142,7 +150,7 @@ async function main() {
     const safetyFile = path.join(dir, `pre-restore-${stamp}.dump`);
     console.log(`\n→ Safety backup → ${safetyFile}`);
     await run(
-      "pg_dump",
+      pgBin("pg_dump"),
       [
         "-h",
         conn.host,
@@ -164,7 +172,7 @@ async function main() {
 
   console.log(`\n→ Restoring ${path.basename(dumpFile)} …`);
   await run(
-    "pg_restore",
+    pgBin("pg_restore"),
     [
       "--clean",
       "--if-exists",
