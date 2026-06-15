@@ -2,7 +2,7 @@
 
 import { useRef, useState, useEffect, useCallback } from "react";
 import { Sparkles, Send } from "lucide-react";
-import { Box, Card, Typography, TextField, Button, Avatar } from "@mui/material";
+import { Box, Card, Typography, TextField, Button, Avatar, Alert } from "@mui/material";
 import ChatMessage from "@/components/admin/ChatMessage";
 import PageHeader from "@/components/admin/PageHeader";
 import { aiApi } from "@/lib/api/ai";
@@ -16,6 +16,7 @@ export default function AiAssistantPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [blocked, setBlocked] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const refreshSessions = useCallback(async () => {
@@ -26,9 +27,18 @@ export default function AiAssistantPage() {
     }
   }, []);
 
+  const checkBudget = useCallback(async () => {
+    try {
+      setBlocked((await aiApi.getUsage()).overBudget);
+    } catch {
+      /* non-fatal */
+    }
+  }, []);
+
   useEffect(() => {
     refreshSessions();
-  }, [refreshSessions]);
+    checkBudget();
+  }, [refreshSessions, checkBudget]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -64,7 +74,7 @@ export default function AiAssistantPage() {
 
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || isStreaming) return;
+    if (!text || isStreaming || blocked) return;
 
     // Lazily create a session on the first message (best-effort).
     let sid = currentSessionId;
@@ -92,7 +102,16 @@ export default function AiAssistantPage() {
         body: JSON.stringify({ sessionId: sid, messages: updatedMessages }),
       });
 
-      if (!res.ok || !res.body) throw new Error("Failed to get response");
+      if (!res.ok || !res.body) {
+        let message = "Failed to get response";
+        try {
+          const j = await res.json();
+          if (j?.error) message = j.error;
+        } catch {
+          /* body wasn't JSON */
+        }
+        throw new Error(message);
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -110,18 +129,18 @@ export default function AiAssistantPage() {
           return updated;
         });
       }
-    } catch {
+    } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "Sorry, something went wrong. Please try again.";
       setMessages((prev) => {
         const updated = [...prev];
-        updated[updated.length - 1] = {
-          role: "assistant",
-          content: "Sorry, something went wrong. Please try again.",
-        };
+        updated[updated.length - 1] = { role: "assistant", content: message };
         return updated;
       });
     } finally {
       setIsStreaming(false);
       refreshSessions();
+      checkBudget();
     }
   };
 
@@ -142,6 +161,13 @@ export default function AiAssistantPage() {
       }}
     >
       <PageHeader title="AI Assistant" subtitle="Ask about your finances, property, or anything else." />
+
+      {blocked && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          Monthly AI budget reached — the chat is paused. Raise or turn off the limit in{" "}
+          <strong>Settings → AI</strong> to continue.
+        </Alert>
+      )}
 
       <Card sx={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
         <ConversationList
@@ -231,14 +257,14 @@ export default function AiAssistantPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask a question…"
-              disabled={isStreaming}
+              placeholder={blocked ? "AI budget reached — chat paused" : "Ask a question…"}
+              disabled={isStreaming || blocked}
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
             />
             <Button
               variant="contained"
               onClick={sendMessage}
-              disabled={!input.trim() || isStreaming}
+              disabled={!input.trim() || isStreaming || blocked}
               sx={{ minWidth: 44, width: 44, height: 40, p: 0, borderRadius: 2, flexShrink: 0 }}
             >
               <Send size={18} />

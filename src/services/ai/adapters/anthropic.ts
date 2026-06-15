@@ -3,7 +3,7 @@
 // the only place Anthropic-specific shapes (input_schema, tool_result blocks,
 // content-block deltas) appear. Adding OpenAI/Gemini = a sibling file here.
 import Anthropic from "@anthropic-ai/sdk";
-import type { AiProvider, StreamChatOptions, StreamEvent } from "../types";
+import type { AiProvider, StreamChatOptions, StreamEvent, UsageTotals } from "../types";
 
 const MAX_ITERATIONS = 6; // cap the tool loop
 const MAX_TOKENS = 2048;
@@ -25,6 +25,14 @@ export function createAnthropicProvider(opts: { apiKey: string; baseURL?: string
         content: m.content,
       }));
 
+      // Accumulate token usage across every API call this turn makes.
+      const usage: UsageTotals = {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheCreateTokens: 0,
+      };
+
       for (let i = 0; i < MAX_ITERATIONS; i++) {
         const stream = client.messages.stream({
           model,
@@ -41,9 +49,16 @@ export function createAnthropicProvider(opts: { apiKey: string; baseURL?: string
         }
 
         const final = await stream.finalMessage();
+        usage.inputTokens += final.usage.input_tokens ?? 0;
+        usage.outputTokens += final.usage.output_tokens ?? 0;
+        usage.cacheReadTokens += final.usage.cache_read_input_tokens ?? 0;
+        usage.cacheCreateTokens += final.usage.cache_creation_input_tokens ?? 0;
         convo.push({ role: "assistant", content: final.content });
 
-        if (final.stop_reason !== "tool_use") return;
+        if (final.stop_reason !== "tool_use") {
+          yield { type: "usage", usage };
+          return;
+        }
 
         const toolUses = final.content.filter(
           (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
@@ -74,6 +89,7 @@ export function createAnthropicProvider(opts: { apiKey: string; baseURL?: string
         convo.push({ role: "user", content: toolResults });
       }
 
+      yield { type: "usage", usage };
       yield { type: "error", message: "Reached the maximum number of tool steps for this turn." };
     },
   };

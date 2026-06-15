@@ -5,6 +5,7 @@ import { Box, Alert, Stack } from "@mui/material";
 import PageHeader from "@/components/admin/PageHeader";
 import type { ProviderConfigView } from "@/services/ai/types";
 import ProviderCard from "./ProviderCard";
+import BudgetCard from "./BudgetCard";
 
 interface AiSettingsPageProps {
   initial: ProviderConfigView[];
@@ -38,6 +39,7 @@ export default function AiSettingsPage({ initial, cryptoReady }: AiSettingsPageP
       </Alert>
 
       <Stack spacing={2.5}>
+        <BudgetCard />
         {providers.map((p) => (
           <ProviderCard
             key={p.provider}

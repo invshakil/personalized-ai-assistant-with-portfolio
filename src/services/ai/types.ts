@@ -21,10 +21,19 @@ export interface AiToolDef {
   parameters: Record<string, unknown>;
 }
 
+/** Token usage accumulated over a turn (summed across tool-loop rounds). */
+export interface UsageTotals {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreateTokens: number;
+}
+
 /** Streamed back from a provider during a chat turn. */
 export type StreamEvent =
   | { type: "text"; text: string }
   | { type: "tool"; name: string }
+  | { type: "usage"; usage: UsageTotals }
   | { type: "error"; message: string };
 
 /** Executes a tool call by name; throws on failure (message is user-safe). */
@@ -76,4 +85,24 @@ export interface ChatSessionDetail {
   id: string;
   title: string;
   messages: ChatMessage[];
+}
+
+// ─── Budget & usage (all amounts USD) ─────────────────────────────────────────
+
+export interface BudgetInput {
+  monthlyLimitUsd: number | null;
+  enforce: boolean;
+}
+
+export interface UsageSummary {
+  currency: "USD";
+  monthToDate: number;
+  allTime: number;
+  monthlyLimitUsd: number | null;
+  enforce: boolean;
+  remaining: number | null; // null when no limit
+  pctUsed: number | null; // 0–100, null when no limit
+  projectedMonthEnd: number; // run-rate projection for the current month
+  overBudget: boolean; // enforce && limit && monthToDate >= limit
+  monthly: { period: string; costUsd: number }[]; // "YYYY-MM", oldest first
 }
