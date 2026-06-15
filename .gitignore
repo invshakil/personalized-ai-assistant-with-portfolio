@@ -32,6 +32,8 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+# …but keep the example template tracked (placeholders only, no secrets)
+!.env.example
 
 # database backup dumps (contain all data — never commit)
 /backups/
