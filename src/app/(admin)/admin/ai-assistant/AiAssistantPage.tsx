@@ -254,7 +254,7 @@ export default function AiAssistantPage() {
             <TextField
               multiline
               minRows={1}
-              maxRows={4}
+              maxRows={12}
               fullWidth
               size="small"
               value={input}
