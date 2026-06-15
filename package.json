@@ -11,7 +11,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "seed": "npx prisma db seed",
-    "seed:financial": "tsx prisma/seed-financial.ts"
+    "seed:financial": "tsx prisma/seed-financial.ts",
+    "db:restore": "tsx scripts/db-restore.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
