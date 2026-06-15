@@ -45,26 +45,32 @@ export function createAnthropicProvider(opts: { apiKey: string; baseURL?: string
 
         if (final.stop_reason !== "tool_use") return;
 
-        const toolResults: Anthropic.ToolResultBlockParam[] = [];
-        for (const block of final.content) {
-          if (block.type !== "tool_use") continue;
+        const toolUses = final.content.filter(
+          (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+        );
+        for (const block of toolUses) {
           yield { type: "tool", name: block.name };
-          try {
-            const data = await runTool(block.name, block.input);
-            toolResults.push({
-              type: "tool_result",
-              tool_use_id: block.id,
-              content: JSON.stringify(data),
-            });
-          } catch (e) {
-            toolResults.push({
-              type: "tool_result",
-              tool_use_id: block.id,
-              content: e instanceof Error ? e.message : "Tool execution failed.",
-              is_error: true,
-            });
-          }
         }
+
+        // Run all tool calls in this round concurrently — if Claude asks for
+        // get_finance_summary AND get_property_dashboard, both DB queries run at
+        // once. Each call is isolated: a failure becomes an is_error result so
+        // one bad tool can't break the round, and Claude can answer around it.
+        const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+          toolUses.map(async (block): Promise<Anthropic.ToolResultBlockParam> => {
+            try {
+              const data = await runTool(block.name, block.input);
+              return { type: "tool_result", tool_use_id: block.id, content: JSON.stringify(data) };
+            } catch (e) {
+              return {
+                type: "tool_result",
+                tool_use_id: block.id,
+                content: e instanceof Error ? e.message : "Tool execution failed.",
+                is_error: true,
+              };
+            }
+          })
+        );
         convo.push({ role: "user", content: toolResults });
       }
 
