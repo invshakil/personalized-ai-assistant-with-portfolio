@@ -194,6 +194,9 @@ UI (Claude proposes → user approves → you call). Each throws on validation f
   them like untrusted input; the services already enforce the real rules and throw clear errors.
 - **Multi-step:** the loop above lets Claude chain tools (e.g. `list_tenants` → `get_tenant`) before
   answering. Keep `max_tokens` modest and cap the loop iterations in production.
-- Where this is headed in this repo: `src/app/api/admin/ai/route.ts` currently streams a plain chat;
-  the next step (PROJECT_PLANNING "Lesson 1.4 — tool use") is to add the `tools` array + tool loop
-  there, backed by the functions in §3.
+- **Implemented in this repo (2026-06-14).** The pattern above now lives in `src/services/ai/`:
+  the vendor-neutral catalog + handler map is `tools.ts` (`AI_TOOLS` + `runAiTool`), and the
+  declare→handle→loop is inside the provider adapter (`adapters/anthropic.ts`, streaming). The chat
+  route (`src/app/api/admin/ai/route.ts`) resolves the active provider via `getActiveProvider()` and
+  streams text deltas. The read tools wired today are listed in PROJECT_PLANNING → AI Assistant.
+  Write/action tools (§4) remain unexposed — gate them behind a confirmation step before adding.
