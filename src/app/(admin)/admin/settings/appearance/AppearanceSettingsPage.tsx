@@ -129,7 +129,10 @@ export default function AppearanceSettingsPage() {
           <Divider />
 
           {/* Primary colour */}
-          <Section title="Primary colour" description="Accent used for buttons, links and active states.">
+          <Section
+            title="Primary colour"
+            description="Accent used for buttons, links and active states."
+          >
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 2 }}>
               {COLOR_PRESETS.map((c) => {
                 const active = settings.primaryColor.toLowerCase() === c.value.toLowerCase();
@@ -227,7 +230,10 @@ export default function AppearanceSettingsPage() {
           <Divider />
 
           {/* Border radius */}
-          <Section title={`Corner radius — ${settings.borderRadius}px`} description="Roundness of cards, buttons and inputs.">
+          <Section
+            title={`Corner radius — ${settings.borderRadius}px`}
+            description="Roundness of cards, buttons and inputs."
+          >
             <Slider
               value={settings.borderRadius}
               onChange={(_, v) => set({ borderRadius: v as number })}
@@ -246,7 +252,10 @@ export default function AppearanceSettingsPage() {
           <Divider />
 
           {/* Density + font size */}
-          <Section title="Density & text size" description="Spacing of lists/tables and the base font size.">
+          <Section
+            title="Density & text size"
+            description="Spacing of lists/tables and the base font size."
+          >
             <ToggleButtonGroup
               exclusive
               size="small"
