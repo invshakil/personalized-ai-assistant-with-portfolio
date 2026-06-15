@@ -35,6 +35,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import AiSpendPanel from "./AiSpendPanel";
 
 const fadeUp = keyframes`
   from { opacity: 0; transform: translateY(18px); }
@@ -212,6 +213,11 @@ export default function OverviewPage() {
             </Card>
           );
         })}
+      </Box>
+
+      {/* ── AI spend + monthly cost chart ── */}
+      <Box sx={animated(0.2)}>
+        <AiSpendPanel />
       </Box>
 
       {/* ── Row 2: Quick Access + Module Status ── */}

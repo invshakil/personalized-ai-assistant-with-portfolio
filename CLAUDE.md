@@ -27,7 +27,7 @@ Two distinct surfaces:
 - **Material UI v9** (`@mui/material`) — admin surface only; do not use in portfolio components
 - **Prisma 5 + PostgreSQL** — ORM and database
 - **NextAuth v5 beta** — credentials provider, JWT sessions
-- **Claude Sonnet 4** (`claude-sonnet-4-20250514`) — AI features via Anthropic API
+- **AI provider seam** (`src/services/ai/`) — vendor-neutral `AiProvider` interface; the active provider, model, and encrypted API key are managed in Settings → AI. Claude adapter implemented (default model `claude-sonnet-4-6`); OpenAI/Gemini are future adapter files. Don't hardcode a provider/model/key in the chat route — resolve via `getActiveProvider()`.
 - **DigitalOcean Basic droplet** — deployment target (~$12/mo)
 
 **The two styling systems are strictly separated by surface:**
@@ -183,16 +183,17 @@ All admin colours come from the MUI theme. Reference these palette keys in `sx` 
 
 All vars live in `.env.local` (never committed). See `.env.example` for the full list.
 
-| Variable               | Purpose                                         |
-| ---------------------- | ----------------------------------------------- |
-| `DATABASE_URL`         | PostgreSQL connection string                    |
-| `AUTH_SECRET`          | NextAuth JWT secret (`openssl rand -base64 32`) |
-| `AUTH_URL`             | App URL for NextAuth callbacks                  |
-| `ADMIN_EMAIL`          | Login email for the single admin user           |
-| `ADMIN_PASSWORD`       | Login password for the single admin user        |
-| `ANTHROPIC_API_KEY`    | Claude API key for AI assistant features        |
-| `NEXT_PUBLIC_SITE_URL` | Public site URL                                 |
-| `NEXT_PUBLIC_CV_URL`   | Google Drive CV download link                   |
+| Variable               | Purpose                                                                     |
+| ---------------------- | --------------------------------------------------------------------------- |
+| `DATABASE_URL`         | PostgreSQL connection string                                                |
+| `AUTH_SECRET`          | NextAuth JWT secret (`openssl rand -base64 32`)                             |
+| `AUTH_URL`             | App URL for NextAuth callbacks                                              |
+| `ADMIN_EMAIL`          | Login email for the single admin user                                       |
+| `ADMIN_PASSWORD`       | Login password for the single admin user                                    |
+| `ANTHROPIC_API_KEY`    | Bootstraps the Claude provider on first run (then managed in Settings → AI) |
+| `AI_CONFIG_SECRET`     | 32-byte base64 key (AES-256-GCM) encrypting AI provider API keys at rest    |
+| `NEXT_PUBLIC_SITE_URL` | Public site URL                                                             |
+| `NEXT_PUBLIC_CV_URL`   | Google Drive CV download link                                               |
 
 ---
 
