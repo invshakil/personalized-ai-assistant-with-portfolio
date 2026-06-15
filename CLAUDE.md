@@ -194,17 +194,19 @@ semantic keys and both modes work automatically.
 
 All vars live in `.env.local` (never committed). See `.env.example` for the full list.
 
-| Variable               | Purpose                                                                     |
-| ---------------------- | --------------------------------------------------------------------------- |
-| `DATABASE_URL`         | PostgreSQL connection string                                                |
-| `AUTH_SECRET`          | NextAuth JWT secret (`openssl rand -base64 32`)                             |
-| `AUTH_URL`             | App URL for NextAuth callbacks                                              |
-| `ADMIN_EMAIL`          | Login email for the single admin user                                       |
-| `ADMIN_PASSWORD`       | Login password for the single admin user                                    |
-| `ANTHROPIC_API_KEY`    | Bootstraps the Claude provider on first run (then managed in Settings → AI) |
-| `AI_CONFIG_SECRET`     | 32-byte base64 key (AES-256-GCM) encrypting AI provider API keys at rest    |
-| `NEXT_PUBLIC_SITE_URL` | Public site URL                                                             |
-| `NEXT_PUBLIC_CV_URL`   | Google Drive CV download link                                               |
+| Variable                                                | Purpose                                                                                                                   |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                          | PostgreSQL connection string                                                                                              |
+| `AUTH_SECRET`                                           | NextAuth JWT secret (`openssl rand -base64 32`)                                                                           |
+| `AUTH_URL`                                              | App URL for NextAuth callbacks                                                                                            |
+| `ADMIN_EMAIL`                                           | Login email for the single admin user                                                                                     |
+| `ADMIN_PASSWORD`                                        | Login password for the single admin user                                                                                  |
+| `ANTHROPIC_API_KEY`                                     | Bootstraps the Claude provider on first run (then managed in Settings → AI)                                               |
+| `AI_CONFIG_SECRET`                                      | 32-byte base64 key (AES-256-GCM) encrypting AI provider API keys **and** the Drive backup refresh token at rest           |
+| `NEXT_PUBLIC_SITE_URL`                                  | Public site URL                                                                                                           |
+| `NEXT_PUBLIC_CV_URL`                                    | Google Drive CV download link                                                                                             |
+| `BACKUP_DIR`                                            | Where `pg_dump` backups are written (defaults to `./backups`)                                                             |
+| `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | OAuth client for uploading DB backups to your Google Drive (Settings → Backups). Optional — local backups work without it |
 
 ---
 
