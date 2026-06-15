@@ -360,6 +360,8 @@ of this hub; the live cross-domain summary lives on the **Overview** (`/admin`, 
   account (`services/admin/googleDrive.ts`, plain `fetch` — no `googleapis` dep; scope `drive.file`;
   refresh token AES-256-GCM encrypted). Backups always write locally first, then upload if Drive is
   connected; retention prunes both. Backup files are git-ignored (`/backups/`, `*.dump`).
+  Requires the `pg_dump`/`pg_restore` binaries — set **`PG_BIN_DIR`** if they're not on PATH (macOS
+  Homebrew libpq: `/opt/homebrew/opt/libpq/bin`; Ubuntu `postgresql-client` is usually on PATH).
   **Google setup:** create an OAuth 2.0 "Web application" client (Drive API enabled) in Google Cloud,
   register redirect `<AUTH_URL>/api/admin/backup/google/callback`, set `GOOGLE_OAUTH_CLIENT_ID/SECRET`,
   then click **Connect Google Drive**. **Download** works for any backup (streams from Drive when the
