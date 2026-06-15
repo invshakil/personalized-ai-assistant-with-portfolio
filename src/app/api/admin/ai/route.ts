@@ -36,6 +36,10 @@ export async function POST(req: Request) {
     );
   }
 
+  // Tell the model today's date so it can pick the right relative period token
+  // (the report tools resolve periods server-side, but this helps tool choice).
+  const system = `${SYSTEM_PROMPT} Today's date is ${new Date().toISOString().slice(0, 10)}.`;
+
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -43,7 +47,7 @@ export async function POST(req: Request) {
       try {
         for await (const ev of active.provider.streamChat({
           model: active.model,
-          system: SYSTEM_PROMPT,
+          system,
           messages,
           tools: AI_TOOLS,
           runTool: runAiTool,
