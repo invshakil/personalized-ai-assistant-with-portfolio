@@ -284,6 +284,44 @@ export interface Testimonial {
   source: string;
 }
 
+// ─── Admin overview (dashboard) ───────────────────────────────────────────────
+
+interface OverviewMoney {
+  income: number;
+  costs: number; // salaries + expenses
+  salaries: number;
+  expenses: number;
+  net: number;
+}
+
+export interface AdminOverview {
+  monthLabel: string; // "June 2026"
+  fiscalYear: string; // "2025-2026"
+  finance: {
+    month: OverviewMoney;
+    fiscalYear: OverviewMoney;
+    subscriptionRunRate: number; // current-month effective ৳/mo
+    subscriptionCount: number;
+  };
+  property: {
+    collected: number;
+    expected: number;
+    expenses: number;
+    net: number;
+    occupiedUnits: number;
+    totalUnits: number;
+    overdueCount: number;
+    totalDue: number;
+    topDue: {
+      tenantName: string;
+      unitNumber: string | null;
+      totalDue: number;
+      monthsUnpaid: number;
+      alert: "OVERDUE" | "PENDING";
+    }[];
+  };
+}
+
 // ─── Admin theme preferences ──────────────────────────────────────────────────
 
 export type ThemeMode = "light" | "dark" | "system";

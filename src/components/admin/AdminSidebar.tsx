@@ -30,7 +30,6 @@ import {
   CreditCard,
   Receipt,
   Wifi,
-  PieChart,
   ChevronDown,
   ChevronRight,
   SlidersHorizontal,
@@ -39,6 +38,7 @@ import {
   UserCircle,
   Tag,
   Palette,
+  FileBarChart,
 } from "lucide-react";
 
 const SIDEBAR_WIDTH = 260;
@@ -70,7 +70,6 @@ const navGroups: { label: string; items: NavItem[] }[] = [
           { href: "/admin/property/services", label: "Services", icon: Wifi },
           { href: "/admin/property/payees", label: "Payees", icon: UserCircle },
           { href: "/admin/property/service-types", label: "Service Types", icon: Tag },
-          { href: "/admin/property/dashboard", label: "Dashboard", icon: PieChart },
           { href: "/admin/property/settings", label: "Settings", icon: SlidersHorizontal },
         ],
       },
@@ -80,12 +79,21 @@ const navGroups: { label: string; items: NavItem[] }[] = [
         icon: BarChart3,
         exact: false,
         children: [
-          { href: "/admin/finance", label: "Dashboard", icon: PieChart },
           { href: "/admin/finance/earnings", label: "Earnings", icon: TrendingUp },
           { href: "/admin/finance/payments", label: "Salaries", icon: Users },
           { href: "/admin/finance/expenses", label: "Expenses", icon: Receipt },
           { href: "/admin/finance/subscriptions", label: "Subscriptions", icon: RefreshCw },
           { href: "/admin/finance/settings", label: "Settings", icon: SlidersHorizontal },
+        ],
+      },
+      {
+        href: "/admin/reports",
+        label: "Reports",
+        icon: FileBarChart,
+        exact: false,
+        children: [
+          { href: "/admin/reports/financial", label: "Financial Tracker Reports", icon: BarChart3 },
+          { href: "/admin/reports/property", label: "Property Reports", icon: Building2 },
         ],
       },
       { href: "/admin/renovation", label: "Renovation", icon: Wrench, exact: false },
