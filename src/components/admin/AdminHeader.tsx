@@ -1,8 +1,9 @@
 "use client";
 
-import { Box, Typography, Avatar, Tooltip, IconButton } from "@mui/material";
-import { Menu } from "lucide-react";
+import { Box, Typography, Avatar, Tooltip, IconButton, useTheme } from "@mui/material";
+import { Menu, Sun, Moon } from "lucide-react";
 import AdminBreadcrumb from "@/components/admin/AdminBreadcrumb";
+import { useAdminTheme } from "@/components/admin/AdminThemeProvider";
 
 interface AdminHeaderProps {
   userName: string | null;
@@ -11,6 +12,10 @@ interface AdminHeaderProps {
 }
 
 export default function AdminHeader({ userName, userEmail, onMenuToggle }: AdminHeaderProps) {
+  const theme = useTheme();
+  const { updateAndSave } = useAdminTheme();
+  const isDark = theme.palette.mode === "dark";
+
   const displayName = userName ?? userEmail ?? "Admin";
   const initials = displayName
     .split(" ")
@@ -47,31 +52,43 @@ export default function AdminHeader({ userName, userEmail, onMenuToggle }: Admin
         <AdminBreadcrumb />
       </Box>
 
-      <Tooltip title={displayName} placement="bottom-end">
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1.5,
-            cursor: "pointer",
-            borderRadius: 1.5,
-            px: 1.5,
-            py: 0.75,
-            "&:hover": { bgcolor: "action.hover" },
-          }}
-        >
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ display: { xs: "none", sm: "block" } }}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Tooltip title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
+          <IconButton
+            onClick={() => updateAndSave({ mode: isDark ? "light" : "dark" })}
+            size="small"
+            aria-label="Toggle colour mode"
           >
-            {displayName}
-          </Typography>
-          <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32, fontSize: "0.8rem" }}>
-            {initials}
-          </Avatar>
-        </Box>
-      </Tooltip>
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title={displayName} placement="bottom-end">
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              cursor: "pointer",
+              borderRadius: 1.5,
+              px: 1.5,
+              py: 0.75,
+              "&:hover": { bgcolor: "action.hover" },
+            }}
+          >
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ display: { xs: "none", sm: "block" } }}
+            >
+              {displayName}
+            </Typography>
+            <Avatar sx={{ bgcolor: "primary.main", width: 32, height: 32, fontSize: "0.8rem" }}>
+              {initials}
+            </Avatar>
+          </Box>
+        </Tooltip>
+      </Box>
     </Box>
   );
 }

@@ -131,20 +131,31 @@ Two distinct layers — keep them separate:
 
 ## Admin MUI theme tokens (`src/lib/adminTheme.ts`)
 
-All admin colours come from the MUI theme. Reference these palette keys in `sx` props:
+The admin theme is **settings-driven**, not a static object. `createAdminTheme(settings, resolvedMode)`
+builds the theme from the `AdminThemeSettings` singleton (mode, primary colour, card shadow/border,
+border radius, density, font size). `adminTheme` (= `createAdminTheme()` with defaults) is exported only
+for the login page, which has no DB session. Live preference state lives in `AdminThemeProvider`
+(`components/admin/AdminThemeProvider.tsx`); the `(admin)` layout loads the singleton via
+`getThemeSettings()` and seeds it (no flash). Edit/customise theme at **/admin/settings/appearance**.
 
-| Token                | Value     | Use                            |
-| -------------------- | --------- | ------------------------------ |
-| `background.default` | `#25293c` | Page background                |
-| `background.paper`   | `#2f3349` | Cards, sidebar, header         |
-| `primary.main`       | `#7367f0` | Indigo — buttons, active state |
-| `success.main`       | `#28c76f` | Green — active/OK badges       |
-| `warning.main`       | `#ff9f43` | Amber — warnings               |
-| `error.main`         | `#ea5455` | Red — errors, overdue          |
-| `info.main`          | `#00cfe8` | Cyan — info                    |
-| `text.primary`       | `#cfd3ec` | Main text                      |
-| `text.secondary`     | `#8692a8` | Muted text, labels             |
-| `divider`            | rgba      | Borders between sections       |
+Always reference palette keys in `sx` props — never hardcode hex. Values below are the **dark** defaults;
+the **light** mode (`mode: "light"` or `"system"`) supplies its own paper/text/divider tokens, so use the
+semantic keys and both modes work automatically.
+
+| Token                | Dark default | Use                            |
+| -------------------- | ------------ | ------------------------------ |
+| `background.default` | `#25293c`    | Page background                |
+| `background.paper`   | `#2f3349`    | Cards, sidebar, header         |
+| `primary.main`       | `#7367f0`\*  | Accent — buttons, active state |
+| `success.main`       | `#28c76f`    | Green — active/OK badges       |
+| `warning.main`       | `#ff9f43`    | Amber — warnings               |
+| `error.main`         | `#ea5455`    | Red — errors, overdue          |
+| `info.main`          | `#00cfe8`    | Cyan — info                    |
+| `text.primary`       | `#cfd3ec`    | Main text                      |
+| `text.secondary`     | `#8692a8`    | Muted text, labels             |
+| `divider`            | rgba         | Borders between sections       |
+
+\* `primary.main` is user-configurable in Appearance settings; `light`/`dark` shades are derived.
 
 ---
 

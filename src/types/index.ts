@@ -284,6 +284,22 @@ export interface Testimonial {
   source: string;
 }
 
+// ─── Admin theme preferences ──────────────────────────────────────────────────
+
+export type ThemeMode = "light" | "dark" | "system";
+export type CardShadow = "none" | "soft" | "elevated";
+export type Density = "compact" | "comfortable";
+
+export interface AdminThemeSettings {
+  mode: ThemeMode;
+  primaryColor: string;
+  cardShadow: CardShadow;
+  cardBorder: boolean;
+  borderRadius: number;
+  density: Density;
+  fontSize: number;
+}
+
 export type ContactIconType = "email" | "linkedin" | "github" | "whatsapp" | "cv";
 
 export interface ContactLink {
