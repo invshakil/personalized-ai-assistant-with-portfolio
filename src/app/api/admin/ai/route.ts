@@ -2,7 +2,8 @@ import { auth } from "@/lib/auth";
 import { getActiveProvider } from "@/services/ai/registry";
 import { AI_TOOLS, runAiTool } from "@/services/ai/tools";
 import { appendTurn } from "@/services/ai/sessions";
-import type { ChatMessage } from "@/services/ai/types";
+import { isOverBudget, recordUsage } from "@/services/ai/usage";
+import type { AiProviderId, ChatMessage, UsageTotals } from "@/services/ai/types";
 
 const SYSTEM_PROMPT =
   "You are a personal assistant for Syful Islam Shakil — a Tech Lead and Full-Stack Engineer based in Comilla, Bangladesh. " +
@@ -26,6 +27,17 @@ export async function POST(req: Request) {
     return Response.json({ error: "messages array is required" }, { status: 400 });
   }
 
+  // Block new turns once this month's spend has hit the budget.
+  if (await isOverBudget()) {
+    return Response.json(
+      {
+        error:
+          "Monthly AI budget reached. Increase or turn off the limit in Settings → AI to keep chatting.",
+      },
+      { status: 402 }
+    );
+  }
+
   let active;
   try {
     active = await getActiveProvider();
@@ -44,6 +56,7 @@ export async function POST(req: Request) {
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       let assistantText = "";
+      let usage: UsageTotals | null = null;
       try {
         for await (const ev of active.provider.streamChat({
           model: active.model,
@@ -55,10 +68,17 @@ export async function POST(req: Request) {
           if (ev.type === "text") {
             assistantText += ev.text;
             controller.enqueue(encoder.encode(ev.text));
+          } else if (ev.type === "usage") {
+            usage = ev.usage;
           } else if (ev.type === "error") {
             controller.enqueue(encoder.encode(`\n\n⚠️ ${ev.message}`));
           }
           // "tool" events are not surfaced on the plain-text stream.
+        }
+
+        // Record token spend whenever tokens were billed (independent of save).
+        if (usage) {
+          await recordUsage({ provider: active.provider.id as AiProviderId, model: active.model, usage });
         }
 
         // Persist the completed turn (only on a clean answer).

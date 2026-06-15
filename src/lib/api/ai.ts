@@ -7,6 +7,8 @@ import type {
   ProviderTestResult,
   ChatSessionSummary,
   ChatSessionDetail,
+  BudgetInput,
+  UsageSummary,
 } from "@/services/ai/types";
 
 export interface SaveProviderBody {
@@ -31,4 +33,9 @@ export const aiApi = {
   renameSession: (id: string, title: string) =>
     apiPatch<{ ok: true }>(`/ai/sessions/${id}`, { title }),
   deleteSession: (id: string) => apiDelete<{ ok: true }>(`/ai/sessions/${id}`),
+
+  // Budget & usage
+  getUsage: () => apiGet<UsageSummary>("/ai/usage"),
+  getBudget: () => apiGet<BudgetInput>("/ai/budget"),
+  saveBudget: (body: BudgetInput) => apiPut<BudgetInput>("/ai/budget", body),
 };
