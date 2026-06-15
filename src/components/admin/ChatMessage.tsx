@@ -1,5 +1,6 @@
 import { Box, Typography, Avatar } from "@mui/material";
 import { Sparkles } from "lucide-react";
+import Markdown from "@/components/admin/Markdown";
 
 interface ChatMessageProps {
   role: "user" | "assistant";
@@ -46,35 +47,34 @@ export default function ChatMessage({ role, content, isStreaming }: ChatMessageP
           borderColor: isUser ? "rgba(115,103,240,0.25)" : "rgba(231,227,252,0.08)",
         }}
       >
-        <Typography
-          variant="body2"
-          sx={{
-            whiteSpace: "pre-wrap",
-            lineHeight: 1.65,
-            color: isUser ? "text.primary" : "text.primary",
-          }}
-        >
-          {content}
-          {isStreaming && (
-            <Box
-              component="span"
-              sx={{
-                display: "inline-block",
-                width: 4,
-                height: 16,
-                ml: 0.5,
-                bgcolor: "primary.main",
-                verticalAlign: "text-bottom",
-                borderRadius: "1px",
-                animation: "pulse 1s ease-in-out infinite",
-                "@keyframes pulse": {
-                  "0%, 100%": { opacity: 1 },
-                  "50%": { opacity: 0.3 },
-                },
-              }}
-            />
-          )}
-        </Typography>
+        {isUser ? (
+          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.65 }}>
+            {content}
+          </Typography>
+        ) : (
+          <Box>
+            <Markdown content={content} />
+            {isStreaming && (
+              <Box
+                component="span"
+                sx={{
+                  display: "inline-block",
+                  width: 4,
+                  height: 16,
+                  ml: 0.5,
+                  bgcolor: "primary.main",
+                  verticalAlign: "text-bottom",
+                  borderRadius: "1px",
+                  animation: "pulse 1s ease-in-out infinite",
+                  "@keyframes pulse": {
+                    "0%, 100%": { opacity: 1 },
+                    "50%": { opacity: 0.3 },
+                  },
+                }}
+              />
+            )}
+          </Box>
+        )}
       </Box>
     </Box>
   );
