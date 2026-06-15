@@ -64,8 +64,13 @@ async function resolveDumpFile(input: string): Promise<string> {
   if (!stat) fail(`Path not found: ${input}`);
   if (stat.isDirectory()) {
     const entries = await fs.readdir(input);
-    const dumps = entries.filter((f) => f.endsWith(".dump"));
-    if (dumps.length === 0) fail(`No .dump files in directory: ${input}`);
+    const allDumps = entries.filter((f) => f.endsWith(".dump"));
+    if (allDumps.length === 0) fail(`No .dump files in directory: ${input}`);
+    // Prefer real backups; ignore safety snapshots this script writes
+    // (pre-restore-*.dump) so the latest prod dump you placed is picked — unless
+    // only safety snapshots exist. Pass an explicit path to restore one of those.
+    const restorable = allDumps.filter((f) => !f.startsWith("pre-restore-"));
+    const dumps = restorable.length > 0 ? restorable : allDumps;
     const withTime = await Promise.all(
       dumps.map(async (f) => ({ f, t: (await fs.stat(path.join(input, f))).mtimeMs }))
     );
