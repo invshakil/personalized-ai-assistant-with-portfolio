@@ -26,9 +26,9 @@ export default function AiSettingsPage({ initial, cryptoReady }: AiSettingsPageP
 
       {!cryptoReady && (
         <Alert severity="warning" sx={{ mb: 2.5 }}>
-          <code>AI_CONFIG_SECRET</code> is not set, so API keys can&apos;t be encrypted or saved. Add a
-          32-byte base64 secret (<code>openssl rand -base64 32</code>) to <code>.env.local</code> and
-          restart.
+          <code>AI_CONFIG_SECRET</code> is not set, so API keys can&apos;t be encrypted or saved.
+          Add a 32-byte base64 secret (<code>openssl rand -base64 32</code>) to{" "}
+          <code>.env.local</code> and restart.
         </Alert>
       )}
 

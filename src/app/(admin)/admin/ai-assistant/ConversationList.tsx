@@ -86,7 +86,10 @@ export default function ConversationList({
                   onClick={() => onSelect(s.id)}
                   sx={{ borderRadius: 1, py: 0.625, pr: 4 }}
                 >
-                  <MessageSquare size={14} style={{ marginRight: 8, flexShrink: 0, opacity: 0.7 }} />
+                  <MessageSquare
+                    size={14}
+                    style={{ marginRight: 8, flexShrink: 0, opacity: 0.7 }}
+                  />
                   <ListItemText
                     primary={s.title}
                     slotProps={{

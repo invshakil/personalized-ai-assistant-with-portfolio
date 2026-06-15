@@ -111,7 +111,9 @@ export interface ProviderConfigUpdate {
   setActive?: boolean;
 }
 
-export async function upsertProviderConfig(input: ProviderConfigUpdate): Promise<ProviderConfigView[]> {
+export async function upsertProviderConfig(
+  input: ProviderConfigUpdate
+): Promise<ProviderConfigView[]> {
   const entry = entryFor(input.provider);
   await ensureProviderRows();
 
@@ -141,7 +143,8 @@ export async function upsertProviderConfig(input: ProviderConfigUpdate): Promise
 
   if (input.setActive) {
     if (!entry.supported) throw new Error(`${entry.label} is not supported yet.`);
-    if (!updated.apiKeyEnc) throw new Error(`Add an API key for ${entry.label} before making it active.`);
+    if (!updated.apiKeyEnc)
+      throw new Error(`Add an API key for ${entry.label} before making it active.`);
     await db.$transaction([
       db.aiProviderConfig.updateMany({ where: {}, data: { isActive: false } }),
       db.aiProviderConfig.update({ where: { provider: input.provider }, data: { isActive: true } }),

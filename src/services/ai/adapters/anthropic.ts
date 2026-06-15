@@ -13,7 +13,13 @@ export function createAnthropicProvider(opts: { apiKey: string; baseURL?: string
 
   return {
     id: "anthropic",
-    async *streamChat({ model, system, messages, tools, runTool }: StreamChatOptions): AsyncIterable<StreamEvent> {
+    async *streamChat({
+      model,
+      system,
+      messages,
+      tools,
+      runTool,
+    }: StreamChatOptions): AsyncIterable<StreamEvent> {
       const anthropicTools: Anthropic.Tool[] = tools.map((t) => ({
         name: t.name,
         description: t.description,

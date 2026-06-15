@@ -14,7 +14,9 @@ export async function PUT(req: Request) {
   const body = await req.json();
   const enforce = body?.enforce === true;
   const monthlyLimitUsd =
-    body?.monthlyLimitUsd === null || body?.monthlyLimitUsd === undefined || body?.monthlyLimitUsd === ""
+    body?.monthlyLimitUsd === null ||
+    body?.monthlyLimitUsd === undefined ||
+    body?.monthlyLimitUsd === ""
       ? null
       : Number(body.monthlyLimitUsd);
 

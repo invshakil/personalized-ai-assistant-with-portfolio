@@ -247,7 +247,12 @@ export async function getArrearsReport() {
 export async function getAdvanceLiabilityReport() {
   const tenants = await db.tenant.findMany({
     where: { advanceAmount: { gt: 0 } },
-    select: { name: true, tenantCode: true, advanceAmount: true, unit: { select: { unitNumber: true } } },
+    select: {
+      name: true,
+      tenantCode: true,
+      advanceAmount: true,
+      unit: { select: { unitNumber: true } },
+    },
     orderBy: { advanceAmount: "desc" },
   });
   const byTenant = tenants.map((t) => ({
@@ -356,7 +361,14 @@ export async function getTenantStatement(tenantId: string, input: RangeInput = {
   const payments = await db.payment.findMany({
     where: { tenantId, ...monthYearWhere(range) },
     orderBy: [{ year: "asc" }, { month: "asc" }],
-    select: { rentDue: true, amountPaid: true, advanceApplied: true, month: true, year: true, status: true },
+    select: {
+      rentDue: true,
+      amountPaid: true,
+      advanceApplied: true,
+      month: true,
+      year: true,
+      status: true,
+    },
   });
 
   let running = 0;
@@ -364,7 +376,13 @@ export async function getTenantStatement(tenantId: string, input: RangeInput = {
     const due = toNum(p.rentDue);
     const paid = toNum(p.amountPaid) + toNum(p.advanceApplied);
     running += due - paid;
-    return { period: mk(p.year, p.month), due, paid, balance: Math.round(running), status: p.status };
+    return {
+      period: mk(p.year, p.month),
+      due,
+      paid,
+      balance: Math.round(running),
+      status: p.status,
+    };
   });
 
   return {

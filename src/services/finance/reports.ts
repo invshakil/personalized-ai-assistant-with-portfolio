@@ -3,11 +3,7 @@
 // see services/_shared/dateRange.ts. Read-only. Money is BDT.
 import { db } from "@/lib/db";
 import { toNum } from "./_serializers";
-import {
-  resolveRange,
-  dateColumnWhere,
-  type RangeInput,
-} from "@/services/_shared/dateRange";
+import { resolveRange, dateColumnWhere, type RangeInput } from "@/services/_shared/dateRange";
 
 const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 
@@ -51,7 +47,10 @@ export async function getClientProfitability(input: RangeInput = {}) {
   const [sources, earningsBySource, payments] = await Promise.all([
     db.incomeSource.findMany({ select: { id: true, name: true } }),
     db.earning.groupBy({ by: ["sourceId"], where, _sum: { amount: true } }),
-    db.employeePayment.findMany({ where, select: { amount: true, clients: { select: { id: true } } } }),
+    db.employeePayment.findMany({
+      where,
+      select: { amount: true, clients: { select: { id: true } } },
+    }),
   ]);
 
   const name = new Map(sources.map((s) => [s.id, s.name]));
@@ -95,7 +94,10 @@ export async function getEmployeeCostReport(input: RangeInput = {}) {
   ]);
   const name = new Map(employees.map((e) => [e.id, e.name]));
 
-  const byEmp = new Map<string, { salary: number; bonus: number; advance: number; other: number }>();
+  const byEmp = new Map<
+    string,
+    { salary: number; bonus: number; advance: number; other: number }
+  >();
   for (const g of grouped) {
     const e = byEmp.get(g.employeeId) ?? { salary: 0, bonus: 0, advance: 0, other: 0 };
     const amt = toNum(g._sum.amount);
@@ -174,7 +176,10 @@ export async function getSubscriptionSpendReport() {
 
   const byCategory = new Map<string, number>();
   for (const s of active) {
-    byCategory.set(s.category.name, (byCategory.get(s.category.name) ?? 0) + toNum(s.monthlyAmount));
+    byCategory.set(
+      s.category.name,
+      (byCategory.get(s.category.name) ?? 0) + toNum(s.monthlyAmount)
+    );
   }
 
   const cutoff = new Date();
@@ -200,7 +205,10 @@ export async function getRemittanceReport(input: RangeInput = {}) {
   const where = dateColumnWhere(range);
 
   const [rows, sources] = await Promise.all([
-    db.earning.findMany({ where, select: { date: true, amount: true, remittance: true, sourceId: true } }),
+    db.earning.findMany({
+      where,
+      select: { date: true, amount: true, remittance: true, sourceId: true },
+    }),
     db.incomeSource.findMany({ select: { id: true, name: true } }),
   ]);
   const name = new Map(sources.map((s) => [s.id, s.name]));
