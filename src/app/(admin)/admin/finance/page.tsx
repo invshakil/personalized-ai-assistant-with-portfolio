@@ -1,7 +1,7 @@
-import FinanceDashboardPage from "./FinanceDashboardPage";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Financial Tracker" };
-
+// The Financial Tracker dashboard moved to Reports; the section now opens on
+// Earnings. The report is reached via Reports → Financial Tracker Reports.
 export default function Page() {
-  return <FinanceDashboardPage />;
+  redirect("/admin/finance/earnings");
 }

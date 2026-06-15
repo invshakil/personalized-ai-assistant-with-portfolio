@@ -1,7 +1,6 @@
-import PropertyDashboardPage from "./PropertyDashboardPage";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Property Dashboard" };
-
+// The Property dashboard now lives under Reports.
 export default function Page() {
-  return <PropertyDashboardPage />;
+  redirect("/admin/reports/property");
 }
