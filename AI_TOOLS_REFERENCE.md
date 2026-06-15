@@ -75,13 +75,15 @@ const toolHandlers: Record<string, (input: any) => Promise<unknown>> = {
 };
 
 // 3) The tool-use loop
+const MAX_ROUNDS = 6; // cap so a misbehaving model can't loop forever
+
 async function run(userMessage: string) {
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: userMessage }];
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-  while (true) {
+  for (let round = 0; round < MAX_ROUNDS; round++) {
     const res = await client.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-6", // current model (claude-sonnet-4-20250514 is retired)
       max_tokens: 1024,
       tools,
       messages,
@@ -90,19 +92,31 @@ async function run(userMessage: string) {
 
     if (res.stop_reason !== "tool_use") return res; // final answer
 
-    // Run every tool Claude asked for, feed results back
-    const toolResults: Anthropic.ToolResultBlockParam[] = [];
-    for (const block of res.content) {
-      if (block.type !== "tool_use") continue;
-      const data = await toolHandlers[block.name](block.input);
-      toolResults.push({
-        type: "tool_result",
-        tool_use_id: block.id,
-        content: JSON.stringify(data),
-      });
-    }
+    // Run every tool Claude asked for CONCURRENTLY, feed results back.
+    // Each call is isolated: a thrown error becomes an is_error result so one
+    // bad tool can't break the round — Claude sees the error and answers around it.
+    const toolUses = res.content.filter(
+      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
+    );
+    const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
+      toolUses.map(async (block): Promise<Anthropic.ToolResultBlockParam> => {
+        try {
+          const data = await toolHandlers[block.name](block.input);
+          return { type: "tool_result", tool_use_id: block.id, content: JSON.stringify(data) };
+        } catch (err) {
+          return {
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: err instanceof Error ? err.message : "Tool execution failed.",
+            is_error: true,
+          };
+        }
+      })
+    );
     messages.push({ role: "user", content: toolResults });
   }
+
+  throw new Error(`AI tool loop exceeded ${MAX_ROUNDS} rounds`);
 }
 ```
 
@@ -196,7 +210,11 @@ UI (Claude proposes → user approves → you call). Each throws on validation f
   answering. Keep `max_tokens` modest and cap the loop iterations in production.
 - **Implemented in this repo (2026-06-14).** The pattern above now lives in `src/services/ai/`:
   the vendor-neutral catalog + handler map is `tools.ts` (`AI_TOOLS` + `runAiTool`), and the
-  declare→handle→loop is inside the provider adapter (`adapters/anthropic.ts`, streaming). The chat
-  route (`src/app/api/admin/ai/route.ts`) resolves the active provider via `getActiveProvider()` and
-  streams text deltas. The read tools wired today are listed in PROJECT_PLANNING → AI Assistant.
-  Write/action tools (§4) remain unexposed — gate them behind a confirmation step before adding.
+  declare→handle→loop is inside the provider adapter (`adapters/anthropic.ts`, **streaming**). That
+  adapter already applies the production hardening shown in §2: the loop is **capped**
+  (`MAX_ITERATIONS = 6`), tool calls in a round run **concurrently** via `Promise.all`, and each is
+  isolated in a `try/catch` that returns an `is_error` `tool_result` so one failing tool can't break
+  the turn. The chat route (`src/app/api/admin/ai/route.ts`) resolves the active provider via
+  `getActiveProvider()` and streams text deltas. The read tools wired today are listed in
+  PROJECT_PLANNING → AI Assistant. Write/action tools (§4) remain unexposed — gate them behind a
+  confirmation step before adding.
