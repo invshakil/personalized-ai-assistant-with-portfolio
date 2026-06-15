@@ -78,7 +78,11 @@ export async function POST(req: Request) {
 
         // Record token spend whenever tokens were billed (independent of save).
         if (usage) {
-          await recordUsage({ provider: active.provider.id as AiProviderId, model: active.model, usage });
+          await recordUsage({
+            provider: active.provider.id as AiProviderId,
+            model: active.model,
+            usage,
+          });
         }
 
         // Persist the completed turn (only on a clean answer).

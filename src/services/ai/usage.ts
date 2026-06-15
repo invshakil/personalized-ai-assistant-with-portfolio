@@ -43,7 +43,10 @@ export async function getBudget(): Promise<BudgetInput> {
 }
 
 export async function setBudget(input: BudgetInput): Promise<BudgetInput> {
-  if (input.monthlyLimitUsd !== null && (!(input.monthlyLimitUsd >= 0) || !isFinite(input.monthlyLimitUsd))) {
+  if (
+    input.monthlyLimitUsd !== null &&
+    (!(input.monthlyLimitUsd >= 0) || !isFinite(input.monthlyLimitUsd))
+  ) {
     throw new Error("Monthly limit must be a non-negative number.");
   }
   await ensureBudget();
@@ -62,7 +65,10 @@ function monthStart(d: Date): Date {
 }
 
 async function spendSince(from: Date): Promise<number> {
-  const r = await db.aiUsage.aggregate({ where: { createdAt: { gte: from } }, _sum: { costUsd: true } });
+  const r = await db.aiUsage.aggregate({
+    where: { createdAt: { gte: from } },
+    _sum: { costUsd: true },
+  });
   return toNum(r._sum.costUsd);
 }
 

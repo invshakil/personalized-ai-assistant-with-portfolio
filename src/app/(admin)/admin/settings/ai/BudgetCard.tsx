@@ -56,7 +56,8 @@ export default function BudgetCard() {
   };
 
   const pct = usage?.pctUsed ?? null;
-  const barColor = pct === null ? "primary" : pct >= 100 ? "error" : pct >= 80 ? "warning" : "success";
+  const barColor =
+    pct === null ? "primary" : pct >= 100 ? "error" : pct >= 80 ? "warning" : "success";
 
   return (
     <Card>
@@ -66,11 +67,13 @@ export default function BudgetCard() {
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             Monthly AI budget
           </Typography>
-          {usage?.overBudget && <Chip label="Exceeded" size="small" color="error" sx={{ height: 22 }} />}
+          {usage?.overBudget && (
+            <Chip label="Exceeded" size="small" color="error" sx={{ height: 22 }} />
+          )}
         </Box>
         <Typography variant="caption" color="text.secondary">
-          Token costs are billed in USD. When enforcement is on and this month&apos;s spend reaches the
-          limit, the AI chat is blocked until next month or until you raise the limit.
+          Token costs are billed in USD. When enforcement is on and this month&apos;s spend reaches
+          the limit, the AI chat is blocked until next month or until you raise the limit.
         </Typography>
 
         {usage && (
@@ -104,7 +107,9 @@ export default function BudgetCard() {
             onChange={(e) => setLimit(e.target.value)}
             placeholder="No limit"
             helperText="Leave blank for no limit."
-            slotProps={{ input: { startAdornment: <InputAdornment position="start">$</InputAdornment> } }}
+            slotProps={{
+              input: { startAdornment: <InputAdornment position="start">$</InputAdornment> },
+            }}
             sx={{ maxWidth: 240 }}
           />
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

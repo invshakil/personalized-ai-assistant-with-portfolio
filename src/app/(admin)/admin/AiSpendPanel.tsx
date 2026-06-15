@@ -3,15 +3,7 @@
 import { useEffect, useState } from "react";
 import { Box, Card, CardContent, Typography, Avatar, Chip } from "@mui/material";
 import { Wallet, TrendingUp, PiggyBank, Activity } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { aiApi } from "@/lib/api/ai";
 import type { UsageSummary } from "@/services/ai/types";
 
@@ -72,7 +64,12 @@ export default function AiSpendPanel() {
           AI Spend (USD)
         </Typography>
         {usage.overBudget && (
-          <Chip label="Budget exceeded — chat blocked" size="small" color="error" sx={{ height: 22 }} />
+          <Chip
+            label="Budget exceeded — chat blocked"
+            size="small"
+            color="error"
+            sx={{ height: 22 }}
+          />
         )}
       </Box>
 
@@ -84,7 +81,15 @@ export default function AiSpendPanel() {
         }}
       >
         {cards.map(({ label, value, icon: Icon, color }) => (
-          <Card key={label} sx={{ bgcolor: `${color}14`, border: "1px solid", borderColor: `${color}40`, boxShadow: "none" }}>
+          <Card
+            key={label}
+            sx={{
+              bgcolor: `${color}14`,
+              border: "1px solid",
+              borderColor: `${color}40`,
+              boxShadow: "none",
+            }}
+          >
             <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
               <Avatar sx={{ width: 38, height: 38, borderRadius: "10px", bgcolor: color, mb: 1.5 }}>
                 <Icon size={18} color="#fff" />
@@ -120,7 +125,12 @@ export default function AiSpendPanel() {
                   contentStyle={{ backgroundColor: "#2f3349", border: "none", borderRadius: 8 }}
                   labelStyle={{ color: "#cfd3ec" }}
                 />
-                <Bar dataKey="cost" fill="#7367f0" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+                <Bar
+                  dataKey="cost"
+                  fill="#7367f0"
+                  radius={[4, 4, 0, 0]}
+                  isAnimationActive={false}
+                />
               </BarChart>
             </ResponsiveContainer>
           ) : (

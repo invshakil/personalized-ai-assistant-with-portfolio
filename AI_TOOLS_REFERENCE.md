@@ -95,9 +95,7 @@ async function run(userMessage: string) {
     // Run every tool Claude asked for CONCURRENTLY, feed results back.
     // Each call is isolated: a thrown error becomes an is_error result so one
     // bad tool can't break the round — Claude sees the error and answers around it.
-    const toolUses = res.content.filter(
-      (b): b is Anthropic.ToolUseBlock => b.type === "tool_use"
-    );
+    const toolUses = res.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
     const toolResults: Anthropic.ToolResultBlockParam[] = await Promise.all(
       toolUses.map(async (block): Promise<Anthropic.ToolResultBlockParam> => {
         try {
@@ -172,28 +170,28 @@ above). Financial reports accept a **flexible date range** resolved server-side
 the server computes the dates against "today" (the model is told today's date in the chat system
 prompt). Snapshot reports take no range.
 
-| Suggested tool                  | Function                          | Params                    | Answers                                                                 |
-| ------------------------------- | --------------------------------- | ------------------------- | ---------------------------------------------------------------------- |
-| `get_monthly_pnl`               | `getMonthlyPnl(range?)`           | range                     | Month-by-month business income / costs / net profit                    |
-| `get_client_profitability`      | `getClientProfitability(range?)`  | range                     | Income minus attributed salaries, per client, with margin              |
-| `get_employee_cost_report`      | `getEmployeeCostReport(range?)`   | range                     | Per-employee comp split by salary/bonus/advance + % of payroll         |
-| `get_expense_breakdown`         | `getExpenseBreakdown(range?)`     | range                     | Business expenses by category, recurring vs one-off, top items         |
-| `get_subscription_spend`        | `getSubscriptionSpendReport()`    | —                         | Active subscription run-rate (monthly/annualized), by category         |
-| `get_remittance_report`         | `getRemittanceReport(range?)`     | range                     | REM vs NON_REM totals, %, monthly trend, top clients                   |
-| `get_fiscal_year_comparison`    | `getFiscalYearComparison()`       | —                         | Income/profit/margin per FY with YoY growth %                          |
-| `get_property_financials`       | `getPropertyFinancials(range?)`   | range                     | Multi-month expected vs collected, expenses, net, monthly trend        |
-| `get_property_expense_breakdown`| `getPropertyExpenseBreakdown(range?)` | range                 | Property expenses by category + top items                              |
-| `get_payee_spend_report`        | `getPayeeSpendReport(range?)`     | range                     | Spend per payee (vendor/caretaker)                                     |
-| `get_collection_by_method`      | `getCollectionByMethod(range?)`   | range                     | Rent collected by method (cash/bank/advance)                          |
-| `get_service_revenue`           | `getServiceRevenueReport()`       | —                         | Add-on service revenue (WiFi, parking) per service                     |
-| `get_rent_roll`                 | `getRentRoll()`                   | —                         | Current rent roll: unit, tenant, base rent, services, total billing    |
-| `get_arrears_report`            | `getArrearsReport()`              | —                         | Who owes, total outstanding, months behind, oldest unpaid              |
-| `get_advance_liability`         | `getAdvanceLiabilityReport()`     | —                         | Total tenant advance held, per tenant                                  |
-| `get_occupancy_report`          | `getOccupancyReport()`            | —                         | Occupancy %, vacant units                                              |
-| `get_lease_expiry_report`       | `getLeaseExpiryReport({withinDays?})` | `withinDays` (def 90) | Leases ending / move-outs scheduled soon                              |
-| `get_scheduled_rent_changes`    | `getScheduledRentChanges()`       | —                         | Pending (not-yet-applied) rent increases                              |
-| `get_tenant_statement`          | `getTenantStatement(id, range?)`  | `tenantId`, range         | Per-tenant month-by-month due/paid + running balance                  |
-| `get_combined_income_summary`   | `getMonthlyPnl` + `getPropertyFinancials` (composed) | range  | Business + property income/net over one range (overall view)          |
+| Suggested tool                   | Function                                             | Params                | Answers                                                             |
+| -------------------------------- | ---------------------------------------------------- | --------------------- | ------------------------------------------------------------------- |
+| `get_monthly_pnl`                | `getMonthlyPnl(range?)`                              | range                 | Month-by-month business income / costs / net profit                 |
+| `get_client_profitability`       | `getClientProfitability(range?)`                     | range                 | Income minus attributed salaries, per client, with margin           |
+| `get_employee_cost_report`       | `getEmployeeCostReport(range?)`                      | range                 | Per-employee comp split by salary/bonus/advance + % of payroll      |
+| `get_expense_breakdown`          | `getExpenseBreakdown(range?)`                        | range                 | Business expenses by category, recurring vs one-off, top items      |
+| `get_subscription_spend`         | `getSubscriptionSpendReport()`                       | —                     | Active subscription run-rate (monthly/annualized), by category      |
+| `get_remittance_report`          | `getRemittanceReport(range?)`                        | range                 | REM vs NON_REM totals, %, monthly trend, top clients                |
+| `get_fiscal_year_comparison`     | `getFiscalYearComparison()`                          | —                     | Income/profit/margin per FY with YoY growth %                       |
+| `get_property_financials`        | `getPropertyFinancials(range?)`                      | range                 | Multi-month expected vs collected, expenses, net, monthly trend     |
+| `get_property_expense_breakdown` | `getPropertyExpenseBreakdown(range?)`                | range                 | Property expenses by category + top items                           |
+| `get_payee_spend_report`         | `getPayeeSpendReport(range?)`                        | range                 | Spend per payee (vendor/caretaker)                                  |
+| `get_collection_by_method`       | `getCollectionByMethod(range?)`                      | range                 | Rent collected by method (cash/bank/advance)                        |
+| `get_service_revenue`            | `getServiceRevenueReport()`                          | —                     | Add-on service revenue (WiFi, parking) per service                  |
+| `get_rent_roll`                  | `getRentRoll()`                                      | —                     | Current rent roll: unit, tenant, base rent, services, total billing |
+| `get_arrears_report`             | `getArrearsReport()`                                 | —                     | Who owes, total outstanding, months behind, oldest unpaid           |
+| `get_advance_liability`          | `getAdvanceLiabilityReport()`                        | —                     | Total tenant advance held, per tenant                               |
+| `get_occupancy_report`           | `getOccupancyReport()`                               | —                     | Occupancy %, vacant units                                           |
+| `get_lease_expiry_report`        | `getLeaseExpiryReport({withinDays?})`                | `withinDays` (def 90) | Leases ending / move-outs scheduled soon                            |
+| `get_scheduled_rent_changes`     | `getScheduledRentChanges()`                          | —                     | Pending (not-yet-applied) rent increases                            |
+| `get_tenant_statement`           | `getTenantStatement(id, range?)`                     | `tenantId`, range     | Per-tenant month-by-month due/paid + running balance                |
+| `get_combined_income_summary`    | `getMonthlyPnl` + `getPropertyFinancials` (composed) | range                 | Business + property income/net over one range (overall view)        |
 
 > `range` = `{ period?, from?, to? }`. All return small, pre-aggregated, JSON-safe summaries (totals +
 > short/top-N arrays), so a report never dumps every row into the context window.
@@ -320,13 +318,13 @@ const system = `${SYSTEM_PROMPT} Today's date is ${new Date().toISOString().slic
 
 Why each part is load-bearing:
 
-| Line | Why it matters |
-| --- | --- |
-| Domain summary (two domains + what each holds) | Helps the model pick the right tool family from 30+ tools. |
-| "Use the tools … rather than guessing" + "say so … instead of making something up" | The anti-hallucination guardrail — figures must come from tool results, not the model. |
-| `Money is in BDT (৳)` | Stops the model from assuming USD or converting. |
-| `fiscal year runs July→June, written like "2025-2026"` | So `fiscalYear` params and the `this_fiscal_year` token line up with the data (see `src/lib/fiscalYear.ts`). |
-| **`Today's date is YYYY-MM-DD`** (per-request) | The reason `this_fiscal_year` / `last_3_months` resolve correctly — the model knows "now" and the server resolver (`services/_shared/dateRange.ts`) does the date math. |
+| Line                                                                               | Why it matters                                                                                                                                                          |
+| ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain summary (two domains + what each holds)                                     | Helps the model pick the right tool family from 30+ tools.                                                                                                              |
+| "Use the tools … rather than guessing" + "say so … instead of making something up" | The anti-hallucination guardrail — figures must come from tool results, not the model.                                                                                  |
+| `Money is in BDT (৳)`                                                              | Stops the model from assuming USD or converting.                                                                                                                        |
+| `fiscal year runs July→June, written like "2025-2026"`                             | So `fiscalYear` params and the `this_fiscal_year` token line up with the data (see `src/lib/fiscalYear.ts`).                                                            |
+| **`Today's date is YYYY-MM-DD`** (per-request)                                     | The reason `this_fiscal_year` / `last_3_months` resolve correctly — the model knows "now" and the server resolver (`services/_shared/dateRange.ts`) does the date math. |
 
 Note: appending the date makes the prompt change every request, which would defeat prompt caching if
 you add it later — keep the date at the **end** (after the stable prefix) so only the tail varies.
@@ -351,11 +349,11 @@ is USD** — the unit Anthropic prices tokens in — kept separate from the BDT 
 
 **Budget & enforcement** (`src/services/ai/usage.ts`, `AiBudget` singleton):
 
-| Function | Purpose |
-| --- | --- |
-| `getUsageSummary()` | Dashboard/settings payload: `monthToDate`, `allTime`, `monthlyLimitUsd`, `remaining`, `pctUsed`, `projectedMonthEnd` (run-rate), `overBudget`, and a dense 12-month `monthly[]` series for the chart. |
-| `getBudget()` / `setBudget({monthlyLimitUsd, enforce})` | Read/write the monthly cap (null = no limit). |
-| `isOverBudget()` | `enforce && limit !== null && monthToDate >= limit`. **The chat route calls this first and returns `402` before streaming** when true, so no further tokens are spent. |
+| Function                                                | Purpose                                                                                                                                                                                               |
+| ------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `getUsageSummary()`                                     | Dashboard/settings payload: `monthToDate`, `allTime`, `monthlyLimitUsd`, `remaining`, `pctUsed`, `projectedMonthEnd` (run-rate), `overBudget`, and a dense 12-month `monthly[]` series for the chart. |
+| `getBudget()` / `setBudget({monthlyLimitUsd, enforce})` | Read/write the monthly cap (null = no limit).                                                                                                                                                         |
+| `isOverBudget()`                                        | `enforce && limit !== null && monthToDate >= limit`. **The chat route calls this first and returns `402` before streaming** when true, so no further tokens are spent.                                |
 
 **Surfaces:** Settings → AI has a budget card (limit + enforce + month-to-date bar); the home
 dashboard shows spend cards + a monthly-cost bar chart (`getUsageSummary` → `/api/admin/ai/usage`);

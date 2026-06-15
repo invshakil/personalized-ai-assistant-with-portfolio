@@ -70,7 +70,9 @@ export default function ProviderCard({ provider, cryptoReady, onUpdated }: Provi
   return (
     <Card sx={{ opacity: disabled ? 0.6 : 1 }}>
       <CardContent sx={{ p: 3, "&:last-child": { pb: 3 } }}>
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}>
+        <Box
+          sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 0.5 }}
+        >
           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
             {provider.label}
           </Typography>
@@ -92,8 +94,8 @@ export default function ProviderCard({ provider, cryptoReady, onUpdated }: Provi
 
         {disabled ? (
           <Typography variant="body2" color="text.secondary">
-            An adapter for {provider.label} isn&apos;t implemented yet. The provider seam is in place —
-            adding it later is a new adapter file, no rewrite.
+            An adapter for {provider.label} isn&apos;t implemented yet. The provider seam is in
+            place — adding it later is a new adapter file, no rewrite.
           </Typography>
         ) : (
           <>
@@ -136,7 +138,11 @@ export default function ProviderCard({ provider, cryptoReady, onUpdated }: Provi
               />
 
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Switch checked={enabled} onChange={(e) => setEnabled(e.target.checked)} size="small" />
+                <Switch
+                  checked={enabled}
+                  onChange={(e) => setEnabled(e.target.checked)}
+                  size="small"
+                />
                 <Typography variant="body2">Enabled</Typography>
               </Box>
             </Box>
@@ -155,7 +161,9 @@ export default function ProviderCard({ provider, cryptoReady, onUpdated }: Provi
                 size="small"
                 onClick={() => save(false)}
                 disabled={busy !== null || !cryptoReady}
-                startIcon={busy === "save" ? <CircularProgress size={14} color="inherit" /> : undefined}
+                startIcon={
+                  busy === "save" ? <CircularProgress size={14} color="inherit" /> : undefined
+                }
               >
                 Save
               </Button>
@@ -182,7 +190,9 @@ export default function ProviderCard({ provider, cryptoReady, onUpdated }: Provi
                 size="small"
                 onClick={test}
                 disabled={busy !== null || !provider.hasKey}
-                startIcon={busy === "test" ? <CircularProgress size={14} color="inherit" /> : undefined}
+                startIcon={
+                  busy === "test" ? <CircularProgress size={14} color="inherit" /> : undefined
+                }
               >
                 Test connection
               </Button>

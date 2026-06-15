@@ -160,7 +160,10 @@ export default function AiAssistantPage() {
         minHeight: 400,
       }}
     >
-      <PageHeader title="AI Assistant" subtitle="Ask about your finances, property, or anything else." />
+      <PageHeader
+        title="AI Assistant"
+        subtitle="Ask about your finances, property, or anything else."
+      />
 
       {blocked && (
         <Alert severity="error" sx={{ mb: 2 }}>

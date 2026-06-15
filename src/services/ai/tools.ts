@@ -73,23 +73,44 @@ export const AI_TOOLS: AiToolDef[] = [
     name: "list_earnings",
     description:
       "List client income (earnings): date, client, remittance (REM/NON_REM), amount, fiscal year. Filter by fiscal year or income-source id.",
-    parameters: obj({ fiscalYear, sourceId: { type: "string", description: "Income source id (optional)" } }),
+    parameters: obj({
+      fiscalYear,
+      sourceId: { type: "string", description: "Income source id (optional)" },
+    }),
   },
   {
     name: "list_salary_payments",
     description:
       "List salary/bonus payments to employees: date, employee, type, attributed clients, amount, note. Filter by fiscal year or employee id.",
-    parameters: obj({ fiscalYear, employeeId: { type: "string", description: "Employee id (optional)" } }),
+    parameters: obj({
+      fiscalYear,
+      employeeId: { type: "string", description: "Employee id (optional)" },
+    }),
   },
   {
     name: "list_business_expenses",
     description:
       "List one-off and recurring business expenses (tools/subscriptions): date, name, category, recurring flag, amount. Filter by fiscal year or category id.",
-    parameters: obj({ fiscalYear, categoryId: { type: "string", description: "Expense category id (optional)" } }),
+    parameters: obj({
+      fiscalYear,
+      categoryId: { type: "string", description: "Expense category id (optional)" },
+    }),
   },
-  { name: "list_subscriptions", description: "List recurring business subscriptions with monthly amount, status, total spent.", parameters: obj({}) },
-  { name: "list_employees", description: "List business employees with phone, payment count, and total paid.", parameters: obj({}) },
-  { name: "list_clients", description: "List clients / income sources with earning counts.", parameters: obj({}) },
+  {
+    name: "list_subscriptions",
+    description: "List recurring business subscriptions with monthly amount, status, total spent.",
+    parameters: obj({}),
+  },
+  {
+    name: "list_employees",
+    description: "List business employees with phone, payment count, and total paid.",
+    parameters: obj({}),
+  },
+  {
+    name: "list_clients",
+    description: "List clients / income sources with earning counts.",
+    parameters: obj({}),
+  },
 
   // ── Financial Tracker — reports ──
   {
@@ -145,15 +166,27 @@ export const AI_TOOLS: AiToolDef[] = [
       year: { type: "integer", description: "Year (optional, defaults to current year)" },
     }),
   },
-  { name: "list_units", description: "List all rental units with current/future tenant, rent, occupancy.", parameters: obj({}) },
+  {
+    name: "list_units",
+    description: "List all rental units with current/future tenant, rent, occupancy.",
+    parameters: obj({}),
+  },
   {
     name: "list_tenants",
-    description: "List tenants with unit, rent, advance balance, status. Filter active/inactive/all (default active).",
-    parameters: obj({ filter: { type: "string", enum: ["active", "inactive", "all"], description: "Tenant filter (optional)" } }),
+    description:
+      "List tenants with unit, rent, advance balance, status. Filter active/inactive/all (default active).",
+    parameters: obj({
+      filter: {
+        type: "string",
+        enum: ["active", "inactive", "all"],
+        description: "Tenant filter (optional)",
+      },
+    }),
   },
   {
     name: "list_rent_payments",
-    description: "List rent payments: tenant, unit, due, paid, balance, status, receipt no. Filter by month, year, or tenant id.",
+    description:
+      "List rent payments: tenant, unit, due, paid, balance, status, receipt no. Filter by month, year, or tenant id.",
     parameters: obj({
       month: { type: "integer", description: "Month 1-12 (optional)" },
       year: { type: "integer", description: "Year (optional)" },
@@ -189,24 +222,60 @@ export const AI_TOOLS: AiToolDef[] = [
   },
   {
     name: "get_collection_by_method",
-    description: "Rent collected by payment method (cash / bank transfer / advance applied / …) over a date range.",
+    description:
+      "Rent collected by payment method (cash / bank transfer / advance applied / …) over a date range.",
     parameters: obj({ ...RANGE }),
   },
-  { name: "get_service_revenue", description: "Recurring revenue from add-on services (WiFi, parking…): active tenants and monthly revenue per service.", parameters: obj({}) },
-  { name: "get_rent_roll", description: "Current rent roll: each active tenant's unit, base rent, add-on services, and total monthly billing.", parameters: obj({}) },
-  { name: "get_arrears_report", description: "Cross-month arrears: which tenants owe money, how much in total, how many months behind, and the oldest unpaid month.", parameters: obj({}) },
-  { name: "get_advance_liability", description: "Total tenant advance currently held, broken down per tenant.", parameters: obj({}) },
-  { name: "get_occupancy_report", description: "Occupancy snapshot: total/occupied/vacant units, occupancy %, and the list of vacant units.", parameters: obj({}) },
+  {
+    name: "get_service_revenue",
+    description:
+      "Recurring revenue from add-on services (WiFi, parking…): active tenants and monthly revenue per service.",
+    parameters: obj({}),
+  },
+  {
+    name: "get_rent_roll",
+    description:
+      "Current rent roll: each active tenant's unit, base rent, add-on services, and total monthly billing.",
+    parameters: obj({}),
+  },
+  {
+    name: "get_arrears_report",
+    description:
+      "Cross-month arrears: which tenants owe money, how much in total, how many months behind, and the oldest unpaid month.",
+    parameters: obj({}),
+  },
+  {
+    name: "get_advance_liability",
+    description: "Total tenant advance currently held, broken down per tenant.",
+    parameters: obj({}),
+  },
+  {
+    name: "get_occupancy_report",
+    description:
+      "Occupancy snapshot: total/occupied/vacant units, occupancy %, and the list of vacant units.",
+    parameters: obj({}),
+  },
   {
     name: "get_lease_expiry_report",
     description: "Leases ending or move-outs scheduled within N days (default 90).",
-    parameters: obj({ withinDays: { type: "integer", description: "Window in days (optional, default 90)" } }),
+    parameters: obj({
+      withinDays: { type: "integer", description: "Window in days (optional, default 90)" },
+    }),
   },
-  { name: "get_scheduled_rent_changes", description: "Pending (not-yet-applied) scheduled rent changes: tenant, unit, effective date, old/new rent.", parameters: obj({}) },
+  {
+    name: "get_scheduled_rent_changes",
+    description:
+      "Pending (not-yet-applied) scheduled rent changes: tenant, unit, effective date, old/new rent.",
+    parameters: obj({}),
+  },
   {
     name: "get_tenant_statement",
-    description: "Per-tenant statement over a date range: month-by-month due vs paid with a running balance, advance held, and outstanding total.",
-    parameters: obj({ tenantId: { type: "string", description: "Tenant id (required)" }, ...RANGE }),
+    description:
+      "Per-tenant statement over a date range: month-by-month due vs paid with a running balance, advance held, and outstanding total.",
+    parameters: obj({
+      tenantId: { type: "string", description: "Tenant id (required)" },
+      ...RANGE,
+    }),
   },
 
   // ── Cross-domain ──
@@ -227,8 +296,10 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
   // Finance — lists & dashboard
   get_finance_summary: (i) => getFinanceDashboard({ from: str(i.from), to: str(i.to) }),
   list_earnings: (i) => getEarnings({ fiscalYear: str(i.fiscalYear), sourceId: str(i.sourceId) }),
-  list_salary_payments: (i) => getEmployeePayments({ fiscalYear: str(i.fiscalYear), employeeId: str(i.employeeId) }),
-  list_business_expenses: (i) => getBizExpenses({ fiscalYear: str(i.fiscalYear), categoryId: str(i.categoryId) }),
+  list_salary_payments: (i) =>
+    getEmployeePayments({ fiscalYear: str(i.fiscalYear), employeeId: str(i.employeeId) }),
+  list_business_expenses: (i) =>
+    getBizExpenses({ fiscalYear: str(i.fiscalYear), categoryId: str(i.categoryId) }),
   list_subscriptions: () => getSubscriptions(),
   list_employees: () => getEmployees(),
   list_clients: () => getIncomeSources(),
@@ -247,8 +318,10 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
   },
   list_units: () => getUnits(),
   list_tenants: (i) => getTenants((str(i.filter) as "active" | "inactive" | "all") ?? "active"),
-  list_rent_payments: (i) => getPayments({ month: num(i.month), year: num(i.year), tenantId: str(i.tenantId) }),
-  list_property_expenses: (i) => getExpenses({ month: num(i.month), year: num(i.year), payeeId: str(i.payeeId) }),
+  list_rent_payments: (i) =>
+    getPayments({ month: num(i.month), year: num(i.year), tenantId: str(i.tenantId) }),
+  list_property_expenses: (i) =>
+    getExpenses({ month: num(i.month), year: num(i.year), payeeId: str(i.payeeId) }),
   // Property — reports
   get_property_financials: (i) => getPropertyFinancials(range(i)),
   get_property_expense_breakdown: (i) => getPropertyExpenseBreakdown(range(i)),
@@ -268,7 +341,10 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
   },
   // Cross-domain
   get_combined_income_summary: async (i) => {
-    const [fin, prop] = await Promise.all([getMonthlyPnl(range(i)), getPropertyFinancials(range(i))]);
+    const [fin, prop] = await Promise.all([
+      getMonthlyPnl(range(i)),
+      getPropertyFinancials(range(i)),
+    ]);
     const businessIncome = fin.months.reduce((s, m) => s + m.income, 0);
     const businessNet = fin.months.reduce((s, m) => s + m.netProfit, 0);
     return {
