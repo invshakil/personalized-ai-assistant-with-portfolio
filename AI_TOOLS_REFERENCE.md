@@ -238,8 +238,23 @@ UI (Claude proposes → user approves → you call). Each throws on validation f
   `list_tenants`) and ask the assistant business questions. No risk.
 - **Descriptions matter more than names.** Claude picks tools from the `description` — be explicit
   about _when_ to use each and what each param means.
-- **Keep results small.** For big lists, prefer a filtered/summarized function (e.g.
-  `getFinanceDashboard` over dumping every earning) so you don't blow the context window.
+- **Keep results small (token cost).** Every tool result is fed back into the model, so a single
+  turn that chains several tools (e.g. "give me a full financial overview" → `get_finance_summary` +
+  `get_monthly_pnl` + `get_client_profitability` + `get_employee_cost_report`) stacks up payloads.
+  **Aim to keep each report under ~2 KB of JSON.** The report functions in §3 are already
+  pre-aggregated and top-N capped for this reason — prefer them over the row-level lists. If a
+  function ever returns more than that, add a `limit` / `top_n` param and summarise in the service
+  before returning, rather than handing Claude the full set.
+- **Payload-sensitive tools — validate size before relying on them.** A few tools return
+  **unbounded** rows and can grow with the dataset; treat them as "expose after checking payload
+  size," and lean on the aggregated reports instead for analytical questions:
+  - `list_earnings`, `list_salary_payments`, `list_business_expenses`, `list_rent_payments`,
+    `list_property_expenses` — return **every** matching row (no cap). Fine with a tight filter
+    (one fiscal year / one month), risky unfiltered. Consider adding a `limit`.
+  - `get_tenant_statement` — one line per month; bounded by the range, but a wide `period` (or
+    `all`) on a long-tenured tenant can get large. Default range is `last_12_months`; keep it scoped.
+  - `get_finance_summary` (`getFinanceDashboard`) — grows with #employees × #fiscal-years (the
+    per-employee matrix) and the monthly-income series; moderate today, watch it as data grows.
 - **Validate at the route, business rules in the service.** Tool inputs are model-generated — treat
   them like untrusted input; the services already enforce the real rules and throw clear errors.
 - **Multi-step:** the loop above lets Claude chain tools (e.g. `list_tenants` → `get_tenant`) before
@@ -254,3 +269,41 @@ UI (Claude proposes → user approves → you call). Each throws on validation f
   `getActiveProvider()` and streams text deltas. The read tools wired today are listed in
   PROJECT_PLANNING → AI Assistant. Write/action tools (§4) remain unexposed — gate them behind a
   confirmation step before adding.
+
+---
+
+## 6. The system prompt (`src/app/api/admin/ai/route.ts`)
+
+The system prompt is what makes the tools usable — it sets the domain, the money/fiscal-year
+conventions, and (critically) **injects today's date** so the model can map a user's "last 3 months"
+or "this fiscal year" to the right `period` token. Without the date line, relative ranges resolve
+against the model's training cutoff and silently produce wrong windows. The exact prompt sent today:
+
+```ts
+// src/app/api/admin/ai/route.ts
+const SYSTEM_PROMPT =
+  "You are a personal assistant for Syful Islam Shakil — a Tech Lead and Full-Stack Engineer " +
+  "based in Comilla, Bangladesh. You have access to his admin dashboard through tools covering two " +
+  "domains: the Financial Tracker (business income, employee salaries, expenses, subscriptions) and " +
+  "Property Management (rental units, tenants, rent payments, expenses). Use the tools to answer " +
+  "questions with real data rather than guessing. Money is in BDT (৳); the business fiscal year " +
+  'runs July→June, written like "2025-2026". Be concise, helpful, and professional. When a tool ' +
+  "returns no data or the information isn't available, say so clearly instead of making something up.";
+
+// Per request — appended so the model can resolve relative periods (the report tools resolve them
+// server-side too, but this guides tool choice):
+const system = `${SYSTEM_PROMPT} Today's date is ${new Date().toISOString().slice(0, 10)}.`;
+```
+
+Why each part is load-bearing:
+
+| Line | Why it matters |
+| --- | --- |
+| Domain summary (two domains + what each holds) | Helps the model pick the right tool family from 30+ tools. |
+| "Use the tools … rather than guessing" + "say so … instead of making something up" | The anti-hallucination guardrail — figures must come from tool results, not the model. |
+| `Money is in BDT (৳)` | Stops the model from assuming USD or converting. |
+| `fiscal year runs July→June, written like "2025-2026"` | So `fiscalYear` params and the `this_fiscal_year` token line up with the data (see `src/lib/fiscalYear.ts`). |
+| **`Today's date is YYYY-MM-DD`** (per-request) | The reason `this_fiscal_year` / `last_3_months` resolve correctly — the model knows "now" and the server resolver (`services/_shared/dateRange.ts`) does the date math. |
+
+Note: appending the date makes the prompt change every request, which would defeat prompt caching if
+you add it later — keep the date at the **end** (after the stable prefix) so only the tail varies.
