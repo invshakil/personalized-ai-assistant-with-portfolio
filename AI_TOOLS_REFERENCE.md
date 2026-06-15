@@ -307,3 +307,37 @@ Why each part is load-bearing:
 
 Note: appending the date makes the prompt change every request, which would defeat prompt caching if
 you add it later — keep the date at the **end** (after the stable prefix) so only the tail varies.
+
+---
+
+## 7. Cost tracking & monthly budget (USD)
+
+The assistant meters its own spend and can hard-stop when a monthly budget is reached. **All AI money
+is USD** — the unit Anthropic prices tokens in — kept separate from the BDT business/property ledgers.
+
+**How a turn's cost is captured:**
+
+1. The Anthropic adapter accumulates `usage` across every API call in the tool-loop (`input_tokens`,
+   `output_tokens`, `cache_read_input_tokens`, `cache_creation_input_tokens`) and emits a single
+   `{ type: "usage", usage }` stream event at the end of the turn.
+2. The chat route reads that event and calls `recordUsage()` whenever tokens were billed (independent
+   of whether the conversation was saved), writing one `AiUsage` row.
+3. Cost = `costUsd(model, usage)` from `src/services/ai/pricing.ts` — per-model \$/MTok rates
+   (`claude-opus-4-8` 5/25, `claude-sonnet-4-6` 3/15, `claude-haiku-4-5` 1/5), with cache reads at
+   0.1× input and 5-minute cache writes at 1.25× input. Unknown models cost 0 (tokens still recorded).
+
+**Budget & enforcement** (`src/services/ai/usage.ts`, `AiBudget` singleton):
+
+| Function | Purpose |
+| --- | --- |
+| `getUsageSummary()` | Dashboard/settings payload: `monthToDate`, `allTime`, `monthlyLimitUsd`, `remaining`, `pctUsed`, `projectedMonthEnd` (run-rate), `overBudget`, and a dense 12-month `monthly[]` series for the chart. |
+| `getBudget()` / `setBudget({monthlyLimitUsd, enforce})` | Read/write the monthly cap (null = no limit). |
+| `isOverBudget()` | `enforce && limit !== null && monthToDate >= limit`. **The chat route calls this first and returns `402` before streaming** when true, so no further tokens are spent. |
+
+**Surfaces:** Settings → AI has a budget card (limit + enforce + month-to-date bar); the home
+dashboard shows spend cards + a monthly-cost bar chart (`getUsageSummary` → `/api/admin/ai/usage`);
+the AI Assistant page checks `overBudget` on load, shows a banner, and disables input. Routes:
+`/api/admin/ai/usage` (GET), `/api/admin/ai/budget` (GET/PUT).
+
+> Spend resets implicitly each calendar month (month-to-date is computed from the 1st). To change to a
+> billing-cycle or rolling window, adjust `monthStart()` in `usage.ts`.
