@@ -285,6 +285,22 @@ salaries); salary form uses a **multi-select of clients + optional free-text not
 exactly once (first-of-month date). Stop = set `endDate`; past charges remain as history. Generated
 charges are read-only on the Expenses page (managed from the Subscriptions page).
 
+**Pricing (price hikes + discounts/coupons):** `monthlyAmount` is the **starting** rate. Two helper
+tables make per-month pricing deterministic:
+
+- `SubscriptionRateChange { effectiveMonth, monthlyAmount, note? }` — an effective-dated hike/drop;
+  every month from `effectiveMonth` onward uses the new rate until the next change. `@@unique([subscriptionId, effectiveMonth])`.
+- `SubscriptionMonthOverride { month, amount, note? }` — the exact charged amount for a single month
+  (discount, coupon, free/partial month). `@@unique([subscriptionId, month])`.
+
+`generateSubscriptionCharges` computes each month's amount as **override → latest rate change ≤ month →
+base** and upserts the `BizExpense` (creates, or corrects the amount when pricing changes) — so charges
+are a pure function of (base + rate changes + overrides). Managed in the **Manage pricing & history**
+drawer on the Subscriptions page: add/remove price changes; “Adjust” any month to set/clear an override.
+Run-rate (list + AI `get_subscription_spend` report) uses the **current-month effective** rate, not the
+base. Routes: `POST /subscriptions/[id]/rate-changes`, `DELETE …/rate-changes/[rcId]`, `PUT|DELETE
+…/overrides`. Month strings are parsed by literal components (not `new Date(str)`) to stay timezone-safe.
+
 **Legend:** ✅ done · 🔧 in progress · 🔲 not started
 
 ---

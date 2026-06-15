@@ -169,17 +169,34 @@ export async function getExpenseBreakdown(input: RangeInput = {}) {
 /** Recurring-subscription run-rate and what's active/recently ended (current state). */
 export async function getSubscriptionSpendReport() {
   const subs = await db.subscription.findMany({
-    include: { category: { select: { name: true } } },
+    include: { category: { select: { name: true } }, rateChanges: true },
   });
   const active = subs.filter((s) => !s.endDate);
-  const monthlyRunRate = active.reduce((s, x) => s + toNum(x.monthlyAmount), 0);
+
+  // Current-month effective rate: latest rate change on/before this month, else base.
+  const thisMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).getTime();
+  const currentRate = (s: (typeof subs)[number]) => {
+    let amount = toNum(s.monthlyAmount);
+    let best = -Infinity;
+    for (const rc of s.rateChanges) {
+      const t = new Date(
+        rc.effectiveMonth.getFullYear(),
+        rc.effectiveMonth.getMonth(),
+        1
+      ).getTime();
+      if (t <= thisMonth && t >= best) {
+        best = t;
+        amount = toNum(rc.monthlyAmount);
+      }
+    }
+    return amount;
+  };
+
+  const monthlyRunRate = active.reduce((s, x) => s + currentRate(x), 0);
 
   const byCategory = new Map<string, number>();
   for (const s of active) {
-    byCategory.set(
-      s.category.name,
-      (byCategory.get(s.category.name) ?? 0) + toNum(s.monthlyAmount)
-    );
+    byCategory.set(s.category.name, (byCategory.get(s.category.name) ?? 0) + currentRate(s));
   }
 
   const cutoff = new Date();

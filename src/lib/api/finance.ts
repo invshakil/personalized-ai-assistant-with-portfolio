@@ -54,6 +54,18 @@ export interface SubscriptionPayload {
   notes?: string | null;
 }
 
+export interface RateChangePayload {
+  effectiveMonth: string; // yyyy-mm
+  monthlyAmount: number;
+  note?: string | null;
+}
+
+export interface OverridePayload {
+  month: string; // yyyy-mm
+  amount: number;
+  note?: string | null;
+}
+
 export const financeApi = {
   // ── Dashboard ──────────────────────────────────────────────────────────
   dashboard: (params?: { from?: string; to?: string }) =>
@@ -95,6 +107,16 @@ export const financeApi = {
     apiPost(`/finance/subscriptions/${id}/stop`, endDate ? { endDate } : {}),
   resumeSubscription: (id: string) =>
     apiPost(`/finance/subscriptions/${id}/stop`, { resume: true }),
+  // Effective-dated price changes (hikes/drops)
+  addRateChange: (id: string, body: RateChangePayload) =>
+    apiPost(`/finance/subscriptions/${id}/rate-changes`, body),
+  deleteRateChange: (id: string, rcId: string) =>
+    apiDelete(`/finance/subscriptions/${id}/rate-changes/${rcId}`),
+  // Per-month amount overrides (discounts/coupons)
+  setOverride: (id: string, body: OverridePayload) =>
+    apiPut(`/finance/subscriptions/${id}/overrides`, body),
+  clearOverride: (id: string, month: string) =>
+    apiDelete(`/finance/subscriptions/${id}/overrides`, { data: { month } }),
 
   // ── Config: employees / clients (sources) / categories ───────────────────
   listEmployees: () => apiGet<EmployeeRow[]>("/finance/employees"),
