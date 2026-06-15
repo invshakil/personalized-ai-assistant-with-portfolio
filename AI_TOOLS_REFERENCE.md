@@ -193,10 +193,33 @@ prompt). Snapshot reports take no range.
 | `get_lease_expiry_report`       | `getLeaseExpiryReport({withinDays?})` | `withinDays` (def 90) | Leases ending / move-outs scheduled soon                              |
 | `get_scheduled_rent_changes`    | `getScheduledRentChanges()`       | —                         | Pending (not-yet-applied) rent increases                              |
 | `get_tenant_statement`          | `getTenantStatement(id, range?)`  | `tenantId`, range         | Per-tenant month-by-month due/paid + running balance                  |
-| `get_combined_income_summary`   | (composed in the tool handler)    | range                     | Business + property income/net over one range (overall view)          |
+| `get_combined_income_summary`   | `getMonthlyPnl` + `getPropertyFinancials` (composed) | range  | Business + property income/net over one range (overall view)          |
 
 > `range` = `{ period?, from?, to? }`. All return small, pre-aggregated, JSON-safe summaries (totals +
 > short/top-N arrays), so a report never dumps every row into the context window.
+
+`get_combined_income_summary` has no service function of its own — it composes the two domains in the
+tool handler (`src/services/ai/tools.ts`), summing the monthly P&L for the business side so both sides
+honour the same resolved range:
+
+```ts
+get_combined_income_summary: async (i) => {
+  const [fin, prop] = await Promise.all([getMonthlyPnl(range(i)), getPropertyFinancials(range(i))]);
+  const businessIncome = fin.months.reduce((s, m) => s + m.income, 0);
+  const businessNet = fin.months.reduce((s, m) => s + m.netProfit, 0);
+  return {
+    range: prop.range,
+    business: { income: businessIncome, netProfit: businessNet },
+    property: { collected: prop.collected, netProfit: prop.netProfit },
+    combinedIncome: businessIncome + prop.collected,
+    combinedNetProfit: businessNet + prop.netProfit,
+  };
+},
+```
+
+(`range(i)` is the shared `{ period?, from?, to? }` extractor used by every range-aware tool, so the
+business and property figures cover the identical window despite their different native grains —
+business by ledger `date`, property by `month`/`year`.)
 
 > **Good "AI question" examples these answer:** "What was my net profit last fiscal year?",
 > "How much have I paid Rashidul in total?", "Which tenants are overdue this month?",
