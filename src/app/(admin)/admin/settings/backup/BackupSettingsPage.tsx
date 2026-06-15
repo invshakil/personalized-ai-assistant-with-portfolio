@@ -467,8 +467,8 @@ export default function BackupSettingsPage() {
       </Card>
 
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
-        Backups use <code>pg_dump</code> (custom format). Restore with{" "}
-        <code>pg_restore -d &lt;database&gt; &lt;file&gt;.dump</code>.
+        Backups use <code>pg_dump</code> (custom format). To restore, place a <code>.dump</code> in
+        your backups folder and run <code>npm run db:restore -- &lt;file-or-directory&gt;</code>.
       </Typography>
 
       {/* Guided restore — shows the command; never executes a destructive restore from the browser */}
