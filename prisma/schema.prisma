@@ -90,6 +90,25 @@ model BusinessProfile {
   updatedAt DateTime @updatedAt
 }
 
+// AI provider configuration — admin-editable. Each row is one provider
+// (e.g. "anthropic"). Exactly one row is active at a time (enforced in the
+// service layer). API keys are AES-256-GCM encrypted at rest — the ciphertext,
+// iv, and auth tag are stored separately; the plaintext key is never persisted.
+model AiProviderConfig {
+  id           String   @id @default(cuid())
+  provider     String   @unique // "anthropic" | "openai" | "google"
+  label        String
+  apiKeyEnc    String?  @db.Text // ciphertext (null until a key is set)
+  apiKeyIv     String?
+  apiKeyTag    String?
+  baseUrl      String? // optional endpoint override (proxies/self-host)
+  defaultModel String
+  isActive     Boolean  @default(false)
+  enabled      Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 // ─── Property Settings (singleton) ───────────────────────────────────────────
 
 model PropertySettings {

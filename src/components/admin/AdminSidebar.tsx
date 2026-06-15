@@ -23,6 +23,7 @@ import {
   Wrench,
   Sparkles,
   Settings,
+  Cpu,
   User,
   LogOut,
   Users,
@@ -93,7 +94,8 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: "Tools",
     items: [
       { href: "/admin/ai-assistant", label: "AI Assistant", icon: Sparkles, exact: false },
-      { href: "/admin/settings", label: "Settings", icon: Settings, exact: false },
+      { href: "/admin/settings/ai", label: "AI Settings", icon: Cpu, exact: true },
+      { href: "/admin/settings", label: "Settings", icon: Settings, exact: true },
     ],
   },
 ];
