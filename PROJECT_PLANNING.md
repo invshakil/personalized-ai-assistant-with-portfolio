@@ -366,6 +366,10 @@ of this hub; the live cross-domain summary lives on the **Overview** (`/admin`, 
   local copy is gone). **Restore is guided, not executed from the browser** (destructive): the Restore
   action shows the exact `pg_restore --clean --if-exists -d "$DATABASE_URL" <path>` command (real server
   path) + safety steps (fresh backup → stop app → restore → restart → re-login) to run over SSH.
+  **CLI alternative:** `npm run db:restore -- <file-or-directory>` (`scripts/db-restore.ts`) loads
+  `DATABASE_URL` from `.env.local`/`.env`, accepts a file or a directory (picks the newest `.dump`),
+  confirms by typing the DB name, takes a **safety backup** first, then runs `pg_restore`. Flags:
+  `--yes` (skip prompt), `--no-safety-backup`, `--dry-run` (preview only).
 
 ### 7. Account (`/admin/account`) ✅ functional
 

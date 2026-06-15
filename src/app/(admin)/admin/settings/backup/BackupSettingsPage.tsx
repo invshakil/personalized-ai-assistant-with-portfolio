@@ -517,6 +517,11 @@ export default function BackupSettingsPage() {
                 Uses your <code>DATABASE_URL</code>; run it where that env var is set, or substitute
                 the connection string. After restoring you’ll likely need to sign in again.
               </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+                Or use the npm script (reads <code>DATABASE_URL</code> from your env file and takes
+                a safety backup first):{" "}
+                <code>npm run db:restore -- {state?.backupDir || "./backups"}</code>
+              </Typography>
             </>
           )}
         </DialogContent>
