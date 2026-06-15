@@ -28,7 +28,7 @@ A single Next.js application serving two purposes:
 | Database          | PostgreSQL + Prisma 5                | Relational data (units→tenants→payments); Prisma gives type safety                       |
 | Portfolio styling | SCSS modules + Tailwind CSS v4       | SCSS for variables, mixins, section partials; Tailwind for utility classes               |
 | Admin styling     | Material UI v9 + emotion             | Professional dark dashboard UI; scoped to `/admin` — no conflict with portfolio Tailwind |
-| AI                | Claude Sonnet 4 via Anthropic API    | Tool use for structured data queries against DB                                          |
+| AI                | Provider seam (Claude adapter today)  | Vendor-neutral `AiProvider` interface; provider/model/key chosen in Settings → AI, key encrypted in DB. OpenAI/Gemini = future adapter files. |
 | Hosting           | DigitalOcean Basic droplet (~$12/mo) | Full control, PM2 + Nginx + Certbot for SSL                                              |
 | Session           | JWT (not DB sessions)                | Simpler for single-user setup; no session table needed                                   |
 
@@ -67,6 +67,7 @@ Defined in `prisma/schema.prisma`. Do not modify schema without updating this do
 | `EmployeePayment`                         | Financial Tracker — salary payments; `employeeId`, `type`, `amount`, `fiscalYear`, `reference` (note); m2m `clients`→`IncomeSource` (`PaymentClients`) |
 | `BizExpense`                              | Financial Tracker — business expenses; `categoryId`, `isRecurring`, `amount`, `fiscalYear`, `subscriptionId?`                                          |
 | `Subscription`                            | Financial Tracker — recurring service; `monthlyAmount`, `startDate`, `endDate?`; auto-generates monthly `BizExpense` charges                           |
+| `AiProviderConfig`                        | AI provider seam — one row per provider (anthropic/openai/google); `defaultModel`, `isActive` (one at a time), `enabled`, optional `baseUrl`; API key AES-256-GCM encrypted (`apiKeyEnc`/`apiKeyIv`/`apiKeyTag`) |
 
 Currency: **BDT (Bangladeshi Taka ৳)** throughout. All `Decimal` fields are BDT unless noted.
 
@@ -273,11 +274,34 @@ categories (each + `[id]`), dashboard. Services in `src/services/finance/`.
 - Grand total: ৳28,086,496
 - Categories: Materials, Constructor, Services, Other Costs
 
-### 4. AI Assistant (`/admin/ai-assistant`) ✅ functional
+### 4. AI Assistant (`/admin/ai-assistant`) ✅ functional — provider-swappable + tool use
 
 - Streaming chat UI built with MUI — messages scroll inside a Card, auto-resize TextField input
-- Claude Sonnet 4 via Anthropic SDK — streaming responses work end-to-end
-- **Next:** add tool use (Lesson 1.4) — tools: `get_payment_summary`, `get_overdue_tenants`, `get_monthly_expenses`, `get_renovation_total`
+- **Provider seam** (`src/services/ai/`): a vendor-neutral `AiProvider` interface + adapter layer.
+  The chat route resolves the active provider from the DB and streams through it — swapping
+  providers is a settings change, not a code change. Only the **Claude (Anthropic)** adapter is
+  implemented today (`adapters/anthropic.ts`); OpenAI/Gemini are seeded as inactive placeholders
+  (`supported: false`) so adding them later is a new adapter file, no rewrite.
+- **Tool use (Lesson 1.4 ✅):** the Anthropic adapter runs a streaming tool-use loop (cap 6 steps).
+  Read-only tools in `services/ai/tools.ts` call the same finance/property service functions the
+  HTTP API uses — `get_finance_summary`, `list_earnings`, `list_salary_payments`,
+  `list_business_expenses`, `list_subscriptions`, `list_employees`, `list_clients`,
+  `get_property_dashboard`, `list_units`, `list_tenants`, `list_rent_payments`,
+  `list_property_expenses`. Write/mutation tools are intentionally **not** exposed.
+- **Model:** current model IDs (`claude-sonnet-4-6` default; `claude-opus-4-8`, `claude-haiku-4-5`
+  selectable). The old `claude-sonnet-4-20250514` was dropped — it is deprecated (retires 2026-06-15).
+- Streaming contract: the route emits **plain UTF-8 text deltas** (matching the existing client);
+  errors are surfaced inline as `⚠️ …`. Tool-call events are not written to the text stream.
+
+### 4a. AI Settings (`/admin/settings/ai`) ✅ functional
+
+- One card per provider: model dropdown, **write-only** API key field (shows "Key set", never the
+  secret), optional base URL, enabled switch, **Save**, **Save & set active**, **Test connection**.
+- API keys are **AES-256-GCM encrypted at rest** (`services/ai/crypto.ts`, key from
+  `AI_CONFIG_SECRET`); the plaintext is never persisted or returned. On first run the Claude key is
+  bootstrapped from the legacy `ANTHROPIC_API_KEY` env so existing installs keep working.
+- API: `GET/PUT /api/admin/ai/config`, `POST /api/admin/ai/config/test`. Client layer:
+  `src/lib/api/ai.ts`. Services: `src/services/ai/config.ts` (list/upsert/activate/test).
 
 ### 5. Settings (`/admin/settings`) ✅ functional
 
@@ -360,7 +384,7 @@ certbot --nginx -d sshakil.com -d www.sshakil.com
 | 1.1    | Tokens & cost       | ✅ done   | —                                             |
 | 1.2    | Stateless API calls | ✅ done   | —                                             |
 | 1.3    | Temperature         | ✅ done   | —                                             |
-| 1.4    | Tool use            | 🔲 next   | `api/admin/ai/route.ts` — add Claude tools    |
+| 1.4    | Tool use            | ✅ done   | `services/ai/tools.ts` + adapter tool loop    |
 | 2.x    | Streaming responses | ✅ done   | AI assistant chat — ReadableStream end-to-end |
 | 3.x    | RAG / embeddings    | 🔲 future | TBD                                           |
 
@@ -370,6 +394,7 @@ certbot --nginx -d sshakil.com -d www.sshakil.com
 
 | Date       | What was done                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-14 | **AI provider seam + tool use (Lesson 1.4)** — new `src/services/ai/` domain: vendor-neutral `AiProvider` interface, `adapters/anthropic.ts` (streaming tool-use loop), `registry.ts` (resolves active provider), `config.ts` (provider catalog + masked list/upsert/activate/test), `crypto.ts` (AES-256-GCM key encryption), `tools.ts` (12 read-only finance/property tools). New `AiProviderConfig` model + migration. Rewrote `api/admin/ai/route.ts` to stream through the active provider as plain-text deltas; added `api/admin/ai/config` (GET/PUT) + `config/test` (POST), client layer `lib/api/ai.ts`, and the `/admin/settings/ai` UI (per-provider card, write-only key field, Test connection). Claude-only adapter today; OpenAI/Gemini seeded inactive (`supported:false`). Dropped deprecated `claude-sonnet-4-20250514` → `claude-sonnet-4-6`. New env `AI_CONFIG_SECRET`. tsc + eslint + build clean; authenticated runtime smoke verified config CRUD, key bootstrap+encryption (no leak), and the full decrypt→stream→tool-loop path. |
 | 2026-06-14 | **Server service backfill (track B)** — moved DB logic out of route handlers into services: `src/services/property/payees.ts` + `serviceTypes.ts` and new `src/services/admin/` (`account.ts` name/password, `siteSettings.ts` upsert). Rewired the payees, service-types, account, and site-settings routes to delegate; added exports to the property barrel. Now only the 4 PDF-rendering routes touch `db` directly (intentional). tsc + eslint + build clean; runtime-verified create/get/deactivate + validation.                                                                                                                   |
 | 2026-06-14 | **Client API layer (Axios)** — installed `axios`; added `src/lib/api/` (`client.ts` with `apiGet/apiPost/apiPut/apiDelete/apiUpload` over a `/api/admin` instance that unwraps `{data,error}` and throws on failure) + per-domain modules `finance.ts`, `property.ts`, `admin.ts`. Migrated all inline `fetch("/api/admin/…")` calls in 21 client components to the typed layer (only the AI streaming endpoint stays on native `fetch`; PDF downloads stay on `window.open`). Audit also found payees/service-types/account/settings routes hit `db` directly (service-layer backfill = future track B). tsc + eslint + build all clean. |
 | 2026-06-07 | Portfolio HTML completed (8.5/10), CV PDF + DOCX created, SEO implemented, all reference markdown files created                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
@@ -389,7 +414,7 @@ In priority order:
 
 1. **sitemap.xml + robots.txt** — `src/app/sitemap.ts` and `src/app/robots.ts` using Next.js metadata conventions
 2. **Deploy to DigitalOcean** — push all commits → set up droplet → Nginx + SSL + PM2
-3. **Lesson 1.4 — tool use** — add Claude tool calls to `api/admin/ai/route.ts` querying the DB (`get_payment_summary`, `get_overdue_tenants`, `get_monthly_expenses`, `get_renovation_total`)
+3. ~~**Lesson 1.4 — tool use**~~ ✅ done — see AI Assistant module (`services/ai/tools.ts` + Anthropic adapter tool loop). Future: OpenAI + Gemini adapters (`services/ai/adapters/`), write/action tools behind a confirmation step.
 4. **Property module** — units list, tenant details, payment tracker (mark PAID/PARTIAL/OVERDUE), due tracker
 5. ~~**Finance module**~~ ✅ done — see Financial Tracker (`FINANCIAL_TRACKER.md`)
 6. **Renovation module** — line items from spreadsheet data, totals by category
