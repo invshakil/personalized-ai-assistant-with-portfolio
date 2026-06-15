@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { getActiveProvider } from "@/services/ai/registry";
 import { AI_TOOLS, runAiTool } from "@/services/ai/tools";
+import { appendTurn } from "@/services/ai/sessions";
 import type { ChatMessage } from "@/services/ai/types";
 
 const SYSTEM_PROMPT =
@@ -17,7 +18,10 @@ export async function POST(req: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { messages } = (await req.json()) as { messages: ChatMessage[] };
+  const { messages, sessionId } = (await req.json()) as {
+    messages: ChatMessage[];
+    sessionId?: string;
+  };
   if (!messages || !Array.isArray(messages)) {
     return Response.json({ error: "messages array is required" }, { status: 400 });
   }
@@ -35,6 +39,7 @@ export async function POST(req: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      let assistantText = "";
       try {
         for await (const ev of active.provider.streamChat({
           model: active.model,
@@ -44,11 +49,20 @@ export async function POST(req: Request) {
           runTool: runAiTool,
         })) {
           if (ev.type === "text") {
+            assistantText += ev.text;
             controller.enqueue(encoder.encode(ev.text));
           } else if (ev.type === "error") {
             controller.enqueue(encoder.encode(`\n\n⚠️ ${ev.message}`));
           }
           // "tool" events are not surfaced on the plain-text stream.
+        }
+
+        // Persist the completed turn (only on a clean answer).
+        if (sessionId && assistantText.trim()) {
+          const lastUser = [...messages].reverse().find((m) => m.role === "user");
+          if (lastUser) {
+            await appendTurn(sessionId, lastUser.content, assistantText);
+          }
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Something went wrong.";
