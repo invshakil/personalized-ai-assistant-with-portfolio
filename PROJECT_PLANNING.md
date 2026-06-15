@@ -3,7 +3,7 @@
 **Owner:** Syful Islam Shakil  
 **Domain:** sshakil.com  
 **Repo:** https://github.com/invshakil/personalized-ai-assistant-with-portfolio  
-**Last updated:** 2026-06-09
+**Last updated:** 2026-06-16
 
 > This is the living project document. Update the **Progress** section as you implement features.
 > Claude Code should read this at the start of every session.
@@ -75,6 +75,8 @@ Defined in `prisma/schema.prisma`. Do not modify schema without updating this do
 | `ChatMessage`                             | A persisted chat turn; `sessionId` (cascade delete), `role` (`ChatRole` USER/ASSISTANT), `content`. Stores user + assistant **text** turns only (no tool round-trips)                                            |
 | `AiUsage`                                 | One row per chat turn — token counts + computed `costUsd` (USD). Powers the dashboard spend panel and budget enforcement                                                                                         |
 | `AiBudget`                                | Monthly AI spend cap (singleton); `monthlyLimitUsd?`, `enforce`. When enforced and month-to-date ≥ limit, the chat route blocks new turns                                                                        |
+| `BackupSettings`                          | DB-backup config (singleton); `frequency` (off/daily/weekly), `retentionCount`, last-run status, + encrypted Google Drive OAuth refresh token (`driveToken*`), connected email, folder id                        |
+| `BackupRecord`                            | One row per backup attempt; `filename`, `sizeBytes`, `location` (local/local+drive), `driveFileId?`, `trigger`, `status`/`error`                                                                                 |
 
 Currency: **BDT (Bangladeshi Taka ৳)** throughout. All `Decimal` fields are BDT unless noted.
 
@@ -100,43 +102,26 @@ sshakil-app/
 │   │   │   ├── layout.tsx         ✅ complete (Nav, Footer, 3× JSON-LD scripts)
 │   │   │   └── page.tsx           ✅ complete (renders all 7 section components)
 │   │   ├── (admin)/               ← auth-gated; wraps all /admin/* routes
-│   │   │   ├── layout.tsx         ✅ server component — auth check, passes session to AdminShell
-│   │   │   ├── AdminShell.tsx     ✅ "use client" — AppRouterCacheProvider + ThemeProvider + flex layout
+│   │   │   ├── layout.tsx         ✅ server — auth check + loads theme settings, passes to AdminShell
+│   │   │   ├── AdminShell.tsx     ✅ "use client" — AppRouterCacheProvider + AdminThemeProvider + flex layout
 │   │   │   └── admin/
 │   │   │       ├── page.tsx           ✅ /admin — imports OverviewPage
 │   │   │       ├── OverviewPage.tsx   ✅ live cross-domain dashboard (getAdminOverview): KPI row, finance + property quick views, top dues, AI spend, quick access
-│   │   │       ├── property/
-│   │   │       │   ├── page.tsx       ✅ stub
-│   │   │       │   └── PropertyPage.tsx ✅ MUI StubPage
-│   │   │       ├── finance/
-│   │   │       │   ├── page.tsx       ✅ stub
-│   │   │       │   └── FinancePage.tsx ✅ MUI StubPage
-│   │   │       ├── renovation/
-│   │   │       │   ├── page.tsx       ✅ stub
-│   │   │       │   └── RenovationPage.tsx ✅ MUI StubPage
-│   │   │       ├── ai-assistant/
-│   │   │       │   ├── page.tsx           ✅
-│   │   │       │   ├── AiAssistantPage.tsx ✅ MUI chat UI — streaming responses functional
-│   │   │       │   ├── types.ts           ✅ Message, ChatState
-│   │   │       │   └── ai-assistant.module.scss  (legacy — no longer used)
-│   │   │       ├── settings/
-│   │   │       │   ├── page.tsx           ✅ server — loads SiteSettings from DB
-│   │   │       │   ├── SettingsPage.tsx   ✅ MUI form — TextField, Switch, Card, Button
-│   │   │       │   └── types.ts           ✅ SettingsFormData
-│   │   │       └── account/
-│   │   │           ├── page.tsx           ✅ server — loads user from DB
-│   │   │           ├── AccountPage.tsx    ✅ MUI form — profile + password sections
-│   │   │           └── types.ts           ✅ ProfileFormData, PasswordFormData
+│   │   │       ├── AiSpendPanel.tsx   ✅ AI spend cards + monthly-cost bar chart
+│   │   │       ├── property/          ✅ complete — Units & Tenants, payments, expenses, services, payees, service-types, settings, [tenants/units]/[id]
+│   │   │       ├── finance/           ✅ complete — earnings, payments (salaries), expenses, subscriptions, settings (page.tsx redirects → /finance/earnings)
+│   │   │       ├── reports/           ✅ Reports hub — financial/ + property/ (reuse the dashboard components); page.tsx → /reports/financial
+│   │   │       ├── renovation/        🔲 stub (MUI StubPage)
+│   │   │       ├── ai-assistant/      ✅ MUI chat UI — streaming, provider-swappable, tool use, ConversationList
+│   │   │       ├── settings/          ✅ Site Settings; settings/ai (AI provider + budget); settings/appearance (theme)
+│   │   │       └── account/           ✅ profile + password
 │   │   ├── admin/                 ← NOT inside (admin) group — no sidebar, no auth layout
-│   │   │   └── login/
-│   │   │       ├── page.tsx       ✅
-│   │   │       └── LoginPage.tsx  ✅ MUI form with inline ThemeProvider + CssBaseline
+│   │   │   └── login/             ✅ MUI form with inline ThemeProvider + CssBaseline
 │   │   ├── api/
 │   │   │   ├── auth/[...nextauth]/route.ts  ✅ complete
-│   │   │   └── admin/
-│   │   │       ├── ai/route.ts        ✅ streaming Claude Sonnet 4 response
-│   │   │       ├── settings/route.ts  ✅ PUT — upserts SiteSettings singleton
-│   │   │       └── account/route.ts   ✅ PUT — update name or password (bcrypt)
+│   │   │   └── admin/             ✅ overview, account, settings, theme, ai/* (config, sessions, usage, budget),
+│   │   │       │                     finance/* (earnings, payments, expenses, subscriptions/* incl. rate-changes + overrides, …),
+│   │   │       │                     property/* — all thin handlers delegating to src/services/<domain>/
 │   │   ├── layout.tsx             ✅ root layout (fonts, SEO metadata, imports Tailwind + SCSS)
 │   │   └── page.tsx               ✅ root → re-exports portfolio page
 │   ├── components/
@@ -149,14 +134,16 @@ sshakil-app/
 │   │   │   ├── Education.tsx      ✅ 3 entries, flat flex layout
 │   │   │   └── Contact.tsx        ✅ 5 links, SVG icons, dark bg
 │   │   ├── admin/                 ← all MUI — shared across admin routes
-│   │   │   ├── AdminSidebar.tsx   ✅ MUI List nav, sticky, <Box role="navigation">
-│   │   │   ├── AdminHeader.tsx    ✅ MUI Box header — breadcrumb + user avatar/tooltip
+│   │   │   ├── AdminSidebar.tsx   ✅ MUI List nav, sticky, collapsible groups, <Box role="navigation">
+│   │   │   ├── AdminHeader.tsx    ✅ MUI Box header — breadcrumb + light/dark toggle + user avatar
+│   │   │   ├── AdminThemeProvider.tsx ✅ "use client" — theme context (live preview + persist) wrapping ThemeProvider
 │   │   │   ├── AdminBreadcrumb.tsx ✅ MUI Typography breadcrumb
 │   │   │   ├── PageHeader.tsx     ✅ MUI Typography h5 + subtitle
-│   │   │   ├── StatCard.tsx       (legacy — stats now inline in OverviewPage)
-│   │   │   ├── StubPage.tsx       ✅ MUI Card "Coming soon" — used by property/finance/renovation
+│   │   │   ├── ConfirmDialog.tsx  ✅ themed delete-confirmation dialog
+│   │   │   ├── StubPage.tsx       ✅ MUI Card "Coming soon" — used by renovation
 │   │   │   ├── ChatMessage.tsx    ✅ MUI Avatar + Box chat bubble
-│   │   │   └── FormField.tsx      ✅ MUI Typography label wrapper
+│   │   │   ├── PayeeDocuments.tsx / TenantDocuments.tsx ✅ upload/list document widgets
+│   │   │   └── StatCard.tsx / FormField.tsx  (legacy helpers)
 │   │   └── shared/
 │   │       ├── Nav.tsx            ✅ "use client", hamburger menu
 │   │       └── Footer.tsx         ✅ server component
@@ -176,10 +163,18 @@ sshakil-app/
 │   │   ├── _contact.scss          ✅
 │   │   ├── globals.scss           ✅ @use orchestrator
 │   │   └── tailwind.css           ✅ isolated Tailwind @import
+│   ├── services/                  ← server services: business logic + Prisma (used by API routes + AI tools)
+│   │   ├── admin/                 ✅ account, siteSettings, businessProfile, themeSettings, overview
+│   │   ├── finance/               ✅ earnings, payments, bizExpenses, subscriptions, config, dashboard, reports, pdfKit
+│   │   ├── property/              ✅ units, tenants, payments, expenses, services, payees, reports, dashboard, …
+│   │   ├── ai/                    ✅ provider seam — registry, adapters/anthropic, config, crypto, tools, sessions, usage, pricing
+│   │   └── _shared/dateRange.ts   ✅ relative period-token → {from,to} resolver
 │   ├── lib/
 │   │   ├── auth.ts                ✅ NextAuth config — bcrypt verify, APP_VERSION invalidation
 │   │   ├── db.ts                  ✅ Prisma singleton
-│   │   └── adminTheme.ts          ✅ MUI dark theme (Materio-inspired palette)
+│   │   ├── adminTheme.ts          ✅ createAdminTheme(settings) factory (light/dark) + DEFAULT_THEME_SETTINGS
+│   │   ├── fiscalYear.ts          ✅ FY helpers (July→June)
+│   │   └── api/                   ✅ Axios client layer — client, admin, finance, property, ai
 │   ├── middleware.ts               ✅ protects /admin/* routes
 │   └── types/index.ts             ✅ shared TypeScript types
 ├── .env                           ✅ Prisma CLI env (DATABASE_URL only)
@@ -229,7 +224,8 @@ All sections use `padding: var(--px)` for horizontal spacing. Do not hardcode pa
 - `/admin/property/payments` — Monthly payments (auto-generate, record payment, apply advance, transaction log, receipt download)
 - `/admin/property/expenses` — Expense tracker with month filter
 - `/admin/property/services` — Service catalog + per-tenant assignment (variable per-tenant fees)
-- `/admin/property/dashboard` — Financial dashboard (bar + line charts, occupancy, due tracker)
+- Property report (charts, occupancy, due tracker) now lives under **Reports** → `/admin/reports/property`
+  (old `/admin/property/dashboard` redirects there)
 
 **API routes:** `src/app/api/admin/property/` — units, tenants, payments, payments/generate, payments/[id]/transactions, payments/[id]/receipt, expenses, services, services/assign, dashboard
 
@@ -249,14 +245,16 @@ See **FINANCIAL_TRACKER.md** for the full design, data model, and progress track
 
 **Routes:**
 
-- `/admin/finance` — dashboard: per-FY P&L (income, emp costs, tools, net profit, margin), monthly
-  income trend + income-by-client charts, per-employee×FY salary matrix, remittance split
+- `/admin/finance` — redirects to `/admin/finance/earnings`; the P&L dashboard moved to **Reports** →
+  `/admin/reports/financial` (per-FY P&L, monthly income + income-by-client charts, salary matrix, remittance)
 - `/admin/finance/earnings` — client income log (REM/Non-rem), FY filter, add/edit drawer
 - `/admin/finance/payments` — employee salary payments, employee + FY filters; each salary links to
   one or more **clients** (multi-select from the unified client list) + an optional note
 - `/admin/finance/expenses` — one-off business expenses; subscription-generated charges shown read-only
 - `/admin/finance/subscriptions` — recurring services: start, **stop from a month**, resume, per-month
-  spend history, Active/Ended status; each active month auto-generates one expense charge (idempotent)
+  spend history, Active/Ended status; each active month auto-generates one expense charge (idempotent).
+  **Pricing:** effective-dated **price changes** (hikes/drops) + per-month **overrides** (discounts/coupons)
+  via the Manage drawer; charge amounts = override → latest rate change ≤ month → base (see FINANCIAL_TRACKER.md)
 - `/admin/finance/settings` — manage employees / income sources / expense categories (DB config)
 
 **Round-2 enhancements (2026-06-13):** all list pages default to the **current fiscal year**; the
@@ -275,13 +273,23 @@ categories (each + `[id]`), dashboard. Services in `src/services/finance/`.
 
 > Note: the old generic `Income` model + `IncomeCategory` enum were removed (unused).
 
-### 3. Renovation Tracker (`/admin/renovation`)
+### 3. Reports (`/admin/reports`) ✅ functional
+
+Centralized reporting hub (sidebar group). Dedicated pages reuse the existing dashboard components:
+
+- `/admin/reports/financial` — Financial Tracker report (per-FY P&L, charts, salary matrix, PDF export)
+- `/admin/reports/property` — Property report (charts, occupancy, due tracker)
+
+`/admin/reports` redirects to the financial report. The per-module "Dashboard" links were removed in favour
+of this hub; the live cross-domain summary lives on the **Overview** (`/admin`, `getAdminOverview()`).
+
+### 4. Renovation Tracker (`/admin/renovation`)
 
 - Line items from `House_Rebuilding_Construction.xlsx`
 - Grand total: ৳28,086,496
 - Categories: Materials, Constructor, Services, Other Costs
 
-### 4. AI Assistant (`/admin/ai-assistant`) ✅ functional — provider-swappable + tool use
+### 5. AI Assistant (`/admin/ai-assistant`) ✅ functional — provider-swappable + tool use
 
 - Streaming chat UI built with MUI — messages scroll inside a Card, auto-resize TextField input
 - **Provider seam** (`src/services/ai/`): a vendor-neutral `AiProvider` interface + adapter layer.
@@ -314,7 +322,7 @@ categories (each + `[id]`), dashboard. Services in `src/services/finance/`.
   are stored — tool round-trips are not. API: `/api/admin/ai/sessions` (GET/POST) + `/sessions/[id]`
   (GET/PATCH/DELETE); client layer `lib/api/ai.ts`.
 
-### 4b. AI cost tracking & monthly budget ✅ functional
+### 5b. AI cost tracking & monthly budget ✅ functional
 
 - Each chat turn's token usage (summed across tool-loop rounds) is captured and priced in **USD**
   (`services/ai/pricing.ts` per-model rates incl. cache) into an `AiUsage` row (`recordUsage`).
@@ -326,7 +334,7 @@ categories (each + `[id]`), dashboard. Services in `src/services/finance/`.
 - USD is intentional (Anthropic's billing unit), kept separate from BDT. Full design in
   AI_TOOLS_REFERENCE §7. Routes: `/api/admin/ai/usage` (GET), `/api/admin/ai/budget` (GET/PUT).
 
-### 4a. AI Settings (`/admin/settings/ai`) ✅ functional
+### 5a. AI Settings (`/admin/settings/ai`) ✅ functional
 
 - One card per provider: model dropdown, **write-only** API key field (shows "Key set", never the
   secret), optional base URL, enabled switch, **Save**, **Save & set active**, **Test connection**.
@@ -336,7 +344,7 @@ categories (each + `[id]`), dashboard. Services in `src/services/finance/`.
 - API: `GET/PUT /api/admin/ai/config`, `POST /api/admin/ai/config/test`. Client layer:
   `src/lib/api/ai.ts`. Services: `src/services/ai/config.ts` (list/upsert/activate/test).
 
-### 5. Settings (`/admin/settings`) ✅ functional
+### 6. Settings (`/admin/settings`) ✅ functional
 
 - **Site Settings** (`/admin/settings`) — toggle availability for work, edit hero tagline, bio, meta
   description, CV URL. Save updates the `SiteSettings` singleton — reflects live on the public portfolio.
@@ -345,8 +353,18 @@ categories (each + `[id]`), dashboard. Services in `src/services/finance/`.
   live via `AdminThemeProvider` context; Save persists to the `AdminThemeSettings` singleton. The `(admin)`
   layout server-loads the singleton (`getThemeSettings()`) so there's no flash. A quick light/dark toggle
   lives in `AdminHeader`. Theme is built by `createAdminTheme()` in `src/lib/adminTheme.ts`.
+- **Backups** (`/admin/settings/backup`) — database backups via `pg_dump` (custom format). Configure
+  **frequency** (off/daily/weekly) + **retention**; **Backup now** on demand; list with download/delete +
+  last-run status. An in-process scheduler (`instrumentation.ts` → `backupScheduler.ts`, 30-min tick)
+  runs a backup when due (by `lastRunAt`). Optional **Google Drive** offsite copy via OAuth to your own
+  account (`services/admin/googleDrive.ts`, plain `fetch` — no `googleapis` dep; scope `drive.file`;
+  refresh token AES-256-GCM encrypted). Backups always write locally first, then upload if Drive is
+  connected; retention prunes both. Backup files are git-ignored (`/backups/`, `*.dump`).
+  **Google setup:** create an OAuth 2.0 "Web application" client (Drive API enabled) in Google Cloud,
+  register redirect `<AUTH_URL>/api/admin/backup/google/callback`, set `GOOGLE_OAUTH_CLIENT_ID/SECRET`,
+  then click **Connect Google Drive**. Restore: `pg_restore -d <database> <file>.dump`.
 
-### 6. Account (`/admin/account`) ✅ functional
+### 7. Account (`/admin/account`) ✅ functional
 
 - Update display name
 - Change password (bcrypt verify current → hash new → save)
@@ -430,7 +448,8 @@ certbot --nginx -d sshakil.com -d www.sshakil.com
 ## Progress log
 
 | Date       | What was done                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-16 | **Database backups (Settings → Backups)** — scheduled `pg_dump` backups with optional Google Drive offsite copy. New `BackupSettings` + `BackupRecord` models + migration. Runner (`services/admin/backup.ts`): pg_dump custom-format → local `BACKUP_DIR` → optional Drive upload → retention prune (local + Drive); graceful error if `pg_dump` missing. Drive via OAuth to the admin's **own** account — `services/admin/googleDrive.ts` uses plain `fetch` against Google OAuth + Drive REST (**no `googleapis` dep**, scope `drive.file`); refresh token AES-256-GCM encrypted (reuses `ai/crypto`). In-process scheduler started from `instrumentation.ts` (30-min tick, runs when due by frequency/lastRunAt). Routes: `/api/admin/backup` (GET/PUT/POST), `/backup/[id]` (download/DELETE), `/backup/google/start                                                                                                                                                                                                                                                                                                               | callback | disconnect`. UI: frequency/retention, Connect Drive, Backup now, list w/ download+delete. `.env.example`+ CLAUDE.md env table updated;`/backups/`+`\*.dump` git-ignored. Build + lint clean; runtime-smoked settings CRUD + due-logic + graceful pg_dump-missing path (pg_dump unavailable in this env — full dump/upload verified on the droplet). |
 | 2026-06-16 | **Overview dashboard (real data) + Reports hub** — replaced the mocked Overview (`/admin`) with a live cross-domain snapshot: new `getAdminOverview()` service (`services/admin/overview.ts`) + `GET /api/admin/overview` + `adminApi.getOverview()`. KPI row (this-month business net, property net, subscription run-rate, total rent due), a Financial Tracker quick view (this-month + this-FY income/costs/net), and a Property quick view (rent collected vs expected, expenses, occupancy, top dues). New **Reports** sidebar group with dedicated `/admin/reports/financial` + `/admin/reports/property` pages (reuse the existing dashboard components); removed the per-module “Dashboard” links; old `/admin/finance` → `/admin/finance/earnings` and `/admin/property/dashboard` → `/admin/reports/property` redirects; breadcrumb labels added. Build + lint + tsc clean; runtime-smoked the overview service against the DB.                                                                                                                                                                                              |
 | 2026-06-15 | **Subscription pricing — price changes + discounts** — subscriptions can now model effective-dated price hikes/drops and per-month discounts/coupons. New `SubscriptionRateChange` (effective-dated rate) + `SubscriptionMonthOverride` (per-month final amount) models + migration. `generateSubscriptionCharges` rewritten to compute each month's amount as override → latest rate change ≤ month → base and **upsert** the `BizExpense` (re-prices on change), batch-loading existing charges. New service fns `addRateChange`/`deleteRateChange`/`setMonthOverride`/`clearMonthOverride`; routes under `/subscriptions/[id]/rate-changes(/[rcId])` + `/overrides`; `currentMonthlyAmount` exposed on list/detail and used for run-rate (incl. the AI report). Subscriptions page gains a **Manage pricing & history** drawer (price-change add/list/delete + per-month “Adjust” override). Fixed a timezone bug — month strings now parsed by literal components, ISO→month via local components — verified in Asia/Dhaka & America/LA. Build + lint + tsc clean; runtime-smoked the full price-change/override/clear/revert flow. |
 | 2026-06-15 | **Admin theme customisation** — Appearance settings at `/admin/settings/appearance`: light/dark/system mode, primary colour (presets + hex), card shadow & border, corner radius, density & base font size. Refactored `adminTheme.ts` into `createAdminTheme(settings, resolvedMode)` (added full light palette); new `AdminThemeProvider` context drives live preview + persistence; `AdminThemeSettings` singleton model + service + `PUT /api/admin/theme`; `(admin)` layout server-loads settings (no flash); quick light/dark toggle in `AdminHeader`; Settings sidebar entry now collapsible (Site Settings + Appearance). Build + lint + tsc clean.                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
