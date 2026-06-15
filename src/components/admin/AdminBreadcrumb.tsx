@@ -11,6 +11,7 @@ const routeLabels: Record<string, string> = {
   "/admin/renovation": "Renovation",
   "/admin/ai-assistant": "AI Assistant",
   "/admin/settings": "Settings",
+  "/admin/settings/appearance": "Appearance",
   "/admin/account": "Account",
 };
 

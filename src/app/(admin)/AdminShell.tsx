@@ -2,24 +2,30 @@
 
 import { useState } from "react";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
-import { ThemeProvider, Box, CssBaseline } from "@mui/material";
-import { adminTheme } from "@/lib/adminTheme";
+import { Box } from "@mui/material";
+import AdminThemeProvider from "@/components/admin/AdminThemeProvider";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminHeader from "@/components/admin/AdminHeader";
+import type { AdminThemeSettings } from "@/types";
 
 interface AdminShellProps {
   children: React.ReactNode;
   userName: string | null;
   userEmail: string | null;
+  themeSettings: AdminThemeSettings;
 }
 
-export default function AdminShell({ children, userName, userEmail }: AdminShellProps) {
+export default function AdminShell({
+  children,
+  userName,
+  userEmail,
+  themeSettings,
+}: AdminShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <AppRouterCacheProvider>
-      <ThemeProvider theme={adminTheme}>
-        <CssBaseline />
+      <AdminThemeProvider initialSettings={themeSettings}>
         <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
           <AdminSidebar mobileOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
           <Box
@@ -49,7 +55,7 @@ export default function AdminShell({ children, userName, userEmail }: AdminShell
             </Box>
           </Box>
         </Box>
-      </ThemeProvider>
+      </AdminThemeProvider>
     </AppRouterCacheProvider>
   );
 }

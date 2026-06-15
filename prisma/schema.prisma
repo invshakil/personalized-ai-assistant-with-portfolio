@@ -164,6 +164,20 @@ model AiBudget {
   updatedAt       DateTime @updatedAt
 }
 
+// Admin dashboard appearance preferences. Drives the MUI theme via
+// createAdminTheme(); admin-editable singleton, falls back to defaults if unset.
+model AdminThemeSettings {
+  id           String   @id @default("singleton")
+  mode         String   @default("dark") // "light" | "dark" | "system"
+  primaryColor String   @default("#7367f0")
+  cardShadow   String   @default("soft") // "none" | "soft" | "elevated"
+  cardBorder   Boolean  @default(true)
+  borderRadius Int      @default(8)
+  density      String   @default("comfortable") // "compact" | "comfortable"
+  fontSize     Int      @default(14)
+  updatedAt    DateTime @updatedAt
+}
+
 // ─── Property Settings (singleton) ───────────────────────────────────────────
 
 model PropertySettings {

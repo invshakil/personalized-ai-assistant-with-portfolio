@@ -38,6 +38,7 @@ import {
   RefreshCw,
   UserCircle,
   Tag,
+  Palette,
 } from "lucide-react";
 
 const SIDEBAR_WIDTH = 260;
@@ -95,7 +96,16 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     items: [
       { href: "/admin/ai-assistant", label: "AI Assistant", icon: Sparkles, exact: false },
       { href: "/admin/settings/ai", label: "AI Settings", icon: Cpu, exact: true },
-      { href: "/admin/settings", label: "Settings", icon: Settings, exact: true },
+      {
+        href: "/admin/settings",
+        label: "Settings",
+        icon: Settings,
+        exact: false,
+        children: [
+          { href: "/admin/settings", label: "Site Settings", icon: SlidersHorizontal },
+          { href: "/admin/settings/appearance", label: "Appearance", icon: Palette },
+        ],
+      },
     ],
   },
 ];
