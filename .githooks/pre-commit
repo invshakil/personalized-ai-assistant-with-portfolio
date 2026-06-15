@@ -3,9 +3,20 @@ set -euo pipefail
 
 echo "→ Running pre-commit checks..."
 
-# 1. ESLint — fail on errors, allow warnings
+# 1. Prettier — format the repo, then re-stage the files that were already
+#    staged so the formatting lands in this commit (no unrelated files added).
 echo ""
-echo "  [1/1] ESLint"
+echo "  [1/2] Prettier (format)"
+STAGED=$(git diff --cached --name-only --diff-filter=ACMR)
+npm run format --silent
+if [ -n "$STAGED" ]; then
+  echo "$STAGED" | tr '\n' '\0' | xargs -0 git add --
+fi
+echo "  ✓ Formatted"
+
+# 2. ESLint — fail on errors, allow warnings
+echo ""
+echo "  [2/2] ESLint"
 if ! npm run lint --silent; then
   echo ""
   echo "  ✗ ESLint errors found. Fix them before committing."
