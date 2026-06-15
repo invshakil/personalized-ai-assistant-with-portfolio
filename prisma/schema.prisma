@@ -109,6 +109,35 @@ model AiProviderConfig {
   updatedAt    DateTime @updatedAt
 }
 
+// AI assistant conversation history. A ChatSession holds the ordered
+// ChatMessage turns (user + assistant final text only — tool round-trips are
+// not persisted). Titles auto-generate from the first user message.
+model ChatSession {
+  id        String        @id @default(cuid())
+  title     String        @default("New chat")
+  messages  ChatMessage[]
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@index([updatedAt])
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId String
+  role      ChatRole
+  content   String      @db.Text
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId])
+}
+
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
 // ─── Property Settings (singleton) ───────────────────────────────────────────
 
 model PropertySettings {

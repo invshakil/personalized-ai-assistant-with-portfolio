@@ -48,6 +48,15 @@ export async function apiPut<T>(
   return res.data?.data as T;
 }
 
+export async function apiPatch<T>(
+  url: string,
+  body?: unknown,
+  config?: AxiosRequestConfig
+): Promise<T> {
+  const res = await apiClient.patch(url, body, config);
+  return res.data?.data as T;
+}
+
 export async function apiDelete<T>(url: string, config?: AxiosRequestConfig): Promise<T> {
   const res = await apiClient.delete(url, config);
   return res.data?.data as T;

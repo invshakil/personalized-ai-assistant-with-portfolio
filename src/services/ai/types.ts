@@ -63,3 +63,17 @@ export interface ProviderTestResult {
   ok: true;
   model: string;
 }
+
+// ─── Chat history ─────────────────────────────────────────────────────────────
+
+export interface ChatSessionSummary {
+  id: string;
+  title: string;
+  updatedAt: string; // ISO
+}
+
+export interface ChatSessionDetail {
+  id: string;
+  title: string;
+  messages: ChatMessage[];
+}
