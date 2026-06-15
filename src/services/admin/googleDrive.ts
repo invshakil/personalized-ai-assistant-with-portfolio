@@ -168,6 +168,15 @@ export async function uploadFile(
   return ((await res.json()) as { id: string }).id;
 }
 
+/** Download a Drive file's bytes (alt=media). */
+export async function downloadFile(accessToken: string, fileId: string): Promise<Buffer> {
+  const res = await fetch(`${DRIVE_FILES}/${fileId}?alt=media`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(`Drive download failed: ${await res.text()}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 /** Delete a Drive file (best-effort; ignores 404). */
 export async function deleteFile(accessToken: string, fileId: string): Promise<void> {
   const res = await fetch(`${DRIVE_FILES}/${fileId}`, {

@@ -352,6 +352,8 @@ export interface AdminBackupState {
   settings: AdminBackupSettings;
   records: AdminBackupRecord[];
   driveConfigured: boolean; // OAuth client env present
+  backupDir: string; // absolute server path where dumps live (for restore command)
+  databaseName: string; // target DB name (for restore command)
 }
 
 // ─── Admin theme preferences ──────────────────────────────────────────────────

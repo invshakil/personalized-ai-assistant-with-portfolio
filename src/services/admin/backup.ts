@@ -9,6 +9,7 @@ import {
   ensureFolder,
   uploadFile,
   deleteFile,
+  downloadFile,
 } from "./googleDrive";
 import type {
   AdminBackupSettings,
@@ -20,7 +21,15 @@ import type {
 const DUMP_MIME = "application/octet-stream";
 
 function backupDir(): string {
-  return process.env.BACKUP_DIR || path.join(process.cwd(), "backups");
+  return path.resolve(process.env.BACKUP_DIR || path.join(process.cwd(), "backups"));
+}
+
+function databaseName(): string {
+  try {
+    return new URL(process.env.DATABASE_URL ?? "").pathname.replace(/^\//, "") || "";
+  } catch {
+    return "";
+  }
 }
 
 // ─── Settings ─────────────────────────────────────────────────────────────────
@@ -87,6 +96,8 @@ export async function getBackupState(): Promise<AdminBackupState> {
     settings: toPublicSettings(row),
     records: records.map(toRecord),
     driveConfigured: isDriveConfigured(),
+    backupDir: backupDir(),
+    databaseName: databaseName(),
   };
 }
 
@@ -331,6 +342,20 @@ export async function getLocalBackupFile(
   } catch {
     return null;
   }
+}
+
+/** Fetch a backup's bytes from Google Drive (fallback when the local file is gone). */
+export async function getDriveBackupBuffer(
+  id: string
+): Promise<{ filename: string; buffer: Buffer } | null> {
+  const rec = await db.backupRecord.findUnique({ where: { id } });
+  if (!rec?.driveFileId || !isDriveConfigured()) return null;
+  const row = await getSettingsRow();
+  const refresh = readRefreshToken(row);
+  if (!refresh) return null;
+  const accessToken = await getAccessToken(refresh);
+  const buffer = await downloadFile(accessToken, rec.driveFileId);
+  return { filename: rec.filename, buffer };
 }
 
 /** Whether a scheduled run is due now, based on frequency + lastRunAt. */
