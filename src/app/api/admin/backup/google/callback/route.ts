@@ -8,7 +8,10 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const settingsUrl = new URL("/admin/settings/backup", req.url);
+  // Base the post-auth redirect on AUTH_URL (the public origin) — req.url is the
+  // internal host behind a reverse proxy, which would send the browser to localhost.
+  const base = process.env.AUTH_URL ?? new URL(req.url).origin;
+  const settingsUrl = new URL("/admin/settings/backup", base);
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const state = url.searchParams.get("state");
