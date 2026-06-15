@@ -25,7 +25,17 @@ import {
   Tooltip,
   Divider,
 } from "@mui/material";
-import { Plus, Pencil, Trash2, CircleStop, Play, History } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Trash2,
+  CircleStop,
+  Play,
+  SlidersHorizontal,
+  TrendingUp,
+  Tag,
+  X,
+} from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { financeApi } from "@/lib/api/finance";
@@ -49,6 +59,16 @@ const BLANK: SubForm = {
   notes: "",
 };
 
+// Derive a "yyyy-mm" input value from a (UTC) ISO date using LOCAL components,
+// so it matches how the month is displayed (fmtMonth) and round-trips back to
+// the server correctly regardless of timezone. Slicing the raw ISO string is
+// unsafe — it's UTC and shifts the month in non-UTC zones.
+const monthInput = (iso: string | null): string => {
+  if (!iso) return thisMonthInput();
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+};
+
 export default function SubscriptionsPage() {
   const [subs, setSubs] = useState<SubscriptionRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
@@ -63,6 +83,20 @@ export default function SubscriptionsPage() {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [pendingStop, setPendingStop] = useState<SubscriptionRow | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Manage-drawer sub-forms
+  const [rcForm, setRcForm] = useState<{
+    effectiveMonth: string;
+    monthlyAmount: string;
+    note: string;
+  }>({ effectiveMonth: thisMonthInput(), monthlyAmount: "", note: "" });
+  const [showRcForm, setShowRcForm] = useState(false);
+  const [adjusting, setAdjusting] = useState<{
+    chargeId: string;
+    amount: string;
+    note: string;
+  } | null>(null);
+  const [manageError, setManageError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -95,7 +129,7 @@ export default function SubscriptionsPage() {
       name: s.name,
       categoryId: s.categoryId,
       monthlyAmount: String(s.monthlyAmount),
-      startMonth: s.startDate ? s.startDate.slice(0, 7) : thisMonthInput(),
+      startMonth: monthInput(s.startDate),
       notes: s.notes ?? "",
     });
     setError(null);
@@ -153,15 +187,92 @@ export default function SubscriptionsPage() {
     load();
   };
 
-  const openHistory = async (id: string) => {
+  // ── Manage drawer ──────────────────────────────────────────────────────────
+
+  const openManage = async (id: string) => {
+    setManageError(null);
+    setShowRcForm(false);
+    setAdjusting(null);
+    setRcForm({ effectiveMonth: thisMonthInput(), monthlyAmount: "", note: "" });
     try {
       setDetail(await financeApi.getSubscription(id));
     } catch {
-      // ignore — detail drawer simply won't open
+      // ignore — drawer simply won't open
     }
   };
 
-  const activeMonthly = subs.filter((s) => s.isActive).reduce((sum, s) => sum + s.monthlyAmount, 0);
+  const refreshManage = async (id: string) => {
+    const [d] = await Promise.all([financeApi.getSubscription(id), load()]);
+    setDetail(d);
+  };
+
+  const addRateChange = async () => {
+    if (!detail) return;
+    setBusy(true);
+    setManageError(null);
+    try {
+      await financeApi.addRateChange(detail.id, {
+        effectiveMonth: rcForm.effectiveMonth,
+        monthlyAmount: parseFloat(rcForm.monthlyAmount),
+        note: rcForm.note || null,
+      });
+      setRcForm({ effectiveMonth: thisMonthInput(), monthlyAmount: "", note: "" });
+      setShowRcForm(false);
+      await refreshManage(detail.id);
+    } catch (e: unknown) {
+      setManageError(e instanceof Error ? e.message : "Could not add price change");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const deleteRateChange = async (rcId: string) => {
+    if (!detail) return;
+    setBusy(true);
+    try {
+      await financeApi.deleteRateChange(detail.id, rcId);
+      await refreshManage(detail.id);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveOverride = async () => {
+    if (!detail || !adjusting) return;
+    const charge = detail.charges.find((c) => c.id === adjusting.chargeId);
+    if (!charge?.date) return;
+    setBusy(true);
+    setManageError(null);
+    try {
+      await financeApi.setOverride(detail.id, {
+        month: monthInput(charge.date),
+        amount: parseFloat(adjusting.amount),
+        note: adjusting.note || null,
+      });
+      setAdjusting(null);
+      await refreshManage(detail.id);
+    } catch (e: unknown) {
+      setManageError(e instanceof Error ? e.message : "Could not save adjustment");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const clearOverride = async (month: string | null) => {
+    if (!detail || !month) return;
+    setBusy(true);
+    try {
+      await financeApi.clearOverride(detail.id, monthInput(month));
+      setAdjusting(null);
+      await refreshManage(detail.id);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const activeMonthly = subs
+    .filter((s) => s.isActive)
+    .reduce((sum, s) => sum + s.currentMonthlyAmount, 0);
 
   return (
     <Box>
@@ -227,7 +338,20 @@ export default function SubscriptionsPage() {
                       <Chip size="small" label={s.categoryName} variant="outlined" />
                     </TableCell>
                     <TableCell align="right" data-label="Monthly">
-                      {fmt(s.monthlyAmount)}
+                      {fmt(s.currentMonthlyAmount)}
+                      {s.rateChangeCount > 0 && (
+                        <Tooltip
+                          title={`Started at ${fmt(s.monthlyAmount)} · ${s.rateChangeCount} price change${s.rateChangeCount > 1 ? "s" : ""}`}
+                        >
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: "block" }}
+                          >
+                            was {fmt(s.monthlyAmount)}
+                          </Typography>
+                        </Tooltip>
+                      )}
                     </TableCell>
                     <TableCell data-label="Started">{fmtMonth(s.startDate)}</TableCell>
                     <TableCell data-label="Status">
@@ -258,9 +382,9 @@ export default function SubscriptionsPage() {
                     </TableCell>
                     <TableCell data-label="Actions">
                       <Box sx={{ display: "flex" }}>
-                        <Tooltip title="Monthly history">
-                          <IconButton size="small" onClick={() => openHistory(s.id)}>
-                            <History size={14} />
+                        <Tooltip title="Manage pricing & history">
+                          <IconButton size="small" onClick={() => openManage(s.id)}>
+                            <SlidersHorizontal size={14} />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Edit">
@@ -338,7 +462,7 @@ export default function SubscriptionsPage() {
             </Select>
           </FormControl>
           <TextField
-            label="Monthly amount (৳)"
+            label={editing ? "Starting amount (৳)" : "Monthly amount (৳)"}
             type="number"
             size="small"
             fullWidth
@@ -381,19 +505,19 @@ export default function SubscriptionsPage() {
           </Button>
           {editing && (
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5 }}>
-              Editing the amount applies to future months only; past charges keep their original
-              value.
+              This is the starting rate. For a price hike from a later month, use “Manage pricing &
+              history” → Add price change.
             </Typography>
           )}
         </Box>
       </Drawer>
 
-      {/* History drawer */}
+      {/* Manage drawer — pricing + monthly history */}
       <Drawer
         anchor="right"
         open={!!detail}
         onClose={() => setDetail(null)}
-        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 420 } } } }}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 480 } } } }}
       >
         {detail && (
           <Box sx={{ width: "100%", p: 3 }}>
@@ -401,7 +525,7 @@ export default function SubscriptionsPage() {
               {detail.name}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              {detail.categoryName} · {fmt(detail.monthlyAmount)}/mo · started{" "}
+              {detail.categoryName} · {fmt(detail.currentMonthlyAmount)}/mo · started{" "}
               {fmtMonth(detail.startDate)}
               {detail.isActive ? " · active" : ` · ended ${fmtMonth(detail.endDate)}`}
             </Typography>
@@ -413,27 +537,249 @@ export default function SubscriptionsPage() {
                 {fmt(detail.totalSpent)}
               </Typography>
             </Box>
-            <Divider sx={{ mb: 1 }} />
-            <Table size="small" sx={mobileCardTableSx}>
+
+            {manageError && (
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setManageError(null)}>
+                {manageError}
+              </Alert>
+            )}
+
+            {/* Price changes */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                mt: 1,
+              }}
+            >
+              <Typography variant="subtitle2" sx={{ fontWeight: 700, display: "flex", gap: 0.75 }}>
+                <TrendingUp size={16} /> Price changes
+              </Typography>
+              <Button
+                size="small"
+                startIcon={<Plus size={14} />}
+                onClick={() => setShowRcForm((v) => !v)}
+              >
+                Add
+              </Button>
+            </Box>
+            <Typography variant="caption" color="text.secondary">
+              Base rate {fmt(detail.monthlyAmount)} from {fmtMonth(detail.startDate)}.
+            </Typography>
+
+            {showRcForm && (
+              <Box
+                sx={{
+                  mt: 1.5,
+                  p: 1.5,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 1.5,
+                }}
+              >
+                <TextField
+                  label="Effective from"
+                  type="month"
+                  size="small"
+                  value={rcForm.effectiveMonth}
+                  onChange={(e) => setRcForm((f) => ({ ...f, effectiveMonth: e.target.value }))}
+                />
+                <TextField
+                  label="New monthly amount (৳)"
+                  type="number"
+                  size="small"
+                  value={rcForm.monthlyAmount}
+                  onChange={(e) => setRcForm((f) => ({ ...f, monthlyAmount: e.target.value }))}
+                />
+                <TextField
+                  label="Note (optional)"
+                  size="small"
+                  placeholder="e.g. annual price increase"
+                  value={rcForm.note}
+                  onChange={(e) => setRcForm((f) => ({ ...f, note: e.target.value }))}
+                />
+                <Button
+                  variant="contained"
+                  size="small"
+                  onClick={addRateChange}
+                  disabled={busy || !rcForm.monthlyAmount}
+                >
+                  Apply price change
+                </Button>
+              </Box>
+            )}
+
+            {detail.rateChanges.length > 0 && (
+              <Box sx={{ mt: 1.5, display: "flex", flexDirection: "column", gap: 0.75 }}>
+                {detail.rateChanges.map((rc) => (
+                  <Box
+                    key={rc.id}
+                    sx={{ display: "flex", alignItems: "center", gap: 1, fontSize: "0.85rem" }}
+                  >
+                    <Chip
+                      size="small"
+                      label={`from ${fmtMonth(rc.effectiveMonth)}`}
+                      variant="outlined"
+                    />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {fmt(rc.monthlyAmount)}
+                    </Typography>
+                    {rc.note && (
+                      <Typography variant="caption" color="text.secondary" sx={{ flex: 1 }}>
+                        {rc.note}
+                      </Typography>
+                    )}
+                    <Tooltip title="Remove price change">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => deleteRateChange(rc.id)}
+                        disabled={busy}
+                        sx={{ ml: "auto" }}
+                      >
+                        <Trash2 size={13} />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ))}
+              </Box>
+            )}
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Monthly charges */}
+            <Typography
+              variant="subtitle2"
+              sx={{ fontWeight: 700, mb: 0.5, display: "flex", gap: 0.75 }}
+            >
+              <Tag size={16} /> Monthly charges
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Use “Adjust” for a discount or coupon on a single month.
+            </Typography>
+            <Table size="small" sx={{ ...mobileCardTableSx, mt: 1 }}>
               <TableHead>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 700 }}>Month</TableCell>
-                  <TableCell sx={{ fontWeight: 700 }}>Fiscal Year</TableCell>
                   <TableCell align="right" sx={{ fontWeight: 700 }}>
                     Amount
+                  </TableCell>
+                  <TableCell align="right" sx={{ fontWeight: 700 }}>
+                    Adjust
                   </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
-                {detail.charges.map((c) => (
-                  <TableRow key={c.id}>
-                    <TableCell data-label="Month">{fmtMonth(c.date)}</TableCell>
-                    <TableCell data-label="Fiscal Year">{c.fiscalYear}</TableCell>
-                    <TableCell align="right" data-label="Amount">
-                      {fmt(c.amount)}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {detail.charges.map((c) => {
+                  const isEditing = adjusting?.chargeId === c.id;
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell data-label="Month">
+                        {fmtMonth(c.date)}
+                        {c.isOverride && (
+                          <Chip
+                            size="small"
+                            label="Adjusted"
+                            color="info"
+                            variant="outlined"
+                            sx={{ ml: 0.75, height: 18, fontSize: "0.62rem" }}
+                          />
+                        )}
+                        {c.note && (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: "block" }}
+                          >
+                            {c.note}
+                          </Typography>
+                        )}
+                      </TableCell>
+                      {isEditing ? (
+                        <TableCell colSpan={2}>
+                          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                            <TextField
+                              label="Amount (৳)"
+                              type="number"
+                              size="small"
+                              value={adjusting!.amount}
+                              onChange={(e) =>
+                                setAdjusting((a) => (a ? { ...a, amount: e.target.value } : a))
+                              }
+                            />
+                            <TextField
+                              label="Note (optional)"
+                              size="small"
+                              placeholder="e.g. Coupon WELCOME50"
+                              value={adjusting!.note}
+                              onChange={(e) =>
+                                setAdjusting((a) => (a ? { ...a, note: e.target.value } : a))
+                              }
+                            />
+                            <Box sx={{ display: "flex", gap: 1 }}>
+                              <Button
+                                variant="contained"
+                                size="small"
+                                onClick={saveOverride}
+                                disabled={busy || adjusting!.amount === ""}
+                              >
+                                Save
+                              </Button>
+                              {c.isOverride && (
+                                <Button
+                                  size="small"
+                                  color="warning"
+                                  onClick={() => clearOverride(c.date)}
+                                  disabled={busy}
+                                >
+                                  Clear
+                                </Button>
+                              )}
+                              <Button
+                                size="small"
+                                color="inherit"
+                                onClick={() => setAdjusting(null)}
+                                disabled={busy}
+                              >
+                                Cancel
+                              </Button>
+                            </Box>
+                          </Box>
+                        </TableCell>
+                      ) : (
+                        <>
+                          <TableCell
+                            align="right"
+                            data-label="Amount"
+                            sx={{ fontWeight: c.isOverride ? 700 : 400 }}
+                          >
+                            {fmt(c.amount)}
+                          </TableCell>
+                          <TableCell align="right" data-label="Adjust">
+                            <Tooltip title={c.isOverride ? "Edit adjustment" : "Adjust this month"}>
+                              <IconButton
+                                size="small"
+                                onClick={() =>
+                                  setAdjusting({
+                                    chargeId: c.id,
+                                    amount: String(c.amount),
+                                    note: c.note ?? "",
+                                  })
+                                }
+                              >
+                                {c.isOverride ? <X size={14} /> : <SlidersHorizontal size={14} />}
+                              </IconButton>
+                            </Tooltip>
+                          </TableCell>
+                        </>
+                      )}
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
           </Box>
@@ -443,7 +789,7 @@ export default function SubscriptionsPage() {
       <ConfirmDialog
         open={!!pendingDelete}
         title="Delete subscription"
-        message="This removes the subscription and all of its generated monthly charges from your history and reports. This cannot be undone."
+        message="This removes the subscription and all of its generated monthly charges, price changes and adjustments from your history and reports. This cannot be undone."
         confirmLabel="Delete"
         loading={busy}
         onConfirm={confirmDelete}

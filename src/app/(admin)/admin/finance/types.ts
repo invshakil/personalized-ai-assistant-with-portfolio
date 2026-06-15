@@ -46,7 +46,9 @@ export interface SubscriptionRow {
   name: string;
   categoryId: string;
   categoryName: string;
-  monthlyAmount: number;
+  monthlyAmount: number; // base/starting rate
+  currentMonthlyAmount: number; // effective rate for the current month
+  rateChangeCount: number;
   startDate: string | null;
   endDate: string | null;
   isActive: boolean;
@@ -60,9 +62,19 @@ export interface SubscriptionCharge {
   date: string | null;
   amount: number;
   fiscalYear: string;
+  isOverride: boolean; // amount set by a per-month override (discount/coupon)
+  note: string | null; // override note, when present
+}
+
+export interface SubscriptionRateChange {
+  id: string;
+  effectiveMonth: string | null;
+  monthlyAmount: number;
+  note: string | null;
 }
 
 export interface SubscriptionDetail extends Omit<SubscriptionRow, "monthsCharged"> {
+  rateChanges: SubscriptionRateChange[];
   charges: SubscriptionCharge[];
 }
 

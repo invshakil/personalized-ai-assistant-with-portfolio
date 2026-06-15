@@ -486,15 +486,52 @@ model Subscription {
   name          String
   categoryId    String
   category      BizExpenseCategory @relation(fields: [categoryId], references: [id])
-  monthlyAmount Decimal            @db.Decimal(12, 2) // BDT
+  monthlyAmount Decimal            @db.Decimal(12, 2) // BDT — the STARTING rate (from startDate)
   startDate     DateTime // normalized to the 1st of the start month
   endDate       DateTime? // null = active; else last charged month (1st)
   notes         String?
   charges       BizExpense[]
+  rateChanges   SubscriptionRateChange[]
+  overrides     SubscriptionMonthOverride[]
   createdAt     DateTime           @default(now())
   updatedAt     DateTime           @updatedAt
 
   @@index([endDate])
+}
+
+// Effective-dated price change for a subscription (a hike or drop). The base
+// Subscription.monthlyAmount is the starting rate; each rate change sets a new
+// rate effective from `effectiveMonth` (1st of month) onward, until the next
+// change. Charge amounts are recomputed deterministically from base + changes.
+model SubscriptionRateChange {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  effectiveMonth DateTime // normalized to the 1st of the month
+  monthlyAmount  Decimal      @db.Decimal(12, 2) // BDT
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([subscriptionId, effectiveMonth])
+  @@index([subscriptionId])
+}
+
+// Per-month final-amount override (discount, coupon, free month, partial). When
+// present for a month, this is the exact charged amount for that month,
+// regardless of the scheduled rate.
+model SubscriptionMonthOverride {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  month          DateTime // normalized to the 1st of the month
+  amount         Decimal      @db.Decimal(12, 2) // BDT
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([subscriptionId, month])
+  @@index([subscriptionId])
 }
 
 model Earning {
