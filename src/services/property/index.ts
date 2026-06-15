@@ -14,3 +14,4 @@ export * from "./tenantDocuments";
 export * from "./payeeDocuments";
 export * from "./payees";
 export * from "./serviceTypes";
+export * from "./reports";
