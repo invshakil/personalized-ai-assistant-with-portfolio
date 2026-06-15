@@ -162,6 +162,42 @@ These are safe, read-only, and answer "what / how much / who" questions. Suggest
 | `get_move_out_preview`   | `getMoveOutPreview(id, date)`    | `id`, ISO `date`                  | Settlement preview for a tenant move-out                                          |
 | `get_property_settings`  | `getPropertySettings()`          | —                                 | Property/owner profile singleton                                                  |
 
+### Reports — range-aware aggregations (`@/services/finance`, `@/services/property`)
+
+These are pre-aggregated **report** functions added for chat (distinct from the row-level lists
+above). Financial reports accept a **flexible date range** resolved server-side
+(`src/services/_shared/dateRange.ts`): a relative `period` token — `this_month`, `last_3_months`,
+`last_6_months`, `last_12_months`, `this_year`, `last_year`, `this_fiscal_year`, `last_fiscal_year`,
+`all` — **or** explicit `from`/`to` ISO dates (which override the token). The model passes the token;
+the server computes the dates against "today" (the model is told today's date in the chat system
+prompt). Snapshot reports take no range.
+
+| Suggested tool                  | Function                          | Params                    | Answers                                                                 |
+| ------------------------------- | --------------------------------- | ------------------------- | ---------------------------------------------------------------------- |
+| `get_monthly_pnl`               | `getMonthlyPnl(range?)`           | range                     | Month-by-month business income / costs / net profit                    |
+| `get_client_profitability`      | `getClientProfitability(range?)`  | range                     | Income minus attributed salaries, per client, with margin              |
+| `get_employee_cost_report`      | `getEmployeeCostReport(range?)`   | range                     | Per-employee comp split by salary/bonus/advance + % of payroll         |
+| `get_expense_breakdown`         | `getExpenseBreakdown(range?)`     | range                     | Business expenses by category, recurring vs one-off, top items         |
+| `get_subscription_spend`        | `getSubscriptionSpendReport()`    | —                         | Active subscription run-rate (monthly/annualized), by category         |
+| `get_remittance_report`         | `getRemittanceReport(range?)`     | range                     | REM vs NON_REM totals, %, monthly trend, top clients                   |
+| `get_fiscal_year_comparison`    | `getFiscalYearComparison()`       | —                         | Income/profit/margin per FY with YoY growth %                          |
+| `get_property_financials`       | `getPropertyFinancials(range?)`   | range                     | Multi-month expected vs collected, expenses, net, monthly trend        |
+| `get_property_expense_breakdown`| `getPropertyExpenseBreakdown(range?)` | range                 | Property expenses by category + top items                              |
+| `get_payee_spend_report`        | `getPayeeSpendReport(range?)`     | range                     | Spend per payee (vendor/caretaker)                                     |
+| `get_collection_by_method`      | `getCollectionByMethod(range?)`   | range                     | Rent collected by method (cash/bank/advance)                          |
+| `get_service_revenue`           | `getServiceRevenueReport()`       | —                         | Add-on service revenue (WiFi, parking) per service                     |
+| `get_rent_roll`                 | `getRentRoll()`                   | —                         | Current rent roll: unit, tenant, base rent, services, total billing    |
+| `get_arrears_report`            | `getArrearsReport()`              | —                         | Who owes, total outstanding, months behind, oldest unpaid              |
+| `get_advance_liability`         | `getAdvanceLiabilityReport()`     | —                         | Total tenant advance held, per tenant                                  |
+| `get_occupancy_report`          | `getOccupancyReport()`            | —                         | Occupancy %, vacant units                                              |
+| `get_lease_expiry_report`       | `getLeaseExpiryReport({withinDays?})` | `withinDays` (def 90) | Leases ending / move-outs scheduled soon                              |
+| `get_scheduled_rent_changes`    | `getScheduledRentChanges()`       | —                         | Pending (not-yet-applied) rent increases                              |
+| `get_tenant_statement`          | `getTenantStatement(id, range?)`  | `tenantId`, range         | Per-tenant month-by-month due/paid + running balance                  |
+| `get_combined_income_summary`   | (composed in the tool handler)    | range                     | Business + property income/net over one range (overall view)          |
+
+> `range` = `{ period?, from?, to? }`. All return small, pre-aggregated, JSON-safe summaries (totals +
+> short/top-N arrays), so a report never dumps every row into the context window.
+
 > **Good "AI question" examples these answer:** "What was my net profit last fiscal year?",
 > "How much have I paid Rashidul in total?", "Which tenants are overdue this month?",
 > "What's my monthly subscription run-rate?", "List income from MapX this year."
