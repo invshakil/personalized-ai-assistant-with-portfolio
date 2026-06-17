@@ -39,6 +39,9 @@ jobs:
       - name: Prettier check
         run: npm run format:check
 
+      - name: TypeScript
+        run: npx tsc --noEmit
+
   # ─────────────────────────────────────────────────────────────
   # Job 2: Deploy — SSH into the DigitalOcean droplet.
   # The server already has .env.local with all real credentials,
