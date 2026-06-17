@@ -21,7 +21,9 @@ import type {
 const DUMP_MIME = "application/octet-stream";
 
 function backupDir(): string {
-  return path.resolve(process.env.BACKUP_DIR || path.join(process.cwd(), "backups"));
+  return path.resolve(
+    process.env.BACKUP_DIR || path.join(/*turbopackIgnore: true*/ process.cwd(), "backups")
+  );
 }
 
 // Resolve a Postgres client binary. Honors PG_BIN_DIR (e.g. Homebrew libpq:
