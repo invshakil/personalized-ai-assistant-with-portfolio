@@ -115,19 +115,67 @@ export default function AiAssistantPage() {
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = {
-            role: "assistant",
-            content: updated[updated.length - 1].content + chunk,
-          };
-          return updated;
-        });
+        buffer += decoder.decode(value, { stream: true });
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const ev = JSON.parse(line) as {
+              type: string;
+              text?: string;
+              message?: string;
+              inputTokens?: number;
+              outputTokens?: number;
+              cacheReadTokens?: number;
+              cacheCreateTokens?: number;
+              cost?: number;
+            };
+            if (ev.type === "text" && ev.text) {
+              setMessages((prev) => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  content: updated[updated.length - 1].content + ev.text,
+                };
+                return updated;
+              });
+            } else if (ev.type === "error" && ev.message) {
+              setMessages((prev) => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  content: updated[updated.length - 1].content + `\n\n⚠️ ${ev.message}`,
+                };
+                return updated;
+              });
+            } else if (ev.type === "usage") {
+              setMessages((prev) => {
+                const updated = [...prev];
+                updated[updated.length - 1] = {
+                  ...updated[updated.length - 1],
+                  usage: {
+                    inputTokens: ev.inputTokens ?? 0,
+                    outputTokens: ev.outputTokens ?? 0,
+                    cacheReadTokens: ev.cacheReadTokens ?? 0,
+                    cacheCreateTokens: ev.cacheCreateTokens ?? 0,
+                    cost: ev.cost ?? 0,
+                  },
+                };
+                return updated;
+              });
+            }
+          } catch {
+            /* malformed line — skip */
+          }
+        }
       }
     } catch (e) {
       const message =
@@ -234,6 +282,7 @@ export default function AiAssistantPage() {
                 key={i}
                 role={msg.role}
                 content={msg.content}
+                usage={msg.usage}
                 isStreaming={isStreaming && i === messages.length - 1 && msg.role === "assistant"}
               />
             ))}

@@ -2,13 +2,22 @@ import { Box, Typography, Avatar } from "@mui/material";
 import { Sparkles } from "lucide-react";
 import Markdown from "@/components/admin/Markdown";
 
+interface MessageUsage {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheCreateTokens: number;
+  cost: number;
+}
+
 interface ChatMessageProps {
   role: "user" | "assistant";
   content: string;
   isStreaming?: boolean;
+  usage?: MessageUsage;
 }
 
-export default function ChatMessage({ role, content, isStreaming }: ChatMessageProps) {
+export default function ChatMessage({ role, content, isStreaming, usage }: ChatMessageProps) {
   const isUser = role === "user";
 
   return (
@@ -72,6 +81,36 @@ export default function ChatMessage({ role, content, isStreaming }: ChatMessageP
                   },
                 }}
               />
+            )}
+            {!isStreaming && usage && (
+              <Box
+                sx={{
+                  mt: 1.5,
+                  pt: 1,
+                  borderTop: "1px solid",
+                  borderColor: "rgba(231,227,252,0.08)",
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  component="p"
+                  sx={{
+                    color: "text.disabled",
+                    fontStyle: "italic",
+                    lineHeight: 1.6,
+                    letterSpacing: "0.015em",
+                  }}
+                >
+                  in {usage.inputTokens.toLocaleString()} · out{" "}
+                  {usage.outputTokens.toLocaleString()} · Σ{" "}
+                  {(usage.inputTokens + usage.outputTokens).toLocaleString()} tokens · ≈ $
+                  {usage.cost < 0.0001
+                    ? usage.cost.toFixed(6)
+                    : usage.cost < 0.001
+                      ? usage.cost.toFixed(5)
+                      : usage.cost.toFixed(4)}
+                </Typography>
+              </Box>
             )}
           </Box>
         )}

@@ -5,6 +5,22 @@ import { appendTurn } from "@/services/ai/sessions";
 import { isOverBudget, recordUsage } from "@/services/ai/usage";
 import type { AiProviderId, ChatMessage, UsageTotals } from "@/services/ai/types";
 
+// Published Anthropic rates per 1M tokens (USD). Defaults to Sonnet for unknown models.
+function estimateCost(model: string, u: UsageTotals): number {
+  const isOpus = model.includes("opus");
+  const isHaiku = model.includes("haiku");
+  const inp = isOpus ? 15 : isHaiku ? 0.8 : 3;
+  const out = isOpus ? 75 : isHaiku ? 4 : 15;
+  const cr = isOpus ? 1.5 : isHaiku ? 0.08 : 0.3;
+  const cw = isOpus ? 18.75 : isHaiku ? 1 : 3.75;
+  return (
+    (u.inputTokens / 1_000_000) * inp +
+    (u.outputTokens / 1_000_000) * out +
+    (u.cacheReadTokens / 1_000_000) * cr +
+    (u.cacheCreateTokens / 1_000_000) * cw
+  );
+}
+
 const SYSTEM_PROMPT =
   "You are a personal assistant for Syful Islam Shakil — a Tech Lead and Full-Stack Engineer based in Comilla, Bangladesh. " +
   "You have access to his admin dashboard through tools covering two domains: the Financial Tracker (business income, " +
@@ -55,6 +71,8 @@ export async function POST(req: Request) {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      const send = (ev: object) => controller.enqueue(encoder.encode(JSON.stringify(ev) + "\n"));
+
       let assistantText = "";
       let usage: UsageTotals | null = null;
       try {
@@ -67,13 +85,20 @@ export async function POST(req: Request) {
         })) {
           if (ev.type === "text") {
             assistantText += ev.text;
-            controller.enqueue(encoder.encode(ev.text));
+            send({ type: "text", text: ev.text });
           } else if (ev.type === "usage") {
             usage = ev.usage;
+            send({
+              type: "usage",
+              inputTokens: ev.usage.inputTokens,
+              outputTokens: ev.usage.outputTokens,
+              cacheReadTokens: ev.usage.cacheReadTokens,
+              cacheCreateTokens: ev.usage.cacheCreateTokens,
+              cost: estimateCost(active.model, ev.usage),
+            });
           } else if (ev.type === "error") {
-            controller.enqueue(encoder.encode(`\n\n⚠️ ${ev.message}`));
+            send({ type: "error", message: ev.message });
           }
-          // "tool" events are not surfaced on the plain-text stream.
         }
 
         // Record token spend whenever tokens were billed (independent of save).
@@ -94,7 +119,7 @@ export async function POST(req: Request) {
         }
       } catch (e) {
         const msg = e instanceof Error ? e.message : "Something went wrong.";
-        controller.enqueue(encoder.encode(`\n\n⚠️ ${msg}`));
+        send({ type: "error", message: msg });
       } finally {
         controller.close();
       }
@@ -102,6 +127,6 @@ export async function POST(req: Request) {
   });
 
   return new Response(stream, {
-    headers: { "Content-Type": "text/plain; charset=utf-8" },
+    headers: { "Content-Type": "application/x-ndjson; charset=utf-8" },
   });
 }
