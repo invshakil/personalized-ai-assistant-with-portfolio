@@ -96,6 +96,8 @@ export async function POST(req: Request) {
               cacheCreateTokens: ev.usage.cacheCreateTokens,
               cost: estimateCost(active.model, ev.usage),
             });
+          } else if (ev.type === "tool") {
+            send({ type: "tool", name: ev.name });
           } else if (ev.type === "error") {
             send({ type: "error", message: ev.message });
           }

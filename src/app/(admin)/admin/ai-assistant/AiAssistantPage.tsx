@@ -131,6 +131,7 @@ export default function AiAssistantPage() {
             const ev = JSON.parse(line) as {
               type: string;
               text?: string;
+              name?: string;
               message?: string;
               inputTokens?: number;
               outputTokens?: number;
@@ -144,6 +145,16 @@ export default function AiAssistantPage() {
                 updated[updated.length - 1] = {
                   ...updated[updated.length - 1],
                   content: updated[updated.length - 1].content + ev.text,
+                };
+                return updated;
+              });
+            } else if (ev.type === "tool" && ev.name) {
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                updated[updated.length - 1] = {
+                  ...last,
+                  tools: [...(last.tools ?? []), ev.name!],
                 };
                 return updated;
               });
@@ -283,6 +294,7 @@ export default function AiAssistantPage() {
                 role={msg.role}
                 content={msg.content}
                 usage={msg.usage}
+                tools={msg.tools}
                 isStreaming={isStreaming && i === messages.length - 1 && msg.role === "assistant"}
               />
             ))}

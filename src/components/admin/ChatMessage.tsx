@@ -15,9 +15,16 @@ interface ChatMessageProps {
   content: string;
   isStreaming?: boolean;
   usage?: MessageUsage;
+  tools?: string[];
 }
 
-export default function ChatMessage({ role, content, isStreaming, usage }: ChatMessageProps) {
+export default function ChatMessage({
+  role,
+  content,
+  isStreaming,
+  usage,
+  tools,
+}: ChatMessageProps) {
   const isUser = role === "user";
 
   return (
@@ -62,6 +69,37 @@ export default function ChatMessage({ role, content, isStreaming, usage }: ChatM
           </Typography>
         ) : (
           <Box>
+            {tools && tools.length > 0 && (
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 1.25 }}>
+                {tools.map((name) => (
+                  <Box
+                    key={name}
+                    sx={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      px: 0.75,
+                      py: 0.25,
+                      borderRadius: "4px",
+                      bgcolor: "rgba(115,103,240,0.08)",
+                      border: "1px solid rgba(115,103,240,0.2)",
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "primary.main",
+                        fontFamily: "monospace",
+                        fontSize: "0.68rem",
+                        opacity: 0.85,
+                      }}
+                    >
+                      ƒ {name}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            )}
             <Markdown content={content} />
             {isStreaming && (
               <Box
