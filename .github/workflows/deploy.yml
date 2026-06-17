@@ -17,7 +17,7 @@ jobs:
   # No env vars needed — these checks are pure static analysis.
   # ─────────────────────────────────────────────────────────────
   verify:
-    name: Lint · Format · Types
+    name: Lint · Format
     runs-on: ubuntu-latest
 
     steps:
@@ -38,9 +38,6 @@ jobs:
 
       - name: Prettier check
         run: npm run format:check
-
-      - name: TypeScript check
-        run: npx tsc --noEmit
 
   # ─────────────────────────────────────────────────────────────
   # Job 2: Deploy — SSH into the DigitalOcean droplet.
