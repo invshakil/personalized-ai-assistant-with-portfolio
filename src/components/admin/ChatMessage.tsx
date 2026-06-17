@@ -71,9 +71,9 @@ export default function ChatMessage({
           <Box>
             {tools && tools.length > 0 && (
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 1.25 }}>
-                {tools.map((name) => (
+                {tools.map((name, i) => (
                   <Box
-                    key={name}
+                    key={`${name}-${i}`}
                     sx={{
                       display: "inline-flex",
                       alignItems: "center",
