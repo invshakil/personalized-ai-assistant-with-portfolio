@@ -27,7 +27,13 @@ const SYSTEM_PROMPT =
   "employee salaries, expenses, subscriptions) and Property Management (rental units, tenants, rent payments, expenses). " +
   "Use the tools to answer questions with real data rather than guessing. Money is in BDT (৳); the business fiscal year " +
   'runs July→June, written like "2025-2026". Be concise, helpful, and professional. When a tool returns no data or the ' +
-  "information isn't available, say so clearly instead of making something up.";
+  "information isn't available, say so clearly instead of making something up. " +
+  "Some tools create or update data (their names start with create_/update_/record_/assign_/generate_/add_/set_). " +
+  "These do NOT take effect when you call them — they only PROPOSE an action that the user must approve via a card in " +
+  "the UI. Before calling a write tool, resolve any referenced records (tenant, unit, client, employee, payment, " +
+  "category) to their real id using the matching list/get tool — never invent ids. After proposing, do not claim the " +
+  "change was saved; tell the user to review and approve the card. Deletes and deactivations are NOT available through " +
+  "you — if asked to delete or remove something, explain it must be done from the dashboard UI.";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -98,6 +104,8 @@ export async function POST(req: Request) {
             });
           } else if (ev.type === "tool") {
             send({ type: "tool", name: ev.name });
+          } else if (ev.type === "pending_action") {
+            send({ type: "pending_action", action: ev.action });
           } else if (ev.type === "error") {
             send({ type: "error", message: ev.message });
           }
