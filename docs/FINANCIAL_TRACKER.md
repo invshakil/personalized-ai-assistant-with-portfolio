@@ -22,7 +22,7 @@ Phase 7 (optional AI assistant tools) remains.
 
 Replaces a manually-maintained Google Sheet that tracks the software business:
 
-- **Income** from clients (MapX, DevArena+DevCourt, freelance, incentives)
+- **Income** from clients (Acme Corp, Globex Inc, freelance, incentives)
 - **Employee salaries** paid (4 employees), with the funding client noted per payment
 - **Business expenses** — tools, subscriptions, hardware, office
 - **Reports** — per-fiscal-year P&L (income − costs = net profit, margin %), monthly/yearly income,
@@ -49,13 +49,13 @@ is captured separately for tax context; no FX conversion stored.
 
 ### Decoded facts
 
-- **Income sources (clients):** `MapX` (৳22,800,000 / 92 payments — primary), `DevArena+DevCourt`
+- **Income sources (clients):** `Acme Corp` (৳22,800,000 / 92 payments — primary), `Globex Inc`
   (৳4,100,000 / 24), `Freelance project` (৳1,650,000 / 13), `Incentive` (৳800,000 / 7).
 - **Earnings `Reference`** = `Rem` (remittance — foreign income via official banking channel) or
   `Non-rem`. Modeled as enum `RemittanceType { REM, NON_REM }`.
 - **Employees:** John Doe (৳1,420,000 / 44), Jane Smith (৳1,180,000 / 11),
   Robert Johnson (৳960,000 / 14), Emily Davis (৳540,000 / 5).
-- **Employee payment `Reference`** = funding client/source (savannah, Christopher, Michael, David…) —
+- **Employee payment `Reference`** = funding client/source (Sarah, Christopherer, Michael, David…) —
   free text, kept as `reference` string.
 - **Expense categories (config):** AI Tool Subscription, Software License, Hardware,
   Office/Electricity, Social.
@@ -125,7 +125,7 @@ model EmployeePayment {
   employeeId String
   employee   Employee    @relation(fields: [employeeId], references: [id])
   type       PaymentKind @default(SALARY)
-  reference  String?                             // funding client e.g. "savannah"
+  reference  String?                             // funding client e.g. "Sarah"
   amount     Decimal     @db.Decimal(12, 2)      // BDT
   fiscalYear String
   notes      String?
@@ -231,7 +231,7 @@ Decisions: **Subscription entity + monthly auto-charge**; **confirm dialog on de
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 8     | Reusable `ConfirmDialog` (themed) replacing `window.confirm`; **default every list page to the current fiscal year** (switch to past years / All)                                                                                                                        | ✅ done (2026-06-13) — `src/components/admin/ConfirmDialog.tsx`; earnings/payments/expenses/settings all default to current FY + themed delete confirm                                                                                                   |
 | 9     | `Subscription` model + migration; monthly auto-charge generation (idempotent, like property rent); APIs; Subscriptions page — start, **stop from a month**, per-month spend history, start date + Active/Ended status; generated charges flow into reports automatically | ✅ done (2026-06-13) — migration `20260613100000_add_subscriptions`; `services/finance/subscriptions.ts`; `/admin/finance/subscriptions` page; generation also runs on expenses/dashboard reads; verified create→4 charges, stop, resume, delete cascade |
-| 10    | Dashboard **date-range filter** — This month / Last 3 / Last 6 / Last 1yr / Last 2yr / This FY (default) / All                                                                                                                                                           | ✅ done (2026-06-13) — `getFinanceDashboard({from,to})`; verified June-2026=৳0, FY=৳9,750,000, All=৳29,350,000                                                                                                                                          |
+| 10    | Dashboard **date-range filter** — This month / Last 3 / Last 6 / Last 1yr / Last 2yr / This FY (default) / All                                                                                                                                                           | ✅ done (2026-06-13) — `getFinanceDashboard({from,to})`; verified June-2026=৳0, FY=৳9,750,000, All=৳29,350,000                                                                                                                                           |
 | 11    | **PDF downloads** — per-row salary receipt, earning receipt, expense receipt + dashboard report PDF (`@react-pdf/renderer`, mirrors property receipt route)                                                                                                              | ✅ done (2026-06-13) — `services/finance/pdfKit.tsx` + 4 routes; per-row Download buttons; report PDF honors the active date range. BDT rendered as "BDT n" (standard fonts lack ৳)                                                                      |
 | 12    | Verify (build/lint/typecheck + reconcile); update this doc + PROJECT_PLANNING                                                                                                                                                                                            | ✅ done (2026-06-13) — build/lint/tsc clean; authenticated HTTP smoke tests for ranges, PDFs, and full subscription lifecycle all pass                                                                                                                   |
 
@@ -312,10 +312,10 @@ base. Routes: `POST /subscriptions/[id]/rate-changes`, `DELETE …/rate-changes/
 | Total income, all FYs      | ৳29,350,000           |
 | FY 2023-2024 income        | ৳9,200,000            |
 | FY 2024-2025 income        | ৳10,400,000           |
-| FY 2025-2026 income        | ৳9,750,000           |
-| MapX total                 | ৳22,800,000 (92 rows) |
-| John total paid          | ৳1,420,000 (44 rows)  |
-| Jane total paid        | ৳1,180,000 (11 rows)  |
+| FY 2025-2026 income        | ৳9,750,000            |
+| Acme Corp total            | ৳22,800,000 (92 rows) |
+| John total paid            | ৳1,420,000 (44 rows)  |
+| Jane total paid            | ৳1,180,000 (11 rows)  |
 | Earnings row count         | 136                   |
 | Employee payment row count | 74                    |
 

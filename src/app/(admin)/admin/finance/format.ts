@@ -3,12 +3,12 @@
 
 import { fiscalYearRange } from "@/lib/fiscalYear";
 
-/** Full currency: ৳3,73,57,719 */
+/** Full currency: ৳12,34,567 */
 export function fmt(n: number): string {
   return `৳${Math.round(n).toLocaleString("en-IN")}`;
 }
 
-/** Compact currency for chart axes / tight cells: ৳3.7Cr, ৳1.2L, ৳5k */
+/** Compact currency for chart axes / tight cells: ৳1.2Cr, ৳3.4L, ৳5k */
 export function fmtShort(n: number): string {
   const abs = Math.abs(n);
   if (abs >= 1e7) return `৳${(n / 1e7).toFixed(2)}Cr`;

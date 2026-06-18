@@ -221,7 +221,7 @@ business by ledger `date`, property by `month`/`year`.)
 
 > **Good "AI question" examples these answer:** "What was my net profit last fiscal year?",
 > "How much have I paid Jane in total?", "Which tenants are overdue this month?",
-> "What's my monthly subscription run-rate?", "List income from MapX this year."
+> "What's my monthly subscription run-rate?", "List income from Acme Corp this year."
 
 ---
 

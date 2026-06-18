@@ -296,10 +296,12 @@ async function main() {
               effectiveDate: new Date("2026-07-01"),
               previousRent: 9000,
               newRent: 9500,
-              reason: "Annual rent increase (per Excel notes)",
+              reason: "Annual rent increase",
             },
           });
-          console.log("  ✓ Rent change seeded for T05 Charles Taylor (৳9,000 → ৳9,500 from Jul 1, 2026)");
+          console.log(
+            "  ✓ Rent change seeded for T05 Charles Taylor (৳9,000 → ৳9,500 from Jul 1, 2026)"
+          );
         }
       }
 
@@ -409,7 +411,7 @@ async function main() {
         },
       ];
 
-      // Remove stale payments not present in the Excel source
+      // Remove stale payments not present in the seed source
       for (const { tenantCode, month, year } of [
         { tenantCode: "T02", month: 3, year: 2026 },
         { tenantCode: "T03", month: 3, year: 2026 },
@@ -457,7 +459,7 @@ async function main() {
               type: TransactionType.CASH,
               amount: p.amountPaid,
               date: p.paidDate,
-              notes: "Migrated from Excel",
+              notes: "Seed data",
             },
           });
         }
@@ -474,7 +476,12 @@ async function main() {
 
       for (const e of expenseHistory) {
         const existing = await tx.expense.findFirst({
-          where: { month: e.month, year: e.year, paidTo: "Mr. Walker", category: ExpenseCategory.SALARY },
+          where: {
+            month: e.month,
+            year: e.year,
+            paidTo: "Mr. Walker",
+            category: ExpenseCategory.SALARY,
+          },
         });
         if (!existing) {
           await tx.expense.create({
@@ -501,8 +508,10 @@ async function main() {
   console.log("\n✅ Seed complete.");
   console.log("   7 active tenants (T01–T07) | 1 inactive former tenant (T00 Mary Wilson)");
   console.log("   9 payment records | 3 expense records | 1 pending rent change (T05)");
-  console.log("   Note: Mary Wilson (T00) Mar+Apr payments show amountPaid=৳7,000 vs rentDue=৳8,500");
-  console.log("         — matches Excel source; correct via UI if needed");
+  console.log(
+    "   Note: Mary Wilson (T00) Mar+Apr payments show amountPaid=৳7,000 vs rentDue=৳8,500"
+  );
+  console.log("         — demo seed data");
 }
 
 main()
