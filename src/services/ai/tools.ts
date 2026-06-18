@@ -38,6 +38,7 @@ import {
   getTenantStatement,
 } from "@/services/property";
 import { PERIOD_TOKENS } from "@/services/_shared/dateRange";
+import { writeToolDefs, isWriteTool, previewWrite } from "./writeTools";
 import type { AiToolDef, RunTool } from "./types";
 
 const obj = (properties: Record<string, unknown>) => ({ type: "object", properties });
@@ -58,7 +59,8 @@ const RANGE = {
   to: { type: "string", description: "Explicit end date ISO yyyy-mm-dd (overrides period)" },
 };
 
-export const AI_TOOLS: AiToolDef[] = [
+// Read tools: execute immediately and return data to the model.
+const READ_TOOLS: AiToolDef[] = [
   // ── Financial Tracker — lists & dashboard ──
   {
     name: "get_finance_summary",
@@ -287,6 +289,13 @@ export const AI_TOOLS: AiToolDef[] = [
   },
 ];
 
+// Full catalog handed to the model: read tools (immediate) + write tools
+// (previewed in-stream, then committed only on explicit user approval).
+export const AI_TOOLS: AiToolDef[] = [
+  ...READ_TOOLS.map((t): AiToolDef => ({ ...t, kind: "read" })),
+  ...writeToolDefs,
+];
+
 type ToolInput = Record<string, unknown>;
 const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
 const num = (v: unknown): number | undefined => (typeof v === "number" ? v : undefined);
@@ -358,6 +367,10 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
 };
 
 export const runAiTool: RunTool = (name, input) => {
+  // Write tools never execute here — they are validated and previewed only.
+  // The actual mutation happens via the execute endpoint after user approval.
+  if (isWriteTool(name)) return previewWrite(name, input);
+
   const handler = handlers[name];
   if (!handler) throw new Error(`Unknown tool: ${name}`);
   return handler((input ?? {}) as ToolInput);

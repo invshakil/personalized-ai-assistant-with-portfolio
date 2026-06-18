@@ -19,6 +19,33 @@ export interface AiToolDef {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
+  /**
+   * "read" tools execute immediately and return data to the model.
+   * "write" tools never execute during a turn — they are previewed and surfaced
+   * to the UI as a {@link PendingAction} the user must approve. Defaults to "read".
+   */
+  kind?: "read" | "write";
+}
+
+/**
+ * A write the model has proposed but NOT performed. The server emits one per
+ * write-tool call; the UI renders an approve/cancel card and only commits it via
+ * the execute endpoint once the user approves. `input` is the model's raw,
+ * untrusted tool input — the commit path re-validates it through the service.
+ */
+export interface PendingAction {
+  id: string;
+  tool: string;
+  input: Record<string, unknown>;
+  summary: string;
+}
+
+/** Result of committing an approved {@link PendingAction} via the execute endpoint. */
+export interface CommitResult {
+  /** Past-tense confirmation, e.g. "Created tenant Shamim (T07)." */
+  summary: string;
+  /** The serialized entity the service returned. */
+  data: unknown;
 }
 
 /** Token usage accumulated over a turn (summed across tool-loop rounds). */
@@ -33,6 +60,7 @@ export interface UsageTotals {
 export type StreamEvent =
   | { type: "text"; text: string }
   | { type: "tool"; name: string }
+  | { type: "pending_action"; action: PendingAction }
   | { type: "usage"; usage: UsageTotals }
   | { type: "error"; message: string };
 
