@@ -74,7 +74,7 @@ Two distinct surfaces:
 - Layouts: `layout.tsx` (Next.js convention)
 - API routes: `route.ts` (Next.js convention)
 - Lib utilities: `camelCase.ts` — e.g. `auth.ts`, `db.ts`, `adminTheme.ts`
-- Types: `PascalCase` interfaces/types in `src/types/index.ts`
+- Types: `PascalCase` interfaces/types in `src/types/` per-module files (`property.ts`, `finance.ts`, `admin.ts`, `portfolio.ts`), re-exported via the `index.ts` barrel — always import from `@/types`
 
 ### File locations
 
@@ -91,7 +91,7 @@ src/components/shared/            ← layout components shared across portfolio 
 src/lib/auth.ts                   ← NextAuth config — do not restructure
 src/lib/db.ts                     ← Prisma singleton — do not create new instances
 src/lib/adminTheme.ts             ← MUI dark theme (Materio-inspired) — edit here for admin colours
-src/types/index.ts                ← all shared TypeScript types
+src/types/                        ← shared TypeScript types, per module (property/finance/admin/portfolio.ts) + index.ts barrel
 prisma/schema.prisma              ← single source of truth for DB schema
 ```
 
