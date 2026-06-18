@@ -10,6 +10,16 @@ import type { ChatSessionSummary } from "@/services/ai/types";
 import type { Message, PendingActionState } from "./types";
 import ConversationList from "./ConversationList";
 
+// A leading `/property` or `/finance` scopes the assistant to that module's
+// tools for the turn. We parse it client-side, send the scope to the backend,
+// and strip the command so the model never sees it.
+const SCOPE_RE = /^\/(property|finance)\b\s*/i;
+
+function parseScope(text: string): "property" | "finance" | "all" {
+  const m = text.match(SCOPE_RE);
+  return m ? (m[1].toLowerCase() as "property" | "finance") : "all";
+}
+
 export default function AiAssistantPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -100,11 +110,17 @@ export default function AiAssistantPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         // System lines are client-only approval receipts — never sent to the model.
+        // Scope is taken from the latest user message; the `/property|/finance`
+        // command is stripped from every user turn so the model only sees intent.
         body: JSON.stringify({
           sessionId: sid,
+          scope: parseScope(text),
           messages: updatedMessages
             .filter((m) => m.role !== "system")
-            .map(({ role, content }) => ({ role, content })),
+            .map(({ role, content }) => ({
+              role,
+              content: role === "user" ? content.replace(SCOPE_RE, "") : content,
+            })),
         }),
       });
 
@@ -338,6 +354,10 @@ export default function AiAssistantPage() {
                 </Avatar>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
                   Ask me anything — about your properties, finances, or anything else.
+                </Typography>
+                <Typography variant="caption" color="text.disabled" sx={{ mb: 0.25 }}>
+                  Start with <strong>/property</strong> or <strong>/finance</strong> to focus the
+                  assistant on one module.
                 </Typography>
                 <Typography variant="caption" color="text.disabled">
                   Shift+Enter for new line · Enter to send
