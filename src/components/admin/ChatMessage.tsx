@@ -1,6 +1,8 @@
 import { Box, Typography, Avatar } from "@mui/material";
 import { Sparkles } from "lucide-react";
 import Markdown from "@/components/admin/Markdown";
+import PendingActionCard from "@/components/admin/PendingActionCard";
+import type { PendingActionState } from "@/app/(admin)/admin/ai-assistant/types";
 
 interface MessageUsage {
   inputTokens: number;
@@ -16,6 +18,10 @@ interface ChatMessageProps {
   isStreaming?: boolean;
   usage?: MessageUsage;
   tools?: string[];
+  pendingActions?: PendingActionState[];
+  actionsDisabled?: boolean;
+  onApproveAction?: (id: string) => void;
+  onCancelAction?: (id: string) => void;
 }
 
 export default function ChatMessage({
@@ -24,6 +30,10 @@ export default function ChatMessage({
   isStreaming,
   usage,
   tools,
+  pendingActions,
+  actionsDisabled,
+  onApproveAction,
+  onCancelAction,
 }: ChatMessageProps) {
   const isUser = role === "user";
 
@@ -120,6 +130,15 @@ export default function ChatMessage({
                 }}
               />
             )}
+            {pendingActions?.map((action) => (
+              <PendingActionCard
+                key={action.id}
+                action={action}
+                disabled={actionsDisabled}
+                onApprove={(id) => onApproveAction?.(id)}
+                onCancel={(id) => onCancelAction?.(id)}
+              />
+            ))}
             {!isStreaming && usage && (
               <Box
                 sx={{
@@ -139,9 +158,21 @@ export default function ChatMessage({
                     letterSpacing: "0.015em",
                   }}
                 >
-                  in {usage.inputTokens.toLocaleString()} · out{" "}
-                  {usage.outputTokens.toLocaleString()} · Σ{" "}
-                  {(usage.inputTokens + usage.outputTokens).toLocaleString()} tokens · ≈ $
+                  in {usage.inputTokens.toLocaleString()} ·{" "}
+                  {usage.cacheReadTokens + usage.cacheCreateTokens > 0 && (
+                    <>
+                      cached {(usage.cacheReadTokens + usage.cacheCreateTokens).toLocaleString()}{" "}
+                      ·{" "}
+                    </>
+                  )}
+                  out {usage.outputTokens.toLocaleString()} · Σ{" "}
+                  {(
+                    usage.inputTokens +
+                    usage.cacheReadTokens +
+                    usage.cacheCreateTokens +
+                    usage.outputTokens
+                  ).toLocaleString()}{" "}
+                  tokens · ≈ $
                   {usage.cost < 0.0001
                     ? usage.cost.toFixed(6)
                     : usage.cost < 0.001

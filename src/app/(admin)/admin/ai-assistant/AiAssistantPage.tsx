@@ -7,7 +7,7 @@ import ChatMessage from "@/components/admin/ChatMessage";
 import PageHeader from "@/components/admin/PageHeader";
 import { aiApi } from "@/lib/api/ai";
 import type { ChatSessionSummary } from "@/services/ai/types";
-import type { Message } from "./types";
+import type { Message, PendingActionState } from "./types";
 import ConversationList from "./ConversationList";
 
 export default function AiAssistantPage() {
@@ -99,7 +99,13 @@ export default function AiAssistantPage() {
       const res = await fetch("/api/admin/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId: sid, messages: updatedMessages }),
+        // System lines are client-only approval receipts — never sent to the model.
+        body: JSON.stringify({
+          sessionId: sid,
+          messages: updatedMessages
+            .filter((m) => m.role !== "system")
+            .map(({ role, content }) => ({ role, content })),
+        }),
       });
 
       if (!res.ok || !res.body) {
@@ -133,6 +139,12 @@ export default function AiAssistantPage() {
               text?: string;
               name?: string;
               message?: string;
+              action?: {
+                id: string;
+                tool: string;
+                input: Record<string, unknown>;
+                summary: string;
+              };
               inputTokens?: number;
               outputTokens?: number;
               cacheReadTokens?: number;
@@ -155,6 +167,17 @@ export default function AiAssistantPage() {
                 updated[updated.length - 1] = {
                   ...last,
                   tools: [...(last.tools ?? []), ev.name!],
+                };
+                return updated;
+              });
+            } else if (ev.type === "pending_action" && ev.action) {
+              const action: PendingActionState = { ...ev.action, status: "pending" };
+              setMessages((prev) => {
+                const updated = [...prev];
+                const last = updated[updated.length - 1];
+                updated[updated.length - 1] = {
+                  ...last,
+                  pendingActions: [...(last.pendingActions ?? []), action],
                 };
                 return updated;
               });
@@ -202,6 +225,40 @@ export default function AiAssistantPage() {
       checkBudget();
     }
   };
+
+  const patchAction = (msgIndex: number, actionId: string, patch: Partial<PendingActionState>) =>
+    setMessages((prev) =>
+      prev.map((m, i) =>
+        i !== msgIndex
+          ? m
+          : {
+              ...m,
+              pendingActions: m.pendingActions?.map((a) =>
+                a.id === actionId ? { ...a, ...patch } : a
+              ),
+            }
+      )
+    );
+
+  const approveAction = async (msgIndex: number, actionId: string) => {
+    const action = messages[msgIndex]?.pendingActions?.find((a) => a.id === actionId);
+    if (!action || action.status === "committing" || action.status === "done") return;
+
+    patchAction(msgIndex, actionId, { status: "committing", error: undefined });
+    try {
+      const res = await aiApi.executeAction(action.tool, action.input);
+      patchAction(msgIndex, actionId, { status: "done", resultSummary: res.summary });
+      setMessages((prev) => [...prev, { role: "system", content: res.summary }]);
+    } catch (e) {
+      patchAction(msgIndex, actionId, {
+        status: "error",
+        error: e instanceof Error ? e.message : "Failed to perform the action.",
+      });
+    }
+  };
+
+  const cancelAction = (msgIndex: number, actionId: string) =>
+    patchAction(msgIndex, actionId, { status: "cancelled" });
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -288,16 +345,38 @@ export default function AiAssistantPage() {
               </Box>
             )}
 
-            {messages.map((msg, i) => (
-              <ChatMessage
-                key={i}
-                role={msg.role}
-                content={msg.content}
-                usage={msg.usage}
-                tools={msg.tools}
-                isStreaming={isStreaming && i === messages.length - 1 && msg.role === "assistant"}
-              />
-            ))}
+            {messages.map((msg, i) =>
+              msg.role === "system" ? (
+                <Box key={i} sx={{ display: "flex", justifyContent: "center", my: 0.5 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "success.main",
+                      bgcolor: "rgba(40,199,111,0.08)",
+                      border: "1px solid rgba(40,199,111,0.25)",
+                      px: 1.5,
+                      py: 0.5,
+                      borderRadius: "999px",
+                    }}
+                  >
+                    ✓ {msg.content}
+                  </Typography>
+                </Box>
+              ) : (
+                <ChatMessage
+                  key={i}
+                  role={msg.role}
+                  content={msg.content}
+                  usage={msg.usage}
+                  tools={msg.tools}
+                  pendingActions={msg.pendingActions}
+                  actionsDisabled={isStreaming}
+                  onApproveAction={(id) => approveAction(i, id)}
+                  onCancelAction={(id) => cancelAction(i, id)}
+                  isStreaming={isStreaming && i === messages.length - 1 && msg.role === "assistant"}
+                />
+              )
+            )}
             <div ref={messagesEndRef} />
           </Box>
 
