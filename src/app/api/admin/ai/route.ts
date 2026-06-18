@@ -1,9 +1,9 @@
 import { auth } from "@/lib/auth";
 import { getActiveProvider } from "@/services/ai/registry";
-import { AI_TOOLS, runAiTool } from "@/services/ai/tools";
+import { getToolsForScope, runAiTool } from "@/services/ai/tools";
 import { appendTurn } from "@/services/ai/sessions";
 import { isOverBudget, recordUsage } from "@/services/ai/usage";
-import type { AiProviderId, ChatMessage, UsageTotals } from "@/services/ai/types";
+import type { AiProviderId, ChatMessage, ToolScope, UsageTotals } from "@/services/ai/types";
 
 // Published Anthropic rates per 1M tokens (USD). Defaults to Sonnet for unknown models.
 function estimateCost(model: string, u: UsageTotals): number {
@@ -41,13 +41,18 @@ export async function POST(req: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { messages, sessionId } = (await req.json()) as {
+  const { messages, sessionId, scope } = (await req.json()) as {
     messages: ChatMessage[];
     sessionId?: string;
+    scope?: ToolScope;
   };
   if (!messages || !Array.isArray(messages)) {
     return Response.json({ error: "messages array is required" }, { status: 400 });
   }
+
+  // Hand the model only the requested module's tools (plus shared). Unknown
+  // values fall back to the full catalog so a bad scope never loses capability.
+  const toolScope: ToolScope = scope === "property" || scope === "finance" ? scope : "all";
 
   // Block new turns once this month's spend has hit the budget.
   if (await isOverBudget()) {
@@ -86,7 +91,7 @@ export async function POST(req: Request) {
           model: active.model,
           system,
           messages,
-          tools: AI_TOOLS,
+          tools: getToolsForScope(toolScope),
           runTool: runAiTool,
         })) {
           if (ev.type === "text") {
