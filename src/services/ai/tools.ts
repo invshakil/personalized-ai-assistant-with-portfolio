@@ -302,7 +302,7 @@ const READ_TOOLS: AiToolDef[] = [
 
 // Full catalog handed to the model: read tools (immediate) + write tools
 // (previewed in-stream, then committed only on explicit user approval). Write
-// tool defs already carry their kind + domain (see writeTools.ts).
+// tool defs already carry their kind + domain (see writeTools/).
 export const AI_TOOLS: AiToolDef[] = [...READ_TOOLS, ...writeToolDefs];
 
 // ── Tool scoping (manual `/property`, `/finance`) ──────────────────────────────
