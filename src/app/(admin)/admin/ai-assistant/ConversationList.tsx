@@ -20,6 +20,9 @@ interface ConversationListProps {
   onNew: () => void;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  /** When true, fills its parent (for the mobile Drawer) instead of the
+   *  fixed-width desktop sidebar that hides itself on small screens. */
+  inDrawer?: boolean;
 }
 
 export default function ConversationList({
@@ -29,17 +32,19 @@ export default function ConversationList({
   onNew,
   onSelect,
   onDelete,
+  inDrawer = false,
 }: ConversationListProps) {
   return (
     <Box
       sx={{
-        width: 240,
+        width: inDrawer ? 260 : 240,
         flexShrink: 0,
-        display: { xs: "none", sm: "flex" },
+        display: inDrawer ? "flex" : { xs: "none", sm: "flex" },
         flexDirection: "column",
-        borderRight: "1px solid",
+        borderRight: inDrawer ? "none" : "1px solid",
         borderColor: "divider",
         minHeight: 0,
+        height: inDrawer ? "100%" : undefined,
       }}
     >
       <Box sx={{ p: 1.5 }}>

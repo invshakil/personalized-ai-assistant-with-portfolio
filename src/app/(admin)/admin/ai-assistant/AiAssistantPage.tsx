@@ -1,14 +1,36 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback } from "react";
-import { Sparkles, Send } from "lucide-react";
-import { Box, Card, Typography, TextField, Button, Avatar, Alert } from "@mui/material";
+import { useRef, useState, useEffect, useCallback, useMemo } from "react";
+import { Sparkles, Send, History } from "lucide-react";
+import {
+  Box,
+  Card,
+  Typography,
+  TextField,
+  Button,
+  Avatar,
+  Alert,
+  Drawer,
+  IconButton,
+  Popper,
+  Paper,
+  MenuList,
+  MenuItem,
+  ListItemText,
+  ClickAwayListener,
+} from "@mui/material";
 import ChatMessage from "@/components/admin/ChatMessage";
 import PageHeader from "@/components/admin/PageHeader";
 import { aiApi } from "@/lib/api/ai";
 import type { ChatSessionSummary } from "@/services/ai/types";
 import type { Message, PendingActionState } from "./types";
 import ConversationList from "./ConversationList";
+import { SLASH_COMMANDS, SLASH_TYPING_RE } from "./commands";
+
+// Warn once the running input-token total for a thread crosses this. Message
+// history is re-sent uncached every turn, so cost grows with thread length —
+// starting a new chat resets it to zero.
+const LONG_THREAD_TOKENS = 60_000;
 
 // A leading `/property` or `/finance` scopes the assistant to that module's
 // tools for the turn. We parse it client-side, send the scope to the backend,
@@ -27,7 +49,30 @@ export default function AiAssistantPage() {
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [slashIndex, setSlashIndex] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // State (not a ref) so the slash-menu Popper can anchor to it and read its
+  // width during render without tripping the refs-in-render rule.
+  const [inputWrapEl, setInputWrapEl] = useState<HTMLDivElement | null>(null);
+
+  // Commands matching what's currently typed (the menu shows while the first
+  // token is a bare "/word" with no space yet).
+  const slashMatches = useMemo(() => {
+    const m = input.match(SLASH_TYPING_RE);
+    if (!m) return [];
+    const partial = `/${m[1].toLowerCase()}`;
+    return SLASH_COMMANDS.filter((c) => c.cmd.startsWith(partial));
+  }, [input]);
+  const slashOpen = slashMatches.length > 0 && !isStreaming && !blocked;
+
+  // Running input-token total across the thread (excludes cached reads, which
+  // are cheap). Used only to nudge toward a fresh chat on long threads.
+  const threadInputTokens = useMemo(
+    () => messages.reduce((sum, m) => sum + (m.usage?.inputTokens ?? 0), 0),
+    [messages]
+  );
+  const threadIsLong = threadInputTokens >= LONG_THREAD_TOKENS;
 
   const refreshSessions = useCallback(async () => {
     try {
@@ -54,14 +99,21 @@ export default function AiAssistantPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Keep the highlighted command in range as the filtered list narrows.
+  useEffect(() => {
+    setSlashIndex((i) => (i >= slashMatches.length ? 0 : i));
+  }, [slashMatches.length]);
+
   const newChat = () => {
     if (isStreaming) return;
     setCurrentSessionId(null);
     setMessages([]);
     setInput("");
+    setHistoryOpen(false);
   };
 
   const loadSession = async (id: string) => {
+    setHistoryOpen(false);
     if (isStreaming || id === currentSessionId) return;
     try {
       const detail = await aiApi.getSession(id);
@@ -70,6 +122,13 @@ export default function AiAssistantPage() {
     } catch {
       /* ignore — likely deleted elsewhere */
     }
+  };
+
+  // Insert a chosen slash command into the input (with a trailing space so the
+  // user types their question right after it) and dismiss the menu.
+  const applySlashCommand = (cmd: string) => {
+    setInput(input.replace(SLASH_TYPING_RE, `${cmd} `));
+    setSlashIndex(0);
   };
 
   const deleteSession = async (id: string) => {
@@ -277,6 +336,29 @@ export default function AiAssistantPage() {
     patchAction(msgIndex, actionId, { status: "cancelled" });
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // While the slash menu is open, arrows/Enter/Tab drive the menu, not send.
+    if (slashOpen) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSlashIndex((i) => (i + 1) % slashMatches.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashIndex((i) => (i - 1 + slashMatches.length) % slashMatches.length);
+        return;
+      }
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        applySlashCommand(slashMatches[slashIndex].cmd);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setInput("");
+        return;
+      }
+    }
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -316,6 +398,37 @@ export default function AiAssistantPage() {
 
         {/* Chat column */}
         <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0 }}>
+          {/* Mobile-only bar: the desktop sidebar (history + New chat) is hidden
+              on xs, so surface it through a drawer trigger here. */}
+          <Box
+            sx={{
+              display: { xs: "flex", sm: "none" },
+              alignItems: "center",
+              gap: 1,
+              px: 1.5,
+              py: 1,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <IconButton
+              size="small"
+              aria-label="Conversation history"
+              onClick={() => setHistoryOpen(true)}
+              sx={{ color: "text.secondary" }}
+            >
+              <History size={18} />
+            </IconButton>
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ flex: 1 }}>
+              {currentSessionId
+                ? (sessions.find((s) => s.id === currentSessionId)?.title ?? "Conversation")
+                : "New chat"}
+            </Typography>
+            <Button size="small" onClick={newChat} disabled={isStreaming} sx={{ minWidth: 0 }}>
+              New
+            </Button>
+          </Box>
+
           <Box
             sx={{
               flex: 1,
@@ -400,8 +513,29 @@ export default function AiAssistantPage() {
             <div ref={messagesEndRef} />
           </Box>
 
+          {/* Long-thread nudge: history is re-sent uncached each turn, so a
+              fresh chat is the cheapest way to cut per-turn cost. */}
+          {threadIsLong && !blocked && (
+            <Box sx={{ px: 2, pt: 1 }}>
+              <Alert
+                severity="info"
+                variant="outlined"
+                sx={{ py: 0, "& .MuiAlert-message": { py: 0.75 } }}
+                action={
+                  <Button color="inherit" size="small" onClick={newChat} disabled={isStreaming}>
+                    New chat
+                  </Button>
+                }
+              >
+                This chat is getting long (~{Math.round(threadInputTokens / 1000)}k tokens re-sent
+                each turn). Start a new chat to lower cost.
+              </Alert>
+            </Box>
+          )}
+
           {/* Input row */}
           <Box
+            ref={setInputWrapEl}
             sx={{
               p: 2,
               borderTop: "1px solid",
@@ -420,7 +554,9 @@ export default function AiAssistantPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={blocked ? "AI budget reached — chat paused" : "Ask a question…"}
+              placeholder={
+                blocked ? "AI budget reached — chat paused" : "Ask a question…  (/ for commands)"
+              }
               disabled={isStreaming || blocked}
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
             />
@@ -433,8 +569,74 @@ export default function AiAssistantPage() {
               <Send size={18} />
             </Button>
           </Box>
+
+          {/* Slash-command autocomplete, anchored above the input row. */}
+          <Popper
+            open={slashOpen}
+            anchorEl={inputWrapEl}
+            placement="top-start"
+            style={{ zIndex: 1300, width: inputWrapEl?.clientWidth }}
+          >
+            <ClickAwayListener onClickAway={() => setSlashIndex(0)}>
+              <Paper
+                elevation={6}
+                sx={{
+                  mx: 2,
+                  mb: 0.5,
+                  borderRadius: 2,
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                <Box sx={{ px: 1.5, py: 0.75 }}>
+                  <Typography variant="caption" color="text.secondary">
+                    Commands — focus the assistant on one module
+                  </Typography>
+                </Box>
+                <MenuList dense disablePadding sx={{ pb: 0.5 }}>
+                  {slashMatches.map((c, i) => (
+                    <MenuItem
+                      key={c.cmd}
+                      selected={i === slashIndex}
+                      onMouseEnter={() => setSlashIndex(i)}
+                      onClick={() => applySlashCommand(c.cmd)}
+                      sx={{ borderRadius: 1, mx: 0.5 }}
+                    >
+                      <ListItemText
+                        primary={c.cmd}
+                        secondary={c.desc}
+                        slotProps={{
+                          primary: { style: { fontWeight: 600, fontSize: "0.8125rem" } },
+                          secondary: { style: { fontSize: "0.75rem" } },
+                        }}
+                      />
+                    </MenuItem>
+                  ))}
+                </MenuList>
+              </Paper>
+            </ClickAwayListener>
+          </Popper>
         </Box>
       </Card>
+
+      {/* Mobile conversation history drawer */}
+      <Drawer
+        anchor="left"
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        sx={{ display: { xs: "block", sm: "none" } }}
+        slotProps={{ paper: { sx: { bgcolor: "background.paper" } } }}
+      >
+        <ConversationList
+          inDrawer
+          sessions={sessions}
+          currentId={currentSessionId}
+          disabled={isStreaming}
+          onNew={newChat}
+          onSelect={loadSession}
+          onDelete={deleteSession}
+        />
+      </Drawer>
     </Box>
   );
 }
