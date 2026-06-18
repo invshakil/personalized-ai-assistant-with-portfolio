@@ -1416,19 +1416,23 @@ const financeTools: WriteToolDef[] = [
 
 // ─── Registry ────────────────────────────────────────────────────────────────────
 
-export const WRITE_TOOLS: WriteToolDef[] = [...propertyTools, ...financeTools];
+export const WRITE_TOOLS: WriteToolDef[] = [
+  ...propertyTools.map((t): WriteToolDef => ({ ...t, domain: "property" })),
+  ...financeTools.map((t): WriteToolDef => ({ ...t, domain: "finance" })),
+];
 
 const byName = new Map(WRITE_TOOLS.map((t) => [t.name, t]));
 
 export const isWriteTool = (name: string): boolean => byName.has(name);
 
-/** Tool defs (name/description/parameters/kind) for the model catalog. */
+/** Tool defs (name/description/parameters/kind/domain) for the model catalog. */
 export const writeToolDefs: AiToolDef[] = WRITE_TOOLS.map(
-  ({ name, description, parameters, kind }) => ({
+  ({ name, description, parameters, kind, domain }) => ({
     name,
     description,
     parameters,
     kind,
+    domain,
   })
 );
 

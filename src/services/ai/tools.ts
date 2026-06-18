@@ -39,7 +39,7 @@ import {
 } from "@/services/property";
 import { PERIOD_TOKENS } from "@/services/_shared/dateRange";
 import { writeToolDefs, isWriteTool, previewWrite } from "./writeTools";
-import type { AiToolDef, RunTool } from "./types";
+import type { AiToolDef, RunTool, ToolScope } from "./types";
 
 const obj = (properties: Record<string, unknown>) => ({ type: "object", properties });
 
@@ -60,7 +60,7 @@ const RANGE = {
 };
 
 // Read tools: execute immediately and return data to the model.
-const READ_TOOLS: AiToolDef[] = [
+const financeReadTools: AiToolDef[] = [
   // ── Financial Tracker — lists & dashboard ──
   {
     name: "get_finance_summary",
@@ -157,7 +157,9 @@ const READ_TOOLS: AiToolDef[] = [
       "Fiscal-year-over-year comparison: income, net profit, margin, and year-over-year growth percentages for every fiscal year.",
     parameters: obj({}),
   },
+];
 
+const propertyReadTools: AiToolDef[] = [
   // ── Property — lists & single-month dashboard ──
   {
     name: "get_property_dashboard",
@@ -279,7 +281,9 @@ const READ_TOOLS: AiToolDef[] = [
       ...RANGE,
     }),
   },
+];
 
+const sharedReadTools: AiToolDef[] = [
   // ── Cross-domain ──
   {
     name: "get_combined_income_summary",
@@ -289,12 +293,62 @@ const READ_TOOLS: AiToolDef[] = [
   },
 ];
 
-// Full catalog handed to the model: read tools (immediate) + write tools
-// (previewed in-stream, then committed only on explicit user approval).
-export const AI_TOOLS: AiToolDef[] = [
-  ...READ_TOOLS.map((t): AiToolDef => ({ ...t, kind: "read" })),
-  ...writeToolDefs,
+// Read tools, tagged by module so scope filtering can include the right subset.
+const READ_TOOLS: AiToolDef[] = [
+  ...financeReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "finance" })),
+  ...propertyReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "property" })),
+  ...sharedReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "shared" })),
 ];
+
+// Full catalog handed to the model: read tools (immediate) + write tools
+// (previewed in-stream, then committed only on explicit user approval). Write
+// tool defs already carry their kind + domain (see writeTools.ts).
+export const AI_TOOLS: AiToolDef[] = [...READ_TOOLS, ...writeToolDefs];
+
+// ── Tool scoping (manual `/property`, `/finance`) ──────────────────────────────
+//
+// We hand the model only the tools relevant to the user's chosen module instead
+// of the whole catalog: smaller payload, better tool-selection accuracy, and a
+// stable per-scope prefix that prompt-caches cleanly. "shared" (cross-domain)
+// tools load in every scope. This is the manual-selection tier — see
+// AI_TOOLS_REFERENCE §"Tool selection strategy" for when to graduate to
+// retrieval (option 2/3).
+export function getToolsForScope(scope: ToolScope): AiToolDef[] {
+  if (scope === "all") return AI_TOOLS;
+  return AI_TOOLS.filter((t) => t.domain === scope || t.domain === "shared");
+}
+
+/**
+ * Per-scope tool-count thresholds at which manual scoping stops being the right
+ * strategy. Keep in sync with AI_TOOLS_REFERENCE §"Tool selection strategy".
+ */
+export const TOOL_SCOPE_LIMITS = {
+  /** Approaching the limit — start planning tool retrieval (option 2/3). */
+  warn: 80,
+  /** Past the limit — manual scoping degrades accuracy/cost; migrate to retrieval. */
+  migrate: 120,
+} as const;
+
+// One-time health check: alerts in server/build logs when a single scope grows
+// past what manual selection handles well, so the switch to retrieval isn't
+// missed. Counts the tools the model actually sees in the largest single scope.
+(() => {
+  const sizes = {
+    property: getToolsForScope("property").length,
+    finance: getToolsForScope("finance").length,
+  };
+  const biggest = Math.max(sizes.property, sizes.finance);
+  const detail = `Largest scope=${biggest} tools ${JSON.stringify(sizes)}. See AI_TOOLS_REFERENCE §"Tool selection strategy".`;
+  if (biggest > TOOL_SCOPE_LIMITS.migrate) {
+    console.warn(
+      `[ai/tools] ⚠ Manual scoping is past its limit (>${TOOL_SCOPE_LIMITS.migrate}). Migrate to tool retrieval. ${detail}`
+    );
+  } else if (biggest > TOOL_SCOPE_LIMITS.warn) {
+    console.warn(
+      `[ai/tools] Manual scoping approaching its limit (>${TOOL_SCOPE_LIMITS.warn}). Plan tool retrieval. ${detail}`
+    );
+  }
+})();
 
 type ToolInput = Record<string, unknown>;
 const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
