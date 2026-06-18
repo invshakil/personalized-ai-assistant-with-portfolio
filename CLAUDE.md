@@ -3,7 +3,7 @@
 # CLAUDE.md — sshakil.com
 
 Read this file completely before touching any code.
-Then read **PROJECT_PLANNING.md** for architecture, progress, and what to build next.
+Then read **docs/PROJECT_PLANNING.md** for architecture, progress, and what to build next.
 
 ---
 
@@ -178,7 +178,7 @@ semantic keys and both modes work automatically.
 
 - **Do not** switch the auth provider from credentials to OAuth without explicit instruction
 - **Do not** add new npm packages without checking if something already installed covers it
-- **Do not** modify `prisma/schema.prisma` without updating `PROJECT_PLANNING.md`
+- **Do not** modify `prisma/schema.prisma` without updating `docs/PROJECT_PLANNING.md`
 - **Do not** put secrets or API keys in code — use `process.env.*` and `.env.local`
 - **Do not** add `"use client"` to `layout.tsx` files (exception: `AdminShell.tsx` is a separate client component, not a layout file)
 - **Do not** create new Prisma client instances — always import `{ db }` from `@/lib/db`
@@ -213,5 +213,5 @@ All vars live in `.env.local` (never committed). See `.env.example` for the full
 
 ## Session continuity
 
-**Always read `PROJECT_PLANNING.md` before starting any task.**
+**Always read `docs/PROJECT_PLANNING.md` before starting any task.**
 It contains current implementation status, what's been built, what's next, and all architectural decisions.
