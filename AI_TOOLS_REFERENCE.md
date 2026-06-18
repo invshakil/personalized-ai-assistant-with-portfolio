@@ -225,31 +225,68 @@ business by ledger `date`, property by `month`/`year`.)
 
 ---
 
-## 4. Write / action functions (expose only with a confirmation step)
+## 4. Write / action tools (IMPLEMENTED — propose → approve → commit)
 
-These mutate data. If you expose them as tools, gate them behind an explicit user confirmation in the
-UI (Claude proposes → user approves → you call). Each throws on validation failure (message is safe to show).
+> **Status (2026-06-18): live.** Create + update tools are exposed to the assistant behind an
+> **enforced UI approval gate**. The model can _propose_ a write but **cannot commit it** — the user
+> must click **Approve** on a card. Deletes/deactivations are intentionally **not** exposed (do them
+> from the dashboard UI). Source: [`src/services/ai/writeTools.ts`](src/services/ai/writeTools.ts).
 
-**Finance:** `createEarning` · `updateEarning` · `deleteEarning` · `createEmployeePayment` ·
-`updateEmployeePayment` · `deleteEmployeePayment` (each accepts `clientIds[]`) · `createBizExpense` ·
-`updateBizExpense` · `deleteBizExpense` · `createSubscription` · `updateSubscription` ·
-`stopSubscription(id, endDate?)` · `resumeSubscription(id)` · `deleteSubscription` ·
-`createEmployee`/`updateEmployee`/`deleteEmployee` (employee has `phone`) ·
-`createIncomeSource`/`updateIncomeSource`/`deleteIncomeSource` ·
-`createExpenseCategory`/`updateExpenseCategory`/`deleteExpenseCategory` ·
-`generateSubscriptionCharges()` (idempotent monthly charge generation).
+### How it works (two phases, model out of the loop at commit time)
 
-**Property:** `createUnit`/`updateUnit`/`deleteUnit` · `createTenant`/`updateTenant` ·
-`activateTenant`/`deactivateTenant`/`autoDeactivateExpired` · `settleMoveOut(id, date, settlements)` ·
-`generatePayments(month, year)` · `updatePayment`/`deletePayment` ·
-`addTransaction`/`updateTransaction`/`deleteTransaction` ·
-`createExpense`/`updateExpense`/`deleteExpense` · `createPayee`/`updatePayee`/`deactivatePayee` ·
-`createServiceType`/`updateServiceType`/`deactivateServiceType` ·
-`createService`/`updateService`/`deactivateService`/`assignService`/`updateServiceAssignment`/`endServiceAssignment` ·
-`createRentChange`/`updateRentChange`/`deleteRentChange` · document upload/delete helpers.
+```
+Model calls a write tool (e.g. create_tenant)
+  └─► runAiTool() detects a write tool → previewWrite(): validates input + resolves ids to labels,
+        returns a summary string. NOTHING is mutated.
+      • adapter yields a `pending_action` StreamEvent {id, tool, input, summary}
+      • the tool_result handed back to the model says "awaiting_user_approval — do not claim done"
+  └─► UI renders a PendingActionCard (Approve / Cancel)
+        └─► Approve → POST /api/admin/ai/actions/execute {tool, input}
+              └─► commitWrite() re-validates the SAME untrusted input → calls the real service → saves
+              └─► card flips to ✅ + a system confirmation line is appended to the chat
+```
 
-**Admin:** `updateDisplayName` · `changePassword` · `upsertSiteSettings` ·
-`getBusinessProfile`/`updateBusinessProfile` (PDF letterhead identity).
+Why this shape: the commit is a **plain authenticated HTTP call**, not a model turn — so approving a
+write costs **zero tokens** (no second round-trip re-sending the conversation). The model proposes
+once; the human commits for free. `previewWrite` never mutates; `commitWrite` is the only write path
+and re-runs the service-layer validation (model input stays untrusted end-to-end).
+
+### Key pieces
+
+| Piece           | Location                                                             | Role                                                                                                                |
+| --------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Registry        | `src/services/ai/writeTools.ts`                                      | `WRITE_TOOLS` — each tool's schema + `preview()` + `commit()`; one `write()` factory shares a `parse()` across both |
+| Catalog merge   | `src/services/ai/tools.ts`                                           | `AI_TOOLS = read tools (kind:"read") + writeToolDefs`; `runAiTool` routes write names to `previewWrite`             |
+| Stream event    | `src/services/ai/types.ts`                                           | `AiToolDef.kind`, `PendingAction`, `StreamEvent: pending_action`, `CommitResult`                                    |
+| Adapter         | `src/services/ai/adapters/anthropic.ts`                              | emits `pending_action` for write tools; feeds back an `awaiting_user_approval` tool_result                          |
+| Commit endpoint | `src/app/api/admin/ai/actions/execute/route.ts`                      | auth-gated; `commitWrite(tool, input)`; returns `{data:{summary,data}}`                                             |
+| Client          | `src/lib/api/ai.ts`                                                  | `aiApi.executeAction(tool, input)`                                                                                  |
+| UI              | `src/components/admin/PendingActionCard.tsx` + `AiAssistantPage.tsx` | approve/cancel lifecycle, system confirmation line                                                                  |
+
+### Exposed write tools (create + update only)
+
+**Property** — `create_tenant`/`update_tenant` · `create_unit`/`update_unit` ·
+`record_rent_payment` (→ `addTransaction`) · `update_rent_payment` (→ `updatePayment`) ·
+`generate_rent_payments` (→ `generatePayments`) · `create_property_expense`/`update_property_expense` ·
+`create_rent_change`/`update_rent_change` · `create_payee`/`update_payee` ·
+`create_service`/`update_service`/`assign_service`/`update_service_assignment` ·
+`create_service_type`/`update_service_type`.
+
+**Finance** — `create_earning`/`update_earning` · `create_salary_payment`/`update_salary_payment`
+(→ employee payments, accept `clientIds[]`) · `create_business_expense`/`update_business_expense` ·
+`create_subscription`/`update_subscription` · `add_subscription_rate_change` ·
+`set_subscription_override` · `create_employee`/`update_employee` · `create_client`/`update_client`
+(→ income sources) · `create_expense_category`.
+
+### NOT exposed (use the dashboard UI)
+
+All `delete*` and `deactivate*`/`stop*`/`settle*`/`move-out`/`endServiceAssignment` functions, plus
+binary document upload/delete and admin/system settings (`updateDisplayName`, `changePassword`,
+`updateBusinessProfile`, backup/Drive). The services still exist — they're simply not wired as tools.
+
+> **Known limitation:** pending-action cards live in the in-memory message for the live session.
+> Reloading a past session shows the assistant's text but not the cards/outcomes (turns persist only
+> the assistant text today). Persisting action records + outcomes is a clean future phase.
 
 ---
 
@@ -288,8 +325,9 @@ UI (Claude proposes → user approves → you call). Each throws on validation f
   isolated in a `try/catch` that returns an `is_error` `tool_result` so one failing tool can't break
   the turn. The chat route (`src/app/api/admin/ai/route.ts`) resolves the active provider via
   `getActiveProvider()` and streams text deltas. The read tools wired today are listed in
-  PROJECT_PLANNING → AI Assistant. Write/action tools (§4) remain unexposed — gate them behind a
-  confirmation step before adding.
+  PROJECT_PLANNING → AI Assistant. **Write/action tools (§4) are now wired** behind an enforced
+  propose→approve→commit gate (`writeTools.ts` + `/ai/actions/execute`): the model proposes, the user
+  approves a card, and only then does the service run. Deletes remain UI-only.
 
 ---
 
