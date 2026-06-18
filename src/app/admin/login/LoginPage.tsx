@@ -34,7 +34,12 @@ export default function LoginPage() {
     setError("");
     const result = await signIn("credentials", { email, password, redirect: false });
     if (result?.error) {
-      setError("Invalid email or password.");
+      // Kept generic on purpose (no account enumeration). After repeated
+      // failures the server temporarily locks the account — flagged here so a
+      // legitimate user isn't confused by a correct password being rejected.
+      setError(
+        "Invalid email or password. Repeated failures temporarily lock login for a few minutes."
+      );
       setLoading(false);
     } else {
       router.push("/admin");

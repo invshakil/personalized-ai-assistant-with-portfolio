@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { lockoutRemainingMs, recordFailedLogin, clearLoginAttempts } from "@/lib/loginRateLimit";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -13,16 +14,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
+        const email = credentials.email as string;
 
-        const user = await db.user.findUnique({
-          where: { email: credentials.email as string },
-        });
+        // Brute-force guard: once locked, reject without touching the DB or
+        // bcrypt so repeated guesses cost nothing and can't be timed.
+        if (lockoutRemainingMs(email) > 0) return null;
 
-        if (!user?.password) return null;
+        const user = await db.user.findUnique({ where: { email } });
+        if (!user?.password) {
+          recordFailedLogin(email);
+          return null;
+        }
 
         const valid = await bcrypt.compare(credentials.password as string, user.password);
-        if (!valid) return null;
+        if (!valid) {
+          recordFailedLogin(email);
+          return null;
+        }
 
+        clearLoginAttempts(email);
         return { id: user.id, email: user.email, name: user.name, role: user.role };
       },
     }),
