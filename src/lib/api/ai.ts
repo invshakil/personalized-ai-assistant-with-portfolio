@@ -9,6 +9,7 @@ import type {
   ChatSessionDetail,
   BudgetInput,
   UsageSummary,
+  CommitResult,
 } from "@/services/ai/types";
 
 export interface SaveProviderBody {
@@ -33,6 +34,10 @@ export const aiApi = {
   renameSession: (id: string, title: string) =>
     apiPatch<{ ok: true }>(`/ai/sessions/${id}`, { title }),
   deleteSession: (id: string) => apiDelete<{ ok: true }>(`/ai/sessions/${id}`),
+
+  // Commit a write the assistant proposed and the user approved.
+  executeAction: (tool: string, input: Record<string, unknown>) =>
+    apiPost<CommitResult>("/ai/actions/execute", { tool, input }),
 
   // Budget & usage
   getUsage: () => apiGet<UsageSummary>("/ai/usage"),
