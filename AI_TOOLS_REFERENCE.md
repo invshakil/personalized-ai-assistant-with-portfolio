@@ -400,3 +400,71 @@ the AI Assistant page checks `overBudget` on load, shows a banner, and disables 
 
 > Spend resets implicitly each calendar month (month-to-date is computed from the 1st). To change to a
 > billing-cycle or rolling window, adjust `monthStart()` in `usage.ts`.
+
+---
+
+## 8. Tool selection strategy & when to switch modes
+
+The catalog is handed to the model per turn. **How** that list is built is a deliberate choice that
+scales in three tiers — the right tier is decided by **how many tools the model sees in one request**
+(the largest single scope), because that count drives both **cost** (every tool schema is billed each
+round, cached or not) and, more importantly, **tool-selection accuracy** (models mis-pick as the menu
+grows).
+
+### The three tiers
+
+| Tier                | Largest scope       | Strategy                                                                                                                                                    | Status     |
+| ------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
+| **1. Feed-all**     | up to ~50 tools     | Send the whole catalog every turn (cached). Simplest; no false-negative risk — the model can always see every tool.                                         | superseded |
+| **2. Manual scope** | ~50–`migrate` (120) | `/property` / `/finance` load that module + shared tools only. Smaller payload, better accuracy, cache-friendly per scope. **← current**                    | **active** |
+| **3. Retrieval**    | hundreds–thousands  | A `search_tools` index (semantic / keyword) injects only the top-K relevant tool schemas per query. Required once a single module alone is too big to send. | future     |
+
+**Why per-scope count, not total:** the model only ever sees one scope's worth of tools at a time, so
+that is the number that affects its accuracy and the per-request cost. A 500-tool catalog split into
+ten 50-tool modules is fine under manual scoping; a single 500-tool module is not.
+
+### How manual scope works (tier 2 — implemented)
+
+- Every tool carries a `domain: "property" | "finance" | "shared"` (`AiToolDef.domain`). Read tools are
+  tagged in `tools.ts`; write tools in `writeTools.ts`.
+- `getToolsForScope(scope)` (`tools.ts`) returns `domain === scope || domain === "shared"`; `"all"`
+  returns the full catalog. **Shared (cross-domain) tools load in every scope** so questions like
+  "how am I doing overall" still work.
+- The chat UI parses a leading `/property` or `/finance` from the message, sends `scope` to the chat
+  route, and strips the command so the model only sees intent. Unknown/absent scope → `"all"` (never
+  loses capability).
+- Each scope is a **stable prefix**, so the 1h tool prompt-cache stores one entry per scope and reuses
+  it across all chats in that scope.
+
+**Current footprint** (66 tools total):
+
+| Scope           | Tools | ~Schema tokens | vs full |
+| --------------- | ----- | -------------- | ------- |
+| `all` (default) | 66    | ~9,130         | —       |
+| `/property`     | 37    | ~5,220         | −43%    |
+| `/finance`      | 30    | ~4,140         | −55%    |
+
+### The switch-mode alert (parameters to watch)
+
+`TOOL_SCOPE_LIMITS` in `tools.ts` defines the per-scope thresholds, and a one-time check logs a
+**`console.warn` on server start / build** when the largest single scope crosses them — so the moment
+to graduate to retrieval isn't missed:
+
+| Threshold | Value           | Meaning                                                                              |
+| --------- | --------------- | ------------------------------------------------------------------------------------ |
+| `warn`    | 80 tools/scope  | Manual scoping is **approaching its limit** — start planning tier 3 (retrieval).     |
+| `migrate` | 120 tools/scope | Manual scoping is **past its limit** (accuracy/cost degrade) — migrate to retrieval. |
+
+Today the largest scope is 37 (`/property`), so the alert is silent. When you keep adding write tools
+and a single module's count climbs past 80, the build log will start nagging. Tune the numbers in one
+place (`TOOL_SCOPE_LIMITS`) — keep this table in sync.
+
+### Graduating to tier 3 (retrieval) later
+
+The `domain` tag + `getToolsForScope` seam is the on-ramp: tier 3 only swaps the **selector**, not the
+plumbing. Instead of "user picks `/property`", a `search_tools` step (keyword first, embeddings later)
+returns the top-K matching tool defs, which become the request's `tools` array. Everything downstream
+(`runAiTool`, the write-tool approval flow, caching on the last tool) stays identical. Keep a small
+always-loaded core (the cross-domain tools + the `search_tools` meta-tool itself) and a fallback so the
+model can request more tools when the first selection misses — that converts retrieval's
+false-negative risk into a recoverable one.
