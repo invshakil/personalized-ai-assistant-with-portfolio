@@ -18,7 +18,7 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   image         String?
-  password      String?   // bcrypt hash — null for future OAuth users
+  password      String? // bcrypt hash — null for future OAuth users
   role          Role      @default(ADMIN)
   accounts      Account[]
   sessions      Session[]
@@ -68,14 +68,14 @@ enum Role {
 // ─── Portfolio Settings (admin-editable) ─────────────────────────────────────
 
 model SiteSettings {
-  id                String   @id @default("singleton")
-  availableForWork  Boolean  @default(true)
-  heroTagline       String   @default("Tech Lead & Full-Stack Engineer")
-  heroBio           String   @db.Text
-  metaDescription   String   @db.Text
-  metaKeywords      String   @db.Text
-  cvUrl             String   @default("https://drive.google.com/file/d/15jSzTm3iaj_ghVqgC_t1Wk9bKnsIfGIA/view?usp=sharing")
-  updatedAt         DateTime @updatedAt
+  id               String   @id @default("singleton")
+  availableForWork Boolean  @default(true)
+  heroTagline      String   @default("Tech Lead & Full-Stack Engineer")
+  heroBio          String   @db.Text
+  metaDescription  String   @db.Text
+  metaKeywords     String   @db.Text
+  cvUrl            String   @default("https://drive.google.com/file/d/15jSzTm3iaj_ghVqgC_t1Wk9bKnsIfGIA/view?usp=sharing")
+  updatedAt        DateTime @updatedAt
 }
 
 // Business identity printed on Financial Tracker PDFs (receipts, statements,
@@ -228,8 +228,8 @@ model PropertySettings {
 
 model Unit {
   id          String    @id @default(cuid())
-  unitNumber  String    @unique   // e.g. "Flat 1A", "Flat 2B"
-  floor       String              // e.g. "Ground Floor", "1st Floor"
+  unitNumber  String    @unique // e.g. "Flat 1A", "Flat 2B"
+  floor       String // e.g. "Ground Floor", "1st Floor"
   monthlyRent Decimal   @db.Decimal(10, 2)
   description String?
   isOccupied  Boolean   @default(false)
@@ -248,51 +248,51 @@ enum TenantStatus {
 }
 
 model Tenant {
-  id             String          @id @default(cuid())
-  tenantCode     String?         @unique   // e.g. "T01", "T02"
+  id             String           @id @default(cuid())
+  tenantCode     String?          @unique // e.g. "T01", "T02"
   name           String
   phone          String?
   email          String?
   nidNumber      String?
-  isExternal     Boolean         @default(false)  // true = parking-only / non-resident member
+  isExternal     Boolean          @default(false) // true = parking-only / non-resident member
   moveInDate     DateTime
   moveOutDate    DateTime?
   leaseEndDate   DateTime?
-  isActive       Boolean         @default(true)
-  tenantStatus   TenantStatus    @default(CURRENT)  // CURRENT | FUTURE | PAST
-  advancePaid    Boolean         @default(false)
-  advanceAmount  Decimal?        @db.Decimal(10, 2)  // BDT held; decreases as advance is applied
-  advanceSettled Boolean         @default(false)
+  isActive       Boolean          @default(true)
+  tenantStatus   TenantStatus     @default(CURRENT) // CURRENT | FUTURE | PAST
+  advancePaid    Boolean          @default(false)
+  advanceAmount  Decimal?         @db.Decimal(10, 2) // BDT held; decreases as advance is applied
+  advanceSettled Boolean          @default(false)
   notes          String?
-  unit           Unit?           @relation(fields: [unitId], references: [id])
-  unitId         String?         // no @unique — multiple tenants (current + future) share a unit
+  unit           Unit?            @relation(fields: [unitId], references: [id])
+  unitId         String? // no @unique — multiple tenants (current + future) share a unit
   payments       Payment[]
   services       TenantService[]
   rentChanges    RentChange[]
   documents      TenantDocument[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 }
 
 model Payment {
-  id              String               @id @default(cuid())
-  tenant          Tenant               @relation(fields: [tenantId], references: [id])
-  tenantId        String
-  unit            Unit?                @relation(fields: [unitId], references: [id])
-  unitId          String?              // null for external members
-  rentDue         Decimal              @db.Decimal(10, 2)   // expected total (rent + services + carry-forward)
-  amountPaid      Decimal              @default(0) @db.Decimal(10, 2)  // cash/bank received
-  advanceApplied  Decimal              @default(0) @db.Decimal(10, 2)  // drawn from tenant advance
-  carryForward    Decimal              @default(0) @db.Decimal(10, 2)  // unpaid balance carried from previous month
-  month           Int                  // 1–12
-  year            Int
-  paidDate        DateTime?            // date of most recent payment transaction
-  status          PaymentStatus        @default(PENDING)
-  receiptNumber   String?              @unique  // e.g. "RCP-2026-0001"
-  notes           String?
-  transactions    PaymentTransaction[]
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  id             String               @id @default(cuid())
+  tenant         Tenant               @relation(fields: [tenantId], references: [id])
+  tenantId       String
+  unit           Unit?                @relation(fields: [unitId], references: [id])
+  unitId         String? // null for external members
+  rentDue        Decimal              @db.Decimal(10, 2) // expected total (rent + services + carry-forward)
+  amountPaid     Decimal              @default(0) @db.Decimal(10, 2) // cash/bank received
+  advanceApplied Decimal              @default(0) @db.Decimal(10, 2) // drawn from tenant advance
+  carryForward   Decimal              @default(0) @db.Decimal(10, 2) // unpaid balance carried from previous month
+  month          Int // 1–12
+  year           Int
+  paidDate       DateTime? // date of most recent payment transaction
+  status         PaymentStatus        @default(PENDING)
+  receiptNumber  String?              @unique // e.g. "RCP-2026-0001"
+  notes          String?
+  transactions   PaymentTransaction[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   @@unique([tenantId, month, year])
 }
@@ -325,7 +325,7 @@ enum TransactionType {
 
 model AddOnService {
   id          String          @id @default(cuid())
-  name        String          @unique  // e.g. "WiFi", "Parking", "Generator"
+  name        String          @unique // e.g. "WiFi", "Parking", "Generator"
   description String?
   isActive    Boolean         @default(true)
   tenants     TenantService[]
@@ -339,7 +339,7 @@ model TenantService {
   tenantId   String
   service    AddOnService @relation(fields: [serviceId], references: [id])
   serviceId  String
-  monthlyFee Decimal      @db.Decimal(10, 2)  // per-tenant rate (variable)
+  monthlyFee Decimal      @db.Decimal(10, 2) // per-tenant rate (variable)
   startDate  DateTime
   endDate    DateTime?
   isActive   Boolean      @default(true)
@@ -358,7 +358,7 @@ model RentChange {
   previousRent  Decimal   @db.Decimal(10, 2)
   newRent       Decimal   @db.Decimal(10, 2)
   reason        String?
-  appliedAt     DateTime?  // null = pending; set when payment generation picks it up
+  appliedAt     DateTime? // null = pending; set when payment generation picks it up
   createdAt     DateTime  @default(now())
 }
 
@@ -367,7 +367,7 @@ model RentChange {
 model Payee {
   id        String          @id @default(cuid())
   name      String
-  role      String          // free text: "Caretaker", "Electrician", "Plumber"
+  role      String // free text: "Caretaker", "Electrician", "Plumber"
   phone     String?
   email     String?
   address   String?
@@ -388,7 +388,7 @@ model PayeeDocument {
   storedName String
   mimeType   String
   size       Int
-  label      String?  // "NID Front", "NID Back", "Contract"
+  label      String? // "NID Front", "NID Back", "Contract"
   uploadedAt DateTime @default(now())
 }
 
@@ -398,11 +398,11 @@ model TenantDocument {
   id         String   @id @default(cuid())
   tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   tenantId   String
-  fileName   String   // original filename shown to user
-  storedName String   // unique name on disk (avoids collisions)
+  fileName   String // original filename shown to user
+  storedName String // unique name on disk (avoids collisions)
   mimeType   String
-  size       Int      // bytes
-  label      String?  // optional label e.g. "NID Front", "Contract"
+  size       Int // bytes
+  label      String? // optional label e.g. "NID Front", "Contract"
   uploadedAt DateTime @default(now())
 }
 
@@ -410,8 +410,8 @@ model TenantDocument {
 
 model PropertyServiceType {
   id          String          @id @default(cuid())
-  name        String          @unique  // "Electricity", "Plumbing", "Caretaker Salary"
-  category    ExpenseCategory          // coarse group for reporting
+  name        String          @unique // "Electricity", "Plumbing", "Caretaker Salary"
+  category    ExpenseCategory // coarse group for reporting
   description String?
   isActive    Boolean         @default(true)
   expenses    Expense[]
@@ -430,7 +430,7 @@ model Expense {
   month         Int
   year          Int
   expenseDate   DateTime?
-  paidTo        String?              // legacy free-text; use payeeId for new records
+  paidTo        String? // legacy free-text; use payeeId for new records
   paymentMode   String?
   unitId        String?
   unit          Unit?                @relation(fields: [unitId], references: [id])
@@ -446,7 +446,7 @@ model Expense {
 enum ExpenseCategory {
   MAINTENANCE
   UTILITY
-  SALARY         // employee
+  SALARY // employee
   SUBSCRIPTION
   CONSTRUCTION
   OTHER
@@ -455,17 +455,17 @@ enum ExpenseCategory {
 // ─── Renovation Tracker ───────────────────────────────────────────────────────
 
 model RenovationItem {
-  id          String            @id @default(cuid())
+  id          String           @id @default(cuid())
   title       String
-  category    String            // e.g. "Materials", "Constructor", "Services"
+  category    String // e.g. "Materials", "Constructor", "Services"
   subCategory String?
-  amount      Decimal           @db.Decimal(10, 2)
+  amount      Decimal          @db.Decimal(10, 2)
   vendor      String?
   date        DateTime?
-  status      RenovationStatus  @default(PLANNED)
+  status      RenovationStatus @default(PLANNED)
   notes       String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 }
 
 enum RenovationStatus {
@@ -516,19 +516,19 @@ model BizExpenseCategory {
 // charge (idempotent), so per-month history and reports come for free.
 // endDate null = active/ongoing; set when stopped (last month still charged).
 model Subscription {
-  id            String             @id @default(cuid())
+  id            String                      @id @default(cuid())
   name          String
   categoryId    String
-  category      BizExpenseCategory @relation(fields: [categoryId], references: [id])
-  monthlyAmount Decimal            @db.Decimal(12, 2) // BDT — the STARTING rate (from startDate)
+  category      BizExpenseCategory          @relation(fields: [categoryId], references: [id])
+  monthlyAmount Decimal                     @db.Decimal(12, 2) // BDT — the STARTING rate (from startDate)
   startDate     DateTime // normalized to the 1st of the start month
   endDate       DateTime? // null = active; else last charged month (1st)
   notes         String?
   charges       BizExpense[]
   rateChanges   SubscriptionRateChange[]
   overrides     SubscriptionMonthOverride[]
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  createdAt     DateTime                    @default(now())
+  updatedAt     DateTime                    @updatedAt
 
   @@index([endDate])
 }
@@ -585,18 +585,18 @@ model Earning {
 }
 
 model EmployeePayment {
-  id         String      @id @default(cuid())
+  id         String         @id @default(cuid())
   date       DateTime
   employeeId String
-  employee   Employee    @relation(fields: [employeeId], references: [id])
-  type       PaymentKind @default(SALARY)
+  employee   Employee       @relation(fields: [employeeId], references: [id])
+  type       PaymentKind    @default(SALARY)
   reference  String? // optional free-text note (e.g. "wedding bonus"); legacy funding client
   clients    IncomeSource[] @relation("PaymentClients") // client(s) this salary is attributed to
-  amount     Decimal     @db.Decimal(12, 2) // BDT
+  amount     Decimal        @db.Decimal(12, 2) // BDT
   fiscalYear String
   notes      String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 
   @@index([fiscalYear])
   @@index([employeeId])
@@ -633,4 +633,154 @@ enum PaymentKind {
   BONUS
   ADVANCE
   OTHER
+}
+
+// ─── Money Manager (personal finance) ───────────────────────────────────────
+// Personal cash-flow ledger: household income/expenses, account balances,
+// transfers, and people you pay (recurring allowances + loans with balances).
+// Currency: BDT. Distinct from the property and business domains above — venture
+// take-home is shown read-only for context, never copied here (no double-count).
+// Account balances and the savings number are derived purely from MoneyEntry.
+
+enum MoneyEntryDirection {
+  CREDIT // money in
+  DEBIT // money out
+  TRANSFER // account-to-account; excluded from income/expense/savings
+}
+
+enum MoneyAccountType {
+  CASH
+  BANK
+  MOBILE_WALLET
+  CREDIT_CARD
+  OTHER
+}
+
+enum MoneyCategoryKind {
+  INCOME
+  EXPENSE
+}
+
+enum ObligationType {
+  RECURRING // allowance / stipend
+  LOAN // principal with a running balance
+}
+
+enum ObligationDirection {
+  OWED_TO_ME // I lent; they repay me
+  OWED_BY_ME // I borrowed; I repay them
+}
+
+enum ObligationStatus {
+  ACTIVE
+  CLOSED
+  CANCELLED
+}
+
+enum MoneyEntrySource {
+  MANUAL
+  IMPORTED
+}
+
+model MoneyAccount {
+  id             String           @id @default(cuid())
+  name           String
+  type           MoneyAccountType
+  openingBalance Decimal          @default(0) @db.Decimal(12, 2) // real balance at setup; card: negative = owed
+  creditLimit    Decimal?         @db.Decimal(12, 2) // CREDIT_CARD only; availableCredit = creditLimit + balance
+  isActive       Boolean          @default(true)
+  notes          String?
+  entries        MoneyEntry[]     @relation("EntryAccount")
+  transfersIn    MoneyEntry[]     @relation("EntryTransferAccount")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  // balance = openingBalance + Σ(CREDIT) − Σ(DEBIT, TRANSFER-out) + Σ(TRANSFER-in) — computed in service.
+}
+
+model MoneyCategory {
+  id        String            @id @default(cuid())
+  name      String
+  kind      MoneyCategoryKind // source of truth for income/expense bucketing
+  isActive  Boolean           @default(true)
+  entries   MoneyEntry[]
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  @@unique([name, kind])
+}
+
+model Beneficiary {
+  id           String                  @id @default(cuid())
+  name         String
+  relationship String? // free text: "brother", "house help"
+  phone        String?
+  isActive     Boolean                 @default(true) // soft-delete; never cascade ledger history
+  notes        String?
+  entries      MoneyEntry[]
+  obligations  BeneficiaryObligation[]
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+}
+
+model BeneficiaryObligation {
+  id            String              @id @default(cuid())
+  beneficiary   Beneficiary         @relation(fields: [beneficiaryId], references: [id])
+  beneficiaryId String
+  type          ObligationType
+  direction     ObligationDirection @default(OWED_BY_ME)
+  amount        Decimal             @db.Decimal(12, 2) // recurring: per-period; loan: principal
+  frequency     String? // recurring only: "monthly" | "weekly"
+  startDate     DateTime
+  endDate       DateTime? // null = ongoing
+  status        ObligationStatus    @default(ACTIVE)
+  notes         String?
+  entries       MoneyEntry[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  // loan outstanding = amount − Σ repayment entries (computed in service; may go negative = overpaid)
+
+  @@index([beneficiaryId])
+  @@index([status])
+}
+
+model MoneyEntry {
+  id                String                 @id @default(cuid())
+  date              DateTime
+  direction         MoneyEntryDirection
+  amount            Decimal                @db.Decimal(12, 2) // BDT
+  currency          String                 @default("BDT")
+  category          MoneyCategory?         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  categoryId        String? // required for CREDIT/DEBIT (validated in service); null for TRANSFER
+  account           MoneyAccount?          @relation("EntryAccount", fields: [accountId], references: [id])
+  accountId         String?
+  transferAccount   MoneyAccount?          @relation("EntryTransferAccount", fields: [transferAccountId], references: [id])
+  transferAccountId String? // destination for TRANSFER entries
+  beneficiary       Beneficiary?           @relation(fields: [beneficiaryId], references: [id], onDelete: SetNull)
+  beneficiaryId     String?
+  obligation        BeneficiaryObligation? @relation(fields: [obligationId], references: [id], onDelete: SetNull)
+  obligationId      String? // set when this entry pays against a loan/recurring obligation
+  description       String?
+  notes             String?
+  source            MoneyEntrySource       @default(MANUAL)
+  importBatch       MoneyImportBatch?      @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  importBatchId     String?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  @@index([date])
+  @@index([direction, date])
+  @@index([categoryId])
+  @@index([accountId])
+  @@index([beneficiaryId])
+  @@index([obligationId])
+  @@index([importBatchId])
+}
+
+model MoneyImportBatch {
+  id         String       @id @default(cuid())
+  fileName   String
+  rowCount   Int          @default(0)
+  mapping    Json // column → field mapping used (for re-run / rollback)
+  importedAt DateTime     @default(now())
+  entries    MoneyEntry[]
 }

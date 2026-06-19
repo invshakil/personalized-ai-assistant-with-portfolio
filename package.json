@@ -12,7 +12,10 @@
     "format:check": "prettier --check .",
     "seed": "npx prisma db seed",
     "seed:financial": "tsx prisma/seed-financial.ts",
-    "db:restore": "tsx scripts/db-restore.ts"
+    "seed:money": "tsx prisma/seed-money.ts",
+    "db:restore": "tsx scripts/db-restore.ts",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
+    "test:money": "node --import tsx --test src/services/money/__tests__/money.scenarios.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

@@ -40,6 +40,11 @@ import {
   Palette,
   FileBarChart,
   Database,
+  Wallet,
+  HandCoins,
+  Landmark,
+  Upload,
+  ListChecks,
 } from "lucide-react";
 
 const SIDEBAR_WIDTH = 260;
@@ -85,6 +90,19 @@ const navGroups: { label: string; items: NavItem[] }[] = [
           { href: "/admin/finance/expenses", label: "Expenses", icon: Receipt },
           { href: "/admin/finance/subscriptions", label: "Subscriptions", icon: RefreshCw },
           { href: "/admin/finance/settings", label: "Settings", icon: SlidersHorizontal },
+        ],
+      },
+      {
+        href: "/admin/money",
+        label: "Money Manager",
+        icon: Wallet,
+        exact: false,
+        children: [
+          { href: "/admin/money", label: "Overview", icon: TrendingUp },
+          { href: "/admin/money/entries", label: "Ledger", icon: ListChecks },
+          { href: "/admin/money/people", label: "People & Loans", icon: HandCoins },
+          { href: "/admin/money/accounts", label: "Accounts", icon: Landmark },
+          { href: "/admin/money/import", label: "Import CSV", icon: Upload },
         ],
       },
       {

@@ -12,6 +12,7 @@ export interface SlashCommand {
 export const SLASH_COMMANDS: SlashCommand[] = [
   { cmd: "/property", desc: "Focus on property — units, tenants, rent, building expenses" },
   { cmd: "/finance", desc: "Focus on finance — income, salaries, expenses, subscriptions" },
+  { cmd: "/money", desc: "Focus on money manager — savings, balances, people you owe" },
 ];
 
 // Matches a slash command being typed as the first token (no whitespace yet),
