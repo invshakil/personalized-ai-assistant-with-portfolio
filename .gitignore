@@ -54,3 +54,7 @@ next-env.d.ts
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Claude Code — local/personal config (shared .claude/commands/ stays tracked)
+.claude/launch.json
+.claude/settings.local.json
