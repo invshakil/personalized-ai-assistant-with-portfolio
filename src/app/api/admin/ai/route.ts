@@ -52,7 +52,8 @@ export async function POST(req: Request) {
 
   // Hand the model only the requested module's tools (plus shared). Unknown
   // values fall back to the full catalog so a bad scope never loses capability.
-  const toolScope: ToolScope = scope === "property" || scope === "finance" ? scope : "all";
+  const toolScope: ToolScope =
+    scope === "property" || scope === "finance" || scope === "money" ? scope : "all";
 
   // Block new turns once this month's spend has hit the budget.
   if (await isOverBudget()) {

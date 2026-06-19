@@ -9,12 +9,14 @@ import type { AiToolDef, CommitResult } from "../types";
 import type { Raw, WriteToolDef } from "./shared";
 import { propertyTools } from "./property";
 import { financeTools } from "./finance";
+import { moneyTools } from "./money";
 
 export type { WriteToolDef } from "./shared";
 
 export const WRITE_TOOLS: WriteToolDef[] = [
   ...propertyTools.map((t): WriteToolDef => ({ ...t, domain: "property" })),
   ...financeTools.map((t): WriteToolDef => ({ ...t, domain: "finance" })),
+  ...moneyTools.map((t): WriteToolDef => ({ ...t, domain: "money" })),
 ];
 
 const byName = new Map(WRITE_TOOLS.map((t) => [t.name, t]));

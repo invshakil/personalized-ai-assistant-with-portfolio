@@ -20,10 +20,10 @@ export interface ChatMessage {
  * a scope loads its own domain plus every "shared" (cross-domain) tool. See
  * `getToolsForScope` in `tools.ts`.
  */
-export type AiToolDomain = "property" | "finance" | "shared";
+export type AiToolDomain = "property" | "finance" | "money" | "shared";
 
 /** Which slice of the catalog to hand the model this turn. "all" = no scoping. */
-export type ToolScope = "property" | "finance" | "all";
+export type ToolScope = "property" | "finance" | "money" | "all";
 
 export interface AiToolDef {
   name: string;

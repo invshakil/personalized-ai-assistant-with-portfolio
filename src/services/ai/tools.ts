@@ -37,6 +37,16 @@ import {
   getScheduledRentChanges,
   getTenantStatement,
 } from "@/services/property";
+import {
+  getMoneyDashboard,
+  getMonthlySavings,
+  getExpenseBreakdown as getMoneyExpenseBreakdown,
+  getAccountBalances,
+  getBeneficiaryBalances,
+  getEntries as getMoneyEntries,
+  getCategories as getMoneyCategories,
+  listAccountsWithBalances,
+} from "@/services/money";
 import { PERIOD_TOKENS } from "@/services/_shared/dateRange";
 import { writeToolDefs, isWriteTool, previewWrite } from "./writeTools";
 import type { AiToolDef, RunTool, ToolScope } from "./types";
@@ -283,6 +293,76 @@ const propertyReadTools: AiToolDef[] = [
   },
 ];
 
+const moneyReadTools: AiToolDef[] = [
+  // ── Money Manager (personal finance) ──
+  {
+    name: "get_money_overview",
+    description:
+      "Personal money overview in BDT over a date range: total income, expenses, savings and savings rate, expense breakdown by category, account balances, cash position, credit-card debt, who you owe / who owes you, and read-only venture income context (Property/Finance take-home). Use for 'how are my personal finances doing'.",
+    parameters: obj({ ...RANGE }),
+  },
+  {
+    name: "get_monthly_savings",
+    description:
+      "Month-by-month personal savings (income − expenses) over a date range. Use for 'how much did I save last month / this year'.",
+    parameters: obj({ ...RANGE }),
+  },
+  {
+    name: "get_personal_expense_breakdown",
+    description:
+      "Personal/household expense breakdown by category with the total, over a date range. Use for 'where is my money going'.",
+    parameters: obj({ ...RANGE }),
+  },
+  {
+    name: "get_account_balances",
+    description:
+      "Current balance of every personal account (cash, bank, mobile wallet, credit card), plus total cash position and total credit-card debt. Answers 'how much money do I have right now'.",
+    parameters: obj({}),
+  },
+  {
+    name: "get_people_balances",
+    description:
+      "People you pay: total you still owe, total owed to you, and per-person outstanding balances and lifetime paid. Answers 'who do I owe money to'.",
+    parameters: obj({}),
+  },
+  {
+    name: "list_money_entries",
+    description:
+      "List personal ledger entries (income, expense, transfer) over a date range. " +
+      "Optionally filter by direction (CREDIT=income / DEBIT=expense / TRANSFER), by categoryName " +
+      "(e.g. 'Groceries'), by accountName (e.g. 'Cash', 'bKash' — matches entries from or into that account), " +
+      "and search descriptions with q. Sort with sortBy (date/amount/category) + sortDir (asc/desc), and limit the count.",
+    parameters: obj({
+      ...RANGE,
+      direction: {
+        type: "string",
+        enum: ["CREDIT", "DEBIT", "TRANSFER"],
+        description: "Filter by entry direction (optional)",
+      },
+      categoryName: {
+        type: "string",
+        description: "Filter by category name, case-insensitive (optional)",
+      },
+      accountName: {
+        type: "string",
+        description: "Filter by account name, case-insensitive (optional)",
+      },
+      q: { type: "string", description: "Case-insensitive search over the description (optional)" },
+      sortBy: {
+        type: "string",
+        enum: ["date", "amount", "category"],
+        description: "Sort field (default date)",
+      },
+      sortDir: {
+        type: "string",
+        enum: ["asc", "desc"],
+        description: "Sort direction (default desc)",
+      },
+      limit: { type: "integer", description: "Max entries to return (optional)" },
+    }),
+  },
+];
+
 const sharedReadTools: AiToolDef[] = [
   // ── Cross-domain ──
   {
@@ -297,6 +377,7 @@ const sharedReadTools: AiToolDef[] = [
 const READ_TOOLS: AiToolDef[] = [
   ...financeReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "finance" })),
   ...propertyReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "property" })),
+  ...moneyReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "money" })),
   ...sharedReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "shared" })),
 ];
 
@@ -336,8 +417,9 @@ export const TOOL_SCOPE_LIMITS = {
   const sizes = {
     property: getToolsForScope("property").length,
     finance: getToolsForScope("finance").length,
+    money: getToolsForScope("money").length,
   };
-  const biggest = Math.max(sizes.property, sizes.finance);
+  const biggest = Math.max(sizes.property, sizes.finance, sizes.money);
   const detail = `Largest scope=${biggest} tools ${JSON.stringify(sizes)}. See AI_TOOLS_REFERENCE §"Tool selection strategy".`;
   if (biggest > TOOL_SCOPE_LIMITS.migrate) {
     console.warn(
@@ -354,6 +436,28 @@ type ToolInput = Record<string, unknown>;
 const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
 const num = (v: unknown): number | undefined => (typeof v === "number" ? v : undefined);
 const range = (i: ToolInput) => ({ period: str(i.period), from: str(i.from), to: str(i.to) });
+
+// Money entries can be filtered by category/account name (consistent with the
+// money write tools). Resolve a name to its id, erroring with the available
+// names so the model can recover.
+async function moneyCategoryId(name: string): Promise<string> {
+  const cats = await getMoneyCategories();
+  const found = cats.find((c) => c.name.toLowerCase() === name.toLowerCase());
+  if (!found)
+    throw new Error(
+      `No category named "${name}". Available: ${cats.map((c) => c.name).join(", ")}`
+    );
+  return found.id;
+}
+async function moneyAccountId(name: string): Promise<string> {
+  const accts = await listAccountsWithBalances();
+  const found = accts.find((a) => a.name.toLowerCase() === name.toLowerCase());
+  if (!found)
+    throw new Error(
+      `No account named "${name}". Available: ${accts.map((a) => a.name).join(", ")}`
+    );
+  return found.id;
+}
 
 const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
   // Finance — lists & dashboard
@@ -401,6 +505,30 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
     const tenantId = str(i.tenantId);
     if (!tenantId) throw new Error("tenantId is required.");
     return getTenantStatement(tenantId, range(i));
+  },
+  // Money Manager (personal finance)
+  get_money_overview: (i) => getMoneyDashboard(range(i)),
+  get_monthly_savings: (i) => getMonthlySavings(range(i)),
+  get_personal_expense_breakdown: (i) => getMoneyExpenseBreakdown(range(i)),
+  get_account_balances: () => getAccountBalances(),
+  get_people_balances: () => getBeneficiaryBalances(),
+  list_money_entries: async (i) => {
+    const categoryName = str(i.categoryName);
+    const accountName = str(i.accountName);
+    const [categoryId, accountId] = await Promise.all([
+      categoryName ? moneyCategoryId(categoryName) : Promise.resolve(undefined),
+      accountName ? moneyAccountId(accountName) : Promise.resolve(undefined),
+    ]);
+    return getMoneyEntries({
+      ...range(i),
+      direction: str(i.direction) as "CREDIT" | "DEBIT" | "TRANSFER" | undefined,
+      categoryId,
+      accountId,
+      q: str(i.q),
+      sortBy: str(i.sortBy) as "date" | "amount" | "category" | undefined,
+      sortDir: str(i.sortDir) as "asc" | "desc" | undefined,
+      limit: num(i.limit),
+    });
   },
   // Cross-domain
   get_combined_income_summary: async (i) => {

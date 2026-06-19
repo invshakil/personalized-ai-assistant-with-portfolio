@@ -35,11 +35,11 @@ const LONG_THREAD_TOKENS = 60_000;
 // A leading `/property` or `/finance` scopes the assistant to that module's
 // tools for the turn. We parse it client-side, send the scope to the backend,
 // and strip the command so the model never sees it.
-const SCOPE_RE = /^\/(property|finance)\b\s*/i;
+const SCOPE_RE = /^\/(property|finance|money)\b\s*/i;
 
-function parseScope(text: string): "property" | "finance" | "all" {
+function parseScope(text: string): "property" | "finance" | "money" | "all" {
   const m = text.match(SCOPE_RE);
-  return m ? (m[1].toLowerCase() as "property" | "finance") : "all";
+  return m ? (m[1].toLowerCase() as "property" | "finance" | "money") : "all";
 }
 
 export default function AiAssistantPage() {
