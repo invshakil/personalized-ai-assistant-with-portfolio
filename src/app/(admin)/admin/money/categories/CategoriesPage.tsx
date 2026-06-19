@@ -1,0 +1,249 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import {
+  Box,
+  Card,
+  Typography,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  Drawer,
+  TextField,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
+  CircularProgress,
+  Alert,
+  IconButton,
+  Tooltip,
+} from "@mui/material";
+import { Plus, Pencil, Trash2 } from "lucide-react";
+import PageHeader from "@/components/admin/PageHeader";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import { moneyApi } from "@/lib/api/money";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
+import type { MoneyCategoryRow, MoneyCategoryKind } from "@/types";
+
+type CategoryForm = { name: string; kind: MoneyCategoryKind };
+
+const BLANK: CategoryForm = { name: "", kind: "EXPENSE" };
+
+export default function CategoriesPage() {
+  const [categories, setCategories] = useState<MoneyCategoryRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [form, setForm] = useState<CategoryForm>(BLANK);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<MoneyCategoryRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      setCategories((await moneyApi.listCategories()) ?? []);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const openAdd = () => {
+    setEditing(null);
+    setForm(BLANK);
+    setError(null);
+    setDrawerOpen(true);
+  };
+
+  const openEdit = (c: MoneyCategoryRow) => {
+    setEditing(c.id);
+    setForm({ name: c.name, kind: c.kind });
+    setError(null);
+    setDrawerOpen(true);
+  };
+
+  const save = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      if (editing) await moneyApi.updateCategory(editing, { name: form.name, kind: form.kind });
+      else await moneyApi.createCategory({ name: form.name, kind: form.kind });
+      setDrawerOpen(false);
+      load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await moneyApi.deleteCategory(pendingDelete.id);
+      if (res && res.deleted === false) {
+        setDeleteError(res.error ?? "Cannot delete this category.");
+        return;
+      }
+      setPendingDelete(null);
+      load();
+    } catch (e: unknown) {
+      setDeleteError(e instanceof Error ? e.message : "Failed to delete");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <Box>
+      <PageHeader title="Categories" subtitle="Income & expense categories for your ledger" />
+
+      <Box sx={{ display: "flex", mb: 3 }}>
+        <Button
+          variant="contained"
+          startIcon={<Plus size={16} />}
+          onClick={openAdd}
+          sx={{ ml: "auto" }}
+        >
+          Add Category
+        </Button>
+      </Box>
+
+      {loading ? (
+        <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
+          <Table size="small" sx={mobileCardTableSx}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ fontWeight: 700 }}>Name</TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Kind</TableCell>
+                <TableCell align="right" sx={{ fontWeight: 700 }}>
+                  Entries
+                </TableCell>
+                <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {categories.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} sx={{ textAlign: "center", py: 4 }}>
+                    <Typography color="text.secondary">No categories yet</Typography>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                categories.map((c) => (
+                  <TableRow key={c.id} hover>
+                    <TableCell data-label="Name" sx={{ fontWeight: 600 }}>
+                      {c.name}
+                    </TableCell>
+                    <TableCell data-label="Kind">
+                      <Chip
+                        size="small"
+                        label={c.kind === "INCOME" ? "Income" : "Expense"}
+                        color={c.kind === "INCOME" ? "success" : "warning"}
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell align="right" data-label="Entries">
+                      {c.entryCount}
+                    </TableCell>
+                    <TableCell data-label="Actions">
+                      <Box sx={{ display: "flex" }}>
+                        <Tooltip title="Edit">
+                          <IconButton size="small" onClick={() => openEdit(c)}>
+                            <Pencil size={14} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() => {
+                              setDeleteError(null);
+                              setPendingDelete(c);
+                            }}
+                          >
+                            <Trash2 size={14} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 420 } } } }}
+      >
+        <Box sx={{ width: "100%", p: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
+            {editing ? "Edit Category" : "Add Category"}
+          </Typography>
+          <TextField
+            label="Name"
+            size="small"
+            fullWidth
+            value={form.name}
+            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            sx={{ mb: 2 }}
+          />
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel>Kind</InputLabel>
+            <Select
+              label="Kind"
+              value={form.kind}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, kind: e.target.value as MoneyCategoryKind }))
+              }
+            >
+              <MenuItem value="EXPENSE">Expense</MenuItem>
+              <MenuItem value="INCOME">Income</MenuItem>
+            </Select>
+          </FormControl>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          <Button variant="contained" fullWidth onClick={save} disabled={saving || !form.name}>
+            {saving ? "Saving…" : editing ? "Save Changes" : "Add Category"}
+          </Button>
+        </Box>
+      </Drawer>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Delete category"
+        message={deleteError ?? `Delete "${pendingDelete?.name}"? This cannot be undone.`}
+        confirmLabel="Delete"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setPendingDelete(null)}
+      />
+    </Box>
+  );
+}
