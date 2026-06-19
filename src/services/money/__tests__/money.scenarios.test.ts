@@ -15,6 +15,7 @@ import {
   createObligation,
   updateObligation,
   recordPayment,
+  getBeneficiaries,
   getBeneficiaryDetail,
   createEntry,
   recordTransfer,
@@ -54,20 +55,31 @@ before(async () => {
 });
 
 after(async () => {
+  // Sweep everything created under TAG — including entities the AI tools created.
+  const accts = await db.moneyAccount.findMany({
+    where: { name: { startsWith: TAG } },
+    select: { id: true },
+  });
+  const bens = await db.beneficiary.findMany({
+    where: { name: { startsWith: TAG } },
+    select: { id: true },
+  });
+  const acctIds = accts.map((a) => a.id);
+  const benIds = bens.map((b) => b.id);
   // Entries first (FK), then the structures they reference.
   await db.moneyEntry.deleteMany({
     where: {
       OR: [
-        { accountId: { in: [accA, accB] } },
-        { transferAccountId: { in: [accA, accB] } },
-        { beneficiaryId: benId },
+        { accountId: { in: acctIds } },
+        { transferAccountId: { in: acctIds } },
+        { beneficiaryId: { in: benIds } },
       ],
     },
   });
-  await db.beneficiaryObligation.deleteMany({ where: { beneficiaryId: benId } });
-  await db.beneficiary.deleteMany({ where: { id: benId } });
-  await db.moneyAccount.deleteMany({ where: { id: { in: [accA, accB] } } });
-  await db.moneyCategory.deleteMany({ where: { id: { in: [expCat, incCat] } } });
+  await db.beneficiaryObligation.deleteMany({ where: { beneficiaryId: { in: benIds } } });
+  await db.beneficiary.deleteMany({ where: { id: { in: benIds } } });
+  await db.moneyAccount.deleteMany({ where: { id: { in: acctIds } } });
+  await db.moneyCategory.deleteMany({ where: { name: { startsWith: TAG } } });
   await db.$disconnect();
 });
 
@@ -162,6 +174,44 @@ test("AI record_person_payment auto-applies a repayment to the lone open loan", 
   const after = (await getBeneficiaryDetail(benId))?.obligations[0].outstanding ?? 0;
   assert.equal(after, before - 5000); // loan actually went down
   assert.match(res.summary, /open loan/); // and the model is told so
+});
+
+test("AI create_money_account creates an account with an opening balance", async () => {
+  const tool = moneyTools.find((t) => t.name === "create_money_account")!;
+  const res = await tool.commit({
+    name: `${TAG} bKash`,
+    type: "MOBILE_WALLET",
+    openingBalance: 7000,
+  });
+  const acc = res.data as { id: string };
+  assert.equal(await getAccountBalance(acc.id), 7000);
+  await assert.rejects(tool.commit({ name: `${TAG} bKash`, type: "CASH" }), /already exists/);
+});
+
+test("AI create_person adds a beneficiary and rejects duplicates", async () => {
+  const tool = moneyTools.find((t) => t.name === "create_person")!;
+  await tool.commit({ name: `${TAG} Hardware Store`, relationship: "shop" });
+  const people = await getBeneficiaries();
+  assert.ok(people.some((p) => p.name === `${TAG} Hardware Store`));
+  await assert.rejects(tool.commit({ name: `${TAG} Hardware Store` }), /already exists/);
+});
+
+test("AI create_person_loan then increase_person_loan track a running shop due", async () => {
+  const personTool = moneyTools.find((t) => t.name === "create_person")!;
+  const loanTool = moneyTools.find((t) => t.name === "create_person_loan")!;
+  const incTool = moneyTools.find((t) => t.name === "increase_person_loan")!;
+  const name = `${TAG} Sand Supplier`;
+
+  await personTool.commit({ name });
+  await loanTool.commit({ personName: name, amount: 12000, direction: "OWED_BY_ME" });
+  let p = (await getBeneficiaries()).find((b) => b.name === name)!;
+  assert.equal(p.outstandingByMe, 12000);
+
+  // Bought more on the tab → due grows, no cash entry created.
+  const res = await incTool.commit({ personName: name, amount: 3000 });
+  p = (await getBeneficiaries()).find((b) => b.name === name)!;
+  assert.equal(p.outstandingByMe, 15000);
+  assert.match(res.summary, /now owe/);
 });
 
 // ─── CSV import parsing (pure) ──────────────────────────────────────────────--

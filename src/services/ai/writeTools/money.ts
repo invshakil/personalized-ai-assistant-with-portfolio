@@ -4,16 +4,21 @@
 // model can use natural-language references ("Cash", "bKash", "Mum").
 import {
   listAccountsWithBalances,
+  createAccount,
   createEntry,
   updateEntry,
   deleteEntry,
   recordTransfer,
   getBeneficiaries,
   getBeneficiaryDetail,
+  createBeneficiary,
+  createObligation,
+  updateObligation,
   recordPayment,
   ensureCategory,
   getEntry,
 } from "@/services/money";
+import type { MoneyAccountType, ObligationDirection, ObligationType } from "@/types";
 import {
   write,
   type WriteToolDef,
@@ -58,6 +63,11 @@ async function beneficiaryByName(name: string) {
 
 const DIRECTIONS = ["CREDIT", "DEBIT"] as const;
 const PAYMENT_DIRS = ["DEBIT", "CREDIT"] as const;
+const ACCOUNT_TYPES = ["CASH", "BANK", "MOBILE_WALLET", "CREDIT_CARD", "OTHER"] as const;
+const OBLIGATION_DIRS = ["OWED_BY_ME", "OWED_TO_ME"] as const;
+const OBLIGATION_TYPES = ["LOAN", "RECURRING"] as const;
+
+const todayIso = () => new Date().toISOString().slice(0, 10);
 
 export const moneyTools: WriteToolDef[] = [
   // ─── Ledger entries ──────────────────────────────────────────────────────────
@@ -347,6 +357,209 @@ export const moneyTools: WriteToolDef[] = [
       return {
         summary: `${verb} ${person.name}: ${taka(a.amount)}.${applied}`,
         data: entry,
+      };
+    },
+  }),
+
+  // ─── Setup: accounts, people, loans ────────────────────────────────────────--
+
+  write({
+    name: "create_money_account",
+    description:
+      "Add a personal money account (where funds live). type: CASH, BANK, MOBILE_WALLET (e.g. bKash/Nagad), CREDIT_CARD, or OTHER. " +
+      "openingBalance is the current balance to start the account at (default 0). creditLimit applies only to CREDIT_CARD. " +
+      "Use this before assigning entries to a new account.",
+    parameters: schema(
+      {
+        name: Str("Account name, e.g. Cash, City Bank, bKash"),
+        type: Enum(ACCOUNT_TYPES, "CASH, BANK, MOBILE_WALLET, CREDIT_CARD or OTHER"),
+        openingBalance: Num("Starting balance in BDT (default 0)"),
+        creditLimit: Num("Credit limit in BDT (CREDIT_CARD only, optional)"),
+        notes: Str("Notes (optional)"),
+      },
+      ["name", "type"]
+    ),
+    parse: (i) => ({
+      name: reqStr(i.name, "name"),
+      type: reqEnum(i.type, ACCOUNT_TYPES, "type") as MoneyAccountType,
+      openingBalance: optNum(i.openingBalance),
+      creditLimit: optNum(i.creditLimit),
+      notes: optStr(i.notes) ?? null,
+    }),
+    preview: async (a) => {
+      const bal = a.openingBalance != null ? ` with opening balance ${taka(a.openingBalance)}` : "";
+      return `Create ${a.type.toLowerCase().replace("_", " ")} account "${a.name}"${bal}.`;
+    },
+    commit: async (a) => {
+      const existing = await listAccountsWithBalances();
+      if (existing.some((x) => x.name.toLowerCase() === a.name.toLowerCase())) {
+        throw new Error(`An account named "${a.name}" already exists.`);
+      }
+      const account = await createAccount({
+        name: a.name,
+        type: a.type,
+        openingBalance: a.openingBalance ?? 0,
+        creditLimit: a.creditLimit ?? null,
+        notes: a.notes,
+      });
+      return { summary: `Created ${a.type} account "${account.name}".`, data: account };
+    },
+  }),
+
+  write({
+    name: "create_person",
+    description:
+      "Add a person or shop to People & Loans so money owed to/from them can be tracked " +
+      "(e.g. a supplier you buy from on credit). This only creates the contact — use " +
+      "create_person_loan to record what is owed, and record_person_payment when money changes hands.",
+    parameters: schema(
+      {
+        name: Str("Person or shop name"),
+        relationship: Str("Relationship, e.g. brother, shop, lender (optional)"),
+        phone: Str("Phone number (optional)"),
+        notes: Str("Notes (optional)"),
+      },
+      ["name"]
+    ),
+    parse: (i) => ({
+      name: reqStr(i.name, "name"),
+      relationship: optStr(i.relationship) ?? null,
+      phone: optStr(i.phone) ?? null,
+      notes: optStr(i.notes) ?? null,
+    }),
+    preview: async (a) =>
+      `Add ${a.relationship ? `${a.relationship} ` : ""}"${a.name}" to People & Loans.`,
+    commit: async (a) => {
+      const people = await getBeneficiaries();
+      if (people.some((p) => p.name.toLowerCase() === a.name.toLowerCase())) {
+        throw new Error(`A person named "${a.name}" already exists in People & Loans.`);
+      }
+      const person = await createBeneficiary({
+        name: a.name,
+        relationship: a.relationship,
+        phone: a.phone,
+        notes: a.notes,
+      });
+      return { summary: `Added "${person.name}" to People & Loans.`, data: person };
+    },
+  }),
+
+  write({
+    name: "create_person_loan",
+    description:
+      "Record money owed between you and a person/shop in People & Loans. " +
+      "direction=OWED_BY_ME (default) = you owe them (e.g. a shop credit tab, or a loan you took); " +
+      "OWED_TO_ME = they owe you (you lent). " +
+      "type=LOAN (default) is a running balance reduced by payments; type=RECURRING repeats (e.g. monthly allowance) and takes a frequency. " +
+      "personName must already exist (use create_person first). amount is the starting principal (or per-period amount) in BDT.",
+    parameters: schema(
+      {
+        personName: Str("Person/shop name (must exist in People & Loans)"),
+        amount: Num("Amount owed in BDT (loan principal, or per-period for recurring)"),
+        direction: Enum(
+          OBLIGATION_DIRS,
+          "OWED_BY_ME = you owe them (default), OWED_TO_ME = they owe you"
+        ),
+        type: Enum(OBLIGATION_TYPES, "LOAN (running balance, default) or RECURRING"),
+        frequency: Str("Frequency for RECURRING, e.g. monthly (optional)"),
+        startDate: Str("Start date YYYY-MM-DD (default today)"),
+        notes: Str("Notes (optional)"),
+      },
+      ["personName", "amount"]
+    ),
+    parse: (i) => ({
+      personName: reqStr(i.personName, "personName"),
+      amount: reqNum(i.amount, "amount"),
+      direction: (optEnum(i.direction, OBLIGATION_DIRS, "direction") ??
+        "OWED_BY_ME") as ObligationDirection,
+      type: (optEnum(i.type, OBLIGATION_TYPES, "type") ?? "LOAN") as ObligationType,
+      frequency: optStr(i.frequency) ?? null,
+      startDate: optDate(i.startDate, "startDate"),
+      notes: optStr(i.notes) ?? null,
+    }),
+    preview: async (a) => {
+      const who =
+        a.direction === "OWED_BY_ME" ? `you owe ${a.personName}` : `${a.personName} owes you`;
+      const per = a.type === "RECURRING" && a.frequency ? ` / ${a.frequency}` : "";
+      return `Record ${a.type === "LOAN" ? "loan/due" : "recurring"}: ${who} ${taka(a.amount)}${per}.`;
+    },
+    commit: async (a) => {
+      const person = await beneficiaryByName(a.personName);
+      const obligation = await createObligation({
+        beneficiaryId: person.id,
+        type: a.type,
+        direction: a.direction,
+        amount: a.amount,
+        frequency: a.type === "RECURRING" ? a.frequency : null,
+        startDate: a.startDate ?? todayIso(),
+        notes: a.notes,
+      });
+      const who =
+        a.direction === "OWED_BY_ME" ? `You owe ${person.name}` : `${person.name} owes you`;
+      return {
+        summary: `${who} ${taka(a.amount)} (${a.type === "LOAN" ? "loan/due" : "recurring"}).`,
+        data: obligation,
+      };
+    },
+  }),
+
+  write({
+    name: "increase_person_loan",
+    description:
+      "Grow an existing running balance in People & Loans — e.g. you bought more on a shop's credit tab " +
+      "(you owe more), or you lent someone more. amount is the value to ADD to what is already owed. " +
+      "direction picks the side to grow: OWED_BY_ME (default) = you owe them, OWED_TO_ME = they owe you. " +
+      "The person must have exactly one open loan/due in that direction. No cash moves — only the owed " +
+      "balance changes; use record_money_transfer or record_person_payment when money actually changes hands.",
+    parameters: schema(
+      {
+        personName: Str("Person/shop name"),
+        amount: Num("Amount to add to what is owed, in BDT"),
+        direction: Enum(
+          OBLIGATION_DIRS,
+          "OWED_BY_ME = you owe them (default), OWED_TO_ME = they owe you"
+        ),
+      },
+      ["personName", "amount"]
+    ),
+    parse: (i) => ({
+      personName: reqStr(i.personName, "personName"),
+      amount: reqNum(i.amount, "amount"),
+      direction: (optEnum(i.direction, OBLIGATION_DIRS, "direction") ??
+        "OWED_BY_ME") as ObligationDirection,
+    }),
+    preview: async (a) => {
+      const who =
+        a.direction === "OWED_BY_ME"
+          ? `what you owe ${a.personName}`
+          : `what ${a.personName} owes you`;
+      return `Increase ${who} by ${taka(a.amount)}.`;
+    },
+    commit: async (a) => {
+      if (a.amount <= 0) throw new Error("amount must be greater than 0");
+      const person = await beneficiaryByName(a.personName);
+      const detail = await getBeneficiaryDetail(person.id);
+      const open = (detail?.obligations ?? []).filter(
+        (o) => o.type === "LOAN" && o.status === "ACTIVE" && o.direction === a.direction
+      );
+      if (open.length === 0) {
+        const what = a.direction === "OWED_BY_ME" ? "due you owe" : "loan owed to you";
+        throw new Error(
+          `${person.name} has no open ${what}. Create one first with create_person_loan.`
+        );
+      }
+      if (open.length > 1) {
+        throw new Error(
+          `${person.name} has ${open.length} open loans in that direction — apply it to a specific one in the People & Loans screen.`
+        );
+      }
+      const loan = open[0];
+      const obligation = await updateObligation(loan.id, { amount: loan.amount + a.amount });
+      const who =
+        a.direction === "OWED_BY_ME" ? `You now owe ${person.name}` : `${person.name} now owes you`;
+      return {
+        summary: `${who} ${taka(loan.outstanding + a.amount)} (added ${taka(a.amount)}).`,
+        data: obligation,
       };
     },
   }),

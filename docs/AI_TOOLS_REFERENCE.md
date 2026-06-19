@@ -278,11 +278,21 @@ and re-runs the service-layer validation (model input stays untrusted end-to-end
 `set_subscription_override` · `create_employee`/`update_employee` · `create_client`/`update_client`
 (→ income sources) · `create_expense_category`.
 
+**Money Manager** (`@/services/money`) — `create_money_entry`/`update_money_entry`/`delete_money_entry`
+(personal income/expense ledger; categories auto-created by kind) · `record_money_transfer`
+(account→account, typed TRANSFER, excluded from income/expense) · `record_person_payment`
+(pay to/from a person; auto-applies to their lone open loan in the matching direction so its
+outstanding drops) · `create_money_account` · `create_person` · `create_person_loan`
+(a loan or running due, e.g. a shop credit tab) · `increase_person_loan` (grow that running balance
+for a new credit purchase / further lending — no cash moves). Accounts and people are resolved by
+name. Note: unlike Property/Finance, `delete_money_entry` **is** exposed.
+
 ### NOT exposed (use the dashboard UI)
 
-All `delete*` and `deactivate*`/`stop*`/`settle*`/`move-out`/`endServiceAssignment` functions, plus
-binary document upload/delete and admin/system settings (`updateDisplayName`, `changePassword`,
-`updateBusinessProfile`, backup/Drive). The services still exist — they're simply not wired as tools.
+All other `delete*` and `deactivate*`/`stop*`/`settle*`/`move-out`/`endServiceAssignment` functions
+(money keeps `delete_money_entry` as the one exception above), plus binary document upload/delete and
+admin/system settings (`updateDisplayName`, `changePassword`, `updateBusinessProfile`, backup/Drive).
+The services still exist — they're simply not wired as tools.
 
 > **Known limitation:** pending-action cards live in the in-memory message for the live session.
 > Reloading a past session shows the assistant's text but not the cards/outcomes (turns persist only
