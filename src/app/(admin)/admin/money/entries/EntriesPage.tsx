@@ -31,7 +31,13 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import { moneyApi, type EntryFilters } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import type { MoneyAccountRow, MoneyCategoryRow, MoneyEntryRow } from "@/types";
+import type {
+  MoneyAccountRow,
+  MoneyCategoryRow,
+  MoneyEntryRow,
+  BeneficiaryRow,
+  ObligationRow,
+} from "@/types";
 import {
   fmt,
   fmtDate,
@@ -61,6 +67,8 @@ type EntryForm = {
   accountId: string;
   description: string;
   notes: string;
+  beneficiaryId: string;
+  obligationId: string;
 };
 
 type TransferForm = {
@@ -79,6 +87,14 @@ const BLANK_ENTRY: EntryForm = {
   accountId: "",
   description: "",
   notes: "",
+  beneficiaryId: "",
+  obligationId: "",
+};
+
+// Entry direction → which side of an obligation it can settle.
+const DIR_TO_OBLIGATION: Record<EntryDir, "OWED_BY_ME" | "OWED_TO_ME"> = {
+  DEBIT: "OWED_BY_ME", // I paid them → reduces what I owe
+  CREDIT: "OWED_TO_ME", // they paid me → reduces what they owe me
 };
 
 const BLANK_TRANSFER: TransferForm = {
@@ -127,7 +143,12 @@ export default function EntriesPage() {
   const [entries, setEntries] = useState<MoneyEntryRow[]>([]);
   const [accounts, setAccounts] = useState<MoneyAccountRow[]>([]);
   const [categories, setCategories] = useState<MoneyCategoryRow[]>([]);
+  const [beneficiaries, setBeneficiaries] = useState<BeneficiaryRow[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Obligations of the person/shop currently selected in the entry form.
+  const [linkObligations, setLinkObligations] = useState<ObligationRow[]>([]);
+  const [linkLoading, setLinkLoading] = useState(false);
 
   // Debounced search box: local input mirrors ?q, pushed to the URL after a pause.
   const [searchInput, setSearchInput] = useState(q);
@@ -185,9 +206,14 @@ export default function EntriesPage() {
   ]);
 
   const loadRefData = useCallback(async () => {
-    const [acc, cat] = await Promise.all([moneyApi.listAccounts(), moneyApi.listCategories()]);
+    const [acc, cat, ppl] = await Promise.all([
+      moneyApi.listAccounts(),
+      moneyApi.listCategories(),
+      moneyApi.listBeneficiaries(),
+    ]);
     setAccounts(acc ?? []);
     setCategories(cat ?? []);
+    setBeneficiaries(ppl ?? []);
   }, []);
 
   useEffect(() => {
@@ -196,6 +222,28 @@ export default function EntriesPage() {
   useEffect(() => {
     loadEntries();
   }, [loadEntries]);
+
+  // When a person/shop is chosen in the entry form, load their obligations so we
+  // can offer the matching dues to settle. Cleared when no one is selected.
+  useEffect(() => {
+    let cancelled = false;
+    if (!form.beneficiaryId) {
+      setLinkObligations([]);
+      return;
+    }
+    setLinkLoading(true);
+    moneyApi
+      .getBeneficiary(form.beneficiaryId)
+      .then((detail) => {
+        if (!cancelled) setLinkObligations(detail?.obligations ?? []);
+      })
+      .finally(() => {
+        if (!cancelled) setLinkLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [form.beneficiaryId]);
 
   const accountName = useCallback(
     (id: string | null) => accounts.find((a) => a.id === id)?.name ?? "—",
@@ -270,6 +318,19 @@ export default function EntriesPage() {
     [categories, form.direction]
   );
 
+  // Open dues for the selected person that this entry's direction can settle.
+  const linkObligationOptions = useMemo(
+    () =>
+      linkObligations.filter(
+        (o) =>
+          o.type === "LOAN" &&
+          o.status === "ACTIVE" &&
+          o.direction === DIR_TO_OBLIGATION[form.direction]
+      ),
+    [linkObligations, form.direction]
+  );
+  const selectedObligation = linkObligations.find((o) => o.id === form.obligationId) ?? null;
+
   const openAdd = () => {
     setEditing(null);
     setForm({ ...BLANK_ENTRY, date: todayInput(), accountId: accounts[0]?.id ?? "" });
@@ -288,6 +349,8 @@ export default function EntriesPage() {
       accountId: e.accountId ?? "",
       description: e.description ?? "",
       notes: e.notes ?? "",
+      beneficiaryId: e.beneficiaryId ?? "",
+      obligationId: e.obligationId ?? "",
     });
     setError(null);
     setDrawerOpen(true);
@@ -303,6 +366,8 @@ export default function EntriesPage() {
         (direction === "CREDIT" ? "INCOME" : "EXPENSE")
           ? f.categoryId
           : "",
+      // A due is direction-specific; clear it so it can't mismatch the new type.
+      obligationId: "",
     }));
 
   const save = async () => {
@@ -317,6 +382,9 @@ export default function EntriesPage() {
         accountId: form.accountId || null,
         description: form.description || null,
         notes: form.notes || null,
+        beneficiaryId: form.beneficiaryId || null,
+        // Only keep the due link when a person is selected and it still matches.
+        obligationId: form.beneficiaryId ? form.obligationId || null : null,
       };
       if (editing) await moneyApi.updateEntry(editing, body);
       else await moneyApi.createEntry(body);
@@ -647,27 +715,23 @@ export default function EntriesPage() {
             onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
             sx={{ mb: 2 }}
           />
-          <Box sx={{ mb: 2 }}>
-            <SearchableSelect
-              label="Category"
-              value={form.categoryId}
-              options={formCategories.map((c) => ({ value: c.id, label: c.name }))}
-              onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))}
-              fullWidth
-            />
-          </Box>
-          <Box sx={{ mb: 2 }}>
-            <SearchableSelect
-              label="Account"
-              value={form.accountId}
-              options={[
-                { value: "", label: "— none —" },
-                ...accounts.map((a) => ({ value: a.id, label: a.name })),
-              ]}
-              onChange={(v) => setForm((f) => ({ ...f, accountId: v }))}
-              fullWidth
-            />
-          </Box>
+          <SearchableSelect
+            label="Category"
+            value={form.categoryId}
+            options={formCategories.map((c) => ({ value: c.id, label: c.name }))}
+            onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))}
+            sx={{ mb: 2 }}
+          />
+          <SearchableSelect
+            label="Account"
+            value={form.accountId}
+            options={[
+              { value: "", label: "— none —" },
+              ...accounts.map((a) => ({ value: a.id, label: a.name })),
+            ]}
+            onChange={(v) => setForm((f) => ({ ...f, accountId: v }))}
+            sx={{ mb: 2 }}
+          />
           <TextField
             label="Description"
             size="small"
@@ -686,6 +750,62 @@ export default function EntriesPage() {
             onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
             sx={{ mb: 2 }}
           />
+
+          {/* Optional link to a person / shop — settles one of their dues. */}
+          <Typography
+            variant="caption"
+            sx={{ fontWeight: 700, color: "text.secondary", display: "block", mb: 1 }}
+          >
+            Link to a person / shop (optional)
+          </Typography>
+          <Box sx={{ mb: 2 }}>
+            <SearchableSelect
+              label="Person / shop"
+              value={form.beneficiaryId}
+              options={[
+                { value: "", label: "— none —" },
+                ...beneficiaries.map((b) => ({ value: b.id, label: b.name })),
+              ]}
+              onChange={(v) => setForm((f) => ({ ...f, beneficiaryId: v, obligationId: "" }))}
+            />
+          </Box>
+          {form.beneficiaryId && (
+            <Box sx={{ mb: 2 }}>
+              <SearchableSelect
+                label={form.direction === "DEBIT" ? "Against which due" : "Against which loan"}
+                value={form.obligationId}
+                options={[
+                  { value: "", label: "— none (just tag the person) —" },
+                  ...linkObligationOptions.map((o) => ({
+                    value: o.id,
+                    label: `${fmt(o.outstanding)} left of ${fmt(o.amount)}`,
+                  })),
+                ]}
+                onChange={(v) => setForm((f) => ({ ...f, obligationId: v }))}
+              />
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ mt: 0.5, display: "block" }}
+              >
+                {linkLoading
+                  ? "Loading dues…"
+                  : linkObligationOptions.length === 0
+                    ? form.direction === "DEBIT"
+                      ? "No open dues for this person — the entry will just be tagged to them."
+                      : "Nothing owed to you by this person — the entry will just be tagged to them."
+                    : selectedObligation
+                      ? `Remaining after this entry: ${fmt(
+                          Math.max(
+                            0,
+                            selectedObligation.outstanding - (parseFloat(form.amount) || 0)
+                          )
+                        )}`
+                      : "Pick a due to reduce it, or leave as “none” to only tag the person."}
+              </Typography>
+            </Box>
+          )}
+
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {error}
@@ -726,26 +846,22 @@ export default function EntriesPage() {
             onChange={(e) => setTransfer((t) => ({ ...t, date: e.target.value }))}
             sx={{ mb: 2 }}
           />
-          <Box sx={{ mb: 2 }}>
-            <SearchableSelect
-              label="From"
-              value={transfer.fromAccountId}
-              options={accounts.map((a) => ({ value: a.id, label: a.name }))}
-              onChange={(v) => setTransfer((t) => ({ ...t, fromAccountId: v }))}
-              fullWidth
-            />
-          </Box>
-          <Box sx={{ mb: 2 }}>
-            <SearchableSelect
-              label="To"
-              value={transfer.toAccountId}
-              options={accounts
-                .filter((a) => a.id !== transfer.fromAccountId)
-                .map((a) => ({ value: a.id, label: a.name }))}
-              onChange={(v) => setTransfer((t) => ({ ...t, toAccountId: v }))}
-              fullWidth
-            />
-          </Box>
+          <SearchableSelect
+            label="From"
+            value={transfer.fromAccountId}
+            options={accounts.map((a) => ({ value: a.id, label: a.name }))}
+            onChange={(v) => setTransfer((t) => ({ ...t, fromAccountId: v }))}
+            sx={{ mb: 2 }}
+          />
+          <SearchableSelect
+            label="To"
+            value={transfer.toAccountId}
+            options={accounts
+              .filter((a) => a.id !== transfer.fromAccountId)
+              .map((a) => ({ value: a.id, label: a.name }))}
+            onChange={(v) => setTransfer((t) => ({ ...t, toAccountId: v }))}
+            sx={{ mb: 2 }}
+          />
           <TextField
             label="Amount (৳)"
             type="number"
