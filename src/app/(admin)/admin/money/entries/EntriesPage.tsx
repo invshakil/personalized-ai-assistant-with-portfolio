@@ -331,6 +331,19 @@ export default function EntriesPage() {
   );
   const selectedObligation = linkObligations.find((o) => o.id === form.obligationId) ?? null;
 
+  // Totals for the currently-filtered set (the list is unpaged, so this is exact).
+  const totals = useMemo(() => {
+    let income = 0;
+    let expense = 0;
+    let transfer = 0;
+    for (const e of entries) {
+      if (e.direction === "CREDIT") income += e.amount;
+      else if (e.direction === "DEBIT") expense += e.amount;
+      else transfer += e.amount;
+    }
+    return { income, expense, transfer, net: income - expense, count: entries.length };
+  }, [entries]);
+
   const openAdd = () => {
     setEditing(null);
     setForm({ ...BLANK_ENTRY, date: todayInput(), accountId: accounts[0]?.id ?? "" });
@@ -548,6 +561,69 @@ export default function EntriesPage() {
           </Button>
         </Box>
       </Box>
+
+      {!loading && totals.count > 0 && (
+        <Card
+          sx={{
+            bgcolor: "background.paper",
+            px: 2,
+            py: 1.25,
+            mb: 2,
+            display: "flex",
+            alignItems: "center",
+            gap: 3,
+            flexWrap: "wrap",
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            {totals.count} {totals.count === 1 ? "entry" : "entries"}
+          </Typography>
+          {totals.income > 0 && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                Income
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: "success.main" }}>
+                +{fmt(totals.income)}
+              </Typography>
+            </Box>
+          )}
+          {totals.expense > 0 && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                Expense
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: "error.main" }}>
+                −{fmt(totals.expense)}
+              </Typography>
+            </Box>
+          )}
+          {totals.income > 0 && totals.expense > 0 && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                Net
+              </Typography>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 700, color: totals.net >= 0 ? "success.main" : "error.main" }}
+              >
+                {totals.net >= 0 ? "+" : "−"}
+                {fmt(Math.abs(totals.net))}
+              </Typography>
+            </Box>
+          )}
+          {totals.transfer > 0 && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                Transfers
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary" }}>
+                {fmt(totals.transfer)}
+              </Typography>
+            </Box>
+          )}
+        </Card>
+      )}
 
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>

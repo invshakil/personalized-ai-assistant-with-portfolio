@@ -36,6 +36,7 @@ import type {
   MoneyAccountRow,
   ObligationDirection,
   ObligationType,
+  ObligationRow,
 } from "@/types";
 import { fmt, fmtDate, todayInput } from "../format";
 
@@ -99,6 +100,11 @@ export default function PeoplePage() {
   const [payForm, setPayForm] = useState<PaymentForm>(BLANK_PAYMENT);
   const [paySaving, setPaySaving] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
+
+  // Inline "add to due" (grow a loan balance for a new credit purchase / further lending)
+  const [addDueId, setAddDueId] = useState<string | null>(null);
+  const [addDueAmount, setAddDueAmount] = useState("");
+  const [addDueSaving, setAddDueSaving] = useState(false);
 
   const [pendingDelete, setPendingDelete] = useState<BeneficiaryRow | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -186,6 +192,8 @@ export default function PeoplePage() {
     setDetailError(null);
     setObForm({ ...BLANK_OBLIGATION, startDate: todayInput() });
     setPayForm({ ...BLANK_PAYMENT, date: todayInput(), accountId: accounts[0]?.id ?? "" });
+    setAddDueId(null);
+    setAddDueAmount("");
     try {
       setDetail(await moneyApi.getBeneficiary(id));
     } finally {
@@ -237,6 +245,26 @@ export default function PeoplePage() {
       setDetailError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setPaySaving(false);
+    }
+  };
+
+  // Grow a loan balance — a new purchase on a shop tab, or lending more. No cash
+  // moves; only the obligation's principal goes up (outstanding follows).
+  const addToDue = async (o: ObligationRow) => {
+    if (!detail) return;
+    const delta = parseFloat(addDueAmount);
+    if (!delta || delta <= 0) return;
+    setAddDueSaving(true);
+    setDetailError(null);
+    try {
+      await moneyApi.updateObligation(detail.id, o.id, { amount: o.amount + delta });
+      setAddDueId(null);
+      setAddDueAmount("");
+      await refreshDetail();
+    } catch (e: unknown) {
+      setDetailError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setAddDueSaving(false);
     }
   };
 
@@ -480,6 +508,51 @@ export default function PeoplePage() {
                         </Typography>
                       )}
                     </Box>
+                    {o.type === "LOAN" &&
+                      (addDueId === o.id ? (
+                        <Box sx={{ display: "flex", gap: 1, mt: 1.5, alignItems: "center" }}>
+                          <TextField
+                            autoFocus
+                            label="Add amount (৳)"
+                            type="number"
+                            size="small"
+                            sx={{ width: 150 }}
+                            value={addDueAmount}
+                            onChange={(e) => setAddDueAmount(e.target.value)}
+                          />
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => addToDue(o)}
+                            disabled={addDueSaving || !addDueAmount}
+                          >
+                            {addDueSaving ? "Adding…" : "Add"}
+                          </Button>
+                          <Button
+                            size="small"
+                            color="inherit"
+                            onClick={() => {
+                              setAddDueId(null);
+                              setAddDueAmount("");
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        </Box>
+                      ) : (
+                        <Button
+                          size="small"
+                          startIcon={<Plus size={14} />}
+                          sx={{ mt: 1 }}
+                          onClick={() => {
+                            setAddDueId(o.id);
+                            setAddDueAmount("");
+                            setDetailError(null);
+                          }}
+                        >
+                          {o.direction === "OWED_BY_ME" ? "Add to due (new purchase)" : "Lend more"}
+                        </Button>
+                      ))}
                   </Card>
                 ))
               )}
