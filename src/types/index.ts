@@ -18,5 +18,6 @@ declare module "next-auth" {
 
 export * from "./property";
 export * from "./finance";
+export * from "./money";
 export * from "./admin";
 export * from "./portfolio";
