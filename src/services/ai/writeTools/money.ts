@@ -9,6 +9,7 @@ import {
   deleteEntry,
   recordTransfer,
   getBeneficiaries,
+  getBeneficiaryDetail,
   recordPayment,
   ensureCategory,
   getEntry,
@@ -281,7 +282,10 @@ export const moneyTools: WriteToolDef[] = [
       "Record a payment to or from a person in People & Loans. " +
       "direction=DEBIT (default) = you paid them; direction=CREDIT = they paid you / repaid a loan. " +
       "personName must match an existing beneficiary (use get_people_balances to list them). " +
-      "accountName is the source/destination account (optional).",
+      "accountName is the source/destination account (optional). " +
+      "If the person has exactly one open loan/due in the matching direction, the payment is " +
+      "automatically applied to it so its outstanding balance goes down; if they have several open " +
+      "loans it is left untagged (apply it to a specific loan in the People & Loans screen).",
     parameters: schema(
       {
         personName: Str("Person name (must exist in People & Loans)"),
@@ -314,18 +318,34 @@ export const moneyTools: WriteToolDef[] = [
     commit: async (a) => {
       const person = await beneficiaryByName(a.personName);
       const accountId = a.accountName ? (await accountByName(a.accountName)).id : null;
+
+      // Auto-apply to the person's single open loan in the matching direction so
+      // its outstanding balance actually goes down (DEBIT settles money I owe;
+      // CREDIT settles money owed to me). With several open loans, stay untagged.
+      const wantDir = a.direction === "DEBIT" ? "OWED_BY_ME" : "OWED_TO_ME";
+      const detail = await getBeneficiaryDetail(person.id);
+      const openLoans = (detail?.obligations ?? []).filter(
+        (o) =>
+          o.type === "LOAN" && o.status === "ACTIVE" && o.direction === wantDir && o.outstanding > 0
+      );
+      const obligationId = openLoans.length === 1 ? openLoans[0].id : null;
+
       const entry = await recordPayment({
         beneficiaryId: person.id,
         amount: a.amount,
         date: a.date,
         direction: a.direction,
+        obligationId,
         accountId,
         description: a.description,
         notes: a.notes,
       });
       const verb = a.direction === "DEBIT" ? "Paid" : "Received from";
+      const applied = obligationId
+        ? ` Applied to their open loan — ${taka(Math.max(0, openLoans[0].outstanding - a.amount))} left.`
+        : "";
       return {
-        summary: `${verb} ${person.name}: ${taka(a.amount)}.`,
+        summary: `${verb} ${person.name}: ${taka(a.amount)}.${applied}`,
         data: entry,
       };
     },
