@@ -54,6 +54,46 @@ export interface SubscriptionPayload {
   notes?: string | null;
 }
 
+// ── List filters (mirror the service `where` options) ─────────────────────────
+
+export interface EarningFilters {
+  fiscalYear?: string;
+  sourceId?: string;
+  /** Relative period token (resolved server-side) — e.g. "last_3_months". */
+  period?: string;
+  from?: string;
+  to?: string;
+  /** Case-insensitive search over notes + the remittance type label. */
+  q?: string;
+}
+
+export interface PaymentFilters {
+  fiscalYear?: string;
+  employeeId?: string;
+  /** IncomeSource id this salary is attributed to. */
+  clientId?: string;
+  type?: PaymentKind;
+  period?: string;
+  from?: string;
+  to?: string;
+}
+
+export interface BizExpenseFilters {
+  fiscalYear?: string;
+  categoryId?: string;
+  period?: string;
+  from?: string;
+  to?: string;
+  /** Case-insensitive search over the tool/service name. */
+  q?: string;
+}
+
+export interface SubscriptionFilters {
+  categoryId?: string;
+  /** Case-insensitive search over the service name. */
+  q?: string;
+}
+
 export interface RateChangePayload {
   effectiveMonth: string; // yyyy-mm
   monthlyAmount: number;
@@ -72,23 +112,21 @@ export const financeApi = {
     apiGet<FinanceDashboardData>("/finance/dashboard", { params }),
 
   // ── Earnings ───────────────────────────────────────────────────────────
-  listEarnings: (params?: { fiscalYear?: string; sourceId?: string }) =>
-    apiGet<EarningRow[]>("/finance/earnings", { params }),
+  listEarnings: (params?: EarningFilters) => apiGet<EarningRow[]>("/finance/earnings", { params }),
   createEarning: (body: EarningPayload) => apiPost<EarningRow>("/finance/earnings", body),
   updateEarning: (id: string, body: Partial<EarningPayload>) =>
     apiPut<EarningRow>(`/finance/earnings/${id}`, body),
   deleteEarning: (id: string) => apiDelete(`/finance/earnings/${id}`),
 
   // ── Employee salary payments ─────────────────────────────────────────────
-  listPayments: (params?: { fiscalYear?: string; employeeId?: string }) =>
-    apiGet<PaymentRow[]>("/finance/payments", { params }),
+  listPayments: (params?: PaymentFilters) => apiGet<PaymentRow[]>("/finance/payments", { params }),
   createPayment: (body: PaymentPayload) => apiPost<PaymentRow>("/finance/payments", body),
   updatePayment: (id: string, body: Partial<PaymentPayload>) =>
     apiPut<PaymentRow>(`/finance/payments/${id}`, body),
   deletePayment: (id: string) => apiDelete(`/finance/payments/${id}`),
 
   // ── Business expenses ────────────────────────────────────────────────────
-  listExpenses: (params?: { fiscalYear?: string; categoryId?: string }) =>
+  listExpenses: (params?: BizExpenseFilters) =>
     apiGet<BizExpenseRow[]>("/finance/expenses", { params }),
   createExpense: (body: BizExpensePayload) => apiPost<BizExpenseRow>("/finance/expenses", body),
   updateExpense: (id: string, body: Partial<BizExpensePayload>) =>
@@ -96,7 +134,8 @@ export const financeApi = {
   deleteExpense: (id: string) => apiDelete(`/finance/expenses/${id}`),
 
   // ── Subscriptions ──────────────────────────────────────────────────────
-  listSubscriptions: () => apiGet<SubscriptionRow[]>("/finance/subscriptions"),
+  listSubscriptions: (params?: SubscriptionFilters) =>
+    apiGet<SubscriptionRow[]>("/finance/subscriptions", { params }),
   getSubscription: (id: string) => apiGet<SubscriptionDetail>(`/finance/subscriptions/${id}`),
   createSubscription: (body: SubscriptionPayload) =>
     apiPost<{ id: string }>("/finance/subscriptions", body),
