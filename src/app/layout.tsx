@@ -17,6 +17,10 @@ const dmSerifDisplay = DM_Serif_Display({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://sshakil.com"),
+  alternates: {
+    canonical: "/",
+  },
   title: {
     default: "Syful Islam Shakil — Tech Lead & Full-Stack Engineer",
     template: "%s | Syful Islam Shakil",
@@ -48,7 +52,7 @@ export const metadata: Metadata = {
     title: "Syful Islam Shakil — Software Engineer & Tech Lead",
     description:
       "10+ years building full-stack products. Available for freelance as Tech Lead with a delivery team.",
-    images: ["https://sshakil.com/og-preview.jpg"],
+    // OG/Twitter images are supplied by the app/opengraph-image.tsx convention.
   },
   other: {
     "geo.region": "BD-B",
