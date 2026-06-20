@@ -749,7 +749,9 @@ export const propertyTools: WriteToolDef[] = [
 
   write({
     name: "update_service_type",
-    description: "Update a service type's name, category, or description.",
+    description:
+      "Update a service type's name, category, or description. Note: a service type can only be " +
+      "deleted/deactivated while no property expense references it (deletion is blocked otherwise).",
     parameters: schema(
       {
         id: Str("Service type id"),
