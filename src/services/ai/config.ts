@@ -111,6 +111,37 @@ export interface ProviderConfigUpdate {
   setActive?: boolean;
 }
 
+// Block SSRF via an admin-set provider base URL: the provider's API key is sent
+// to whatever host this points at, so it must be a public HTTPS endpoint — never
+// localhost or a private/link-local address (cloud metadata, internal services).
+function assertSafeBaseUrl(raw: string): void {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error("Base URL must be a valid absolute URL (e.g. https://api.anthropic.com).");
+  }
+  if (url.protocol !== "https:") {
+    throw new Error("Base URL must use https://.");
+  }
+  const host = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  const blocked =
+    host === "localhost" ||
+    host === "0.0.0.0" ||
+    host === "::1" ||
+    host.endsWith(".local") ||
+    /^127\./.test(host) ||
+    /^10\./.test(host) ||
+    /^192\.168\./.test(host) ||
+    /^172\.(1[6-9]|2\d|3[01])\./.test(host) ||
+    /^169\.254\./.test(host) || // link-local / cloud metadata (169.254.169.254)
+    /^(fc|fd)[0-9a-f]{2}:/i.test(host) || // IPv6 unique-local
+    /^fe80:/i.test(host); // IPv6 link-local
+  if (blocked) {
+    throw new Error("Base URL must be a public host, not localhost or a private/internal address.");
+  }
+}
+
 export async function upsertProviderConfig(
   input: ProviderConfigUpdate
 ): Promise<ProviderConfigView[]> {
@@ -124,7 +155,11 @@ export async function upsertProviderConfig(
     }
     data.defaultModel = input.defaultModel;
   }
-  if (input.baseUrl !== undefined) data.baseUrl = input.baseUrl?.trim() || null;
+  if (input.baseUrl !== undefined) {
+    const trimmed = input.baseUrl?.trim() || null;
+    if (trimmed) assertSafeBaseUrl(trimmed);
+    data.baseUrl = trimmed;
+  }
   if (input.enabled !== undefined) data.enabled = input.enabled;
   if (input.apiKey !== undefined) {
     if (!input.apiKey) {

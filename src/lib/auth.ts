@@ -4,6 +4,11 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { lockoutRemainingMs, recordFailedLogin, clearLoginAttempts } from "@/lib/loginRateLimit";
 
+// Pre-computed bcrypt hash (same cost as real passwords) compared against when
+// no matching user/hash exists, so a missing account and a wrong password cost
+// the same time — defeats login timing / user-enumeration.
+const DUMMY_HASH = bcrypt.hashSync("invalid-placeholder-password", 12);
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     Credentials({
@@ -21,13 +26,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (lockoutRemainingMs(email) > 0) return null;
 
         const user = await db.user.findUnique({ where: { email } });
-        if (!user?.password) {
-          recordFailedLogin(email);
-          return null;
-        }
 
-        const valid = await bcrypt.compare(credentials.password as string, user.password);
-        if (!valid) {
+        // Always run bcrypt.compare — against the real hash, or a dummy of the
+        // same cost when the user/password is absent — so a missing account and
+        // a wrong password take the same time and can't be told apart by timing
+        // (user enumeration). DUMMY_HASH is a bcrypt hash of a random string.
+        const hashToCheck = user?.password ?? DUMMY_HASH;
+        const valid = await bcrypt.compare(credentials.password as string, hashToCheck);
+
+        if (!user?.password || !valid) {
           recordFailedLogin(email);
           return null;
         }
@@ -63,5 +70,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   session: {
     strategy: "jwt",
+    // Cap the admin session lifetime (NextAuth defaults to 30 days). A bumped
+    // APP_VERSION still force-expires sessions earlier (see jwt callback).
+    maxAge: 60 * 60 * 12, // 12 hours
   },
 });
