@@ -47,6 +47,9 @@ export const metadata: Metadata = {
     description: "Tech Lead and Full-Stack Engineer based in Comilla, Bangladesh.",
   },
   robots: { index: true, follow: true },
+  verification: {
+    google: "mg-QRGTfLp9sl2HlnLsm29NsXOlCdG3xqTAo2OebUeA",
+  },
   twitter: {
     card: "summary_large_image",
     title: "Syful Islam Shakil — Software Engineer & Tech Lead",
