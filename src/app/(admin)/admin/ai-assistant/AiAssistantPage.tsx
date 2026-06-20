@@ -26,6 +26,20 @@ import type { ChatSessionSummary } from "@/services/ai/types";
 import type { Message, PendingActionState } from "./types";
 import ConversationList from "./ConversationList";
 import { SLASH_COMMANDS, SLASH_TYPING_RE } from "./commands";
+import { useAppDispatch, useAppSelector } from "@/store/hooks";
+import {
+  newChat as newChatAction,
+  setCurrentSessionId,
+  loadSession as loadSessionAction,
+  setStreaming,
+  addMessage,
+  appendToLastContent,
+  addToolToLast,
+  addPendingActionToLast,
+  setUsageOnLast,
+  replaceLastMessage,
+  patchAction as patchActionAction,
+} from "@/store/slices/aiChatSlice";
 
 // Warn once the running input-token total for a thread crosses this. Message
 // history is re-sent uncached every turn, so cost grows with thread length —
@@ -43,11 +57,15 @@ function parseScope(text: string): "property" | "finance" | "money" | "all" {
 }
 
 export default function AiAssistantPage() {
-  const [messages, setMessages] = useState<Message[]>([]);
+  // The chat thread lives in the Redux store so it survives navigation between
+  // admin pages (the (admin) layout doesn't remount). Transient UI state below
+  // stays local — it's either re-derived or re-fetched on mount.
+  const dispatch = useAppDispatch();
+  const messages = useAppSelector((s) => s.aiChat.messages);
+  const currentSessionId = useAppSelector((s) => s.aiChat.currentSessionId);
+  const isStreaming = useAppSelector((s) => s.aiChat.isStreaming);
   const [input, setInput] = useState("");
-  const [isStreaming, setIsStreaming] = useState(false);
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -106,8 +124,7 @@ export default function AiAssistantPage() {
 
   const newChat = () => {
     if (isStreaming) return;
-    setCurrentSessionId(null);
-    setMessages([]);
+    dispatch(newChatAction());
     setInput("");
     setHistoryOpen(false);
   };
@@ -117,8 +134,7 @@ export default function AiAssistantPage() {
     if (isStreaming || id === currentSessionId) return;
     try {
       const detail = await aiApi.getSession(id);
-      setCurrentSessionId(detail.id);
-      setMessages(detail.messages);
+      dispatch(loadSessionAction({ id: detail.id, messages: detail.messages }));
     } catch {
       /* ignore — likely deleted elsewhere */
     }
@@ -151,7 +167,7 @@ export default function AiAssistantPage() {
       try {
         const created = await aiApi.createSession();
         sid = created.id;
-        setCurrentSessionId(sid);
+        dispatch(setCurrentSessionId(sid));
       } catch {
         sid = null; // persistence unavailable — chat still works in-memory
       }
@@ -159,10 +175,10 @@ export default function AiAssistantPage() {
 
     const userMsg: Message = { role: "user", content: text };
     const updatedMessages = [...messages, userMsg];
-    setMessages(updatedMessages);
+    dispatch(addMessage(userMsg));
     setInput("");
-    setIsStreaming(true);
-    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+    dispatch(setStreaming(true));
+    dispatch(addMessage({ role: "assistant", content: "" }));
 
     try {
       const res = await fetch("/api/admin/ai", {
@@ -227,59 +243,24 @@ export default function AiAssistantPage() {
               cost?: number;
             };
             if (ev.type === "text" && ev.text) {
-              setMessages((prev) => {
-                const updated = [...prev];
-                updated[updated.length - 1] = {
-                  ...updated[updated.length - 1],
-                  content: updated[updated.length - 1].content + ev.text,
-                };
-                return updated;
-              });
+              dispatch(appendToLastContent(ev.text));
             } else if (ev.type === "tool" && ev.name) {
-              setMessages((prev) => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                updated[updated.length - 1] = {
-                  ...last,
-                  tools: [...(last.tools ?? []), ev.name!],
-                };
-                return updated;
-              });
+              dispatch(addToolToLast(ev.name));
             } else if (ev.type === "pending_action" && ev.action) {
               const action: PendingActionState = { ...ev.action, status: "pending" };
-              setMessages((prev) => {
-                const updated = [...prev];
-                const last = updated[updated.length - 1];
-                updated[updated.length - 1] = {
-                  ...last,
-                  pendingActions: [...(last.pendingActions ?? []), action],
-                };
-                return updated;
-              });
+              dispatch(addPendingActionToLast(action));
             } else if (ev.type === "error" && ev.message) {
-              setMessages((prev) => {
-                const updated = [...prev];
-                updated[updated.length - 1] = {
-                  ...updated[updated.length - 1],
-                  content: updated[updated.length - 1].content + `\n\n⚠️ ${ev.message}`,
-                };
-                return updated;
-              });
+              dispatch(appendToLastContent(`\n\n⚠️ ${ev.message}`));
             } else if (ev.type === "usage") {
-              setMessages((prev) => {
-                const updated = [...prev];
-                updated[updated.length - 1] = {
-                  ...updated[updated.length - 1],
-                  usage: {
-                    inputTokens: ev.inputTokens ?? 0,
-                    outputTokens: ev.outputTokens ?? 0,
-                    cacheReadTokens: ev.cacheReadTokens ?? 0,
-                    cacheCreateTokens: ev.cacheCreateTokens ?? 0,
-                    cost: ev.cost ?? 0,
-                  },
-                };
-                return updated;
-              });
+              dispatch(
+                setUsageOnLast({
+                  inputTokens: ev.inputTokens ?? 0,
+                  outputTokens: ev.outputTokens ?? 0,
+                  cacheReadTokens: ev.cacheReadTokens ?? 0,
+                  cacheCreateTokens: ev.cacheCreateTokens ?? 0,
+                  cost: ev.cost ?? 0,
+                })
+              );
             }
           } catch {
             /* malformed line — skip */
@@ -289,31 +270,16 @@ export default function AiAssistantPage() {
     } catch (e) {
       const message =
         e instanceof Error ? e.message : "Sorry, something went wrong. Please try again.";
-      setMessages((prev) => {
-        const updated = [...prev];
-        updated[updated.length - 1] = { role: "assistant", content: message };
-        return updated;
-      });
+      dispatch(replaceLastMessage({ role: "assistant", content: message }));
     } finally {
-      setIsStreaming(false);
+      dispatch(setStreaming(false));
       refreshSessions();
       checkBudget();
     }
   };
 
   const patchAction = (msgIndex: number, actionId: string, patch: Partial<PendingActionState>) =>
-    setMessages((prev) =>
-      prev.map((m, i) =>
-        i !== msgIndex
-          ? m
-          : {
-              ...m,
-              pendingActions: m.pendingActions?.map((a) =>
-                a.id === actionId ? { ...a, ...patch } : a
-              ),
-            }
-      )
-    );
+    dispatch(patchActionAction({ msgIndex, actionId, patch }));
 
   const approveAction = async (msgIndex: number, actionId: string) => {
     const action = messages[msgIndex]?.pendingActions?.find((a) => a.id === actionId);
@@ -323,7 +289,7 @@ export default function AiAssistantPage() {
     try {
       const res = await aiApi.executeAction(action.tool, action.input);
       patchAction(msgIndex, actionId, { status: "done", resultSummary: res.summary });
-      setMessages((prev) => [...prev, { role: "system", content: res.summary }]);
+      dispatch(addMessage({ role: "system", content: res.summary }));
     } catch (e) {
       patchAction(msgIndex, actionId, {
         status: "error",
