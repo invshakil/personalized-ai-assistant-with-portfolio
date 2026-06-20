@@ -46,8 +46,8 @@ export function updateServiceType(id: string, input: UpdateServiceTypeInput) {
  * Guard: a service type can only be deactivated while it is not in use. Tenants
  * do not link to PropertyServiceType directly (they subscribe to AddOnService);
  * the real referential dependency is property expenses classified under this
- * type. We block deactivation while any active expense references it so a type
- * that is still in use can't be removed and orphan the classification.
+ * type. Expenses are not soft-deleted, so we block deactivation while ANY
+ * expense references this type, to avoid orphaning the classification.
  */
 export async function deactivateServiceType(id: string) {
   const inUse = await db.expense.count({ where: { serviceTypeId: id } });

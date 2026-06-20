@@ -67,10 +67,12 @@ function fmt(n: number) {
 }
 
 // Given a YYYY-MM-DD string, return the calendar day before it (also YYYY-MM-DD).
+// Parse and step in UTC so the result is timezone-independent (a local parse +
+// toISOString() can shift the date by a day in non-UTC zones).
 function dayBefore(iso: string): string {
   if (!iso) return "";
-  const d = new Date(`${iso}T00:00:00`);
-  d.setDate(d.getDate() - 1);
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
   return d.toISOString().slice(0, 10);
 }
 

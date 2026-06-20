@@ -16,7 +16,10 @@ export async function GET(req: NextRequest) {
   const to = searchParams.get("to") ?? undefined;
   const typeParam = searchParams.get("type") ?? undefined;
   // Only accept a valid PaymentKind; ignore anything else (e.g. "ALL").
-  const type = typeParam && typeParam in PaymentKind ? (typeParam as PaymentKind) : undefined;
+  const type =
+    typeParam && Object.values(PaymentKind).includes(typeParam as PaymentKind)
+      ? (typeParam as PaymentKind)
+      : undefined;
 
   const data = await getEmployeePayments({
     fiscalYear,

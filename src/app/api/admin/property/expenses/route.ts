@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const serviceTypeId = searchParams.get("serviceTypeId") ?? undefined;
   const categoryParam = searchParams.get("category");
   const category =
-    categoryParam && categoryParam in ExpenseCategory
+    categoryParam && Object.values(ExpenseCategory).includes(categoryParam as ExpenseCategory)
       ? (categoryParam as ExpenseCategory)
       : undefined;
   const q = searchParams.get("q") ?? undefined;
