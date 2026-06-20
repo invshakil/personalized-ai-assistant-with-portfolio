@@ -2,13 +2,31 @@ import { db } from "@/lib/db";
 import { toNum, toIso } from "./_serializers";
 import { ExpenseCategory } from "@prisma/client";
 
-export async function getExpenses(opts: { month?: number; year?: number; payeeId?: string }) {
-  const { month, year, payeeId } = opts;
+export interface GetExpensesOptions {
+  month?: number;
+  year?: number;
+  payeeId?: string;
+  category?: ExpenseCategory;
+  serviceTypeId?: string;
+  /** Case-insensitive search on description or notes. */
+  q?: string;
+}
+
+export async function getExpenses(opts: GetExpensesOptions) {
+  const { month, year, payeeId, category, serviceTypeId, q } = opts;
   const expenses = await db.expense.findMany({
     where: {
       ...(month && { month }),
       ...(year && { year }),
       ...(payeeId && { payeeId }),
+      ...(category && { category }),
+      ...(serviceTypeId && { serviceTypeId }),
+      ...(q && {
+        OR: [
+          { description: { contains: q, mode: "insensitive" } },
+          { notes: { contains: q, mode: "insensitive" } },
+        ],
+      }),
     },
     orderBy: [{ year: "desc" }, { month: "desc" }, { expenseDate: "desc" }],
     include: {

@@ -1,13 +1,32 @@
 import { db } from "@/lib/db";
 import { PaymentKind } from "@prisma/client";
 import { fiscalYearOf } from "@/lib/fiscalYear";
+import { resolveRange, dateColumnWhere } from "@/services/_shared/dateRange";
 import { toNum, toIso } from "./_serializers";
 
-export async function getEmployeePayments(opts: { fiscalYear?: string; employeeId?: string } = {}) {
+export interface GetEmployeePaymentsOptions {
+  fiscalYear?: string;
+  employeeId?: string;
+  /** Payment kind: SALARY | BONUS | ADVANCE | OTHER. */
+  type?: PaymentKind;
+  /** Filter to payments attributed to this client (IncomeSource id). */
+  clientId?: string;
+  /** Relative period token (resolved server-side) — e.g. "last_3_months". */
+  period?: string;
+  /** Explicit inclusive date bounds (override `period`). ISO yyyy-mm-dd. */
+  from?: string;
+  to?: string;
+}
+
+export async function getEmployeePayments(opts: GetEmployeePaymentsOptions = {}) {
+  const range = resolveRange({ period: opts.period, from: opts.from, to: opts.to });
   const payments = await db.employeePayment.findMany({
     where: {
       ...(opts.fiscalYear && { fiscalYear: opts.fiscalYear }),
       ...(opts.employeeId && { employeeId: opts.employeeId }),
+      ...(opts.type && { type: opts.type }),
+      ...(opts.clientId && { clients: { some: { id: opts.clientId } } }),
+      ...dateColumnWhere(range),
     },
     orderBy: [{ date: "desc" }],
     include: {

@@ -109,9 +109,20 @@ function currentRate(base: number, rateChanges: RateChange[]): number {
   return effectiveAmountFor(monthStart(new Date()), base, rateChanges, new Map());
 }
 
-export async function getSubscriptions() {
+export interface GetSubscriptionsOptions {
+  categoryId?: string;
+  /** Case-insensitive free-text search over the service name. */
+  q?: string;
+}
+
+export async function getSubscriptions(opts: GetSubscriptionsOptions = {}) {
   await generateSubscriptionCharges();
+  const q = opts.q?.trim();
   const subs = await db.subscription.findMany({
+    where: {
+      ...(opts.categoryId && { categoryId: opts.categoryId }),
+      ...(q && { name: { contains: q, mode: "insensitive" } }),
+    },
     orderBy: [{ endDate: "asc" }, { startDate: "desc" }],
     include: {
       category: { select: { name: true } },

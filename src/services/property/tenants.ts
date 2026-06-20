@@ -15,8 +15,30 @@ function serializeTenant(t: Record<string, any>) {
 
 export type TenantFilter = "active" | "inactive" | "external" | "all" | "future";
 
-export async function getTenants(filter: TenantFilter = "active") {
-  const where =
+/** Tenant lifecycle status used for the Tenants-tab status filter. */
+export type TenantStatusFilter = "CURRENT" | "FUTURE";
+
+export interface GetTenantsOptions {
+  /** The existing coarse filter (active/inactive/external/all/future). */
+  filter?: TenantFilter;
+  /** Restrict to tenants assigned to this unit. */
+  unitId?: string;
+  /** Restrict to CURRENT (active) or FUTURE (scheduled) tenants. */
+  status?: TenantStatusFilter;
+  /** Case-insensitive search on tenant name or phone. */
+  q?: string;
+}
+
+export async function getTenants(opts: TenantFilter | GetTenantsOptions = "active") {
+  // Back-compat: a bare string is the legacy `filter` argument.
+  const {
+    filter = "active",
+    unitId,
+    status,
+    q,
+  }: GetTenantsOptions = typeof opts === "string" ? { filter: opts } : opts;
+
+  const base =
     filter === "all"
       ? {}
       : filter === "external"
@@ -26,6 +48,17 @@ export async function getTenants(filter: TenantFilter = "active") {
           : filter === "future"
             ? { isActive: true, tenantStatus: "FUTURE" as const }
             : { isActive: true, isExternal: false, tenantStatus: "CURRENT" as const };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const where: Record<string, any> = { ...base };
+  if (unitId) where.unitId = unitId;
+  if (status) where.tenantStatus = status;
+  if (q) {
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { phone: { contains: q, mode: "insensitive" } },
+    ];
+  }
 
   const tenants = await db.tenant.findMany({
     where,

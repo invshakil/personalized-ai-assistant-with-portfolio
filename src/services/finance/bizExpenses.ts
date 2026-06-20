@@ -1,15 +1,32 @@
 import { db } from "@/lib/db";
 import { fiscalYearOf } from "@/lib/fiscalYear";
+import { resolveRange, dateColumnWhere } from "@/services/_shared/dateRange";
 import { toNum, toIso } from "./_serializers";
 import { generateSubscriptionCharges } from "./subscriptions";
 
-export async function getBizExpenses(opts: { fiscalYear?: string; categoryId?: string } = {}) {
+export interface GetBizExpensesOptions {
+  fiscalYear?: string;
+  categoryId?: string;
+  /** Case-insensitive free-text search over the tool/service name. */
+  q?: string;
+  /** Relative period token (resolved server-side) — e.g. "last_3_months". */
+  period?: string;
+  /** Explicit inclusive date bounds (override `period`). ISO yyyy-mm-dd. */
+  from?: string;
+  to?: string;
+}
+
+export async function getBizExpenses(opts: GetBizExpensesOptions = {}) {
   // Make sure any due subscription charges exist before listing.
   await generateSubscriptionCharges();
+  const range = resolveRange({ period: opts.period, from: opts.from, to: opts.to });
+  const q = opts.q?.trim();
   const expenses = await db.bizExpense.findMany({
     where: {
       ...(opts.fiscalYear && { fiscalYear: opts.fiscalYear }),
       ...(opts.categoryId && { categoryId: opts.categoryId }),
+      ...(q && { name: { contains: q, mode: "insensitive" } }),
+      ...dateColumnWhere(range),
     },
     orderBy: [{ date: "desc" }],
     include: { category: { select: { name: true } } },

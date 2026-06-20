@@ -1,13 +1,53 @@
 import { db } from "@/lib/db";
-import { RemittanceType } from "@prisma/client";
+import { Prisma, RemittanceType } from "@prisma/client";
 import { fiscalYearOf } from "@/lib/fiscalYear";
+import { resolveRange, dateColumnWhere } from "@/services/_shared/dateRange";
 import { toNum, toIso } from "./_serializers";
 
-export async function getEarnings(opts: { fiscalYear?: string; sourceId?: string } = {}) {
+export interface GetEarningsOptions {
+  fiscalYear?: string;
+  sourceId?: string;
+  /** Relative period token (resolved server-side) — e.g. "last_3_months". */
+  period?: string;
+  /** Explicit inclusive date bounds (override `period`). ISO yyyy-mm-dd. */
+  from?: string;
+  to?: string;
+  /** Case-insensitive free-text search over notes + the remittance type label. */
+  q?: string;
+}
+
+// Remittance type labels the free-text search matches against (so typing
+// "remittance" / "non-rem" filters by type, mirroring the UI chip labels).
+const REM_LABEL: Record<RemittanceType, string> = {
+  REM: "remittance",
+  NON_REM: "non-rem non remittance",
+};
+
+export async function getEarnings(opts: GetEarningsOptions = {}) {
+  const range = resolveRange({ period: opts.period, from: opts.from, to: opts.to });
+
+  // Free-text search matches notes OR any remittance type whose label contains
+  // the query (e.g. "rem" → both; "non" → NON_REM only).
+  const q = opts.q?.trim();
+  let searchWhere: Prisma.EarningWhereInput | undefined;
+  if (q) {
+    const matchedTypes = (Object.keys(REM_LABEL) as RemittanceType[]).filter((t) =>
+      REM_LABEL[t].includes(q.toLowerCase())
+    );
+    searchWhere = {
+      OR: [
+        { notes: { contains: q, mode: "insensitive" } },
+        ...(matchedTypes.length ? [{ remittance: { in: matchedTypes } }] : []),
+      ],
+    };
+  }
+
   const earnings = await db.earning.findMany({
     where: {
       ...(opts.fiscalYear && { fiscalYear: opts.fiscalYear }),
       ...(opts.sourceId && { sourceId: opts.sourceId }),
+      ...dateColumnWhere(range),
+      ...(searchWhere ?? {}),
     },
     orderBy: [{ date: "desc" }],
     include: { source: { select: { name: true } } },
