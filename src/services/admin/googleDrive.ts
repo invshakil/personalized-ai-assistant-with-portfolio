@@ -102,16 +102,21 @@ async function fetchEmail(accessToken: string): Promise<string> {
   return ((await res.json()) as { email?: string }).email ?? "";
 }
 
-/** Optionally revoke the refresh token at Google (best-effort). */
-export async function revokeToken(refreshToken: string): Promise<void> {
+/**
+ * Revoke the refresh token at Google. Returns true on success. On failure the
+ * caller should warn the user that the token may still be live at Google, so a
+ * "disconnect" doesn't silently leave a usable credential behind.
+ */
+export async function revokeToken(refreshToken: string): Promise<boolean> {
   try {
-    await fetch("https://oauth2.googleapis.com/revoke", {
+    const res = await fetch("https://oauth2.googleapis.com/revoke", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({ token: refreshToken }),
     });
+    return res.ok;
   } catch {
-    // best-effort; ignore
+    return false;
   }
 }
 

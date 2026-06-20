@@ -1,19 +1,9 @@
 import fs from "fs/promises";
 import path from "path";
 import { db } from "@/lib/db";
+import { safeUploadExt } from "./_uploads";
 
 const UPLOADS_ROOT = path.join(process.cwd(), "uploads", "payees");
-
-const ALLOWED_TYPES = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-  "application/msword",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-]);
-
-const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
 
 async function payeeDir(payeeId: string) {
   const dir = path.join(UPLOADS_ROOT, payeeId);
@@ -29,19 +19,13 @@ export async function getPayeeDocuments(payeeId: string) {
 }
 
 export async function uploadPayeeDocument(payeeId: string, file: File, label?: string) {
-  if (!ALLOWED_TYPES.has(file.type)) {
-    throw new Error(`File type not allowed: ${file.type}. Accepted: PDF, images, Word documents.`);
-  }
-  if (file.size > MAX_SIZE) {
-    throw new Error(`File too large (max 10 MB): ${file.name}`);
-  }
-
-  const ext = path.extname(file.name) || "";
+  const buffer = Buffer.from(await file.arrayBuffer());
+  // Validates type/size/content and returns a safe extension from the MIME.
+  const ext = safeUploadExt(file, buffer);
   const storedName = `${crypto.randomUUID()}${ext}`;
   const dir = await payeeDir(payeeId);
   const filePath = path.join(dir, storedName);
 
-  const buffer = Buffer.from(await file.arrayBuffer());
   await fs.writeFile(filePath, buffer);
 
   return db.payeeDocument.create({
