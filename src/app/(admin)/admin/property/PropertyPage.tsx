@@ -63,6 +63,14 @@ function fmt(n: number) {
   return `৳${n.toLocaleString()}`;
 }
 
+// Given a YYYY-MM-DD string, return the calendar day before it (also YYYY-MM-DD).
+function dayBefore(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(`${iso}T00:00:00`);
+  d.setDate(d.getDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 function StatusChip({ isOccupied }: { isOccupied: boolean }) {
   return (
     <Chip
@@ -108,6 +116,7 @@ interface AddTenantForm {
   leaseEndDate: string;
   advancePaid: boolean;
   advanceAmount: string;
+  outgoingMoveOutDate: string;
 }
 
 export default function PropertyPage() {
@@ -198,6 +207,7 @@ export default function PropertyPage() {
     leaseEndDate: "",
     advancePaid: false,
     advanceAmount: "",
+    outgoingMoveOutDate: "",
   });
 
   const load = useCallback(async () => {
@@ -451,6 +461,7 @@ export default function PropertyPage() {
       leaseEndDate: "",
       advancePaid: false,
       advanceAmount: "",
+      outgoingMoveOutDate: "",
     });
     setAddOpen(true);
   };
@@ -467,6 +478,7 @@ export default function PropertyPage() {
       leaseEndDate: "",
       advancePaid: false,
       advanceAmount: "",
+      outgoingMoveOutDate: "",
     });
     setAddOpen(true);
   };
@@ -500,6 +512,11 @@ export default function PropertyPage() {
         advancePaid: addForm.advancePaid,
         advanceAmount: addForm.advancePaid ? Number(addForm.advanceAmount) : 0,
         isExternal: isAddingExternal,
+        // Occupied unit → the new tenant is queued; schedule the current tenant's move-out.
+        outgoingMoveOutDate:
+          !isAddingExternal && selectedUnitData?.isOccupied
+            ? addForm.outgoingMoveOutDate || dayBefore(addForm.moveInDate) || null
+            : null,
       })) as { id?: string; tenantStatus?: string } | null;
       // For occupied units: schedule a rent change for the future tenant's move-in date
       if (
@@ -559,19 +576,25 @@ export default function PropertyPage() {
   const [assignUnitDialog, setAssignUnitDialog] = useState<{
     tenantId: string;
     tenantName: string;
+    tenantMoveInDate: string;
   } | null>(null);
   const [assigningUnitId, setAssigningUnitId] = useState("");
   const [assignRent, setAssignRent] = useState("");
+  const [assignOutgoingMoveOut, setAssignOutgoingMoveOut] = useState("");
   const [assignSaving, setAssignSaving] = useState(false);
 
   const doAssignUnit = async () => {
     if (!assignUnitDialog || !assigningUnitId) return;
     setAssignSaving(true);
     try {
+      const targetUnit = units.find((u) => u.id === assigningUnitId);
       const newTenant = (await propertyApi.updateTenant(assignUnitDialog.tenantId, {
         unitId: assigningUnitId,
+        // Occupied unit → schedule the current tenant's move-out.
+        outgoingMoveOutDate: targetUnit?.isOccupied
+          ? assignOutgoingMoveOut || dayBefore(assignUnitDialog.tenantMoveInDate) || null
+          : null,
       })) as { id?: string; tenantStatus?: string; moveInDate?: string } | null;
-      const targetUnit = units.find((u) => u.id === assigningUnitId);
       if (
         newTenant?.id &&
         assignRent &&
@@ -593,6 +616,7 @@ export default function PropertyPage() {
       setAssignUnitDialog(null);
       setAssigningUnitId("");
       setAssignRent("");
+      setAssignOutgoingMoveOut("");
       await load();
     } finally {
       setAssignSaving(false);
@@ -792,10 +816,15 @@ export default function PropertyPage() {
                   onEdit={openTenantEdit}
                   onDeactivate={deactivateTenant}
                   onActivate={activateTenant}
-                  onAssignUnit={(id, name) => {
-                    setAssignUnitDialog({ tenantId: id, tenantName: name });
+                  onAssignUnit={(id, name, moveInDate) => {
+                    setAssignUnitDialog({
+                      tenantId: id,
+                      tenantName: name,
+                      tenantMoveInDate: moveInDate?.split("T")[0] ?? "",
+                    });
                     setAssigningUnitId("");
                     setAssignRent("");
+                    setAssignOutgoingMoveOut("");
                   }}
                 />
               ) : inactiveLoading ? (
@@ -1597,8 +1626,13 @@ export default function PropertyPage() {
               label="Unit"
               value={assigningUnitId}
               onChange={(e) => {
-                setAssigningUnitId(e.target.value as string);
+                const uid = e.target.value as string;
+                setAssigningUnitId(uid);
                 setAssignRent("");
+                const u = units.find((x) => x.id === uid);
+                setAssignOutgoingMoveOut(
+                  u?.isOccupied ? dayBefore(assignUnitDialog?.tenantMoveInDate ?? "") : ""
+                );
               }}
             >
               {units.map((u) => (
@@ -1635,6 +1669,26 @@ export default function PropertyPage() {
                 />
               );
             })()}
+          {assigningUnitId &&
+            units.find((x) => x.id === assigningUnitId)?.isOccupied &&
+            (() => {
+              const u = units.find((x) => x.id === assigningUnitId);
+              const outName = u?.tenant?.name ?? "current tenant";
+              return (
+                <TextField
+                  label={`${outName}'s Move-out Date`}
+                  type="date"
+                  value={assignOutgoingMoveOut}
+                  onChange={(e) => setAssignOutgoingMoveOut(e.target.value)}
+                  size="small"
+                  fullWidth
+                  required
+                  sx={{ mt: 2 }}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  helperText={`Sets ${outName}'s move-out and lease-end dates. Defaults to the day before this tenant moves in.`}
+                />
+              );
+            })()}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
           <Button
@@ -1651,7 +1705,11 @@ export default function PropertyPage() {
             size="small"
             startIcon={<MapPin size={14} />}
             onClick={doAssignUnit}
-            disabled={!assigningUnitId || assignSaving}
+            disabled={
+              !assigningUnitId ||
+              assignSaving ||
+              (!!units.find((x) => x.id === assigningUnitId)?.isOccupied && !assignOutgoingMoveOut)
+            }
             sx={{ flex: 1 }}
           >
             {assignSaving ? "Assigning…" : "Assign"}
@@ -1731,8 +1789,8 @@ export default function PropertyPage() {
                 {selectedUnit?.isOccupied && (
                   <Alert severity="info" sx={{ fontSize: "0.8rem", py: 0.5 }}>
                     This unit is occupied. The new tenant will be scheduled as a{" "}
-                    <strong>future tenant</strong> and will become active when the current tenant
-                    moves out.
+                    <strong>future tenant</strong>; the current tenant is moved out on the date
+                    below and the new tenant becomes active from their move-in date.
                   </Alert>
                 )}
 
@@ -1767,12 +1825,39 @@ export default function PropertyPage() {
               label="Move-in Date"
               type="date"
               value={addForm.moveInDate}
-              onChange={(e) => setAddForm((p) => ({ ...p, moveInDate: e.target.value }))}
+              onChange={(e) =>
+                setAddForm((p) => {
+                  const moveInDate = e.target.value;
+                  // Keep the outgoing move-out in lockstep with move-in unless edited.
+                  const autoOut =
+                    !p.outgoingMoveOutDate || p.outgoingMoveOutDate === dayBefore(p.moveInDate);
+                  return {
+                    ...p,
+                    moveInDate,
+                    outgoingMoveOutDate: autoOut ? dayBefore(moveInDate) : p.outgoingMoveOutDate,
+                  };
+                })
+              }
               size="small"
               fullWidth
               required
               slotProps={{ inputLabel: { shrink: true } }}
             />
+            {!isAddingExternal && selectedUnit?.isOccupied && (
+              <TextField
+                label={`${selectedUnit.tenant?.name ?? "Current tenant"}'s Move-out Date`}
+                type="date"
+                value={addForm.outgoingMoveOutDate}
+                onChange={(e) => setAddForm((p) => ({ ...p, outgoingMoveOutDate: e.target.value }))}
+                size="small"
+                fullWidth
+                required
+                slotProps={{ inputLabel: { shrink: true } }}
+                helperText={`Sets ${
+                  selectedUnit.tenant?.name ?? "the current tenant"
+                }'s move-out and lease-end dates. Defaults to the day before the new tenant moves in.`}
+              />
+            )}
             <TextField
               label="Lease End Date"
               type="date"
@@ -1888,7 +1973,8 @@ export default function PropertyPage() {
                   saving ||
                   !addForm.name ||
                   !addForm.moveInDate ||
-                  (!isAddingExternal && !addForm.unitId)
+                  (!isAddingExternal && !addForm.unitId) ||
+                  (!isAddingExternal && !!selectedUnit?.isOccupied && !addForm.outgoingMoveOutDate)
                 }
               >
                 {saving ? "Saving…" : isAddingExternal ? "Add Member" : "Add Tenant"}
@@ -1914,7 +2000,7 @@ function TenantTable({
   onEdit: (row: UnitWithTenant) => void;
   onDeactivate: (id: string, name: string) => void;
   onActivate: (id: string, name: string) => void;
-  onAssignUnit?: (tenantId: string, tenantName: string) => void;
+  onAssignUnit?: (tenantId: string, tenantName: string, moveInDate: string) => void;
 }) {
   if (tenants.length === 0) {
     return (
@@ -2094,7 +2180,7 @@ function TenantTable({
                       <IconButton
                         size="small"
                         color="warning"
-                        onClick={() => onAssignUnit(t.id, t.name)}
+                        onClick={() => onAssignUnit(t.id, t.name, t.moveInDate)}
                       >
                         <MapPin size={15} />
                       </IconButton>

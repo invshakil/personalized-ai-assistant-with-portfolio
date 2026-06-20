@@ -149,6 +149,13 @@ export interface CreateTenantInput {
   advanceAmount?: number;
   notes?: string | null;
   isExternal?: boolean;
+  /**
+   * When this tenant is queued as a future tenant for an already-occupied unit,
+   * the date the current tenant moves out. Their moveOutDate and leaseEndDate are
+   * set to this value (they stay active until then). Defaults to the day before
+   * the new tenant's move-in date.
+   */
+  outgoingMoveOutDate?: string | null;
 }
 
 export async function createTenant(input: CreateTenantInput) {
@@ -165,34 +172,65 @@ export async function createTenant(input: CreateTenantInput) {
   const tenantCode = `T${String(nextNum).padStart(2, "0")}`;
 
   let tenantStatus: "CURRENT" | "FUTURE" = "CURRENT";
+  let outgoingTenantId: string | null = null;
   if (input.unitId && !input.isExternal) {
     const existingCurrent = await db.tenant.findFirst({
       where: { unitId: input.unitId, tenantStatus: "CURRENT", isActive: true },
       select: { id: true },
     });
-    if (existingCurrent) tenantStatus = "FUTURE";
+    if (existingCurrent) {
+      tenantStatus = "FUTURE";
+      outgoingTenantId = existingCurrent.id;
+    }
   }
 
-  const tenant = await db.tenant.create({
-    data: {
-      tenantCode,
-      name: input.name,
-      phone: input.phone ?? null,
-      email: input.email ?? null,
-      nidNumber: input.nidNumber ?? null,
-      unitId: input.unitId ?? null,
-      moveInDate: new Date(input.moveInDate),
-      leaseEndDate: input.leaseEndDate ? new Date(input.leaseEndDate) : null,
-      advancePaid: input.advancePaid ?? false,
-      advanceAmount: input.advanceAmount ?? 0,
-      notes: input.notes ?? null,
-      isExternal: input.isExternal ?? false,
-      isActive: true,
-      tenantStatus,
-    },
-    include: {
-      unit: { select: { id: true, unitNumber: true, floor: true, monthlyRent: true } },
-    },
+  const moveInDate = new Date(input.moveInDate);
+
+  // Scheduling a future tenant into an occupied unit ends the current tenant's
+  // stay. Default their departure to the day before the new tenant moves in.
+  let outgoingMoveOut: Date | null = null;
+  if (outgoingTenantId) {
+    if (input.outgoingMoveOutDate) {
+      outgoingMoveOut = new Date(input.outgoingMoveOutDate);
+    } else {
+      outgoingMoveOut = new Date(moveInDate);
+      outgoingMoveOut.setDate(outgoingMoveOut.getDate() - 1);
+    }
+  }
+
+  const tenant = await db.$transaction(async (tx) => {
+    const created = await tx.tenant.create({
+      data: {
+        tenantCode,
+        name: input.name,
+        phone: input.phone ?? null,
+        email: input.email ?? null,
+        nidNumber: input.nidNumber ?? null,
+        unitId: input.unitId ?? null,
+        moveInDate,
+        leaseEndDate: input.leaseEndDate ? new Date(input.leaseEndDate) : null,
+        advancePaid: input.advancePaid ?? false,
+        advanceAmount: input.advanceAmount ?? 0,
+        notes: input.notes ?? null,
+        isExternal: input.isExternal ?? false,
+        isActive: true,
+        tenantStatus,
+      },
+      include: {
+        unit: { select: { id: true, unitNumber: true, floor: true, monthlyRent: true } },
+      },
+    });
+
+    if (outgoingTenantId && outgoingMoveOut) {
+      // Keep the outgoing tenant active/CURRENT until their move-out date; payment
+      // generation deactivates them once the new tenant's move-in month is run.
+      await tx.tenant.update({
+        where: { id: outgoingTenantId },
+        data: { moveOutDate: outgoingMoveOut, leaseEndDate: outgoingMoveOut },
+      });
+    }
+
+    return created;
   });
 
   if (input.unitId && tenantStatus === "CURRENT") {
@@ -214,6 +252,13 @@ export interface UpdateTenantInput {
   advanceSettled?: boolean;
   notes?: string | null;
   unitId?: string | null;
+  /**
+   * When moving this tenant into an already-occupied unit (they become a future
+   * tenant), the date the current tenant moves out. Their moveOutDate and
+   * leaseEndDate are set to this value. Defaults to the day before this tenant's
+   * move-in date.
+   */
+  outgoingMoveOutDate?: string | null;
 }
 
 export async function updateTenant(id: string, input: UpdateTenantInput) {
@@ -232,7 +277,12 @@ export async function updateTenant(id: string, input: UpdateTenantInput) {
   if (input.advanceSettled !== undefined) data.advanceSettled = input.advanceSettled;
   if (input.notes !== undefined) data.notes = input.notes;
 
-  if ("unitId" in input) {
+  let outgoingTenantId: string | null = null;
+  let outgoingMoveOut: Date | null = null;
+
+  // Only treat unitId as a change when explicitly provided (a caller that omits
+  // it sends undefined; passing null is an explicit un-assign).
+  if (input.unitId !== undefined) {
     const newUnitId = input.unitId || null;
     if (newUnitId) {
       const existingCurrent = await db.tenant.findFirst({
@@ -242,15 +292,47 @@ export async function updateTenant(id: string, input: UpdateTenantInput) {
       const newStatus = existingCurrent ? "FUTURE" : "CURRENT";
       data.unitId = newUnitId;
       data.tenantStatus = newStatus;
-      if (newStatus === "CURRENT") {
-        await db.unit.update({ where: { id: newUnitId }, data: { isOccupied: true } });
+
+      if (existingCurrent) {
+        // Moving into an occupied unit ends the current tenant's stay. Default
+        // their departure to the day before this tenant's move-in date.
+        outgoingTenantId = existingCurrent.id;
+        let moveIn: Date;
+        if (input.moveInDate) {
+          moveIn = new Date(input.moveInDate);
+        } else {
+          const self = await db.tenant.findUnique({
+            where: { id },
+            select: { moveInDate: true },
+          });
+          moveIn = self?.moveInDate ?? new Date();
+        }
+        if (input.outgoingMoveOutDate) {
+          outgoingMoveOut = new Date(input.outgoingMoveOutDate);
+        } else {
+          outgoingMoveOut = new Date(moveIn);
+          outgoingMoveOut.setDate(outgoingMoveOut.getDate() - 1);
+        }
       }
     } else {
       data.unitId = null;
     }
   }
 
-  const tenant = await db.tenant.update({ where: { id }, data });
+  const tenant = await db.$transaction(async (tx) => {
+    if (data.tenantStatus === "CURRENT" && data.unitId) {
+      await tx.unit.update({ where: { id: data.unitId as string }, data: { isOccupied: true } });
+    }
+    if (outgoingTenantId && outgoingMoveOut) {
+      // Outgoing tenant stays active/CURRENT until their move-out date; payment
+      // generation deactivates them once the new tenant's move-in month is run.
+      await tx.tenant.update({
+        where: { id: outgoingTenantId },
+        data: { moveOutDate: outgoingMoveOut, leaseEndDate: outgoingMoveOut },
+      });
+    }
+    return tx.tenant.update({ where: { id }, data });
+  });
   return {
     ...tenant,
     advanceAmount: toNum(tenant.advanceAmount),
