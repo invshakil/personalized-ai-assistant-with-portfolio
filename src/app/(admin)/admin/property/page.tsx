@@ -1,7 +1,14 @@
+import { Suspense } from "react";
 import PropertyPage from "./PropertyPage";
 
 export const metadata = { title: "Property" };
 
 export default function Page() {
-  return <PropertyPage />;
+  // PropertyPage reads filter/tab state from the URL via useSearchParams, which
+  // requires a Suspense boundary.
+  return (
+    <Suspense>
+      <PropertyPage />
+    </Suspense>
+  );
 }

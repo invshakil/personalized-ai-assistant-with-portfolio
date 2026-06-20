@@ -124,8 +124,13 @@ export default function ServicesPage() {
 
   const deactivate = async (id: string) => {
     if (!confirm("Deactivate this service?")) return;
-    await propertyApi.deleteService(id);
-    load();
+    setError(null);
+    try {
+      await propertyApi.deleteService(id);
+      load();
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Something went wrong");
+    }
   };
 
   const endAssignment = async (tsId: string) => {

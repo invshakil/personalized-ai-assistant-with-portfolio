@@ -1,6 +1,7 @@
 "use client";
 
-import { Fragment, useState, useEffect, useCallback } from "react";
+import { Fragment, useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Box,
   Card,
@@ -38,9 +39,10 @@ import {
   Pencil,
 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import { propertyApi } from "@/lib/api/property";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import type { PaymentWithTenant, PaymentTransaction } from "@/types";
+import type { PaymentWithTenant, PaymentTransaction, UnitWithTenant } from "@/types";
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   PAID: { bg: "success.main", color: "#fff" },
@@ -70,9 +72,36 @@ const MONTHS = [
 
 export default function PaymentsPage() {
   const now = new Date();
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // ── Filter state lives in the URL (deep-linkable, restored on reload) ──
+  // month="all" (or absent → defaults to current month). When "all", payments
+  // are fetched across every month via the period range.
+  const monthParam = searchParams.get("month");
+  const month = monthParam === "all" ? "all" : monthParam ? Number(monthParam) : now.getMonth() + 1;
+  const year = searchParams.get("year") ? Number(searchParams.get("year")) : now.getFullYear();
+  const unitFilter = searchParams.get("unit") ?? "ALL";
+  const tenantFilter = searchParams.get("tenant") ?? "ALL";
+  const isAllMonths = month === "all";
+
+  /** Merge a patch into the URL query (undefined/"" removes the key). */
+  const setParams = useCallback(
+    (patch: Record<string, string | undefined>) => {
+      const next = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined || v === "") next.delete(k);
+        else next.set(k, v);
+      }
+      const query = next.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [searchParams, pathname, router]
+  );
+
   const [payments, setPayments] = useState<PaymentWithTenant[]>([]);
+  const [units, setUnits] = useState<UnitWithTenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [genMsg, setGenMsg] = useState<string | null>(null);
@@ -109,18 +138,44 @@ export default function PaymentsPage() {
   const [editTxLoading, setEditTxLoading] = useState(false);
   const [editTxError, setEditTxError] = useState<string | null>(null);
 
+  // Build the API filter object from current URL state. "All months" fetches
+  // every month via period=all; a specific month/year filters exactly. Unit and
+  // tenant filters are applied server-side in the `where`.
+  const buildFilters = useCallback(() => {
+    const f: {
+      month?: number;
+      year?: number;
+      unitId?: string;
+      tenantId?: string;
+      period?: string;
+    } = {};
+    if (isAllMonths) f.period = "all";
+    else {
+      f.month = month as number;
+      f.year = year;
+    }
+    if (unitFilter !== "ALL") f.unitId = unitFilter;
+    if (tenantFilter !== "ALL") f.tenantId = tenantFilter;
+    return f;
+  }, [isAllMonths, month, year, unitFilter, tenantFilter]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setPayments((await propertyApi.listPayments({ month, year })) ?? []);
+      setPayments((await propertyApi.listPayments(buildFilters())) ?? []);
     } finally {
       setLoading(false);
     }
-  }, [month, year]);
+  }, [buildFilters]);
 
-  // Auto-generate on load if no payments exist for this month
+  // Auto-generate on load if no payments exist for a specific month. Skipped
+  // when viewing "All months" (a cross-month read, nothing to generate for).
   const autoGenerate = useCallback(async () => {
-    const data = (await propertyApi.listPayments({ month, year })) ?? [];
+    if (isAllMonths) {
+      await load();
+      return;
+    }
+    const data = (await propertyApi.listPayments(buildFilters())) ?? [];
     if (data.length === 0) {
       setGenerating(true);
       const gen = (await propertyApi.generatePayments({ month, year })) as {
@@ -136,12 +191,17 @@ export default function PaymentsPage() {
       setPayments(data);
       setLoading(false);
     }
-  }, [month, year, load]);
+  }, [isAllMonths, buildFilters, month, year, load]);
 
   useEffect(() => {
     setLoading(true);
     autoGenerate();
   }, [autoGenerate]);
+
+  // Units for the Unit filter dropdown (loaded once).
+  useEffect(() => {
+    propertyApi.listUnits().then((u) => setUnits(u ?? []));
+  }, []);
 
   const toggleExpand = (id: string) => {
     setExpanded((prev) => {
@@ -255,56 +315,121 @@ export default function PaymentsPage() {
     (p) => p.status === "OVERDUE" || (p.status === "PENDING" && p.balance > 0)
   ).length;
   const totalExpected = payments.reduce((s, p) => s + p.rentDue, 0);
+  // Total Paid = cash/bank received (amountPaid). Collected also counts advance
+  // drawn down; Outstanding is what is still due across the filtered set.
+  const totalPaid = payments.reduce((s, p) => s + p.amountPaid, 0);
   const totalCollected = payments.reduce((s, p) => s + p.amountPaid + p.advanceApplied, 0);
+  const totalOutstanding = payments.reduce((s, p) => s + p.balance, 0);
+
+  // ── Dropdown options (rendered via SearchableSelect) ──
+  const unitOptions: SelectOption[] = useMemo(
+    () => [
+      { value: "ALL", label: "All units" },
+      ...units.map((u) => ({ value: u.id, label: u.unitNumber })),
+    ],
+    [units]
+  );
+  // Tenant options come from units (current + future) so a tenant is selectable
+  // even before their payment rows load; deduped by id.
+  const tenantOptions: SelectOption[] = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of units) {
+      if (u.tenant) map.set(u.tenant.id, u.tenant.name);
+      if (u.futureTenant) map.set(u.futureTenant.id, u.futureTenant.name);
+    }
+    for (const p of payments) map.set(p.tenantId, p.tenantName);
+    return [
+      { value: "ALL", label: "All tenants" },
+      ...[...map.entries()]
+        .sort((a, b) => a[1].localeCompare(b[1]))
+        .map(([id, name]) => ({ value: id, label: name })),
+    ];
+  }, [units, payments]);
+  // Keep the tenant value valid if it isn't in the options list.
+  const tenantValue = tenantOptions.some((o) => o.value === tenantFilter) ? tenantFilter : "ALL";
+
+  const monthOptions: SelectOption[] = [
+    { value: "all", label: "All months" },
+    ...MONTHS.map((m, i) => ({ value: String(i + 1), label: m })),
+  ];
+  const yearOptions: SelectOption[] = [2025, 2026, 2027, 2028].map((y) => ({
+    value: String(y),
+    label: String(y),
+  }));
+
+  const hasActiveFilters = unitFilter !== "ALL" || tenantFilter !== "ALL" || isAllMonths;
 
   return (
     <Box>
       <PageHeader title="Monthly Payments" subtitle="Track and record rent payments" />
 
-      {/* Month/year selector */}
+      {/* Filters */}
       <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
-        <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel>Month</InputLabel>
-          <Select label="Month" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-            {MONTHS.map((m, i) => (
-              <MenuItem key={i + 1} value={i + 1}>
-                {m}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small" sx={{ minWidth: 100 }}>
-          <InputLabel>Year</InputLabel>
-          <Select label="Year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {[2025, 2026, 2027, 2028].map((y) => (
-              <MenuItem key={y} value={y}>
-                {y}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <Button
-          variant="outlined"
-          size="small"
-          onClick={async () => {
-            setGenerating(true);
-            const gen = (await propertyApi.generatePayments({ month, year })) as {
-              message?: string;
-            } | null;
-            setGenMsg(gen?.message ?? null);
-            setGenerating(false);
-            load();
-          }}
-          disabled={generating}
-        >
-          {generating ? "Generating…" : "Re-Generate Month"}
-        </Button>
+        <SearchableSelect
+          label="Month"
+          value={isAllMonths ? "all" : String(month)}
+          options={monthOptions}
+          onChange={(v) => setParams({ month: v === String(now.getMonth() + 1) ? undefined : v })}
+          sx={{ minWidth: 150 }}
+        />
+        <SearchableSelect
+          label="Year"
+          value={String(year)}
+          options={yearOptions}
+          disabled={isAllMonths}
+          onChange={(v) => setParams({ year: v === String(now.getFullYear()) ? undefined : v })}
+          sx={{ minWidth: 110 }}
+        />
+        <SearchableSelect
+          label="Unit"
+          value={unitFilter}
+          options={unitOptions}
+          onChange={(v) => setParams({ unit: v === "ALL" ? undefined : v })}
+          sx={{ minWidth: 150 }}
+        />
+        <SearchableSelect
+          label="Tenant"
+          value={tenantValue}
+          options={tenantOptions}
+          onChange={(v) => setParams({ tenant: v === "ALL" ? undefined : v })}
+          sx={{ minWidth: 170 }}
+        />
+        {hasActiveFilters && (
+          <Button
+            size="small"
+            color="inherit"
+            onClick={() => setParams({ unit: undefined, tenant: undefined, month: undefined })}
+          >
+            Clear
+          </Button>
+        )}
+        {!isAllMonths && (
+          <Button
+            variant="outlined"
+            size="small"
+            onClick={async () => {
+              setGenerating(true);
+              const gen = (await propertyApi.generatePayments({
+                month: month as number,
+                year,
+              })) as {
+                message?: string;
+              } | null;
+              setGenMsg(gen?.message ?? null);
+              setGenerating(false);
+              load();
+            }}
+            disabled={generating}
+          >
+            {generating ? "Generating…" : "Re-Generate Month"}
+          </Button>
+        )}
         <Box sx={{ ml: "auto" }}>
           <Button
             variant="outlined"
             size="small"
             startIcon={<Download size={16} />}
-            disabled={payments.length === 0}
+            disabled={payments.length === 0 || isAllMonths}
             onClick={() =>
               window.open(`/api/admin/property/payments/pdf?month=${month}&year=${year}`, "_blank")
             }
@@ -324,8 +449,9 @@ export default function PaymentsPage() {
       <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
         {[
           { label: "Expected", value: fmt(totalExpected), color: "text.primary" },
+          { label: "Total Paid", value: fmt(totalPaid), color: "success.main" },
           { label: "Collected", value: fmt(totalCollected), color: "success.main" },
-          { label: "Outstanding", value: fmt(totalExpected - totalCollected), color: "error.main" },
+          { label: "Outstanding", value: fmt(totalOutstanding), color: "error.main" },
           {
             label: "Unpaid Tenants",
             value: String(overdueCount),
@@ -351,8 +477,8 @@ export default function PaymentsPage() {
       {/* Due tracker alert */}
       {overdueCount > 0 && (
         <Alert severity="warning" icon={<AlertTriangle size={18} />} sx={{ mb: 2 }}>
-          {overdueCount} tenant{overdueCount > 1 ? "s have" : " has"} outstanding dues for{" "}
-          {MONTHS[month - 1]} {year}
+          {overdueCount} tenant{overdueCount > 1 ? "s have" : " has"} outstanding dues
+          {isAllMonths ? " across all months" : ` for ${MONTHS[(month as number) - 1]} ${year}`}
         </Alert>
       )}
 
@@ -404,6 +530,7 @@ export default function PaymentsPage() {
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           {p.tenantCode}
+                          {isAllMonths ? ` · ${MONTHS[p.month - 1]} ${p.year}` : ""}
                         </Typography>
                       </TableCell>
                       <TableCell data-label="Unit">
@@ -812,7 +939,8 @@ export default function PaymentsPage() {
           {drawer && (
             <>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                {drawer.payment.tenantName} · {MONTHS[month - 1]} {year}
+                {drawer.payment.tenantName} · {MONTHS[drawer.payment.month - 1]}{" "}
+                {drawer.payment.year}
               </Typography>
               <Box sx={{ bgcolor: "action.selected", px: 2, py: 1.5, borderRadius: 1, mb: 2 }}>
                 <Typography variant="caption" color="text.secondary">

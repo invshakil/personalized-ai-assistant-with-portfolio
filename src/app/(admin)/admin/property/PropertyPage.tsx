@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Box,
   Card,
@@ -24,6 +24,7 @@ import {
   CircularProgress,
   Tooltip,
   TextField,
+  InputAdornment,
   Switch,
   FormControlLabel,
   Select,
@@ -51,9 +52,11 @@ import {
   Pencil,
   TrendingUp,
   MapPin,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
+import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import TenantDocuments from "@/components/admin/TenantDocuments";
 import { propertyApi } from "@/lib/api/property";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
@@ -119,17 +122,63 @@ interface AddTenantForm {
   outgoingMoveOutDate: string;
 }
 
+// URL <-> tab-index mapping for the three top-level tabs.
+const TAB_KEYS = ["units", "tenants", "external"] as const;
+type TabKey = (typeof TAB_KEYS)[number];
+
 export default function PropertyPage() {
   const router = useRouter();
-  const [tab, setTab] = useState(0);
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  // ── Tab + sub-view + tenant filters live in the URL (restored on reload) ──
+  const tabKey = (searchParams.get("tab") as TabKey | null) ?? "units";
+  const tab = Math.max(0, TAB_KEYS.indexOf(tabKey));
+  const tenantView = searchParams.get("tstatus") === "past" ? "past" : "active";
+  const extView = searchParams.get("tstatus") === "past" ? "past" : "active";
+  // Tenants-tab filters
+  const tenantUnitFilter = searchParams.get("tunit") ?? "ALL";
+  const tenantStateFilter = searchParams.get("tstate") ?? "ALL"; // ALL | CURRENT | FUTURE
+  const tenantQuery = searchParams.get("tq") ?? "";
+
+  /** Merge a patch into the URL query (undefined/"" removes the key). */
+  const setParams = useCallback(
+    (patch: Record<string, string | undefined>) => {
+      const next = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined || v === "") next.delete(k);
+        else next.set(k, v);
+      }
+      const query = next.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [searchParams, pathname, router]
+  );
+
+  const setTab = (i: number) =>
+    setParams({ tab: TAB_KEYS[i] === "units" ? undefined : TAB_KEYS[i] });
+  const setTenantView = (v: "active" | "past") =>
+    setParams({ tstatus: v === "active" ? undefined : "past" });
+  const setExtView = setTenantView;
+
   const [units, setUnits] = useState<UnitWithTenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [tenantView, setTenantView] = useState<"active" | "past">("active");
   const [inactiveRows, setInactiveRows] = useState<UnitWithTenant[]>([]);
   const [inactiveLoading, setInactiveLoading] = useState(false);
   const [unassignedRows, setUnassignedRows] = useState<UnitWithTenant[]>([]);
-  const [extView, setExtView] = useState<"active" | "past">("active");
+
+  // Debounced tenant search box: local input mirrors ?tq.
+  const [tenantSearchInput, setTenantSearchInput] = useState(tenantQuery);
+  useEffect(() => {
+    setTenantSearchInput(tenantQuery);
+  }, [tenantQuery]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (tenantSearchInput !== tenantQuery) setParams({ tq: tenantSearchInput || undefined });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [tenantSearchInput, tenantQuery, setParams]);
   const [serviceCatalog, setServiceCatalog] = useState<{ id: string; name: string }[]>([]);
   const [addSvcId, setAddSvcId] = useState("");
   const [addSvcFee, setAddSvcFee] = useState("");
@@ -279,7 +328,11 @@ export default function PropertyPage() {
   const loadInactive = useCallback(async () => {
     setInactiveLoading(true);
     try {
-      const inactiveTenants = await propertyApi.listTenants("inactive");
+      // Past tenants have no unit/status; only the name/phone search applies.
+      const inactiveTenants = await propertyApi.listTenants({
+        filter: "inactive",
+        ...(tenantQuery && { q: tenantQuery }),
+      });
       type InactiveTenant = {
         id: string;
         tenantCode: string | null;
@@ -324,7 +377,12 @@ export default function PropertyPage() {
     } finally {
       setInactiveLoading(false);
     }
-  }, []);
+  }, [tenantQuery]);
+
+  // Reload the Past list when its search query changes while it is visible.
+  useEffect(() => {
+    if (tenantView === "past" || extView === "past") loadInactive();
+  }, [tenantView, extView, loadInactive]);
 
   useEffect(() => {
     load();
@@ -634,6 +692,63 @@ export default function PropertyPage() {
     ...unassignedRows.filter((r) => r.tenant?.isExternal).map((r) => r.tenant!),
   ];
 
+  // ── Tenants-tab filter dropdown options + predicate ──
+  // The active Tenants view is an in-memory join of units (current + future
+  // tenants) and unassigned tenants, so the unit/status/search filters are
+  // applied as a predicate over the assembled rows. The Past view fetches with
+  // the same filters server-side (see loadInactive). The unit/status filters are
+  // only meaningful for tenants; external members have no unit/status.
+  const tenantUnitOptions: SelectOption[] = useMemo(
+    () => [
+      { value: "ALL", label: "All units" },
+      { value: "UNASSIGNED", label: "Unassigned" },
+      ...units.map((u) => ({ value: u.id, label: u.unitNumber })),
+    ],
+    [units]
+  );
+  const tenantStateOptions: SelectOption[] = [
+    { value: "ALL", label: "All statuses" },
+    { value: "CURRENT", label: "Active" },
+    { value: "FUTURE", label: "Scheduled" },
+  ];
+
+  // Map a tenant id → the unit id it is shown under (current or future), so the
+  // unit filter can match assembled rows. Unassigned rows have no unit.
+  const tenantUnitId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of units) {
+      if (u.tenant) map.set(u.tenant.id, u.id);
+      if (u.futureTenant) map.set(u.futureTenant.id, u.id);
+    }
+    return map;
+  }, [units]);
+
+  const tenantMatches = useCallback(
+    (row: UnitWithTenant) => {
+      const t = row.tenant;
+      if (!t) return false;
+      if (tenantUnitFilter !== "ALL") {
+        const uid = tenantUnitId.get(t.id) ?? null;
+        if (tenantUnitFilter === "UNASSIGNED") {
+          if (uid) return false;
+        } else if (uid !== tenantUnitFilter) {
+          return false;
+        }
+      }
+      if (tenantStateFilter !== "ALL" && t.tenantStatus !== tenantStateFilter) return false;
+      if (tenantQuery) {
+        const q = tenantQuery.toLowerCase();
+        const hit = t.name.toLowerCase().includes(q) || (t.phone ?? "").toLowerCase().includes(q);
+        if (!hit) return false;
+      }
+      return true;
+    },
+    [tenantUnitFilter, tenantStateFilter, tenantQuery, tenantUnitId]
+  );
+
+  const hasTenantFilters =
+    tenantUnitFilter !== "ALL" || tenantStateFilter !== "ALL" || Boolean(tenantQuery);
+
   return (
     <Box>
       <PageHeader title="Property Management" subtitle="Manage units, tenants, and occupancy" />
@@ -802,6 +917,65 @@ export default function PropertyPage() {
                   sx={{ fontWeight: 600 }}
                 />
               </Box>
+
+              {/* Filters (apply to the Active view; Past view honours search only) */}
+              <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
+                <SearchableSelect
+                  label="Unit"
+                  value={tenantUnitFilter}
+                  options={tenantUnitOptions}
+                  disabled={tenantView === "past"}
+                  onChange={(v) => setParams({ tunit: v === "ALL" ? undefined : v })}
+                  sx={{ minWidth: 150 }}
+                />
+                <SearchableSelect
+                  label="Status"
+                  value={tenantStateFilter}
+                  options={tenantStateOptions}
+                  disabled={tenantView === "past"}
+                  onChange={(v) => setParams({ tstate: v === "ALL" ? undefined : v })}
+                  sx={{ minWidth: 150 }}
+                />
+                <TextField
+                  label="Search name / phone"
+                  size="small"
+                  value={tenantSearchInput}
+                  onChange={(e) => setTenantSearchInput(e.target.value)}
+                  sx={{ minWidth: 200 }}
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Search size={16} />
+                        </InputAdornment>
+                      ),
+                      endAdornment: tenantSearchInput ? (
+                        <InputAdornment position="end">
+                          <IconButton
+                            size="small"
+                            onClick={() => setTenantSearchInput("")}
+                            edge="end"
+                          >
+                            <X size={14} />
+                          </IconButton>
+                        </InputAdornment>
+                      ) : null,
+                    },
+                  }}
+                />
+                {hasTenantFilters && (
+                  <Button
+                    size="small"
+                    color="inherit"
+                    onClick={() =>
+                      setParams({ tunit: undefined, tstate: undefined, tq: undefined })
+                    }
+                  >
+                    Clear
+                  </Button>
+                )}
+              </Box>
+
               {tenantView === "active" ? (
                 <TenantTable
                   tenants={[
@@ -811,7 +985,7 @@ export default function PropertyPage() {
                     ...units
                       .filter((u) => u.futureTenant && !u.futureTenant.isExternal)
                       .map((u) => ({ ...u, tenant: u.futureTenant! })),
-                  ]}
+                  ].filter(tenantMatches)}
                   showUnit
                   onEdit={openTenantEdit}
                   onDeactivate={deactivateTenant}
