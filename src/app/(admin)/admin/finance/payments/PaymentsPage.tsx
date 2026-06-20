@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Box,
   Card,
@@ -29,11 +30,22 @@ import {
 import { Plus, Pencil, Trash2, Download } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import { fiscalYearOf } from "@/lib/fiscalYear";
-import { financeApi } from "@/lib/api/finance";
+import { financeApi, type PaymentFilters } from "@/lib/api/finance";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { PaymentRow, EmployeeRow, SourceRow, PaymentKind } from "../types";
-import { fmt, fmtDate, todayInput, currentFiscalYear } from "../format";
+import {
+  fmt,
+  fmtDate,
+  todayInput,
+  currentFiscalYear,
+  FILTER_RANGE_PRESETS,
+  FILTER_RANGE_LABELS,
+  FILTER_RANGE_TOKEN,
+  TOKEN_TO_FILTER_RANGE,
+  type FilterRangePreset,
+} from "../format";
 
 const KINDS: PaymentKind[] = ["SALARY", "BONUS", "ADVANCE", "OTHER"];
 const KIND_LABEL: Record<PaymentKind, string> = {
@@ -66,11 +78,43 @@ const BLANK: PaymentForm = {
 };
 
 export default function PaymentsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // ── Filter state lives entirely in the URL (deep-linkable, restored on reload) ──
+  const fyFilter = searchParams.get("fy") ?? currentFiscalYear();
+  const empFilter = searchParams.get("employee") ?? "ALL";
+  const typeFilter = (searchParams.get("type") as PaymentKind | "ALL" | null) ?? "ALL";
+  const clientFilter = searchParams.get("client") ?? "ALL";
+  const period = searchParams.get("period") ?? undefined;
+  const from = searchParams.get("from") ?? undefined;
+  const to = searchParams.get("to") ?? undefined;
+
+  const hasCustomRange = Boolean(from || to);
+  const activePreset: FilterRangePreset | "CUSTOM" = hasCustomRange
+    ? "CUSTOM"
+    : (period && TOKEN_TO_FILTER_RANGE[period]) || "ALL";
+
+  /** Merge a patch into the URL query (undefined/"" removes the key). */
+  const setParams = useCallback(
+    (patch: Record<string, string | undefined>) => {
+      const next = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined || v === "") next.delete(k);
+        else next.set(k, v);
+      }
+      const query = next.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [searchParams, pathname, router]
+  );
+
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [clients, setClients] = useState<SourceRow[]>([]);
-  const [fyFilter, setFyFilter] = useState(currentFiscalYear());
-  const [empFilter, setEmpFilter] = useState("ALL");
+  // Full fiscal-year set for the dropdown — derived from an unfiltered list.
+  const [allFiscalYears, setAllFiscalYears] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -83,40 +127,81 @@ export default function PaymentsPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [paymentsData, employeesData, clientsData] = await Promise.all([
-        financeApi.listPayments(),
-        financeApi.listEmployees(),
-        financeApi.listClients(),
-      ]);
-      setPayments(paymentsData ?? []);
-      setEmployees(employeesData ?? []);
-      setClients(clientsData ?? []);
+      const filters: PaymentFilters = {
+        ...(fyFilter !== "ALL" && { fiscalYear: fyFilter }),
+        ...(empFilter !== "ALL" && { employeeId: empFilter }),
+        ...(typeFilter !== "ALL" && { type: typeFilter }),
+        ...(clientFilter !== "ALL" && { clientId: clientFilter }),
+        ...(hasCustomRange ? { from, to } : period ? { period } : {}),
+      };
+      setPayments((await financeApi.listPayments(filters)) ?? []);
     } finally {
       setLoading(false);
     }
+  }, [fyFilter, empFilter, typeFilter, clientFilter, hasCustomRange, from, to, period]);
+
+  const loadRefData = useCallback(async () => {
+    const [employeesData, clientsData, allPayments] = await Promise.all([
+      financeApi.listEmployees(),
+      financeApi.listClients(),
+      financeApi.listPayments(),
+    ]);
+    setEmployees(employeesData ?? []);
+    setClients(clientsData ?? []);
+    setAllFiscalYears(
+      Array.from(new Set([currentFiscalYear(), ...(allPayments ?? []).map((p) => p.fiscalYear)]))
+        .sort()
+        .reverse()
+    );
   }, []);
 
+  useEffect(() => {
+    loadRefData();
+  }, [loadRefData]);
   useEffect(() => {
     load();
   }, [load]);
 
-  const fiscalYears = useMemo(
-    () =>
-      Array.from(new Set([currentFiscalYear(), ...payments.map((p) => p.fiscalYear)]))
-        .sort()
-        .reverse(),
-    [payments]
-  );
-  const filtered = useMemo(
-    () =>
-      payments.filter(
-        (p) =>
-          (fyFilter === "ALL" || p.fiscalYear === fyFilter) &&
-          (empFilter === "ALL" || p.employeeId === empFilter)
-      ),
-    [payments, fyFilter, empFilter]
-  );
-  const total = filtered.reduce((s, p) => s + p.amount, 0);
+  const total = payments.reduce((s, p) => s + p.amount, 0);
+
+  // ── Dropdown option lists (all rendered via SearchableSelect) ──
+  const fySelectOptions: SelectOption[] = [
+    { value: "ALL", label: "All fiscal years" },
+    ...allFiscalYears.map((fy) => ({ value: fy, label: fy })),
+  ];
+  const empSelectOptions: SelectOption[] = [
+    { value: "ALL", label: "All employees" },
+    ...employees.map((emp) => ({ value: emp.id, label: emp.name })),
+  ];
+  const typeSelectOptions: SelectOption[] = [
+    { value: "ALL", label: "All types" },
+    ...KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] })),
+  ];
+  const clientSelectOptions: SelectOption[] = [
+    { value: "ALL", label: "All clients" },
+    ...clients.map((c) => ({ value: c.id, label: c.name })),
+  ];
+  const periodSelectOptions: SelectOption[] = [
+    ...FILTER_RANGE_PRESETS.map((p) => ({ value: p, label: FILTER_RANGE_LABELS[p] })),
+    ...(activePreset === "CUSTOM"
+      ? [{ value: "CUSTOM", label: "Custom range", disabled: true }]
+      : []),
+  ];
+
+  const hasActiveFilters =
+    fyFilter !== "ALL" ||
+    empFilter !== "ALL" ||
+    typeFilter !== "ALL" ||
+    clientFilter !== "ALL" ||
+    hasCustomRange ||
+    Boolean(period);
+
+  const onPresetChange = (preset: FilterRangePreset) =>
+    setParams({
+      period: preset === "ALL" ? undefined : FILTER_RANGE_TOKEN[preset],
+      from: undefined,
+      to: undefined,
+    });
 
   const openAdd = () => {
     setEditing(null);
@@ -171,6 +256,7 @@ export default function PaymentsPage() {
       else await financeApi.createPayment(body);
       setDrawerOpen(false);
       load();
+      loadRefData();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -185,53 +271,103 @@ export default function PaymentsPage() {
       await financeApi.deletePayment(pendingDelete);
       setPendingDelete(null);
       load();
+      loadRefData();
     } finally {
       setDeleting(false);
     }
+  };
+
+  // Download mirrors the FY + employee filters (the PDF route supports both).
+  const downloadAll = () => {
+    const qs = new URLSearchParams();
+    if (fyFilter !== "ALL") qs.set("fiscalYear", fyFilter);
+    if (empFilter !== "ALL") qs.set("employeeId", empFilter);
+    window.open(`/api/admin/finance/payments/pdf?${qs.toString()}`, "_blank");
   };
 
   return (
     <Box>
       <PageHeader title="Employee Salaries" subtitle="Salary & bonus payments to employees" />
 
-      <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel>Fiscal Year</InputLabel>
-          <Select
-            label="Fiscal Year"
-            value={fyFilter}
-            onChange={(e) => setFyFilter(e.target.value)}
+      <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
+        <SearchableSelect
+          label="Fiscal Year"
+          value={fyFilter}
+          options={fySelectOptions}
+          onChange={(v) => setParams({ fy: v })}
+          sx={{ minWidth: 160 }}
+        />
+        <SearchableSelect
+          label="Employee"
+          value={empFilter}
+          options={empSelectOptions}
+          onChange={(v) => setParams({ employee: v === "ALL" ? undefined : v })}
+          sx={{ minWidth: 180 }}
+        />
+        <SearchableSelect
+          label="Type"
+          value={typeFilter}
+          options={typeSelectOptions}
+          onChange={(v) => setParams({ type: v === "ALL" ? undefined : v })}
+          sx={{ minWidth: 140 }}
+        />
+        <SearchableSelect
+          label="Client"
+          value={clientFilter}
+          options={clientSelectOptions}
+          onChange={(v) => setParams({ client: v === "ALL" ? undefined : v })}
+          sx={{ minWidth: 180 }}
+        />
+        <SearchableSelect
+          label="Period"
+          value={activePreset}
+          options={periodSelectOptions}
+          onChange={(v) => onPresetChange(v as FilterRangePreset)}
+          sx={{ minWidth: 170 }}
+        />
+        <TextField
+          label="From"
+          type="date"
+          size="small"
+          value={from ?? ""}
+          onChange={(e) => setParams({ from: e.target.value || undefined, period: undefined })}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 150 }}
+        />
+        <TextField
+          label="To"
+          type="date"
+          size="small"
+          value={to ?? ""}
+          onChange={(e) => setParams({ to: e.target.value || undefined, period: undefined })}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 150 }}
+        />
+        {hasActiveFilters && (
+          <Button
+            size="small"
+            color="inherit"
+            onClick={() =>
+              setParams({
+                fy: "ALL",
+                employee: undefined,
+                type: undefined,
+                client: undefined,
+                period: undefined,
+                from: undefined,
+                to: undefined,
+              })
+            }
           >
-            <MenuItem value="ALL">All fiscal years</MenuItem>
-            {fiscalYears.map((fy) => (
-              <MenuItem key={fy} value={fy}>
-                {fy}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small" sx={{ minWidth: 180 }}>
-          <InputLabel>Employee</InputLabel>
-          <Select label="Employee" value={empFilter} onChange={(e) => setEmpFilter(e.target.value)}>
-            <MenuItem value="ALL">All employees</MenuItem>
-            {employees.map((emp) => (
-              <MenuItem key={emp.id} value={emp.id}>
-                {emp.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            Clear
+          </Button>
+        )}
         <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
           <Button
             variant="outlined"
             startIcon={<Download size={16} />}
-            disabled={filtered.length === 0}
-            onClick={() => {
-              const qs = new URLSearchParams();
-              if (fyFilter !== "ALL") qs.set("fiscalYear", fyFilter);
-              if (empFilter !== "ALL") qs.set("employeeId", empFilter);
-              window.open(`/api/admin/finance/payments/pdf?${qs.toString()}`, "_blank");
-            }}
+            disabled={payments.length === 0}
+            onClick={downloadAll}
           >
             Download all
           </Button>
@@ -241,11 +377,11 @@ export default function PaymentsPage() {
         </Box>
       </Box>
 
-      {filtered.length > 0 && (
+      {!loading && payments.length > 0 && (
         <Card sx={{ bgcolor: "background.paper", mb: 2, display: "inline-flex", px: 3, py: 1.5 }}>
           <Box>
             <Typography variant="caption" color="text.secondary">
-              Total Paid ({filtered.length})
+              Total Paid ({payments.length})
             </Typography>
             <Typography variant="h6" sx={{ fontWeight: 700, color: "warning.main" }}>
               {fmt(total)}
@@ -275,14 +411,16 @@ export default function PaymentsPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filtered.length === 0 ? (
+              {payments.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} sx={{ textAlign: "center", py: 4 }}>
-                    <Typography color="text.secondary">No payments yet</Typography>
+                    <Typography color="text.secondary">
+                      {hasActiveFilters ? "No payments match these filters" : "No payments yet"}
+                    </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((p) => (
+                payments.map((p) => (
                   <TableRow key={p.id} hover>
                     <TableCell data-label="Date">{fmtDate(p.date)}</TableCell>
                     <TableCell data-label="Employee">{p.employeeName}</TableCell>
@@ -385,34 +523,20 @@ export default function PaymentsPage() {
             onChange={(e) => onDateChange(e.target.value)}
             sx={{ mb: 2 }}
           />
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel>Employee</InputLabel>
-            <Select
-              label="Employee"
-              value={form.employeeId}
-              onChange={(e) => setForm((f) => ({ ...f, employeeId: e.target.value }))}
-            >
-              {employees.map((emp) => (
-                <MenuItem key={emp.id} value={emp.id}>
-                  {emp.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel>Type</InputLabel>
-            <Select
-              label="Type"
-              value={form.type}
-              onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as PaymentKind }))}
-            >
-              {KINDS.map((k) => (
-                <MenuItem key={k} value={k}>
-                  {KIND_LABEL[k]}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <SearchableSelect
+            label="Employee"
+            value={form.employeeId}
+            options={employees.map((emp) => ({ value: emp.id, label: emp.name }))}
+            onChange={(v) => setForm((f) => ({ ...f, employeeId: v }))}
+            sx={{ mb: 2 }}
+          />
+          <SearchableSelect
+            label="Type"
+            value={form.type}
+            options={KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
+            onChange={(v) => setForm((f) => ({ ...f, type: v as PaymentKind }))}
+            sx={{ mb: 2 }}
+          />
           <FormControl fullWidth size="small" sx={{ mb: 2 }}>
             <InputLabel>Client(s)</InputLabel>
             <Select

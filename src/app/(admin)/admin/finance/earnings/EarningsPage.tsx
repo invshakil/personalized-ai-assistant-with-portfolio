@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Box,
   Card,
@@ -15,23 +16,31 @@ import {
   Chip,
   Drawer,
   TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
+  InputAdornment,
   CircularProgress,
   Alert,
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { Plus, Pencil, Trash2, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Search, X } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import { fiscalYearOf } from "@/lib/fiscalYear";
-import { financeApi } from "@/lib/api/finance";
+import { financeApi, type EarningFilters } from "@/lib/api/finance";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { EarningRow, SourceRow, RemittanceType } from "../types";
-import { fmt, fmtDate, todayInput, currentFiscalYear } from "../format";
+import {
+  fmt,
+  fmtDate,
+  todayInput,
+  currentFiscalYear,
+  FILTER_RANGE_PRESETS,
+  FILTER_RANGE_LABELS,
+  FILTER_RANGE_TOKEN,
+  TOKEN_TO_FILTER_RANGE,
+  type FilterRangePreset,
+} from "../format";
 
 const REMITTANCE_LABEL: Record<RemittanceType, string> = {
   REM: "Remittance",
@@ -57,9 +66,42 @@ const BLANK: EarningForm = {
 };
 
 export default function EarningsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // ── Filter state lives entirely in the URL (deep-linkable, restored on reload) ──
+  const fyFilter = searchParams.get("fy") ?? currentFiscalYear();
+  const sourceFilter = searchParams.get("source") ?? "ALL";
+  const period = searchParams.get("period") ?? undefined;
+  const from = searchParams.get("from") ?? undefined;
+  const to = searchParams.get("to") ?? undefined;
+  const q = searchParams.get("q") ?? "";
+
+  const hasCustomRange = Boolean(from || to);
+  const activePreset: FilterRangePreset | "CUSTOM" = hasCustomRange
+    ? "CUSTOM"
+    : (period && TOKEN_TO_FILTER_RANGE[period]) || "ALL";
+
+  /** Merge a patch into the URL query (undefined/"" removes the key). */
+  const setParams = useCallback(
+    (patch: Record<string, string | undefined>) => {
+      const next = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined || v === "") next.delete(k);
+        else next.set(k, v);
+      }
+      const query = next.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [searchParams, pathname, router]
+  );
+
   const [earnings, setEarnings] = useState<EarningRow[]>([]);
   const [sources, setSources] = useState<SourceRow[]>([]);
-  const [fyFilter, setFyFilter] = useState(currentFiscalYear());
+  // Full fiscal-year set for the dropdown — derived from an unfiltered list so
+  // the option set doesn't shrink as the user narrows the table.
+  const [allFiscalYears, setAllFiscalYears] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -69,36 +111,80 @@ export default function EarningsPage() {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Debounced search box: local input mirrors ?q, pushed to the URL after a pause.
+  const [searchInput, setSearchInput] = useState(q);
+  useEffect(() => {
+    setSearchInput(q);
+  }, [q]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (searchInput !== q) setParams({ q: searchInput || undefined });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput, q, setParams]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [earningsData, clientsData] = await Promise.all([
-        financeApi.listEarnings(),
-        financeApi.listClients(),
-      ]);
-      setEarnings(earningsData ?? []);
-      setSources(clientsData ?? []);
+      const filters: EarningFilters = {
+        ...(fyFilter !== "ALL" && { fiscalYear: fyFilter }),
+        ...(sourceFilter !== "ALL" && { sourceId: sourceFilter }),
+        ...(hasCustomRange ? { from, to } : period ? { period } : {}),
+        ...(q && { q }),
+      };
+      setEarnings((await financeApi.listEarnings(filters)) ?? []);
     } finally {
       setLoading(false);
     }
+  }, [fyFilter, sourceFilter, hasCustomRange, from, to, period, q]);
+
+  const loadRefData = useCallback(async () => {
+    const [clientsData, allEarnings] = await Promise.all([
+      financeApi.listClients(),
+      financeApi.listEarnings(),
+    ]);
+    setSources(clientsData ?? []);
+    setAllFiscalYears(
+      Array.from(new Set([currentFiscalYear(), ...(allEarnings ?? []).map((e) => e.fiscalYear)]))
+        .sort()
+        .reverse()
+    );
   }, []);
 
+  useEffect(() => {
+    loadRefData();
+  }, [loadRefData]);
   useEffect(() => {
     load();
   }, [load]);
 
-  const fiscalYears = useMemo(
-    () =>
-      Array.from(new Set([currentFiscalYear(), ...earnings.map((e) => e.fiscalYear)]))
-        .sort()
-        .reverse(),
-    [earnings]
-  );
-  const filtered = useMemo(
-    () => (fyFilter === "ALL" ? earnings : earnings.filter((e) => e.fiscalYear === fyFilter)),
-    [earnings, fyFilter]
-  );
-  const total = filtered.reduce((s, e) => s + e.amount, 0);
+  const total = earnings.reduce((s, e) => s + e.amount, 0);
+
+  // ── Dropdown option lists (all rendered via SearchableSelect) ──
+  const periodSelectOptions: SelectOption[] = [
+    ...FILTER_RANGE_PRESETS.map((p) => ({ value: p, label: FILTER_RANGE_LABELS[p] })),
+    ...(activePreset === "CUSTOM"
+      ? [{ value: "CUSTOM", label: "Custom range", disabled: true }]
+      : []),
+  ];
+  const fySelectOptions: SelectOption[] = [
+    { value: "ALL", label: "All fiscal years" },
+    ...allFiscalYears.map((fy) => ({ value: fy, label: fy })),
+  ];
+  const sourceSelectOptions: SelectOption[] = [
+    { value: "ALL", label: "All clients" },
+    ...sources.map((s) => ({ value: s.id, label: s.name })),
+  ];
+
+  const hasActiveFilters =
+    fyFilter !== "ALL" || sourceFilter !== "ALL" || hasCustomRange || Boolean(period) || Boolean(q);
+
+  const onPresetChange = (preset: FilterRangePreset) =>
+    setParams({
+      period: preset === "ALL" ? undefined : FILTER_RANGE_TOKEN[preset],
+      from: undefined,
+      to: undefined,
+    });
 
   const openAdd = () => {
     setEditing(null);
@@ -149,6 +235,7 @@ export default function EarningsPage() {
       else await financeApi.createEarning(body);
       setDrawerOpen(false);
       load();
+      loadRefData();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -163,42 +250,108 @@ export default function EarningsPage() {
       await financeApi.deleteEarning(pendingDelete);
       setPendingDelete(null);
       load();
+      loadRefData();
     } finally {
       setDeleting(false);
     }
   };
 
+  // Download mirrors the active fiscal-year filter (the PDF route filters by FY).
+  const downloadHref = `/api/admin/finance/earnings/pdf${
+    fyFilter !== "ALL" ? `?fiscalYear=${fyFilter}` : ""
+  }`;
+
   return (
     <Box>
       <PageHeader title="Earnings" subtitle="Client income log" />
 
-      <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel>Fiscal Year</InputLabel>
-          <Select
-            label="Fiscal Year"
-            value={fyFilter}
-            onChange={(e) => setFyFilter(e.target.value)}
+      <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
+        <SearchableSelect
+          label="Fiscal Year"
+          value={fyFilter}
+          options={fySelectOptions}
+          onChange={(v) => setParams({ fy: v })}
+          sx={{ minWidth: 160 }}
+        />
+        <SearchableSelect
+          label="Client"
+          value={sourceFilter}
+          options={sourceSelectOptions}
+          onChange={(v) => setParams({ source: v === "ALL" ? undefined : v })}
+          sx={{ minWidth: 180 }}
+        />
+        <SearchableSelect
+          label="Period"
+          value={activePreset}
+          options={periodSelectOptions}
+          onChange={(v) => onPresetChange(v as FilterRangePreset)}
+          sx={{ minWidth: 170 }}
+        />
+        <TextField
+          label="From"
+          type="date"
+          size="small"
+          value={from ?? ""}
+          onChange={(e) => setParams({ from: e.target.value || undefined, period: undefined })}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 150 }}
+        />
+        <TextField
+          label="To"
+          type="date"
+          size="small"
+          value={to ?? ""}
+          onChange={(e) => setParams({ to: e.target.value || undefined, period: undefined })}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 150 }}
+        />
+        <TextField
+          label="Search notes / type"
+          size="small"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          sx={{ minWidth: 200 }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={16} />
+                </InputAdornment>
+              ),
+              endAdornment: searchInput ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchInput("")} edge="end">
+                    <X size={14} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            },
+          }}
+        />
+        {hasActiveFilters && (
+          <Button
+            size="small"
+            color="inherit"
+            onClick={() =>
+              setParams({
+                fy: "ALL",
+                source: undefined,
+                period: undefined,
+                from: undefined,
+                to: undefined,
+                q: undefined,
+              })
+            }
           >
-            <MenuItem value="ALL">All fiscal years</MenuItem>
-            {fiscalYears.map((fy) => (
-              <MenuItem key={fy} value={fy}>
-                {fy}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            Clear
+          </Button>
+        )}
         <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
           <Button
             variant="outlined"
             startIcon={<Download size={16} />}
-            disabled={filtered.length === 0}
-            onClick={() =>
-              window.open(
-                `/api/admin/finance/earnings/pdf${fyFilter !== "ALL" ? `?fiscalYear=${fyFilter}` : ""}`,
-                "_blank"
-              )
-            }
+            disabled={earnings.length === 0}
+            onClick={() => window.open(downloadHref, "_blank")}
           >
             Download all
           </Button>
@@ -208,11 +361,11 @@ export default function EarningsPage() {
         </Box>
       </Box>
 
-      {filtered.length > 0 && (
+      {!loading && earnings.length > 0 && (
         <Card sx={{ bgcolor: "background.paper", mb: 2, display: "inline-flex", px: 3, py: 1.5 }}>
           <Box>
             <Typography variant="caption" color="text.secondary">
-              Total Income{fyFilter !== "ALL" ? ` · ${fyFilter}` : ""} ({filtered.length})
+              Total Income{fyFilter !== "ALL" ? ` · ${fyFilter}` : ""} ({earnings.length})
             </Typography>
             <Typography variant="h6" sx={{ fontWeight: 700, color: "info.main" }}>
               {fmt(total)}
@@ -242,14 +395,16 @@ export default function EarningsPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filtered.length === 0 ? (
+              {earnings.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} sx={{ textAlign: "center", py: 4 }}>
-                    <Typography color="text.secondary">No earnings yet</Typography>
+                    <Typography color="text.secondary">
+                      {hasActiveFilters ? "No earnings match these filters" : "No earnings yet"}
+                    </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((e) => (
+                earnings.map((e) => (
                   <TableRow key={e.id} hover>
                     <TableCell data-label="Date">{fmtDate(e.date)}</TableCell>
                     <TableCell data-label="Client">{e.sourceName}</TableCell>
@@ -329,33 +484,23 @@ export default function EarningsPage() {
             onChange={(e) => onDateChange(e.target.value)}
             sx={{ mb: 2 }}
           />
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel>Client</InputLabel>
-            <Select
-              label="Client"
-              value={form.sourceId}
-              onChange={(e) => setForm((f) => ({ ...f, sourceId: e.target.value }))}
-            >
-              {sources.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel>Type</InputLabel>
-            <Select
-              label="Type"
-              value={form.remittance}
-              onChange={(e) =>
-                setForm((f) => ({ ...f, remittance: e.target.value as RemittanceType }))
-              }
-            >
-              <MenuItem value="REM">Remittance</MenuItem>
-              <MenuItem value="NON_REM">Non-remittance</MenuItem>
-            </Select>
-          </FormControl>
+          <SearchableSelect
+            label="Client"
+            value={form.sourceId}
+            options={sources.map((s) => ({ value: s.id, label: s.name }))}
+            onChange={(v) => setForm((f) => ({ ...f, sourceId: v }))}
+            sx={{ mb: 2 }}
+          />
+          <SearchableSelect
+            label="Type"
+            value={form.remittance}
+            options={[
+              { value: "REM", label: "Remittance" },
+              { value: "NON_REM", label: "Non-remittance" },
+            ]}
+            onChange={(v) => setForm((f) => ({ ...f, remittance: v as RemittanceType }))}
+            sx={{ mb: 2 }}
+          />
           <TextField
             label="Amount (৳)"
             type="number"

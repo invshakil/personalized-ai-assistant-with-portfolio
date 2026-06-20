@@ -10,7 +10,11 @@ export async function GET(req: NextRequest) {
   const month = searchParams.get("month") ? parseInt(searchParams.get("month")!) : undefined;
   const year = searchParams.get("year") ? parseInt(searchParams.get("year")!) : undefined;
   const tenantId = searchParams.get("tenantId") ?? undefined;
+  const unitId = searchParams.get("unitId") ?? undefined;
+  const period = searchParams.get("period") ?? undefined;
+  const from = searchParams.get("from") ?? undefined;
+  const to = searchParams.get("to") ?? undefined;
 
-  const data = await getPayments({ month, year, tenantId });
+  const data = await getPayments({ month, year, tenantId, unitId, period, from, to });
   return Response.json({ data });
 }

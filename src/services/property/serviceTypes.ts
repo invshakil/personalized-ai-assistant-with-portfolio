@@ -40,8 +40,23 @@ export function updateServiceType(id: string, input: UpdateServiceTypeInput) {
   });
 }
 
-/** Soft-delete: service types are deactivated, not removed. */
+/**
+ * Soft-delete: service types are deactivated, not removed.
+ *
+ * Guard: a service type can only be deactivated while it is not in use. Tenants
+ * do not link to PropertyServiceType directly (they subscribe to AddOnService);
+ * the real referential dependency is property expenses classified under this
+ * type. Expenses are not soft-deleted, so we block deactivation while ANY
+ * expense references this type, to avoid orphaning the classification.
+ */
 export async function deactivateServiceType(id: string) {
+  const inUse = await db.expense.count({ where: { serviceTypeId: id } });
+  if (inUse > 0) {
+    throw new Error(
+      `Cannot delete: ${inUse} expense${inUse === 1 ? "" : "s"} still use this service type. ` +
+        "Reassign or remove them first."
+    );
+  }
   await db.propertyServiceType.update({ where: { id }, data: { isActive: false } });
   return { deactivated: true };
 }

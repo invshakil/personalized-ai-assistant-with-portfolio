@@ -42,6 +42,18 @@ export interface UpdateServiceInput {
 }
 
 export async function updateService(id: string, input: UpdateServiceInput) {
+  if (input.isActive === false) {
+    const activeCount = await db.tenantService.count({
+      where: { serviceId: id, isActive: true },
+    });
+    if (activeCount > 0) {
+      throw new Error(
+        `Cannot deactivate this service: ${activeCount} active tenant subscription${
+          activeCount === 1 ? "" : "s"
+        } still use it. End those assignments first.`
+      );
+    }
+  }
   return db.addOnService.update({
     where: { id },
     data: {
@@ -53,6 +65,17 @@ export async function updateService(id: string, input: UpdateServiceInput) {
 }
 
 export async function deactivateService(id: string) {
+  // Block removal while tenants still actively subscribe to this service.
+  const activeCount = await db.tenantService.count({
+    where: { serviceId: id, isActive: true },
+  });
+  if (activeCount > 0) {
+    throw new Error(
+      `Cannot remove this service: ${activeCount} active tenant subscription${
+        activeCount === 1 ? "" : "s"
+      } still use it. End those assignments first.`
+    );
+  }
   return db.addOnService.update({ where: { id }, data: { isActive: false } });
 }
 

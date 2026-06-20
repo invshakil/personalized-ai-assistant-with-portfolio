@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Box,
   Card,
@@ -20,13 +20,15 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  InputAdornment,
   CircularProgress,
   Alert,
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import { propertyApi } from "@/lib/api/property";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { PropertyExpense, ExpenseCategory, Payee, PropertyServiceType } from "@/types";
@@ -100,9 +102,32 @@ const BLANK: ExpenseForm = {
 
 export default function ExpensesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const now = new Date();
-  const [month, setMonth] = useState(now.getMonth() + 1);
-  const [year, setYear] = useState(now.getFullYear());
+
+  // ── Filter state lives in the URL (deep-linkable, restored on reload) ──
+  const month = searchParams.get("month") ? Number(searchParams.get("month")) : now.getMonth() + 1;
+  const year = searchParams.get("year") ? Number(searchParams.get("year")) : now.getFullYear();
+  const payeeFilter = searchParams.get("payee") ?? "ALL";
+  const categoryFilter = searchParams.get("category") ?? "ALL";
+  const serviceTypeFilter = searchParams.get("serviceType") ?? "ALL";
+  const q = searchParams.get("q") ?? "";
+
+  /** Merge a patch into the URL query (undefined/"" removes the key). */
+  const setParams = useCallback(
+    (patch: Record<string, string | undefined>) => {
+      const next = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined || v === "") next.delete(k);
+        else next.set(k, v);
+      }
+      const query = next.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [searchParams, pathname, router]
+  );
+
   const [expenses, setExpenses] = useState<PropertyExpense[]>([]);
   const [payees, setPayees] = useState<Payee[]>([]);
   const [serviceTypes, setServiceTypes] = useState<PropertyServiceType[]>([]);
@@ -112,6 +137,18 @@ export default function ExpensesPage() {
   const [form, setForm] = useState<ExpenseForm>(BLANK);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Debounced search box: local input mirrors ?q, pushed to the URL after a pause.
+  const [searchInput, setSearchInput] = useState(q);
+  useEffect(() => {
+    setSearchInput(q);
+  }, [q]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (searchInput !== q) setParams({ q: searchInput || undefined });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput, q, setParams]);
 
   // Load payees and service types once on mount
   useEffect(() => {
@@ -124,11 +161,19 @@ export default function ExpensesPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setExpenses((await propertyApi.listExpenses({ month, year })) ?? []);
+      const filters = {
+        month,
+        year,
+        ...(payeeFilter !== "ALL" && { payeeId: payeeFilter }),
+        ...(categoryFilter !== "ALL" && { category: categoryFilter }),
+        ...(serviceTypeFilter !== "ALL" && { serviceTypeId: serviceTypeFilter }),
+        ...(q && { q }),
+      };
+      setExpenses((await propertyApi.listExpenses(filters)) ?? []);
     } finally {
       setLoading(false);
     }
-  }, [month, year]);
+  }, [month, year, payeeFilter, categoryFilter, serviceTypeFilter, q]);
 
   useEffect(() => {
     load();
@@ -194,31 +239,113 @@ export default function ExpensesPage() {
 
   const total = expenses.reduce((s, e) => s + e.amount, 0);
 
+  // ── Dropdown options (rendered via SearchableSelect) ──
+  const monthOptions: SelectOption[] = MONTHS.map((m, i) => ({ value: String(i + 1), label: m }));
+  const yearOptions: SelectOption[] = [2025, 2026, 2027, 2028].map((y) => ({
+    value: String(y),
+    label: String(y),
+  }));
+  const categoryOptions: SelectOption[] = [
+    { value: "ALL", label: "All categories" },
+    ...CATEGORIES.map((c) => ({ value: c, label: CAT_LABELS[c] })),
+  ];
+  const serviceTypeOptions: SelectOption[] = [
+    { value: "ALL", label: "All service types" },
+    ...serviceTypes.map((t) => ({ value: t.id, label: t.name })),
+  ];
+  const serviceTypeValue = serviceTypeOptions.some((o) => o.value === serviceTypeFilter)
+    ? serviceTypeFilter
+    : "ALL";
+  const payeeOptions: SelectOption[] = [
+    { value: "ALL", label: "All payees" },
+    ...payees
+      .filter((p) => p.isActive)
+      .map((p) => ({ value: p.id, label: `${p.name} · ${p.role}` })),
+  ];
+  const payeeValue = payeeOptions.some((o) => o.value === payeeFilter) ? payeeFilter : "ALL";
+
+  const hasActiveFilters =
+    payeeFilter !== "ALL" || categoryFilter !== "ALL" || serviceTypeFilter !== "ALL" || Boolean(q);
+
   return (
     <Box>
       <PageHeader title="Property Expenses" subtitle="Track monthly property costs" />
 
       <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
-        <FormControl size="small" sx={{ minWidth: 140 }}>
-          <InputLabel>Month</InputLabel>
-          <Select label="Month" value={month} onChange={(e) => setMonth(Number(e.target.value))}>
-            {MONTHS.map((m, i) => (
-              <MenuItem key={i + 1} value={i + 1}>
-                {m}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        <FormControl size="small" sx={{ minWidth: 100 }}>
-          <InputLabel>Year</InputLabel>
-          <Select label="Year" value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {[2025, 2026, 2027, 2028].map((y) => (
-              <MenuItem key={y} value={y}>
-                {y}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <SearchableSelect
+          label="Month"
+          value={String(month)}
+          options={monthOptions}
+          onChange={(v) => setParams({ month: v === String(now.getMonth() + 1) ? undefined : v })}
+          sx={{ minWidth: 150 }}
+        />
+        <SearchableSelect
+          label="Year"
+          value={String(year)}
+          options={yearOptions}
+          onChange={(v) => setParams({ year: v === String(now.getFullYear()) ? undefined : v })}
+          sx={{ minWidth: 110 }}
+        />
+        <SearchableSelect
+          label="Category"
+          value={categoryFilter}
+          options={categoryOptions}
+          onChange={(v) => setParams({ category: v === "ALL" ? undefined : v })}
+          sx={{ minWidth: 160 }}
+        />
+        <SearchableSelect
+          label="Service Type"
+          value={serviceTypeValue}
+          options={serviceTypeOptions}
+          onChange={(v) => setParams({ serviceType: v === "ALL" ? undefined : v })}
+          sx={{ minWidth: 170 }}
+        />
+        <SearchableSelect
+          label="Payee"
+          value={payeeValue}
+          options={payeeOptions}
+          onChange={(v) => setParams({ payee: v === "ALL" ? undefined : v })}
+          sx={{ minWidth: 170 }}
+        />
+        <TextField
+          label="Search notes / description"
+          size="small"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          sx={{ minWidth: 220 }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={16} />
+                </InputAdornment>
+              ),
+              endAdornment: searchInput ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchInput("")} edge="end">
+                    <X size={14} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            },
+          }}
+        />
+        {hasActiveFilters && (
+          <Button
+            size="small"
+            color="inherit"
+            onClick={() =>
+              setParams({
+                payee: undefined,
+                category: undefined,
+                serviceType: undefined,
+                q: undefined,
+              })
+            }
+          >
+            Clear
+          </Button>
+        )}
         <Box sx={{ ml: "auto" }}>
           <Button variant="contained" startIcon={<Plus size={16} />} onClick={openAdd}>
             Add Expense

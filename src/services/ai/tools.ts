@@ -48,7 +48,9 @@ import {
   listAccountsWithBalances,
 } from "@/services/money";
 import { PERIOD_TOKENS } from "@/services/_shared/dateRange";
+import { PaymentKind, ExpenseCategory } from "@prisma/client";
 import { writeToolDefs, isWriteTool, previewWrite } from "./writeTools";
+import { EXPENSE_CATEGORIES, PAYMENT_KINDS } from "./writeTools/shared";
 import type { AiToolDef, RunTool, ToolScope } from "./types";
 
 const obj = (properties: Record<string, unknown>) => ({ type: "object", properties });
@@ -84,34 +86,60 @@ const financeReadTools: AiToolDef[] = [
   {
     name: "list_earnings",
     description:
-      "List client income (earnings): date, client, remittance (REM/NON_REM), amount, fiscal year. Filter by fiscal year or income-source id.",
+      "List client income (earnings): date, client, remittance (REM/NON_REM), amount, fiscal year. " +
+      "Filter by fiscalYear, income-source id (sourceId), a date range (period or from/to), and search " +
+      "notes + the remittance type label with q (e.g. q='remittance').",
     parameters: obj({
       fiscalYear,
-      sourceId: { type: "string", description: "Income source id (optional)" },
+      sourceId: { type: "string", description: "Income source / client id (optional)" },
+      ...RANGE,
+      q: {
+        type: "string",
+        description: "Case-insensitive search over notes and the remittance type label (optional)",
+      },
     }),
   },
   {
     name: "list_salary_payments",
     description:
-      "List salary/bonus payments to employees: date, employee, type, attributed clients, amount, note. Filter by fiscal year or employee id.",
+      "List salary/bonus payments to employees: date, employee, type, attributed clients, amount, note. " +
+      "Filter by fiscalYear, employee id, payment type (SALARY/BONUS/ADVANCE/OTHER), attributed client id, " +
+      "and a date range (period or from/to).",
     parameters: obj({
       fiscalYear,
       employeeId: { type: "string", description: "Employee id (optional)" },
+      type: { type: "string", enum: PAYMENT_KINDS, description: "Payment kind (optional)" },
+      clientId: { type: "string", description: "Attributed client / income-source id (optional)" },
+      ...RANGE,
     }),
   },
   {
     name: "list_business_expenses",
     description:
-      "List one-off and recurring business expenses (tools/subscriptions): date, name, category, recurring flag, amount. Filter by fiscal year or category id.",
+      "List one-off and recurring business expenses (tools/subscriptions): date, name, category, recurring flag, amount. " +
+      "Filter by fiscalYear, category id, a date range (period or from/to), and search the tool/service name with q.",
     parameters: obj({
       fiscalYear,
       categoryId: { type: "string", description: "Expense category id (optional)" },
+      ...RANGE,
+      q: {
+        type: "string",
+        description: "Case-insensitive search over the tool/service name (optional)",
+      },
     }),
   },
   {
     name: "list_subscriptions",
-    description: "List recurring business subscriptions with monthly amount, status, total spent.",
-    parameters: obj({}),
+    description:
+      "List recurring business subscriptions with monthly amount, status, total spent. " +
+      "Filter by category id and search the service name with q.",
+    parameters: obj({
+      categoryId: { type: "string", description: "Subscription category id (optional)" },
+      q: {
+        type: "string",
+        description: "Case-insensitive search over the service name (optional)",
+      },
+    }),
   },
   {
     name: "list_employees",
@@ -188,32 +216,60 @@ const propertyReadTools: AiToolDef[] = [
   {
     name: "list_tenants",
     description:
-      "List tenants with unit, rent, advance balance, status. Filter active/inactive/all (default active).",
+      "List tenants with unit, rent, advance balance, status. Filter by coarse filter " +
+      "(active/inactive/all, default active), by unit id, by status (CURRENT=active / FUTURE=scheduled), " +
+      "and search tenant name or phone with q.",
     parameters: obj({
       filter: {
         type: "string",
         enum: ["active", "inactive", "all"],
-        description: "Tenant filter (optional)",
+        description: "Coarse tenant filter (optional, default active)",
+      },
+      unitId: { type: "string", description: "Restrict to this unit id (optional)" },
+      status: {
+        type: "string",
+        enum: ["CURRENT", "FUTURE"],
+        description: "CURRENT=active, FUTURE=scheduled (optional)",
+      },
+      q: {
+        type: "string",
+        description: "Case-insensitive search over tenant name or phone (optional)",
       },
     }),
   },
   {
     name: "list_rent_payments",
     description:
-      "List rent payments: tenant, unit, due, paid, balance, status, receipt no. Filter by month, year, or tenant id.",
+      "List rent payments: tenant, unit, due, paid, balance, status, receipt no. Filter by a single " +
+      "month + year, by unit id, by tenant id, or across months with a date range (period or from/to — " +
+      "e.g. period='all' for every month of a tenant).",
     parameters: obj({
       month: { type: "integer", description: "Month 1-12 (optional)" },
       year: { type: "integer", description: "Year (optional)" },
+      unitId: { type: "string", description: "Unit id (optional)" },
       tenantId: { type: "string", description: "Tenant id (optional)" },
+      ...RANGE,
     }),
   },
   {
     name: "list_property_expenses",
-    description: "List property expenses by category/payee. Filter by month, year, or payee id.",
+    description:
+      "List property expenses by category/payee. Filter by month, year, payee id, category, " +
+      "service-type id, and search description + notes with q.",
     parameters: obj({
       month: { type: "integer", description: "Month 1-12 (optional)" },
       year: { type: "integer", description: "Year (optional)" },
       payeeId: { type: "string", description: "Payee id (optional)" },
+      category: {
+        type: "string",
+        enum: EXPENSE_CATEGORIES,
+        description: "Expense category (optional)",
+      },
+      serviceTypeId: { type: "string", description: "Service type id (optional)" },
+      q: {
+        type: "string",
+        description: "Case-insensitive search over description and notes (optional)",
+      },
     }),
   },
 
@@ -462,12 +518,29 @@ async function moneyAccountId(name: string): Promise<string> {
 const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
   // Finance — lists & dashboard
   get_finance_summary: (i) => getFinanceDashboard({ from: str(i.from), to: str(i.to) }),
-  list_earnings: (i) => getEarnings({ fiscalYear: str(i.fiscalYear), sourceId: str(i.sourceId) }),
+  list_earnings: (i) =>
+    getEarnings({
+      fiscalYear: str(i.fiscalYear),
+      sourceId: str(i.sourceId),
+      ...range(i),
+      q: str(i.q),
+    }),
   list_salary_payments: (i) =>
-    getEmployeePayments({ fiscalYear: str(i.fiscalYear), employeeId: str(i.employeeId) }),
+    getEmployeePayments({
+      fiscalYear: str(i.fiscalYear),
+      employeeId: str(i.employeeId),
+      type: str(i.type) as PaymentKind | undefined,
+      clientId: str(i.clientId),
+      ...range(i),
+    }),
   list_business_expenses: (i) =>
-    getBizExpenses({ fiscalYear: str(i.fiscalYear), categoryId: str(i.categoryId) }),
-  list_subscriptions: () => getSubscriptions(),
+    getBizExpenses({
+      fiscalYear: str(i.fiscalYear),
+      categoryId: str(i.categoryId),
+      ...range(i),
+      q: str(i.q),
+    }),
+  list_subscriptions: (i) => getSubscriptions({ categoryId: str(i.categoryId), q: str(i.q) }),
   list_employees: () => getEmployees(),
   list_clients: () => getIncomeSources(),
   // Finance — reports
@@ -484,11 +557,30 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
     return getDashboardStats(num(i.month) ?? now.getMonth() + 1, num(i.year) ?? now.getFullYear());
   },
   list_units: () => getUnits(),
-  list_tenants: (i) => getTenants((str(i.filter) as "active" | "inactive" | "all") ?? "active"),
+  list_tenants: (i) =>
+    getTenants({
+      filter: (str(i.filter) as "active" | "inactive" | "all") ?? "active",
+      unitId: str(i.unitId),
+      status: str(i.status) as "CURRENT" | "FUTURE" | undefined,
+      q: str(i.q),
+    }),
   list_rent_payments: (i) =>
-    getPayments({ month: num(i.month), year: num(i.year), tenantId: str(i.tenantId) }),
+    getPayments({
+      month: num(i.month),
+      year: num(i.year),
+      unitId: str(i.unitId),
+      tenantId: str(i.tenantId),
+      ...range(i),
+    }),
   list_property_expenses: (i) =>
-    getExpenses({ month: num(i.month), year: num(i.year), payeeId: str(i.payeeId) }),
+    getExpenses({
+      month: num(i.month),
+      year: num(i.year),
+      payeeId: str(i.payeeId),
+      category: str(i.category) as ExpenseCategory | undefined,
+      serviceTypeId: str(i.serviceTypeId),
+      q: str(i.q),
+    }),
   // Property — reports
   get_property_financials: (i) => getPropertyFinancials(range(i)),
   get_property_expense_breakdown: (i) => getPropertyExpenseBreakdown(range(i)),

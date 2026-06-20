@@ -96,7 +96,9 @@ export const propertyTools: WriteToolDef[] = [
     name: "create_tenant",
     description:
       "Add a new tenant. For an in-building tenant pass the unitId (resolve it via list_units first). " +
-      "For an off-property/external tenant pass isExternal=true and omit unitId.",
+      "For an off-property/external tenant pass isExternal=true and omit unitId. If the unit is already " +
+      "occupied, the tenant is queued as a future tenant and the current tenant's move-out + lease-end " +
+      "are scheduled (defaults to the day before this tenant's move-in; override with outgoingMoveOutDate).",
     parameters: schema(
       {
         name: Str("Tenant full name"),
@@ -110,6 +112,10 @@ export const propertyTools: WriteToolDef[] = [
         advanceAmount: Num("Advance/deposit amount in BDT (optional)"),
         isExternal: Bool("True for a tenant not tied to a unit (optional)"),
         notes: Str("Notes (optional)"),
+        outgoingMoveOutDate: Str(
+          "When the unit is occupied, the current tenant's move-out date YYYY-MM-DD " +
+            "(optional; defaults to the day before moveInDate)"
+        ),
       },
       ["name", "moveInDate"]
     ),
@@ -125,6 +131,7 @@ export const propertyTools: WriteToolDef[] = [
       advanceAmount: optNum(i.advanceAmount),
       isExternal: optBool(i.isExternal),
       notes: optStr(i.notes) ?? null,
+      outgoingMoveOutDate: optDate(i.outgoingMoveOutDate, "outgoingMoveOutDate") ?? null,
     }),
     preview: async (a) => {
       let unitLabel = "external (no unit)";
@@ -148,7 +155,9 @@ export const propertyTools: WriteToolDef[] = [
     name: "update_tenant",
     description:
       "Update an existing tenant's details (name, contact, lease end, advance, notes, or unit). " +
-      "Resolve the tenant id via list_tenants first.",
+      "Resolve the tenant id via list_tenants first. Reassigning into an occupied unit queues this " +
+      "tenant as a future tenant and schedules the current tenant's move-out + lease-end (defaults to " +
+      "the day before this tenant's move-in; override with outgoingMoveOutDate).",
     parameters: schema(
       {
         id: Str("Tenant id"),
@@ -162,6 +171,10 @@ export const propertyTools: WriteToolDef[] = [
         advanceAmount: Num("Advance amount in BDT (optional)"),
         unitId: Str("Reassign to this unit id (optional)"),
         notes: Str("Notes (optional)"),
+        outgoingMoveOutDate: Str(
+          "When reassigning into an occupied unit, the current tenant's move-out date YYYY-MM-DD " +
+            "(optional; defaults to the day before this tenant's move-in)"
+        ),
       },
       ["id"]
     ),
@@ -178,6 +191,7 @@ export const propertyTools: WriteToolDef[] = [
         advanceAmount: optNum(i.advanceAmount),
         unitId: optStr(i.unitId),
         notes: optStr(i.notes),
+        outgoingMoveOutDate: optDate(i.outgoingMoveOutDate, "outgoingMoveOutDate"),
       };
       requireUpdate(patch);
       return { id, patch };
@@ -347,8 +361,11 @@ export const propertyTools: WriteToolDef[] = [
   write({
     name: "generate_rent_payments",
     description:
-      "Bulk-create the monthly rent-due rows for every active tenant for a given month/year (idempotent — " +
-      "existing rows are left untouched). Use before recording payments for a new month.",
+      "Bulk-create the monthly rent-due rows for the tenants occupying each unit in a given month/year " +
+      "(idempotent — existing rows are left untouched). Respects tenancy dates: promotes scheduled tenants " +
+      "whose move-in falls in the month (moving out the outgoing tenant on their unit), skips and deactivates " +
+      "tenants whose lease ended before the month, and skips tenants not yet moved in. Use before recording " +
+      "payments for a new month.",
     parameters: schema({ month: Int("Month 1-12"), year: Int("Year, e.g. 2026") }, [
       "month",
       "year",
@@ -732,7 +749,9 @@ export const propertyTools: WriteToolDef[] = [
 
   write({
     name: "update_service_type",
-    description: "Update a service type's name, category, or description.",
+    description:
+      "Update a service type's name, category, or description. Note: a service type can only be " +
+      "deleted/deactivated while no property expense references it (deletion is blocked otherwise).",
     parameters: schema(
       {
         id: Str("Service type id"),

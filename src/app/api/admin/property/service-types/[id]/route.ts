@@ -21,6 +21,10 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
-  const data = await deactivateServiceType(id);
-  return Response.json({ data });
+  try {
+    const data = await deactivateServiceType(id);
+    return Response.json({ data });
+  } catch (err) {
+    return Response.json({ error: (err as Error).message }, { status: 400 });
+  }
 }

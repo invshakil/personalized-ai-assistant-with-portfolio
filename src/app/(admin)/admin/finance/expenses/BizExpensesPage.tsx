@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Box,
   Card,
@@ -15,10 +16,7 @@ import {
   Chip,
   Drawer,
   TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
+  InputAdornment,
   FormControlLabel,
   Switch,
   CircularProgress,
@@ -26,14 +24,25 @@ import {
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { Plus, Pencil, Trash2, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Search, X } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
+import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import { fiscalYearOf } from "@/lib/fiscalYear";
-import { financeApi } from "@/lib/api/finance";
+import { financeApi, type BizExpenseFilters } from "@/lib/api/finance";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { BizExpenseRow, CategoryRow } from "../types";
-import { fmt, fmtDate, todayInput, currentFiscalYear } from "../format";
+import {
+  fmt,
+  fmtDate,
+  todayInput,
+  currentFiscalYear,
+  FILTER_RANGE_PRESETS,
+  FILTER_RANGE_LABELS,
+  FILTER_RANGE_TOKEN,
+  TOKEN_TO_FILTER_RANGE,
+  type FilterRangePreset,
+} from "../format";
 
 type ExpenseForm = {
   date: string;
@@ -56,9 +65,41 @@ const BLANK: ExpenseForm = {
 };
 
 export default function BizExpensesPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // ── Filter state lives entirely in the URL (deep-linkable, restored on reload) ──
+  const fyFilter = searchParams.get("fy") ?? currentFiscalYear();
+  const categoryFilter = searchParams.get("category") ?? "ALL";
+  const period = searchParams.get("period") ?? undefined;
+  const from = searchParams.get("from") ?? undefined;
+  const to = searchParams.get("to") ?? undefined;
+  const q = searchParams.get("q") ?? "";
+
+  const hasCustomRange = Boolean(from || to);
+  const activePreset: FilterRangePreset | "CUSTOM" = hasCustomRange
+    ? "CUSTOM"
+    : (period && TOKEN_TO_FILTER_RANGE[period]) || "ALL";
+
+  /** Merge a patch into the URL query (undefined/"" removes the key). */
+  const setParams = useCallback(
+    (patch: Record<string, string | undefined>) => {
+      const next = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined || v === "") next.delete(k);
+        else next.set(k, v);
+      }
+      const query = next.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [searchParams, pathname, router]
+  );
+
   const [expenses, setExpenses] = useState<BizExpenseRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
-  const [fyFilter, setFyFilter] = useState(currentFiscalYear());
+  // Full fiscal-year set for the dropdown — derived from an unfiltered list.
+  const [allFiscalYears, setAllFiscalYears] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -68,36 +109,84 @@ export default function BizExpensesPage() {
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Debounced search box: local input mirrors ?q, pushed to the URL after a pause.
+  const [searchInput, setSearchInput] = useState(q);
+  useEffect(() => {
+    setSearchInput(q);
+  }, [q]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (searchInput !== q) setParams({ q: searchInput || undefined });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput, q, setParams]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [expensesData, categoriesData] = await Promise.all([
-        financeApi.listExpenses(),
-        financeApi.listCategories(),
-      ]);
-      setExpenses(expensesData ?? []);
-      setCategories(categoriesData ?? []);
+      const filters: BizExpenseFilters = {
+        ...(fyFilter !== "ALL" && { fiscalYear: fyFilter }),
+        ...(categoryFilter !== "ALL" && { categoryId: categoryFilter }),
+        ...(hasCustomRange ? { from, to } : period ? { period } : {}),
+        ...(q && { q }),
+      };
+      setExpenses((await financeApi.listExpenses(filters)) ?? []);
     } finally {
       setLoading(false);
     }
+  }, [fyFilter, categoryFilter, hasCustomRange, from, to, period, q]);
+
+  const loadRefData = useCallback(async () => {
+    const [categoriesData, allExpenses] = await Promise.all([
+      financeApi.listCategories(),
+      financeApi.listExpenses(),
+    ]);
+    setCategories(categoriesData ?? []);
+    setAllFiscalYears(
+      Array.from(new Set([currentFiscalYear(), ...(allExpenses ?? []).map((e) => e.fiscalYear)]))
+        .sort()
+        .reverse()
+    );
   }, []);
 
+  useEffect(() => {
+    loadRefData();
+  }, [loadRefData]);
   useEffect(() => {
     load();
   }, [load]);
 
-  const fiscalYears = useMemo(
-    () =>
-      Array.from(new Set([currentFiscalYear(), ...expenses.map((e) => e.fiscalYear)]))
-        .sort()
-        .reverse(),
-    [expenses]
-  );
-  const filtered = useMemo(
-    () => (fyFilter === "ALL" ? expenses : expenses.filter((e) => e.fiscalYear === fyFilter)),
-    [expenses, fyFilter]
-  );
-  const total = filtered.reduce((s, e) => s + e.amount, 0);
+  const total = expenses.reduce((s, e) => s + e.amount, 0);
+
+  // ── Dropdown option lists (all rendered via SearchableSelect) ──
+  const fySelectOptions: SelectOption[] = [
+    { value: "ALL", label: "All fiscal years" },
+    ...allFiscalYears.map((fy) => ({ value: fy, label: fy })),
+  ];
+  const categorySelectOptions: SelectOption[] = [
+    { value: "ALL", label: "All categories" },
+    ...categories.map((c) => ({ value: c.id, label: c.name })),
+  ];
+  const periodSelectOptions: SelectOption[] = [
+    ...FILTER_RANGE_PRESETS.map((p) => ({ value: p, label: FILTER_RANGE_LABELS[p] })),
+    ...(activePreset === "CUSTOM"
+      ? [{ value: "CUSTOM", label: "Custom range", disabled: true }]
+      : []),
+  ];
+
+  const hasActiveFilters =
+    fyFilter !== "ALL" ||
+    categoryFilter !== "ALL" ||
+    hasCustomRange ||
+    Boolean(period) ||
+    Boolean(q);
+
+  const onPresetChange = (preset: FilterRangePreset) =>
+    setParams({
+      period: preset === "ALL" ? undefined : FILTER_RANGE_TOKEN[preset],
+      from: undefined,
+      to: undefined,
+    });
 
   const openAdd = () => {
     setEditing(null);
@@ -150,6 +239,7 @@ export default function BizExpensesPage() {
       else await financeApi.createExpense(body);
       setDrawerOpen(false);
       load();
+      loadRefData();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -164,42 +254,108 @@ export default function BizExpensesPage() {
       await financeApi.deleteExpense(pendingDelete);
       setPendingDelete(null);
       load();
+      loadRefData();
     } finally {
       setDeleting(false);
     }
   };
 
+  // Download mirrors the active fiscal-year filter (the PDF route filters by FY).
+  const downloadHref = `/api/admin/finance/expenses/pdf${
+    fyFilter !== "ALL" ? `?fiscalYear=${fyFilter}` : ""
+  }`;
+
   return (
     <Box>
       <PageHeader title="Business Expenses" subtitle="Tools, subscriptions & operating costs" />
 
-      <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel>Fiscal Year</InputLabel>
-          <Select
-            label="Fiscal Year"
-            value={fyFilter}
-            onChange={(e) => setFyFilter(e.target.value)}
+      <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
+        <SearchableSelect
+          label="Fiscal Year"
+          value={fyFilter}
+          options={fySelectOptions}
+          onChange={(v) => setParams({ fy: v })}
+          sx={{ minWidth: 160 }}
+        />
+        <SearchableSelect
+          label="Category"
+          value={categoryFilter}
+          options={categorySelectOptions}
+          onChange={(v) => setParams({ category: v === "ALL" ? undefined : v })}
+          sx={{ minWidth: 180 }}
+        />
+        <SearchableSelect
+          label="Period"
+          value={activePreset}
+          options={periodSelectOptions}
+          onChange={(v) => onPresetChange(v as FilterRangePreset)}
+          sx={{ minWidth: 170 }}
+        />
+        <TextField
+          label="From"
+          type="date"
+          size="small"
+          value={from ?? ""}
+          onChange={(e) => setParams({ from: e.target.value || undefined, period: undefined })}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 150 }}
+        />
+        <TextField
+          label="To"
+          type="date"
+          size="small"
+          value={to ?? ""}
+          onChange={(e) => setParams({ to: e.target.value || undefined, period: undefined })}
+          slotProps={{ inputLabel: { shrink: true } }}
+          sx={{ minWidth: 150 }}
+        />
+        <TextField
+          label="Search tool / service"
+          size="small"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          sx={{ minWidth: 200 }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={16} />
+                </InputAdornment>
+              ),
+              endAdornment: searchInput ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchInput("")} edge="end">
+                    <X size={14} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            },
+          }}
+        />
+        {hasActiveFilters && (
+          <Button
+            size="small"
+            color="inherit"
+            onClick={() =>
+              setParams({
+                fy: "ALL",
+                category: undefined,
+                period: undefined,
+                from: undefined,
+                to: undefined,
+                q: undefined,
+              })
+            }
           >
-            <MenuItem value="ALL">All fiscal years</MenuItem>
-            {fiscalYears.map((fy) => (
-              <MenuItem key={fy} value={fy}>
-                {fy}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+            Clear
+          </Button>
+        )}
         <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
           <Button
             variant="outlined"
             startIcon={<Download size={16} />}
-            disabled={filtered.length === 0}
-            onClick={() =>
-              window.open(
-                `/api/admin/finance/expenses/pdf${fyFilter !== "ALL" ? `?fiscalYear=${fyFilter}` : ""}`,
-                "_blank"
-              )
-            }
+            disabled={expenses.length === 0}
+            onClick={() => window.open(downloadHref, "_blank")}
           >
             Download all
           </Button>
@@ -209,11 +365,11 @@ export default function BizExpensesPage() {
         </Box>
       </Box>
 
-      {filtered.length > 0 && (
+      {!loading && expenses.length > 0 && (
         <Card sx={{ bgcolor: "background.paper", mb: 2, display: "inline-flex", px: 3, py: 1.5 }}>
           <Box>
             <Typography variant="caption" color="text.secondary">
-              Total Expenses ({filtered.length})
+              Total Expenses ({expenses.length})
             </Typography>
             <Typography variant="h6" sx={{ fontWeight: 700, color: "error.main" }}>
               {fmt(total)}
@@ -243,14 +399,16 @@ export default function BizExpensesPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filtered.length === 0 ? (
+              {expenses.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} sx={{ textAlign: "center", py: 4 }}>
-                    <Typography color="text.secondary">No expenses yet</Typography>
+                    <Typography color="text.secondary">
+                      {hasActiveFilters ? "No expenses match these filters" : "No expenses yet"}
+                    </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                filtered.map((e) => (
+                expenses.map((e) => (
                   <TableRow key={e.id} hover>
                     <TableCell data-label="Date">{fmtDate(e.date)}</TableCell>
                     <TableCell data-label="Tool / Service" sx={{ fontWeight: 600 }}>
@@ -356,20 +514,13 @@ export default function BizExpensesPage() {
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             sx={{ mb: 2 }}
           />
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel>Category</InputLabel>
-            <Select
-              label="Category"
-              value={form.categoryId}
-              onChange={(e) => setForm((f) => ({ ...f, categoryId: e.target.value }))}
-            >
-              {categories.map((c) => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+          <SearchableSelect
+            label="Category"
+            value={form.categoryId}
+            options={categories.map((c) => ({ value: c.id, label: c.name }))}
+            onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))}
+            sx={{ mb: 2 }}
+          />
           <TextField
             label="Amount (৳)"
             type="number"

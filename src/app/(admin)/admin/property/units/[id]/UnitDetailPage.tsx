@@ -45,6 +45,16 @@ function fmt(n: number) {
   return `৳${n.toLocaleString()}`;
 }
 
+// Given a YYYY-MM-DD string, return the calendar day before it (also YYYY-MM-DD).
+// Parse and step in UTC so the result is timezone-independent (a local parse +
+// toISOString() can shift the date by a day in non-UTC zones).
+function dayBefore(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
 type TenantHistory = {
   id: string;
   tenantCode: string | null;
@@ -80,6 +90,7 @@ interface AddFutureForm {
   advancePaid: boolean;
   advanceAmount: string;
   newRent: string;
+  outgoingMoveOutDate: string;
 }
 
 export default function UnitDetailPage({ unitId }: { unitId: string }) {
@@ -104,6 +115,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
     advancePaid: false,
     advanceAmount: "",
     newRent: "",
+    outgoingMoveOutDate: "",
   });
   const [confirmDialog, setConfirmDialog] = useState<{
     title: string;
@@ -215,6 +227,10 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         advancePaid: addFutureForm.advancePaid,
         advanceAmount: addFutureForm.advancePaid ? Number(addFutureForm.advanceAmount) : 0,
         isExternal: false,
+        // When a current tenant is being replaced, schedule their move-out.
+        outgoingMoveOutDate: unit?.tenants.some((t) => t.tenantStatus === "CURRENT" && t.isActive)
+          ? addFutureForm.outgoingMoveOutDate || dayBefore(addFutureForm.moveInDate) || null
+          : null,
       })) as { id?: string } | null;
       // Schedule a rent change effective on move-in date if a custom rent was provided
       if (
@@ -238,6 +254,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         advancePaid: false,
         advanceAmount: "",
         newRent: "",
+        outgoingMoveOutDate: "",
       });
       await load();
     } finally {
@@ -786,8 +803,8 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         <DialogContent>
           {currentTenant && (
             <Alert severity="info" sx={{ mb: 2, fontSize: "0.8rem" }}>
-              This unit is occupied by <strong>{currentTenant.name}</strong>. The new tenant will be
-              queued as a future tenant and will become active when {currentTenant.name} moves out.
+              This unit is occupied by <strong>{currentTenant.name}</strong>. They will be moved out
+              on the date below, and the new tenant becomes active from their move-in date.
             </Alert>
           )}
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
@@ -813,9 +830,36 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
               size="small"
               fullWidth
               required
-              onChange={(e) => setAddFutureForm((p) => ({ ...p, moveInDate: e.target.value }))}
+              onChange={(e) =>
+                setAddFutureForm((p) => {
+                  const moveInDate = e.target.value;
+                  // Keep the outgoing move-out in lockstep with move-in unless edited.
+                  const autoOut =
+                    !p.outgoingMoveOutDate || p.outgoingMoveOutDate === dayBefore(p.moveInDate);
+                  return {
+                    ...p,
+                    moveInDate,
+                    outgoingMoveOutDate: autoOut ? dayBefore(moveInDate) : p.outgoingMoveOutDate,
+                  };
+                })
+              }
               slotProps={{ inputLabel: { shrink: true } }}
             />
+            {currentTenant && (
+              <TextField
+                label={`${currentTenant.name}'s Move-out Date`}
+                type="date"
+                value={addFutureForm.outgoingMoveOutDate}
+                size="small"
+                fullWidth
+                required
+                onChange={(e) =>
+                  setAddFutureForm((p) => ({ ...p, outgoingMoveOutDate: e.target.value }))
+                }
+                slotProps={{ inputLabel: { shrink: true } }}
+                helperText={`Sets ${currentTenant.name}'s move-out and lease-end dates. Defaults to the day before the new tenant moves in.`}
+              />
+            )}
             <TextField
               label="Lease End Date"
               type="date"
@@ -857,7 +901,12 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
             variant="contained"
             size="small"
             onClick={addFutureTenant}
-            disabled={saving || !addFutureForm.name || !addFutureForm.moveInDate}
+            disabled={
+              saving ||
+              !addFutureForm.name ||
+              !addFutureForm.moveInDate ||
+              (!!currentTenant && !addFutureForm.outgoingMoveOutDate)
+            }
             sx={{ flex: 1 }}
           >
             {saving ? "Adding…" : currentTenant ? "Schedule" : "Add Tenant"}

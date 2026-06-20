@@ -10,8 +10,12 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const fiscalYear = searchParams.get("fiscalYear") ?? undefined;
   const sourceId = searchParams.get("sourceId") ?? undefined;
+  const period = searchParams.get("period") ?? undefined;
+  const from = searchParams.get("from") ?? undefined;
+  const to = searchParams.get("to") ?? undefined;
+  const q = searchParams.get("q") ?? undefined;
 
-  const data = await getEarnings({ fiscalYear, sourceId });
+  const data = await getEarnings({ fiscalYear, sourceId, period, from, to, q });
   return Response.json({ data });
 }
 

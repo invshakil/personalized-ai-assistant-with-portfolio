@@ -72,6 +72,36 @@ const monthsAgoStart = (n: number) => {
   return new Date(now.getFullYear(), now.getMonth() - n, 1);
 };
 
+// Maps a finance UI range preset to the shared server-side PeriodToken
+// (src/services/_shared/dateRange.ts). Stored in the URL as `?period=<token>`;
+// the list services resolve it against the current date. List pages use the
+// FY/3-month/6-month/1-year/2-year/all set (no single-month preset).
+export const FILTER_RANGE_PRESETS = ["FY", "M3", "M6", "Y1", "Y2", "ALL"] as const;
+export type FilterRangePreset = (typeof FILTER_RANGE_PRESETS)[number];
+
+export const FILTER_RANGE_LABELS: Record<FilterRangePreset, string> = {
+  FY: "This fiscal year",
+  M3: "Last 3 months",
+  M6: "Last 6 months",
+  Y1: "Last 1 year",
+  Y2: "Last 2 years",
+  ALL: "All time",
+};
+
+export const FILTER_RANGE_TOKEN: Record<FilterRangePreset, string> = {
+  FY: "this_fiscal_year",
+  M3: "last_3_months",
+  M6: "last_6_months",
+  Y1: "last_12_months",
+  Y2: "last_24_months",
+  ALL: "all",
+};
+
+/** Reverse of FILTER_RANGE_TOKEN: period token → UI preset key. */
+export const TOKEN_TO_FILTER_RANGE = Object.fromEntries(
+  FILTER_RANGE_PRESETS.map((p) => [FILTER_RANGE_TOKEN[p], p])
+) as Record<string, FilterRangePreset>;
+
 /** Resolve a preset to inclusive { from, to } ISO dates (empty = all time). */
 export function rangeBounds(preset: RangePreset): { from?: string; to?: string } {
   const now = new Date();

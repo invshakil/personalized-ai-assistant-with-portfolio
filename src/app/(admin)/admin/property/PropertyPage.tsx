@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Box,
   Card,
@@ -24,6 +24,7 @@ import {
   CircularProgress,
   Tooltip,
   TextField,
+  InputAdornment,
   Switch,
   FormControlLabel,
   Select,
@@ -51,9 +52,11 @@ import {
   Pencil,
   TrendingUp,
   MapPin,
+  Search,
 } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
+import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import TenantDocuments from "@/components/admin/TenantDocuments";
 import { propertyApi } from "@/lib/api/property";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
@@ -61,6 +64,16 @@ import type { UnitWithTenant } from "@/types";
 
 function fmt(n: number) {
   return `৳${n.toLocaleString()}`;
+}
+
+// Given a YYYY-MM-DD string, return the calendar day before it (also YYYY-MM-DD).
+// Parse and step in UTC so the result is timezone-independent (a local parse +
+// toISOString() can shift the date by a day in non-UTC zones).
+function dayBefore(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(`${iso}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 function StatusChip({ isOccupied }: { isOccupied: boolean }) {
@@ -108,19 +121,66 @@ interface AddTenantForm {
   leaseEndDate: string;
   advancePaid: boolean;
   advanceAmount: string;
+  outgoingMoveOutDate: string;
 }
+
+// URL <-> tab-index mapping for the three top-level tabs.
+const TAB_KEYS = ["units", "tenants", "external"] as const;
+type TabKey = (typeof TAB_KEYS)[number];
 
 export default function PropertyPage() {
   const router = useRouter();
-  const [tab, setTab] = useState(0);
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+
+  // ── Tab + sub-view + tenant filters live in the URL (restored on reload) ──
+  const tabKey = (searchParams.get("tab") as TabKey | null) ?? "units";
+  const tab = Math.max(0, TAB_KEYS.indexOf(tabKey));
+  const tenantView = searchParams.get("tstatus") === "past" ? "past" : "active";
+  const extView = searchParams.get("tstatus") === "past" ? "past" : "active";
+  // Tenants-tab filters
+  const tenantUnitFilter = searchParams.get("tunit") ?? "ALL";
+  const tenantStateFilter = searchParams.get("tstate") ?? "ALL"; // ALL | CURRENT | FUTURE
+  const tenantQuery = searchParams.get("tq") ?? "";
+
+  /** Merge a patch into the URL query (undefined/"" removes the key). */
+  const setParams = useCallback(
+    (patch: Record<string, string | undefined>) => {
+      const next = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined || v === "") next.delete(k);
+        else next.set(k, v);
+      }
+      const query = next.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [searchParams, pathname, router]
+  );
+
+  const setTab = (i: number) =>
+    setParams({ tab: TAB_KEYS[i] === "units" ? undefined : TAB_KEYS[i] });
+  const setTenantView = (v: "active" | "past") =>
+    setParams({ tstatus: v === "active" ? undefined : "past" });
+  const setExtView = setTenantView;
+
   const [units, setUnits] = useState<UnitWithTenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [tenantView, setTenantView] = useState<"active" | "past">("active");
   const [inactiveRows, setInactiveRows] = useState<UnitWithTenant[]>([]);
   const [inactiveLoading, setInactiveLoading] = useState(false);
   const [unassignedRows, setUnassignedRows] = useState<UnitWithTenant[]>([]);
-  const [extView, setExtView] = useState<"active" | "past">("active");
+
+  // Debounced tenant search box: local input mirrors ?tq.
+  const [tenantSearchInput, setTenantSearchInput] = useState(tenantQuery);
+  useEffect(() => {
+    setTenantSearchInput(tenantQuery);
+  }, [tenantQuery]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (tenantSearchInput !== tenantQuery) setParams({ tq: tenantSearchInput || undefined });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [tenantSearchInput, tenantQuery, setParams]);
   const [serviceCatalog, setServiceCatalog] = useState<{ id: string; name: string }[]>([]);
   const [addSvcId, setAddSvcId] = useState("");
   const [addSvcFee, setAddSvcFee] = useState("");
@@ -198,6 +258,7 @@ export default function PropertyPage() {
     leaseEndDate: "",
     advancePaid: false,
     advanceAmount: "",
+    outgoingMoveOutDate: "",
   });
 
   const load = useCallback(async () => {
@@ -269,7 +330,11 @@ export default function PropertyPage() {
   const loadInactive = useCallback(async () => {
     setInactiveLoading(true);
     try {
-      const inactiveTenants = await propertyApi.listTenants("inactive");
+      // Past tenants have no unit/status; only the name/phone search applies.
+      const inactiveTenants = await propertyApi.listTenants({
+        filter: "inactive",
+        ...(tenantQuery && { q: tenantQuery }),
+      });
       type InactiveTenant = {
         id: string;
         tenantCode: string | null;
@@ -314,7 +379,12 @@ export default function PropertyPage() {
     } finally {
       setInactiveLoading(false);
     }
-  }, []);
+  }, [tenantQuery]);
+
+  // Reload the Past list when its search query changes while it is visible.
+  useEffect(() => {
+    if (tenantView === "past" || extView === "past") loadInactive();
+  }, [tenantView, extView, loadInactive]);
 
   useEffect(() => {
     load();
@@ -451,6 +521,7 @@ export default function PropertyPage() {
       leaseEndDate: "",
       advancePaid: false,
       advanceAmount: "",
+      outgoingMoveOutDate: "",
     });
     setAddOpen(true);
   };
@@ -467,6 +538,7 @@ export default function PropertyPage() {
       leaseEndDate: "",
       advancePaid: false,
       advanceAmount: "",
+      outgoingMoveOutDate: "",
     });
     setAddOpen(true);
   };
@@ -500,6 +572,11 @@ export default function PropertyPage() {
         advancePaid: addForm.advancePaid,
         advanceAmount: addForm.advancePaid ? Number(addForm.advanceAmount) : 0,
         isExternal: isAddingExternal,
+        // Occupied unit → the new tenant is queued; schedule the current tenant's move-out.
+        outgoingMoveOutDate:
+          !isAddingExternal && selectedUnitData?.isOccupied
+            ? addForm.outgoingMoveOutDate || dayBefore(addForm.moveInDate) || null
+            : null,
       })) as { id?: string; tenantStatus?: string } | null;
       // For occupied units: schedule a rent change for the future tenant's move-in date
       if (
@@ -559,19 +636,25 @@ export default function PropertyPage() {
   const [assignUnitDialog, setAssignUnitDialog] = useState<{
     tenantId: string;
     tenantName: string;
+    tenantMoveInDate: string;
   } | null>(null);
   const [assigningUnitId, setAssigningUnitId] = useState("");
   const [assignRent, setAssignRent] = useState("");
+  const [assignOutgoingMoveOut, setAssignOutgoingMoveOut] = useState("");
   const [assignSaving, setAssignSaving] = useState(false);
 
   const doAssignUnit = async () => {
     if (!assignUnitDialog || !assigningUnitId) return;
     setAssignSaving(true);
     try {
+      const targetUnit = units.find((u) => u.id === assigningUnitId);
       const newTenant = (await propertyApi.updateTenant(assignUnitDialog.tenantId, {
         unitId: assigningUnitId,
+        // Occupied unit → schedule the current tenant's move-out.
+        outgoingMoveOutDate: targetUnit?.isOccupied
+          ? assignOutgoingMoveOut || dayBefore(assignUnitDialog.tenantMoveInDate) || null
+          : null,
       })) as { id?: string; tenantStatus?: string; moveInDate?: string } | null;
-      const targetUnit = units.find((u) => u.id === assigningUnitId);
       if (
         newTenant?.id &&
         assignRent &&
@@ -593,6 +676,7 @@ export default function PropertyPage() {
       setAssignUnitDialog(null);
       setAssigningUnitId("");
       setAssignRent("");
+      setAssignOutgoingMoveOut("");
       await load();
     } finally {
       setAssignSaving(false);
@@ -609,6 +693,63 @@ export default function PropertyPage() {
     ...units.filter((u) => u.tenant?.isExternal).map((u) => u.tenant!),
     ...unassignedRows.filter((r) => r.tenant?.isExternal).map((r) => r.tenant!),
   ];
+
+  // ── Tenants-tab filter dropdown options + predicate ──
+  // The active Tenants view is an in-memory join of units (current + future
+  // tenants) and unassigned tenants, so the unit/status/search filters are
+  // applied as a predicate over the assembled rows. The Past view fetches with
+  // the same filters server-side (see loadInactive). The unit/status filters are
+  // only meaningful for tenants; external members have no unit/status.
+  const tenantUnitOptions: SelectOption[] = useMemo(
+    () => [
+      { value: "ALL", label: "All units" },
+      { value: "UNASSIGNED", label: "Unassigned" },
+      ...units.map((u) => ({ value: u.id, label: u.unitNumber })),
+    ],
+    [units]
+  );
+  const tenantStateOptions: SelectOption[] = [
+    { value: "ALL", label: "All statuses" },
+    { value: "CURRENT", label: "Active" },
+    { value: "FUTURE", label: "Scheduled" },
+  ];
+
+  // Map a tenant id → the unit id it is shown under (current or future), so the
+  // unit filter can match assembled rows. Unassigned rows have no unit.
+  const tenantUnitId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const u of units) {
+      if (u.tenant) map.set(u.tenant.id, u.id);
+      if (u.futureTenant) map.set(u.futureTenant.id, u.id);
+    }
+    return map;
+  }, [units]);
+
+  const tenantMatches = useCallback(
+    (row: UnitWithTenant) => {
+      const t = row.tenant;
+      if (!t) return false;
+      if (tenantUnitFilter !== "ALL") {
+        const uid = tenantUnitId.get(t.id) ?? null;
+        if (tenantUnitFilter === "UNASSIGNED") {
+          if (uid) return false;
+        } else if (uid !== tenantUnitFilter) {
+          return false;
+        }
+      }
+      if (tenantStateFilter !== "ALL" && t.tenantStatus !== tenantStateFilter) return false;
+      if (tenantQuery) {
+        const q = tenantQuery.toLowerCase();
+        const hit = t.name.toLowerCase().includes(q) || (t.phone ?? "").toLowerCase().includes(q);
+        if (!hit) return false;
+      }
+      return true;
+    },
+    [tenantUnitFilter, tenantStateFilter, tenantQuery, tenantUnitId]
+  );
+
+  const hasTenantFilters =
+    tenantUnitFilter !== "ALL" || tenantStateFilter !== "ALL" || Boolean(tenantQuery);
 
   return (
     <Box>
@@ -778,6 +919,65 @@ export default function PropertyPage() {
                   sx={{ fontWeight: 600 }}
                 />
               </Box>
+
+              {/* Filters (apply to the Active view; Past view honours search only) */}
+              <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
+                <SearchableSelect
+                  label="Unit"
+                  value={tenantUnitFilter}
+                  options={tenantUnitOptions}
+                  disabled={tenantView === "past"}
+                  onChange={(v) => setParams({ tunit: v === "ALL" ? undefined : v })}
+                  sx={{ minWidth: 150 }}
+                />
+                <SearchableSelect
+                  label="Status"
+                  value={tenantStateFilter}
+                  options={tenantStateOptions}
+                  disabled={tenantView === "past"}
+                  onChange={(v) => setParams({ tstate: v === "ALL" ? undefined : v })}
+                  sx={{ minWidth: 150 }}
+                />
+                <TextField
+                  label="Search name / phone"
+                  size="small"
+                  value={tenantSearchInput}
+                  onChange={(e) => setTenantSearchInput(e.target.value)}
+                  sx={{ minWidth: 200 }}
+                  slotProps={{
+                    input: {
+                      startAdornment: (
+                        <InputAdornment position="start">
+                          <Search size={16} />
+                        </InputAdornment>
+                      ),
+                      endAdornment: tenantSearchInput ? (
+                        <InputAdornment position="end">
+                          <IconButton
+                            size="small"
+                            onClick={() => setTenantSearchInput("")}
+                            edge="end"
+                          >
+                            <X size={14} />
+                          </IconButton>
+                        </InputAdornment>
+                      ) : null,
+                    },
+                  }}
+                />
+                {hasTenantFilters && (
+                  <Button
+                    size="small"
+                    color="inherit"
+                    onClick={() =>
+                      setParams({ tunit: undefined, tstate: undefined, tq: undefined })
+                    }
+                  >
+                    Clear
+                  </Button>
+                )}
+              </Box>
+
               {tenantView === "active" ? (
                 <TenantTable
                   tenants={[
@@ -787,15 +987,20 @@ export default function PropertyPage() {
                     ...units
                       .filter((u) => u.futureTenant && !u.futureTenant.isExternal)
                       .map((u) => ({ ...u, tenant: u.futureTenant! })),
-                  ]}
+                  ].filter(tenantMatches)}
                   showUnit
                   onEdit={openTenantEdit}
                   onDeactivate={deactivateTenant}
                   onActivate={activateTenant}
-                  onAssignUnit={(id, name) => {
-                    setAssignUnitDialog({ tenantId: id, tenantName: name });
+                  onAssignUnit={(id, name, moveInDate) => {
+                    setAssignUnitDialog({
+                      tenantId: id,
+                      tenantName: name,
+                      tenantMoveInDate: moveInDate?.split("T")[0] ?? "",
+                    });
                     setAssigningUnitId("");
                     setAssignRent("");
+                    setAssignOutgoingMoveOut("");
                   }}
                 />
               ) : inactiveLoading ? (
@@ -1597,8 +1802,13 @@ export default function PropertyPage() {
               label="Unit"
               value={assigningUnitId}
               onChange={(e) => {
-                setAssigningUnitId(e.target.value as string);
+                const uid = e.target.value as string;
+                setAssigningUnitId(uid);
                 setAssignRent("");
+                const u = units.find((x) => x.id === uid);
+                setAssignOutgoingMoveOut(
+                  u?.isOccupied ? dayBefore(assignUnitDialog?.tenantMoveInDate ?? "") : ""
+                );
               }}
             >
               {units.map((u) => (
@@ -1635,6 +1845,26 @@ export default function PropertyPage() {
                 />
               );
             })()}
+          {assigningUnitId &&
+            units.find((x) => x.id === assigningUnitId)?.isOccupied &&
+            (() => {
+              const u = units.find((x) => x.id === assigningUnitId);
+              const outName = u?.tenant?.name ?? "current tenant";
+              return (
+                <TextField
+                  label={`${outName}'s Move-out Date`}
+                  type="date"
+                  value={assignOutgoingMoveOut}
+                  onChange={(e) => setAssignOutgoingMoveOut(e.target.value)}
+                  size="small"
+                  fullWidth
+                  required
+                  sx={{ mt: 2 }}
+                  slotProps={{ inputLabel: { shrink: true } }}
+                  helperText={`Sets ${outName}'s move-out and lease-end dates. Defaults to the day before this tenant moves in.`}
+                />
+              );
+            })()}
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>
           <Button
@@ -1651,7 +1881,11 @@ export default function PropertyPage() {
             size="small"
             startIcon={<MapPin size={14} />}
             onClick={doAssignUnit}
-            disabled={!assigningUnitId || assignSaving}
+            disabled={
+              !assigningUnitId ||
+              assignSaving ||
+              (!!units.find((x) => x.id === assigningUnitId)?.isOccupied && !assignOutgoingMoveOut)
+            }
             sx={{ flex: 1 }}
           >
             {assignSaving ? "Assigning…" : "Assign"}
@@ -1731,8 +1965,8 @@ export default function PropertyPage() {
                 {selectedUnit?.isOccupied && (
                   <Alert severity="info" sx={{ fontSize: "0.8rem", py: 0.5 }}>
                     This unit is occupied. The new tenant will be scheduled as a{" "}
-                    <strong>future tenant</strong> and will become active when the current tenant
-                    moves out.
+                    <strong>future tenant</strong>; the current tenant is moved out on the date
+                    below and the new tenant becomes active from their move-in date.
                   </Alert>
                 )}
 
@@ -1767,12 +2001,39 @@ export default function PropertyPage() {
               label="Move-in Date"
               type="date"
               value={addForm.moveInDate}
-              onChange={(e) => setAddForm((p) => ({ ...p, moveInDate: e.target.value }))}
+              onChange={(e) =>
+                setAddForm((p) => {
+                  const moveInDate = e.target.value;
+                  // Keep the outgoing move-out in lockstep with move-in unless edited.
+                  const autoOut =
+                    !p.outgoingMoveOutDate || p.outgoingMoveOutDate === dayBefore(p.moveInDate);
+                  return {
+                    ...p,
+                    moveInDate,
+                    outgoingMoveOutDate: autoOut ? dayBefore(moveInDate) : p.outgoingMoveOutDate,
+                  };
+                })
+              }
               size="small"
               fullWidth
               required
               slotProps={{ inputLabel: { shrink: true } }}
             />
+            {!isAddingExternal && selectedUnit?.isOccupied && (
+              <TextField
+                label={`${selectedUnit.tenant?.name ?? "Current tenant"}'s Move-out Date`}
+                type="date"
+                value={addForm.outgoingMoveOutDate}
+                onChange={(e) => setAddForm((p) => ({ ...p, outgoingMoveOutDate: e.target.value }))}
+                size="small"
+                fullWidth
+                required
+                slotProps={{ inputLabel: { shrink: true } }}
+                helperText={`Sets ${
+                  selectedUnit.tenant?.name ?? "the current tenant"
+                }'s move-out and lease-end dates. Defaults to the day before the new tenant moves in.`}
+              />
+            )}
             <TextField
               label="Lease End Date"
               type="date"
@@ -1888,7 +2149,8 @@ export default function PropertyPage() {
                   saving ||
                   !addForm.name ||
                   !addForm.moveInDate ||
-                  (!isAddingExternal && !addForm.unitId)
+                  (!isAddingExternal && !addForm.unitId) ||
+                  (!isAddingExternal && !!selectedUnit?.isOccupied && !addForm.outgoingMoveOutDate)
                 }
               >
                 {saving ? "Saving…" : isAddingExternal ? "Add Member" : "Add Tenant"}
@@ -1914,7 +2176,7 @@ function TenantTable({
   onEdit: (row: UnitWithTenant) => void;
   onDeactivate: (id: string, name: string) => void;
   onActivate: (id: string, name: string) => void;
-  onAssignUnit?: (tenantId: string, tenantName: string) => void;
+  onAssignUnit?: (tenantId: string, tenantName: string, moveInDate: string) => void;
 }) {
   if (tenants.length === 0) {
     return (
@@ -2094,7 +2356,7 @@ function TenantTable({
                       <IconButton
                         size="small"
                         color="warning"
-                        onClick={() => onAssignUnit(t.id, t.name)}
+                        onClick={() => onAssignUnit(t.id, t.name, t.moveInDate)}
                       >
                         <MapPin size={15} />
                       </IconButton>

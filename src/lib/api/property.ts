@@ -15,6 +15,15 @@ import type {
 
 type TenantFilter = "active" | "inactive" | "all";
 
+/** Extra server-side filters for the tenants list (unit, status, name/phone search). */
+export interface TenantListFilters {
+  filter?: TenantFilter;
+  unitId?: string;
+  status?: "CURRENT" | "FUTURE";
+  /** Case-insensitive search on tenant name or phone. */
+  q?: string;
+}
+
 export const propertyApi = {
   // ── Units ────────────────────────────────────────────────────────────────
   listUnits: () => apiGet<UnitWithTenant[]>("/property/units"),
@@ -22,8 +31,12 @@ export const propertyApi = {
   updateUnit: (id: string, body: unknown) => apiPut(`/property/units/${id}`, body),
 
   // ── Tenants ──────────────────────────────────────────────────────────────
-  listTenants: (filter?: TenantFilter) =>
-    apiGet<TenantWithUnit[]>("/property/tenants", { params: filter ? { filter } : undefined }),
+  // Accepts the legacy bare filter string or a richer filters object
+  // ({ filter, unitId, status, q }). All filtering happens server-side.
+  listTenants: (arg?: TenantFilter | TenantListFilters) => {
+    const params: TenantListFilters = typeof arg === "string" ? { filter: arg } : (arg ?? {});
+    return apiGet<TenantWithUnit[]>("/property/tenants", { params });
+  },
   getTenant: <T = unknown>(id: string) => apiGet<T>(`/property/tenants/${id}`),
   createTenant: (body: unknown) => apiPost("/property/tenants", body),
   updateTenant: (id: string, body: unknown) => apiPut(`/property/tenants/${id}`, body),
@@ -42,8 +55,15 @@ export const propertyApi = {
     apiDelete(`/property/tenants/${tenantId}/documents/${docId}`),
 
   // ── Payments ─────────────────────────────────────────────────────────────
-  listPayments: (params?: { month?: number; year?: number }) =>
-    apiGet<PaymentWithTenant[]>("/property/payments", { params }),
+  listPayments: (params?: {
+    month?: number;
+    year?: number;
+    tenantId?: string;
+    unitId?: string;
+    period?: string;
+    from?: string;
+    to?: string;
+  }) => apiGet<PaymentWithTenant[]>("/property/payments", { params }),
   generatePayments: (body?: unknown) => apiPost("/property/payments/generate", body),
   updatePayment: (id: string, body: unknown) => apiPut(`/property/payments/${id}`, body),
   deletePayment: (id: string) => apiDelete(`/property/payments/${id}`),
@@ -70,8 +90,14 @@ export const propertyApi = {
   removeAssignedService: (id: string) => apiDelete(`/property/services/assign/${id}`),
 
   // ── Expenses ─────────────────────────────────────────────────────────────
-  listExpenses: (params?: { month?: number; year?: number; payeeId?: string }) =>
-    apiGet<PropertyExpense[]>("/property/expenses", { params }),
+  listExpenses: (params?: {
+    month?: number;
+    year?: number;
+    payeeId?: string;
+    category?: string;
+    serviceTypeId?: string;
+    q?: string;
+  }) => apiGet<PropertyExpense[]>("/property/expenses", { params }),
   createExpense: (body: unknown) => apiPost("/property/expenses", body),
   updateExpense: (id: string, body: unknown) => apiPut(`/property/expenses/${id}`, body),
   deleteExpense: (id: string) => apiDelete(`/property/expenses/${id}`),

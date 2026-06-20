@@ -25,8 +25,9 @@ import {
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { Plus, Pencil, ToggleLeft, ToggleRight } from "lucide-react";
+import { Plus, Pencil, ToggleLeft, ToggleRight, Trash2 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
+import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { propertyApi } from "@/lib/api/property";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { PropertyServiceType, ExpenseCategory } from "@/types";
@@ -60,6 +61,11 @@ export default function ServiceTypesPage() {
   const [form, setForm] = useState<ServiceTypeForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Delete (deactivate) with guard — the API throws when the type is still in use.
+  const [pendingDelete, setPendingDelete] = useState<PropertyServiceType | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -109,6 +115,22 @@ export default function ServiceTypesPage() {
     await load();
   }
 
+  async function confirmDelete() {
+    if (!pendingDelete) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await propertyApi.deleteServiceType(pendingDelete.id);
+      setPendingDelete(null);
+      await load();
+    } catch (e) {
+      // Surface the guard message (e.g. "Cannot delete: N expenses still use…").
+      setDeleteError(e instanceof Error ? e.message : "Failed to delete");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <Box>
       <PageHeader title="Service Types" subtitle="Categories for property expense classification" />
@@ -118,6 +140,12 @@ export default function ServiceTypesPage() {
           Add Service Type
         </Button>
       </Box>
+
+      {deleteError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setDeleteError(null)}>
+          {deleteError}
+        </Alert>
+      )}
 
       {loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
@@ -182,6 +210,18 @@ export default function ServiceTypesPage() {
                           <Tooltip title={t.isActive ? "Deactivate" : "Activate"}>
                             <IconButton size="small" onClick={() => toggleActive(t)}>
                               {t.isActive ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete">
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => {
+                                setDeleteError(null);
+                                setPendingDelete(t);
+                              }}
+                            >
+                              <Trash2 size={14} />
                             </IconButton>
                           </Tooltip>
                         </Box>
@@ -252,6 +292,16 @@ export default function ServiceTypesPage() {
           {saving ? "Saving…" : editing ? "Save Changes" : "Add Service Type"}
         </Button>
       </Drawer>
+
+      <ConfirmDialog
+        open={!!pendingDelete}
+        title="Delete service type"
+        message={`Delete "${pendingDelete?.name ?? ""}"? This deactivates the type. It is blocked if any expense still uses it.`}
+        confirmLabel="Delete"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onClose={() => setPendingDelete(null)}
+      />
     </Box>
   );
 }

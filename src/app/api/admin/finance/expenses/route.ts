@@ -9,8 +9,12 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const fiscalYear = searchParams.get("fiscalYear") ?? undefined;
   const categoryId = searchParams.get("categoryId") ?? undefined;
+  const period = searchParams.get("period") ?? undefined;
+  const from = searchParams.get("from") ?? undefined;
+  const to = searchParams.get("to") ?? undefined;
+  const q = searchParams.get("q") ?? undefined;
 
-  const data = await getBizExpenses({ fiscalYear, categoryId });
+  const data = await getBizExpenses({ fiscalYear, categoryId, period, from, to, q });
   return Response.json({ data });
 }
 

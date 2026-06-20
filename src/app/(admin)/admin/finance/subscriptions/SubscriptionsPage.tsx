@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Box,
   Card,
@@ -15,6 +16,7 @@ import {
   Chip,
   Drawer,
   TextField,
+  InputAdornment,
   Select,
   MenuItem,
   FormControl,
@@ -34,11 +36,13 @@ import {
   SlidersHorizontal,
   TrendingUp,
   Tag,
+  Search,
   X,
 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import { financeApi } from "@/lib/api/finance";
+import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import { financeApi, type SubscriptionFilters } from "@/lib/api/finance";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { SubscriptionRow, SubscriptionDetail, CategoryRow } from "../types";
 import { fmt, fmtMonth, thisMonthInput } from "../format";
@@ -70,8 +74,33 @@ const monthInput = (iso: string | null): string => {
 };
 
 export default function SubscriptionsPage() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  // ── Filter state lives entirely in the URL (deep-linkable, restored on reload) ──
+  const categoryFilter = searchParams.get("category") ?? "ALL";
+  const q = searchParams.get("q") ?? "";
+
+  /** Merge a patch into the URL query (undefined/"" removes the key). */
+  const setParams = useCallback(
+    (patch: Record<string, string | undefined>) => {
+      const next = new URLSearchParams(searchParams.toString());
+      for (const [k, v] of Object.entries(patch)) {
+        if (v === undefined || v === "") next.delete(k);
+        else next.set(k, v);
+      }
+      const query = next.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [searchParams, pathname, router]
+  );
+
   const [subs, setSubs] = useState<SubscriptionRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
+  // Active monthly run-rate is computed from ALL active subs (not the filtered
+  // table), so the headline stat stays accurate while filters narrow the list.
+  const [activeMonthly, setActiveMonthly] = useState(0);
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -98,20 +127,46 @@ export default function SubscriptionsPage() {
   } | null>(null);
   const [manageError, setManageError] = useState<string | null>(null);
 
+  // Debounced search box: local input mirrors ?q, pushed to the URL after a pause.
+  const [searchInput, setSearchInput] = useState(q);
+  useEffect(() => {
+    setSearchInput(q);
+  }, [q]);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (searchInput !== q) setParams({ q: searchInput || undefined });
+    }, 350);
+    return () => clearTimeout(t);
+  }, [searchInput, q, setParams]);
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [subsData, categoriesData] = await Promise.all([
-        financeApi.listSubscriptions(),
-        financeApi.listCategories(),
-      ]);
-      setSubs(subsData ?? []);
-      setCategories(categoriesData ?? []);
+      const filters: SubscriptionFilters = {
+        ...(categoryFilter !== "ALL" && { categoryId: categoryFilter }),
+        ...(q && { q }),
+      };
+      setSubs((await financeApi.listSubscriptions(filters)) ?? []);
     } finally {
       setLoading(false);
     }
+  }, [categoryFilter, q]);
+
+  // Categories + the unfiltered run-rate — refreshed on mutations, not on filter changes.
+  const loadRefData = useCallback(async () => {
+    const [categoriesData, allSubs] = await Promise.all([
+      financeApi.listCategories(),
+      financeApi.listSubscriptions(),
+    ]);
+    setCategories(categoriesData ?? []);
+    setActiveMonthly(
+      (allSubs ?? []).filter((s) => s.isActive).reduce((sum, s) => sum + s.currentMonthlyAmount, 0)
+    );
   }, []);
 
+  useEffect(() => {
+    loadRefData();
+  }, [loadRefData]);
   useEffect(() => {
     load();
   }, [load]);
@@ -151,6 +206,7 @@ export default function SubscriptionsPage() {
       else await financeApi.createSubscription(body);
       setDrawerOpen(false);
       load();
+      loadRefData();
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
@@ -165,6 +221,7 @@ export default function SubscriptionsPage() {
       await financeApi.deleteSubscription(pendingDelete);
       setPendingDelete(null);
       load();
+      loadRefData();
     } finally {
       setBusy(false);
     }
@@ -177,6 +234,7 @@ export default function SubscriptionsPage() {
       await financeApi.stopSubscription(pendingStop.id); // effective this month
       setPendingStop(null);
       load();
+      loadRefData();
     } finally {
       setBusy(false);
     }
@@ -185,6 +243,7 @@ export default function SubscriptionsPage() {
   const resume = async (id: string) => {
     await financeApi.resumeSubscription(id);
     load();
+    loadRefData();
   };
 
   // ── Manage drawer ──────────────────────────────────────────────────────────
@@ -202,7 +261,7 @@ export default function SubscriptionsPage() {
   };
 
   const refreshManage = async (id: string) => {
-    const [d] = await Promise.all([financeApi.getSubscription(id), load()]);
+    const [d] = await Promise.all([financeApi.getSubscription(id), load(), loadRefData()]);
     setDetail(d);
   };
 
@@ -270,9 +329,11 @@ export default function SubscriptionsPage() {
     }
   };
 
-  const activeMonthly = subs
-    .filter((s) => s.isActive)
-    .reduce((sum, s) => sum + s.currentMonthlyAmount, 0);
+  const categorySelectOptions: SelectOption[] = [
+    { value: "ALL", label: "All categories" },
+    ...categories.map((c) => ({ value: c.id, label: c.name })),
+  ];
+  const hasActiveFilters = categoryFilter !== "ALL" || Boolean(q);
 
   return (
     <Box>
@@ -292,6 +353,45 @@ export default function SubscriptionsPage() {
             </Typography>
           </Box>
         </Card>
+        <SearchableSelect
+          label="Category"
+          value={categoryFilter}
+          options={categorySelectOptions}
+          onChange={(v) => setParams({ category: v === "ALL" ? undefined : v })}
+          sx={{ minWidth: 180 }}
+        />
+        <TextField
+          label="Search service"
+          size="small"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          sx={{ minWidth: 200 }}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={16} />
+                </InputAdornment>
+              ),
+              endAdornment: searchInput ? (
+                <InputAdornment position="end">
+                  <IconButton size="small" onClick={() => setSearchInput("")} edge="end">
+                    <X size={14} />
+                  </IconButton>
+                </InputAdornment>
+              ) : null,
+            },
+          }}
+        />
+        {hasActiveFilters && (
+          <Button
+            size="small"
+            color="inherit"
+            onClick={() => setParams({ category: undefined, q: undefined })}
+          >
+            Clear
+          </Button>
+        )}
         <Box sx={{ ml: "auto" }}>
           <Button variant="contained" startIcon={<Plus size={16} />} onClick={openAdd}>
             Add Subscription
@@ -325,7 +425,11 @@ export default function SubscriptionsPage() {
               {subs.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} sx={{ textAlign: "center", py: 4 }}>
-                    <Typography color="text.secondary">No subscriptions yet</Typography>
+                    <Typography color="text.secondary">
+                      {hasActiveFilters
+                        ? "No subscriptions match these filters"
+                        : "No subscriptions yet"}
+                    </Typography>
                   </TableCell>
                 </TableRow>
               ) : (

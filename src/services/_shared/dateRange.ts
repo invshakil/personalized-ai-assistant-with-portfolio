@@ -10,6 +10,7 @@ export type PeriodToken =
   | "last_3_months"
   | "last_6_months"
   | "last_12_months"
+  | "last_24_months"
   | "this_year"
   | "last_year"
   | "this_fiscal_year"
@@ -21,6 +22,7 @@ export const PERIOD_TOKENS: PeriodToken[] = [
   "last_3_months",
   "last_6_months",
   "last_12_months",
+  "last_24_months",
   "this_year",
   "last_year",
   "this_fiscal_year",
@@ -88,6 +90,8 @@ export function resolveRange(input: RangeInput = {}, fallback: PeriodToken = "al
       return { from: startOfDay(monthsAgo(now, 6)), to: endOfDay(now), label: "last 6 months" };
     case "last_12_months":
       return { from: startOfDay(monthsAgo(now, 12)), to: endOfDay(now), label: "last 12 months" };
+    case "last_24_months":
+      return { from: startOfDay(monthsAgo(now, 24)), to: endOfDay(now), label: "last 24 months" };
     case "this_year":
       return {
         from: startOfDay(new Date(now.getFullYear(), 0, 1)),
