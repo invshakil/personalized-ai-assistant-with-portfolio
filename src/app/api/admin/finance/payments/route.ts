@@ -10,8 +10,23 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const fiscalYear = searchParams.get("fiscalYear") ?? undefined;
   const employeeId = searchParams.get("employeeId") ?? undefined;
+  const clientId = searchParams.get("clientId") ?? undefined;
+  const period = searchParams.get("period") ?? undefined;
+  const from = searchParams.get("from") ?? undefined;
+  const to = searchParams.get("to") ?? undefined;
+  const typeParam = searchParams.get("type") ?? undefined;
+  // Only accept a valid PaymentKind; ignore anything else (e.g. "ALL").
+  const type = typeParam && typeParam in PaymentKind ? (typeParam as PaymentKind) : undefined;
 
-  const data = await getEmployeePayments({ fiscalYear, employeeId });
+  const data = await getEmployeePayments({
+    fiscalYear,
+    employeeId,
+    clientId,
+    type,
+    period,
+    from,
+    to,
+  });
   return Response.json({ data });
 }
 

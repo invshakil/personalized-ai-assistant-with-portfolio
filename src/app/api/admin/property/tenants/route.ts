@@ -1,13 +1,27 @@
 import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
-import { getTenants, createTenant, type TenantFilter } from "@/services/property";
+import {
+  getTenants,
+  createTenant,
+  type TenantFilter,
+  type TenantStatusFilter,
+} from "@/services/property";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const filter = (new URL(req.url).searchParams.get("filter") ?? "active") as TenantFilter;
-  const data = await getTenants(filter);
+  const { searchParams } = new URL(req.url);
+  const filter = (searchParams.get("filter") ?? "active") as TenantFilter;
+  const unitId = searchParams.get("unitId") ?? undefined;
+  const statusParam = searchParams.get("status");
+  const status =
+    statusParam === "CURRENT" || statusParam === "FUTURE"
+      ? (statusParam as TenantStatusFilter)
+      : undefined;
+  const q = searchParams.get("q") ?? undefined;
+
+  const data = await getTenants({ filter, unitId, status, q });
   return Response.json({ data });
 }
 

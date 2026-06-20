@@ -2,11 +2,15 @@ import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import { getSubscriptions, createSubscription } from "@/services/finance";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const data = await getSubscriptions();
+  const { searchParams } = new URL(req.url);
+  const categoryId = searchParams.get("categoryId") ?? undefined;
+  const q = searchParams.get("q") ?? undefined;
+
+  const data = await getSubscriptions({ categoryId, q });
   return Response.json({ data });
 }
 

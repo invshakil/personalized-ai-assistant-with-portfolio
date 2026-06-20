@@ -10,8 +10,16 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const month = searchParams.get("month") ? parseInt(searchParams.get("month")!) : undefined;
   const year = searchParams.get("year") ? parseInt(searchParams.get("year")!) : undefined;
+  const payeeId = searchParams.get("payeeId") ?? undefined;
+  const serviceTypeId = searchParams.get("serviceTypeId") ?? undefined;
+  const categoryParam = searchParams.get("category");
+  const category =
+    categoryParam && categoryParam in ExpenseCategory
+      ? (categoryParam as ExpenseCategory)
+      : undefined;
+  const q = searchParams.get("q") ?? undefined;
 
-  const data = await getExpenses({ month, year });
+  const data = await getExpenses({ month, year, payeeId, serviceTypeId, category, q });
   return Response.json({ data });
 }
 
