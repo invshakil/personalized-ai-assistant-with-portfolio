@@ -35,6 +35,7 @@ const EXPENSE = [
   "Mobile & Internet",
   "Household",
   "Entertainment",
+  "Family Expense",
   "Payments to People",
 ];
 const INCOME = ["Salary", "Gift", "Other Income", "Repayments from People"];
