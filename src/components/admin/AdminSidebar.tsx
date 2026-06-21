@@ -1,6 +1,6 @@
 "use client";
 
-import { ComponentType } from "react";
+import { ComponentType, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
@@ -85,6 +85,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
         icon: BarChart3,
         exact: false,
         children: [
+          { href: "/admin/finance", label: "Dashboard", icon: LayoutDashboard },
           { href: "/admin/finance/earnings", label: "Earnings", icon: TrendingUp },
           { href: "/admin/finance/payments", label: "Salaries", icon: Users },
           { href: "/admin/finance/expenses", label: "Expenses", icon: Receipt },
@@ -111,6 +112,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
         icon: FileBarChart,
         exact: false,
         children: [
+          { href: "/admin/reports", label: "Overview", icon: LayoutDashboard },
           { href: "/admin/reports/financial", label: "Financial Tracker Reports", icon: BarChart3 },
           { href: "/admin/reports/property", label: "Property Reports", icon: Building2 },
         ],
@@ -145,6 +147,11 @@ interface AdminSidebarProps {
 
 function SidebarContents({ onClose }: { onClose?: () => void }) {
   const pathname = usePathname();
+
+  // Which parent groups are manually expanded. A parent defaults to open when
+  // the current route is inside it; toggling stores an explicit override so you
+  // can expand any section to reach its children without navigating first.
+  const [overrides, setOverrides] = useState<Record<string, boolean>>({});
 
   const isActive = (href: string, exact: boolean) =>
     exact ? pathname === href : pathname.startsWith(href);
@@ -213,28 +220,51 @@ function SidebarContents({ onClose }: { onClose?: () => void }) {
                 const active = isActive(item.href, item.exact);
                 const Icon = item.icon;
                 const hasChildren = !!item.children?.length;
-                const expanded = hasChildren && pathname.startsWith(item.href);
+                // Default open when the route is inside this section; an explicit
+                // toggle (override) wins so any section can be expanded in place.
+                const defaultOpen = hasChildren && pathname.startsWith(item.href);
+                const expanded = hasChildren && (overrides[item.href] ?? defaultOpen);
                 const ChevronIcon = expanded ? ChevronDown : ChevronRight;
+
+                const row = (
+                  <ListItemButton
+                    selected={hasChildren ? active && !expanded : active}
+                    sx={{ px: 1.5, py: 0.875 }}
+                  >
+                    <ListItemIcon>
+                      <Icon size={17} />
+                    </ListItemIcon>
+                    <ListItemText primary={item.label} />
+                    {hasChildren && <ChevronIcon size={14} />}
+                  </ListItemButton>
+                );
 
                 return (
                   <Box key={item.href}>
                     <ListItem disablePadding sx={{ mb: 0.25 }}>
-                      <Link
-                        href={item.href}
-                        style={{ width: "100%", textDecoration: "none", color: "inherit" }}
-                        onClick={handleNavClick}
-                      >
-                        <ListItemButton
-                          selected={active && !hasChildren}
-                          sx={{ px: 1.5, py: 0.875 }}
+                      {hasChildren ? (
+                        // Parent rows toggle their child list in place — they do
+                        // not navigate (each child, incl. the section index, is a link).
+                        <Box
+                          onClick={() =>
+                            setOverrides((m) => ({
+                              ...m,
+                              [item.href]: !(m[item.href] ?? defaultOpen),
+                            }))
+                          }
+                          sx={{ width: "100%", cursor: "pointer" }}
                         >
-                          <ListItemIcon>
-                            <Icon size={17} />
-                          </ListItemIcon>
-                          <ListItemText primary={item.label} />
-                          {hasChildren && <ChevronIcon size={14} />}
-                        </ListItemButton>
-                      </Link>
+                          {row}
+                        </Box>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          style={{ width: "100%", textDecoration: "none", color: "inherit" }}
+                          onClick={handleNavClick}
+                        >
+                          {row}
+                        </Link>
+                      )}
                     </ListItem>
 
                     {/* Sub-items (property section) */}
