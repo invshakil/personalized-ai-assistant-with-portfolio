@@ -3,6 +3,7 @@
 export * from "./accounts";
 export * from "./categories";
 export * from "./entries";
+export * from "./link";
 export * from "./beneficiaries";
 export * from "./dashboard";
 export * from "./reports";
