@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { toNum, toIso } from "./_serializers";
+import { recordLinkedEntry } from "@/services/money";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function serializeTenant(t: Record<string, any>) {
@@ -180,6 +181,13 @@ export interface CreateTenantInput {
   leaseEndDate?: string | null;
   advancePaid?: boolean;
   advanceAmount?: number;
+  /**
+   * Optional Money-Manager account to credit with the advance. Opt-in: when set
+   * (and advancePaid with advanceAmount > 0) a linked ledger CREDIT is posted at
+   * create time so the deposit lands in that account's balance. No back-sync —
+   * editing the advance later via updateTenant does not touch the ledger entry.
+   */
+  advanceAccountId?: string;
   notes?: string | null;
   isExternal?: boolean;
   /**
@@ -268,6 +276,21 @@ export async function createTenant(input: CreateTenantInput) {
 
   if (input.unitId && tenantStatus === "CURRENT") {
     await db.unit.update({ where: { id: input.unitId }, data: { isOccupied: true } });
+  }
+
+  // Opt-in cross-domain link: post the advance as a ledger CREDIT only when the
+  // caller supplied an account and an advance was actually paid. Posted once at
+  // create time; no back-sync. If it throws, let it propagate.
+  const advanceAmount = input.advanceAmount ?? 0;
+  if (input.advancePaid && advanceAmount > 0 && input.advanceAccountId) {
+    await recordLinkedEntry({
+      accountId: input.advanceAccountId,
+      direction: "CREDIT",
+      amount: advanceAmount,
+      date: input.moveInDate,
+      categoryName: "Tenant Advance",
+      description: `Advance — ${tenant.name}`,
+    });
   }
 
   return serializeTenant(tenant);

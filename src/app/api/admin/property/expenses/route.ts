@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
     payeeId,
     serviceTypeId,
     notes,
+    accountId,
   } = body;
 
   if (!description || !amount || !category || !month || !year) {
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
     payeeId,
     serviceTypeId,
     notes,
+    accountId,
   });
   return Response.json({ data }, { status: 201 });
 }

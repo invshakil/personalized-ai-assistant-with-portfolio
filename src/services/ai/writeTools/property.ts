@@ -28,6 +28,7 @@ import {
   getPayees,
   getServiceTypes,
 } from "@/services/property";
+import { listAccountsWithBalances } from "@/services/money";
 import { ExpenseCategory, TransactionType, PaymentStatus } from "@prisma/client";
 import {
   write,
@@ -90,6 +91,17 @@ async function serviceTypeById(id: string) {
   if (!s) throw new Error(`No service type found with id "${id}".`);
   return s;
 }
+// Resolve a Money-Manager account by name (case-insensitive) for opt-in
+// cross-domain linking. Mirrors accountByName in writeTools/money.ts.
+async function moneyAccountByName(name: string) {
+  const accounts = await listAccountsWithBalances();
+  const found = accounts.find((a) => a.name.toLowerCase() === name.toLowerCase());
+  if (!found) {
+    const names = accounts.map((a) => a.name).join(", ");
+    throw new Error(`No account named "${name}". Available: ${names}`);
+  }
+  return found;
+}
 
 export const propertyTools: WriteToolDef[] = [
   write({
@@ -98,7 +110,10 @@ export const propertyTools: WriteToolDef[] = [
       "Add a new tenant. For an in-building tenant pass the unitId (resolve it via list_units first). " +
       "For an off-property/external tenant pass isExternal=true and omit unitId. If the unit is already " +
       "occupied, the tenant is queued as a future tenant and the current tenant's move-out + lease-end " +
-      "are scheduled (defaults to the day before this tenant's move-in; override with outgoingMoveOutDate).",
+      "are scheduled (defaults to the day before this tenant's move-in; override with outgoingMoveOutDate). " +
+      "Optionally pass advanceAccountName (a Money-Manager wallet/account); when an advance was paid the " +
+      "advance amount is also posted into that account's ledger as Tenant Advance so the deposit lands " +
+      "in its balance.",
     parameters: schema(
       {
         name: Str("Tenant full name"),
@@ -110,6 +125,10 @@ export const propertyTools: WriteToolDef[] = [
         nidNumber: Str("National ID number (optional)"),
         advancePaid: Bool("Whether an advance/deposit was paid (optional)"),
         advanceAmount: Num("Advance/deposit amount in BDT (optional)"),
+        advanceAccountName: Str(
+          "Money-Manager account/wallet to credit with the advance, e.g. Cash, City Bank " +
+            "(optional; only applied when an advance was paid)"
+        ),
         isExternal: Bool("True for a tenant not tied to a unit (optional)"),
         notes: Str("Notes (optional)"),
         outgoingMoveOutDate: Str(
@@ -129,6 +148,7 @@ export const propertyTools: WriteToolDef[] = [
       nidNumber: optStr(i.nidNumber) ?? null,
       advancePaid: optBool(i.advancePaid),
       advanceAmount: optNum(i.advanceAmount),
+      advanceAccountName: optStr(i.advanceAccountName),
       isExternal: optBool(i.isExternal),
       notes: optStr(i.notes) ?? null,
       outgoingMoveOutDate: optDate(i.outgoingMoveOutDate, "outgoingMoveOutDate") ?? null,
@@ -139,11 +159,16 @@ export const propertyTools: WriteToolDef[] = [
         if (!a.unitId) throw new Error("unitId is required unless isExternal=true.");
         unitLabel = `Unit ${field(await unitById(a.unitId), "unitNumber")}`;
       }
-      const adv = a.advanceAmount ? `, advance ${taka(a.advanceAmount)}` : "";
+      const acct = a.advanceAccountName ? ` → ${a.advanceAccountName}` : "";
+      const adv = a.advanceAmount ? `, advance ${taka(a.advanceAmount)}${acct}` : "";
       return `Create tenant "${a.name}" — ${unitLabel}, move-in ${a.moveInDate}${adv}.`;
     },
     commit: async (a) => {
-      const t = await createTenant(a);
+      const { advanceAccountName, ...rest } = a;
+      const advanceAccountId = advanceAccountName
+        ? (await moneyAccountByName(advanceAccountName)).id
+        : undefined;
+      const t = await createTenant({ ...rest, advanceAccountId });
       return {
         summary: `Created tenant ${field(t, "name")} (${field(t, "tenantCode")}).`,
         data: t,
@@ -283,13 +308,20 @@ export const propertyTools: WriteToolDef[] = [
     description:
       "Record money received against an existing monthly rent row. First find the row with " +
       "list_rent_payments (pass tenant/month/year) to get its paymentId. type=ADVANCE_APPLIED draws " +
-      "down the tenant's held advance instead of taking new cash.",
+      "down the tenant's held advance instead of taking new cash. " +
+      "Optionally pass accountName (a Money-Manager wallet/account) and, for a CASH or BANK_TRANSFER " +
+      "receipt, the amount is also posted into that account's ledger as Rental Income so the cash " +
+      "lands in its balance.",
     parameters: schema(
       {
         paymentId: Str("Id of the monthly rent payment row to pay against"),
         amount: Num("Amount in BDT"),
         type: Enum(TX_TYPES, "How it was paid"),
         date: Str("Payment date YYYY-MM-DD"),
+        accountName: Str(
+          "Money-Manager account/wallet to credit, e.g. Cash, City Bank " +
+            "(optional; only applied for CASH or BANK_TRANSFER)"
+        ),
         notes: Str("Notes (optional)"),
       },
       ["paymentId", "amount", "type", "date"]
@@ -299,18 +331,28 @@ export const propertyTools: WriteToolDef[] = [
       amount: reqNum(i.amount, "amount"),
       type: reqEnum(i.type, TX_TYPES, "type") as TransactionType,
       date: reqDate(i.date, "date"),
+      accountName: optStr(i.accountName),
       notes: optStr(i.notes),
     }),
     preview: async (a) => {
       const p = await paymentById(a.paymentId);
       const who = `${p.tenant.name} (${p.tenant.tenantCode})`;
+      const acct = a.accountName ? ` → ${a.accountName}` : "";
       return (
-        `Record ${taka(a.amount)} (${a.type}) on ${a.date} against ${who} — ` +
+        `Record ${taka(a.amount)} (${a.type})${acct} on ${a.date} against ${who} — ` +
         `${ym(p.month, p.year)} rent (due ${taka(p.rentDue)}, paid ${taka(p.amountPaid)} so far).`
       );
     },
     commit: async (a) => {
-      const tx = await addTransaction(a);
+      const accountId = a.accountName ? (await moneyAccountByName(a.accountName)).id : undefined;
+      const tx = await addTransaction({
+        paymentId: a.paymentId,
+        amount: a.amount,
+        type: a.type,
+        date: a.date,
+        notes: a.notes,
+        accountId,
+      });
       const p = await paymentById(a.paymentId);
       return {
         summary: `Recorded ${taka(a.amount)} (${a.type}) for ${p.tenant.name} — ${ym(p.month, p.year)}. New status: ${p.status}.`,
@@ -390,7 +432,10 @@ export const propertyTools: WriteToolDef[] = [
 
   write({
     name: "create_property_expense",
-    description: "Log a property expense (maintenance, utility, construction, etc.) for a month.",
+    description:
+      "Log a property expense (maintenance, utility, construction, etc.) for a month. " +
+      "Optionally pass accountName (a Money-Manager wallet/account); the amount is then posted into " +
+      "that account's ledger as a Property Expense debit so the cash leaves its balance.",
     parameters: schema(
       {
         description: Str("What the expense was for"),
@@ -404,6 +449,7 @@ export const propertyTools: WriteToolDef[] = [
         unitId: Str("Related unit id (optional)"),
         serviceTypeId: Str("Service type id (optional)"),
         paymentMode: Str("Payment mode, e.g. cash/bank (optional)"),
+        accountName: Str("Money-Manager account/wallet to debit, e.g. Cash, City Bank (optional)"),
         notes: Str("Notes (optional)"),
       },
       ["description", "amount", "category", "month", "year"]
@@ -423,6 +469,7 @@ export const propertyTools: WriteToolDef[] = [
         unitId: optStr(i.unitId) ?? null,
         serviceTypeId: optStr(i.serviceTypeId) ?? null,
         paymentMode: optStr(i.paymentMode) ?? null,
+        accountName: optStr(i.accountName),
         notes: optStr(i.notes) ?? null,
       };
     },
@@ -432,10 +479,13 @@ export const propertyTools: WriteToolDef[] = [
         : a.paidTo
           ? ` to ${a.paidTo}`
           : "";
-      return `Log ${a.category} expense ${taka(a.amount)} — "${a.description}"${payee} (${ym(a.month, a.year)}).`;
+      const acct = a.accountName ? ` (paid from ${a.accountName})` : "";
+      return `Log ${a.category} expense ${taka(a.amount)} — "${a.description}"${payee} (${ym(a.month, a.year)})${acct}.`;
     },
     commit: async (a) => {
-      const e = await createExpense(a);
+      const { accountName, ...rest } = a;
+      const accountId = accountName ? (await moneyAccountByName(accountName)).id : undefined;
+      const e = await createExpense({ ...rest, accountId });
       return {
         summary: `Logged ${taka(a.amount)} ${a.category} expense — "${a.description}".`,
         data: e,

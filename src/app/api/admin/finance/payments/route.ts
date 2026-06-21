@@ -38,7 +38,8 @@ export async function POST(req: NextRequest) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { date, employeeId, type, reference, clientIds, amount, fiscalYear, notes } = body;
+  const { date, employeeId, type, reference, clientIds, amount, fiscalYear, notes, accountId } =
+    body;
 
   if (!date || !employeeId || amount == null) {
     return Response.json({ error: "date, employeeId and amount are required" }, { status: 400 });
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
     amount: Number(amount),
     fiscalYear,
     notes,
+    accountId: accountId || undefined,
   });
   return Response.json({ data }, { status: 201 });
 }

@@ -18,11 +18,12 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id: paymentId } = await params;
   const body = await req.json();
-  const { type, amount, date, notes } = body as {
+  const { type, amount, date, notes, accountId } = body as {
     type: TransactionType;
     amount: number;
     date: string;
     notes?: string;
+    accountId?: string;
   };
 
   if (!type || !amount || !date) {
@@ -30,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   }
 
   try {
-    const data = await addTransaction({ paymentId, type, amount, date, notes });
+    const data = await addTransaction({ paymentId, type, amount, date, notes, accountId });
     return Response.json({ data }, { status: 201 });
   } catch (err) {
     return Response.json({ error: (err as Error).message }, { status: 400 });

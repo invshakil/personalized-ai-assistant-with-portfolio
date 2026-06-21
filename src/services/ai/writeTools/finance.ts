@@ -21,6 +21,7 @@ import {
   getIncomeSources,
   getExpenseCategories,
 } from "@/services/finance";
+import { listAccountsWithBalances } from "@/services/money";
 import { RemittanceType, PaymentKind } from "@prisma/client";
 import {
   write,
@@ -66,13 +67,26 @@ async function bizCategoryById(id: string) {
   if (!c) throw new Error(`No expense category found with id "${id}".`);
   return c;
 }
+// Resolve an optional Money account by name (case-insensitive) for opt-in
+// cross-domain linking. Mirrors accountByName in writeTools/money.ts.
+async function moneyAccountByName(name: string) {
+  const accounts = await listAccountsWithBalances();
+  const found = accounts.find((a) => a.name.toLowerCase() === name.toLowerCase());
+  if (!found) {
+    const names = accounts.map((a) => a.name).join(", ");
+    throw new Error(`No account named "${name}". Available: ${names}`);
+  }
+  return found;
+}
 
 export const financeTools: WriteToolDef[] = [
   write({
     name: "create_earning",
     description:
       "Record client income (an earning). Resolve sourceId (the client) via list_clients first. " +
-      "fiscalYear is derived from the date when omitted.",
+      "fiscalYear is derived from the date when omitted. " +
+      "Optionally pass accountName to also post the income as a CREDIT to that Money account " +
+      "(money lands in its balance and shows in the Ledger); omit it for no ledger entry.",
     parameters: schema(
       {
         date: Str("Income date YYYY-MM-DD"),
@@ -80,6 +94,7 @@ export const financeTools: WriteToolDef[] = [
         remittance: Enum(REMITTANCE, "REM (remittance) or NON_REM"),
         amount: Num("Amount in BDT"),
         fiscalYear: Str('Fiscal year, e.g. "2025-2026" (optional)'),
+        accountName: Str("Money account to deposit into, e.g. Cash, bKash (optional)"),
         notes: Str("Notes (optional)"),
       },
       ["date", "sourceId", "remittance", "amount"]
@@ -90,16 +105,28 @@ export const financeTools: WriteToolDef[] = [
       remittance: reqEnum(i.remittance, REMITTANCE, "remittance") as RemittanceType,
       amount: reqNum(i.amount, "amount"),
       fiscalYear: optStr(i.fiscalYear),
+      accountName: optStr(i.accountName),
       notes: optStr(i.notes) ?? null,
     }),
     preview: async (a) => {
       const c = await clientById(a.sourceId);
-      return `Record ${taka(a.amount)} income from ${nameOf(c)} (${a.remittance}) on ${a.date}.`;
+      const acct = a.accountName ? ` → ${a.accountName}` : "";
+      return `Record ${taka(a.amount)} income from ${nameOf(c)} (${a.remittance})${acct} on ${a.date}.`;
     },
     commit: async (a) => {
-      const e = await createEarning(a);
+      const accountId = a.accountName ? (await moneyAccountByName(a.accountName)).id : undefined;
+      const e = await createEarning({
+        date: a.date,
+        sourceId: a.sourceId,
+        remittance: a.remittance,
+        amount: a.amount,
+        fiscalYear: a.fiscalYear,
+        notes: a.notes,
+        accountId,
+      });
       const c = await clientById(a.sourceId);
-      return { summary: `Recorded ${taka(a.amount)} income from ${nameOf(c)}.`, data: e };
+      const acct = a.accountName ? ` (deposited to ${a.accountName})` : "";
+      return { summary: `Recorded ${taka(a.amount)} income from ${nameOf(c)}${acct}.`, data: e };
     },
   }),
 
@@ -145,7 +172,9 @@ export const financeTools: WriteToolDef[] = [
     name: "create_salary_payment",
     description:
       "Record a salary/bonus/advance payment to an employee. Resolve employeeId via list_employees " +
-      "and any clientIds (clients the salary is attributed to) via list_clients.",
+      "and any clientIds (clients the salary is attributed to) via list_clients. " +
+      "Optionally pass accountName to also post the payment as an expense (DEBIT) on that Money " +
+      "account (cash leaves its balance and shows in the Ledger); omit it for no ledger entry.",
     parameters: schema(
       {
         date: Str("Payment date YYYY-MM-DD"),
@@ -159,6 +188,7 @@ export const financeTools: WriteToolDef[] = [
         },
         reference: Str("Reference (optional)"),
         fiscalYear: Str("Fiscal year (optional)"),
+        accountName: Str("Money account to pay from, e.g. Cash, bKash (optional)"),
         notes: Str("Notes (optional)"),
       },
       ["date", "employeeId", "amount"]
@@ -171,17 +201,31 @@ export const financeTools: WriteToolDef[] = [
       clientIds: optStrList(i.clientIds),
       reference: optStr(i.reference) ?? null,
       fiscalYear: optStr(i.fiscalYear),
+      accountName: optStr(i.accountName),
       notes: optStr(i.notes) ?? null,
     }),
     preview: async (a) => {
       const e = await employeeById(a.employeeId);
-      return `Pay ${taka(a.amount)} (${a.type ?? "SALARY"}) to ${nameOf(e)} on ${a.date}.`;
+      const acct = a.accountName ? ` from ${a.accountName}` : "";
+      return `Pay ${taka(a.amount)} (${a.type ?? "SALARY"}) to ${nameOf(e)}${acct} on ${a.date}.`;
     },
     commit: async (a) => {
-      const p = await createEmployeePayment(a);
+      const accountId = a.accountName ? (await moneyAccountByName(a.accountName)).id : undefined;
+      const p = await createEmployeePayment({
+        date: a.date,
+        employeeId: a.employeeId,
+        amount: a.amount,
+        type: a.type,
+        clientIds: a.clientIds,
+        reference: a.reference,
+        fiscalYear: a.fiscalYear,
+        notes: a.notes,
+        accountId,
+      });
       const e = await employeeById(a.employeeId);
+      const acct = a.accountName ? ` (paid from ${a.accountName})` : "";
       return {
-        summary: `Recorded ${taka(a.amount)} ${a.type ?? "SALARY"} to ${nameOf(e)}.`,
+        summary: `Recorded ${taka(a.amount)} ${a.type ?? "SALARY"} to ${nameOf(e)}${acct}.`,
         data: p,
       };
     },
@@ -237,7 +281,9 @@ export const financeTools: WriteToolDef[] = [
     name: "create_business_expense",
     description:
       "Record a one-off or recurring business expense (tool/subscription/etc.). Resolve categoryId " +
-      "via the expense categories.",
+      "via the expense categories. " +
+      "Optionally pass accountName to also post the expense as a DEBIT on that Money account " +
+      "(cash leaves its balance and shows in the Ledger); omit it for no ledger entry.",
     parameters: schema(
       {
         date: Str("Date YYYY-MM-DD"),
@@ -246,6 +292,7 @@ export const financeTools: WriteToolDef[] = [
         amount: Num("Amount in BDT"),
         isRecurring: Bool("Recurring flag (optional)"),
         fiscalYear: Str("Fiscal year (optional)"),
+        accountName: Str("Money account to pay from, e.g. Cash, bKash (optional)"),
         notes: Str("Notes (optional)"),
       },
       ["date", "name", "categoryId", "amount"]
@@ -257,15 +304,31 @@ export const financeTools: WriteToolDef[] = [
       amount: reqNum(i.amount, "amount"),
       isRecurring: optBool(i.isRecurring),
       fiscalYear: optStr(i.fiscalYear),
+      accountName: optStr(i.accountName),
       notes: optStr(i.notes) ?? null,
     }),
     preview: async (a) => {
       const c = await bizCategoryById(a.categoryId);
-      return `Record ${taka(a.amount)} business expense "${a.name}" (${nameOf(c)}) on ${a.date}.`;
+      const acct = a.accountName ? ` from ${a.accountName}` : "";
+      return `Record ${taka(a.amount)} business expense "${a.name}" (${nameOf(c)})${acct} on ${a.date}.`;
     },
     commit: async (a) => {
-      const e = await createBizExpense(a);
-      return { summary: `Recorded ${taka(a.amount)} business expense "${a.name}".`, data: e };
+      const accountId = a.accountName ? (await moneyAccountByName(a.accountName)).id : undefined;
+      const e = await createBizExpense({
+        date: a.date,
+        name: a.name,
+        categoryId: a.categoryId,
+        amount: a.amount,
+        isRecurring: a.isRecurring,
+        fiscalYear: a.fiscalYear,
+        notes: a.notes,
+        accountId,
+      });
+      const acct = a.accountName ? ` (paid from ${a.accountName})` : "";
+      return {
+        summary: `Recorded ${taka(a.amount)} business expense "${a.name}"${acct}.`,
+        data: e,
+      };
     },
   }),
 

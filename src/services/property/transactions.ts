@@ -1,6 +1,9 @@
 import { db } from "@/lib/db";
 import { toNum } from "./_serializers";
+import { recordLinkedEntry } from "@/services/money";
 import { TransactionType } from "@prisma/client";
+
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 function recalcStatus(rentDue: number, amountPaid: number, advanceApplied: number) {
   const total = amountPaid + advanceApplied;
@@ -39,14 +42,23 @@ export interface AddTransactionInput {
   amount: number;
   date: string;
   notes?: string;
+  /**
+   * Optional Money-Manager account to credit when actual cash/bank is received.
+   * Opt-in per record: when set (and type is CASH or BANK_TRANSFER) a linked
+   * ledger entry is posted so the money lands in that account's balance. No
+   * back-sync — editing/deleting this transaction later does not touch the entry.
+   */
+  accountId?: string;
 }
 
 export async function addTransaction(input: AddTransactionInput) {
-  const { paymentId, type, amount, date, notes } = input;
+  const { paymentId, type, amount, date, notes, accountId } = input;
 
   const payment = await db.payment.findUnique({
     where: { id: paymentId },
-    include: { tenant: { select: { id: true, advanceAmount: true, unitId: true } } },
+    include: {
+      tenant: { select: { id: true, name: true, advanceAmount: true, unitId: true } },
+    },
   });
   if (!payment) throw new Error("Payment not found");
 
@@ -99,6 +111,20 @@ export async function addTransaction(input: AddTransactionInput) {
   });
   if (updated && (updated.status === "PAID" || updated.status === "PARTIAL")) {
     await assignReceiptIfNeeded(paymentId, updated.year);
+  }
+
+  // Opt-in cross-domain link: only post a ledger CREDIT for real cash/bank
+  // receipts, never for advance applications or adjustments. Posted once after
+  // the transaction is recorded; if it throws, let it propagate.
+  if (accountId && (type === TransactionType.CASH || type === TransactionType.BANK_TRANSFER)) {
+    await recordLinkedEntry({
+      accountId,
+      direction: "CREDIT",
+      amount,
+      date,
+      categoryName: "Rental Income",
+      description: `Rent — ${payment.tenant.name} ${MONTHS[payment.month - 1]} ${payment.year}`,
+    });
   }
 
   return {

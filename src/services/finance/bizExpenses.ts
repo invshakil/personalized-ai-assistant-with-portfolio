@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { resolveRange, dateColumnWhere } from "@/services/_shared/dateRange";
+import { recordLinkedEntry } from "@/services/money";
 import { toNum, toIso } from "./_serializers";
 import { generateSubscriptionCharges } from "./subscriptions";
 
@@ -53,6 +54,13 @@ export interface CreateBizExpenseInput {
   amount: number;
   fiscalYear?: string;
   notes?: string | null;
+  /**
+   * Opt-in cross-domain link: when set, a DEBIT is posted to this Money account
+   * after the expense is created so the cash leaves that account's balance and
+   * shows in the Ledger. No account → no ledger entry. Posted once at create
+   * time; not reversed on edit/delete.
+   */
+  accountId?: string;
 }
 
 export async function createBizExpense(input: CreateBizExpenseInput) {
@@ -68,6 +76,19 @@ export async function createBizExpense(input: CreateBizExpenseInput) {
       notes: input.notes ?? null,
     },
   });
+
+  // Opt-in cross-domain link: post a ledger DEBIT for the cash paid out.
+  if (input.accountId) {
+    await recordLinkedEntry({
+      accountId: input.accountId,
+      direction: "DEBIT",
+      amount: input.amount,
+      date: input.date,
+      categoryName: "Business Expense",
+      description: input.name,
+    });
+  }
+
   return { ...expense, amount: toNum(expense.amount), date: toIso(expense.date) };
 }
 

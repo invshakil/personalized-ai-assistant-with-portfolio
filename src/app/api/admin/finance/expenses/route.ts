@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { date, name, categoryId, isRecurring, amount, fiscalYear, notes } = body;
+  const { date, name, categoryId, isRecurring, amount, fiscalYear, notes, accountId } = body;
 
   if (!date || !name || !categoryId || amount == null) {
     return Response.json(
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
     amount: Number(amount),
     fiscalYear,
     notes,
+    accountId: accountId || undefined,
   });
   return Response.json({ data }, { status: 201 });
 }

@@ -23,6 +23,8 @@ export interface EarningPayload {
   amount: number;
   fiscalYear?: string;
   notes?: string | null;
+  /** Opt-in cross-domain link: post a CREDIT to this Money account (create only). */
+  accountId?: string;
 }
 
 export interface PaymentPayload {
@@ -34,6 +36,8 @@ export interface PaymentPayload {
   amount: number;
   fiscalYear?: string;
   notes?: string | null;
+  /** Opt-in cross-domain link: post a DEBIT to this Money account (create only). */
+  accountId?: string;
 }
 
 export interface BizExpensePayload {
@@ -44,6 +48,8 @@ export interface BizExpensePayload {
   amount: number;
   fiscalYear?: string;
   notes?: string | null;
+  /** Opt-in cross-domain link: post a DEBIT to this Money account (create only). */
+  accountId?: string;
 }
 
 export interface SubscriptionPayload {

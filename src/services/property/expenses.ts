@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { toNum, toIso } from "./_serializers";
+import { recordLinkedEntry } from "@/services/money";
 import { ExpenseCategory } from "@prisma/client";
 
 export interface GetExpensesOptions {
@@ -58,6 +59,13 @@ export interface CreateExpenseInput {
   payeeId?: string | null;
   serviceTypeId?: string | null;
   notes?: string | null;
+  /**
+   * Optional Money-Manager account to debit when the expense is actually paid.
+   * Opt-in: when set, a linked ledger DEBIT is posted so the cash leaves that
+   * account's balance. No back-sync — editing/deleting the expense later does
+   * not touch the ledger entry.
+   */
+  accountId?: string;
 }
 
 export async function createExpense(input: CreateExpenseInput) {
@@ -82,6 +90,20 @@ export async function createExpense(input: CreateExpenseInput) {
       serviceType: { select: { name: true } },
     },
   });
+  // Opt-in cross-domain link: post a ledger DEBIT only when the caller supplied
+  // an account. Posted once after the expense is created; no back-sync. If it
+  // throws, let it propagate.
+  if (input.accountId) {
+    await recordLinkedEntry({
+      accountId: input.accountId,
+      direction: "DEBIT",
+      amount: input.amount,
+      date: input.expenseDate ?? `${input.year}-${String(input.month).padStart(2, "0")}-01`,
+      categoryName: "Property Expense",
+      description: input.description,
+    });
+  }
+
   return {
     ...expense,
     amount: toNum(expense.amount),

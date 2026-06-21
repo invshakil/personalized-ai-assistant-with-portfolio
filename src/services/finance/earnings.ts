@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { Prisma, RemittanceType } from "@prisma/client";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { resolveRange, dateColumnWhere } from "@/services/_shared/dateRange";
+import { recordLinkedEntry } from "@/services/money";
 import { toNum, toIso } from "./_serializers";
 
 export interface GetEarningsOptions {
@@ -71,6 +72,13 @@ export interface CreateEarningInput {
   amount: number;
   fiscalYear?: string;
   notes?: string | null;
+  /**
+   * Opt-in cross-domain link: when set, a CREDIT is posted to this Money account
+   * after the earning is created so the cash lands in that account's balance and
+   * shows in the Ledger. No account → no ledger entry. Posted once at create
+   * time; not reversed on edit/delete.
+   */
+  accountId?: string;
 }
 
 export async function createEarning(input: CreateEarningInput) {
@@ -85,6 +93,23 @@ export async function createEarning(input: CreateEarningInput) {
       notes: input.notes ?? null,
     },
   });
+
+  // Opt-in cross-domain link: post a ledger CREDIT for the income received.
+  if (input.accountId) {
+    const source = await db.incomeSource.findUnique({
+      where: { id: input.sourceId },
+      select: { name: true },
+    });
+    await recordLinkedEntry({
+      accountId: input.accountId,
+      direction: "CREDIT",
+      amount: input.amount,
+      date: input.date,
+      categoryName: "Business Income",
+      description: `${source?.name ?? "client"} (${input.remittance})`,
+    });
+  }
+
   return { ...earning, amount: toNum(earning.amount), date: toIso(earning.date) };
 }
 
