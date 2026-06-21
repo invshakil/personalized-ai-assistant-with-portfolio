@@ -46,6 +46,11 @@ import {
 // starting a new chat resets it to zero.
 const LONG_THREAD_TOKENS = 60_000;
 
+// The Redux store is in-memory, so a full page refresh clears the active thread.
+// We persist only the current session id here and reopen that session (messages
+// come from the DB) on reload, so a refresh restores the conversation.
+const LAST_SESSION_KEY = "ai-chat:last-session";
+
 // A leading `/property` or `/finance` scopes the assistant to that module's
 // tools for the turn. We parse it client-side, send the scope to the backend,
 // and strip the command so the model never sees it.
@@ -112,6 +117,36 @@ export default function AiAssistantPage() {
     refreshSessions();
     checkBudget();
   }, [refreshSessions, checkBudget]);
+
+  // Restore the last session after a refresh. Runs once; only when the in-memory
+  // thread is empty (a fresh store), so it never clobbers a thread carried over
+  // via in-app navigation. Messages are reloaded from the DB, not the browser.
+  const rehydratedRef = useRef(false);
+  useEffect(() => {
+    if (rehydratedRef.current) return;
+    rehydratedRef.current = true;
+    if (currentSessionId || messages.length > 0) return;
+    const saved = localStorage.getItem(LAST_SESSION_KEY);
+    if (!saved) return;
+    aiApi
+      .getSession(saved)
+      .then((detail) => dispatch(loadSessionAction({ id: detail.id, messages: detail.messages })))
+      .catch(() => localStorage.removeItem(LAST_SESSION_KEY)); // deleted/invalid — forget it
+  }, [currentSessionId, messages.length, dispatch]);
+
+  // Mirror the active session id to localStorage so the effect above can reopen
+  // it after a refresh. Cleared on New Chat (currentSessionId → null). The first
+  // run is skipped so a fresh mount (currentSessionId still null) doesn't wipe
+  // the saved id out from under the rehydrate effect.
+  const persistMountedRef = useRef(false);
+  useEffect(() => {
+    if (!persistMountedRef.current) {
+      persistMountedRef.current = true;
+      return;
+    }
+    if (currentSessionId) localStorage.setItem(LAST_SESSION_KEY, currentSessionId);
+    else localStorage.removeItem(LAST_SESSION_KEY);
+  }, [currentSessionId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
