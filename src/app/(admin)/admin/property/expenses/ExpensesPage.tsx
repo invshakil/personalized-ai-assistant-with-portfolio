@@ -30,8 +30,18 @@ import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import { propertyApi } from "@/lib/api/property";
+import { moneyApi } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import type { PropertyExpense, ExpenseCategory, Payee, PropertyServiceType } from "@/types";
+import type {
+  PropertyExpense,
+  ExpenseCategory,
+  Payee,
+  PropertyServiceType,
+  MoneyAccountRow,
+} from "@/types";
+
+// Sentinel for the optional "don't deduct from wallet" choice.
+const NO_ACCOUNT = "";
 
 const MONTHS = [
   "January",
@@ -138,6 +148,11 @@ export default function ExpensesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Optional Money-Manager wallet to debit when adding an expense. Linking is
+  // create-only (no back-sync), so this is only used on Add, never on Edit.
+  const [accounts, setAccounts] = useState<MoneyAccountRow[]>([]);
+  const [expenseAccountId, setExpenseAccountId] = useState<string>(NO_ACCOUNT);
+
   // Debounced search box: local input mirrors ?q, pushed to the URL after a pause.
   const [searchInput, setSearchInput] = useState(q);
   useEffect(() => {
@@ -156,6 +171,11 @@ export default function ExpensesPage() {
       setPayees(p ?? []);
       setServiceTypes((s ?? []).filter((t) => t.isActive));
     });
+  }, []);
+
+  // Money accounts for the optional wallet link (loaded once).
+  useEffect(() => {
+    moneyApi.listAccounts().then((a) => setAccounts(a ?? []));
   }, []);
 
   const load = useCallback(async () => {
@@ -182,12 +202,15 @@ export default function ExpensesPage() {
   const openAdd = () => {
     setEditing(null);
     setForm({ ...BLANK, expenseDate: new Date().toISOString().split("T")[0] });
+    // Default to the first CASH account (mode defaults to Cash); user can clear.
+    setExpenseAccountId(accounts.find((a) => a.type === "CASH")?.id ?? NO_ACCOUNT);
     setError(null);
     setDrawerOpen(true);
   };
 
   const openEdit = (e: PropertyExpense) => {
     setEditing(e.id);
+    setExpenseAccountId(NO_ACCOUNT);
     setForm({
       description: e.description,
       amount: String(e.amount),
@@ -221,7 +244,12 @@ export default function ExpensesPage() {
         notes: form.notes || null,
       };
       if (editing) await propertyApi.updateExpense(editing, body);
-      else await propertyApi.createExpense(body);
+      // Linking is create-only: pass the chosen wallet to debit (if any).
+      else
+        await propertyApi.createExpense({
+          ...body,
+          ...(expenseAccountId ? { accountId: expenseAccountId } : {}),
+        });
       setDrawerOpen(false);
       load();
     } catch (e: unknown) {
@@ -589,6 +617,20 @@ export default function ExpensesPage() {
               ))}
             </Select>
           </FormControl>
+
+          {/* Optional wallet link — create-only (no back-sync on edit) */}
+          {!editing && accounts.length > 0 && (
+            <SearchableSelect
+              label="Pay from wallet/account (optional)"
+              value={expenseAccountId}
+              options={[
+                { value: NO_ACCOUNT, label: "— none / don't deduct from wallet —" },
+                ...accounts.map((a) => ({ value: a.id, label: a.name })),
+              ]}
+              onChange={setExpenseAccountId}
+              sx={{ mb: 2 }}
+            />
+          )}
 
           <TextField
             label="Notes"

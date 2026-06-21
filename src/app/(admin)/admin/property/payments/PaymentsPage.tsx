@@ -41,8 +41,17 @@ import {
 import PageHeader from "@/components/admin/PageHeader";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import { propertyApi } from "@/lib/api/property";
+import { moneyApi } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import type { PaymentWithTenant, PaymentTransaction, UnitWithTenant } from "@/types";
+import type {
+  PaymentWithTenant,
+  PaymentTransaction,
+  UnitWithTenant,
+  MoneyAccountRow,
+} from "@/types";
+
+// Sentinel for the optional "don't add to wallet" choice in account dropdowns.
+const NO_ACCOUNT = "";
 
 const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   PAID: { bg: "success.main", color: "#fff" },
@@ -116,8 +125,13 @@ export default function PaymentsPage() {
   const [txAmount, setTxAmount] = useState("");
   const [txDate, setTxDate] = useState(new Date().toISOString().split("T")[0]);
   const [txNotes, setTxNotes] = useState("");
+  const [txAccountId, setTxAccountId] = useState<string>(NO_ACCOUNT);
   const [txLoading, setTxLoading] = useState(false);
   const [txError, setTxError] = useState<string | null>(null);
+
+  // Money-Manager accounts for the optional "add to wallet" link on cash/bank
+  // receipts. Loaded once; empty when the Money module has no accounts yet.
+  const [accounts, setAccounts] = useState<MoneyAccountRow[]>([]);
 
   // Edit payment state
   const [editPayment, setEditPayment] = useState<{
@@ -203,6 +217,32 @@ export default function PaymentsPage() {
     propertyApi.listUnits().then((u) => setUnits(u ?? []));
   }, []);
 
+  // Money accounts for the optional wallet link (loaded once).
+  useEffect(() => {
+    moneyApi.listAccounts().then((a) => setAccounts(a ?? []));
+  }, []);
+
+  // Pick a sensible default account for a transaction type: first CASH account
+  // for cash, first BANK account for bank transfer; "" (none) otherwise.
+  const defaultAccountForType = useCallback(
+    (type: string): string => {
+      if (type === "CASH") return accounts.find((a) => a.type === "CASH")?.id ?? NO_ACCOUNT;
+      if (type === "BANK_TRANSFER")
+        return accounts.find((a) => a.type === "BANK")?.id ?? NO_ACCOUNT;
+      return NO_ACCOUNT;
+    },
+    [accounts]
+  );
+
+  // Account dropdown options: a "none" sentinel plus every account.
+  const accountOptions: SelectOption[] = useMemo(
+    () => [
+      { value: NO_ACCOUNT, label: "— none / don't add to wallet —" },
+      ...accounts.map((a) => ({ value: a.id, label: a.name })),
+    ],
+    [accounts]
+  );
+
   const toggleExpand = (id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
@@ -216,10 +256,12 @@ export default function PaymentsPage() {
     const outstanding = payment.balance;
     const maxApplicable =
       mode === "advance" ? Math.min(payment.advanceBalance, outstanding) : outstanding;
-    setTxType(mode === "advance" ? "ADVANCE_APPLIED" : "CASH");
+    const initialType = mode === "advance" ? "ADVANCE_APPLIED" : "CASH";
+    setTxType(initialType);
     setTxAmount(String(maxApplicable > 0 ? maxApplicable : ""));
     setTxDate(new Date().toISOString().split("T")[0]);
     setTxNotes("");
+    setTxAccountId(defaultAccountForType(initialType));
     setTxError(null);
     setDrawer({ payment, mode });
   };
@@ -234,6 +276,11 @@ export default function PaymentsPage() {
         amount: parseFloat(txAmount),
         date: txDate,
         notes: txNotes || null,
+        // Only link to the wallet for real cash/bank receipts when one is chosen.
+        accountId:
+          (txType === "CASH" || txType === "BANK_TRANSFER") && txAccountId
+            ? txAccountId
+            : undefined,
       });
       setDrawer(null);
       load();
@@ -965,7 +1012,15 @@ export default function PaymentsPage() {
               {drawer.mode === "pay" && (
                 <FormControl fullWidth size="small" sx={{ mb: 2 }}>
                   <InputLabel>Type</InputLabel>
-                  <Select label="Type" value={txType} onChange={(e) => setTxType(e.target.value)}>
+                  <Select
+                    label="Type"
+                    value={txType}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      setTxType(next);
+                      setTxAccountId(defaultAccountForType(next));
+                    }}
+                  >
                     <MenuItem value="CASH">Cash</MenuItem>
                     <MenuItem value="BANK_TRANSFER">Bank Transfer</MenuItem>
                     <MenuItem value="ADJUSTMENT">Adjustment</MenuItem>
@@ -973,6 +1028,19 @@ export default function PaymentsPage() {
                   </Select>
                 </FormControl>
               )}
+
+              {/* Optional wallet link — only for real cash/bank receipts */}
+              {drawer.mode === "pay" &&
+                (txType === "CASH" || txType === "BANK_TRANSFER") &&
+                accounts.length > 0 && (
+                  <SearchableSelect
+                    label="Add to wallet/account (optional)"
+                    value={txAccountId}
+                    options={accountOptions}
+                    onChange={setTxAccountId}
+                    sx={{ mb: 2 }}
+                  />
+                )}
 
               <TextField
                 label="Amount (৳)"

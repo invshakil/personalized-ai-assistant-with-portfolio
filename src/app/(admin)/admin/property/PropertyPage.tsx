@@ -59,8 +59,12 @@ import PageHeader from "@/components/admin/PageHeader";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import TenantDocuments from "@/components/admin/TenantDocuments";
 import { propertyApi } from "@/lib/api/property";
+import { moneyApi } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import type { UnitWithTenant } from "@/types";
+import type { UnitWithTenant, MoneyAccountRow } from "@/types";
+
+// Sentinel for the optional "don't add advance to wallet" choice.
+const NO_ACCOUNT = "";
 
 function fmt(n: number) {
   return `৳${n.toLocaleString()}`;
@@ -260,6 +264,14 @@ export default function PropertyPage() {
     advanceAmount: "",
     outgoingMoveOutDate: "",
   });
+  // Optional Money-Manager wallet to credit with the advance (add-tenant only).
+  const [advanceAccountId, setAdvanceAccountId] = useState<string>(NO_ACCOUNT);
+  const [accounts, setAccounts] = useState<MoneyAccountRow[]>([]);
+
+  // Money accounts for the optional advance wallet link (loaded once).
+  useEffect(() => {
+    moneyApi.listAccounts().then((a) => setAccounts(a ?? []));
+  }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -523,6 +535,8 @@ export default function PropertyPage() {
       advanceAmount: "",
       outgoingMoveOutDate: "",
     });
+    // Default to the first CASH account; user can change or clear.
+    setAdvanceAccountId(accounts.find((a) => a.type === "CASH")?.id ?? NO_ACCOUNT);
     setAddOpen(true);
   };
 
@@ -540,6 +554,7 @@ export default function PropertyPage() {
       advanceAmount: "",
       outgoingMoveOutDate: "",
     });
+    setAdvanceAccountId(accounts.find((a) => a.type === "CASH")?.id ?? NO_ACCOUNT);
     setAddOpen(true);
   };
 
@@ -571,6 +586,8 @@ export default function PropertyPage() {
         leaseEndDate: addForm.leaseEndDate || null,
         advancePaid: addForm.advancePaid,
         advanceAmount: addForm.advancePaid ? Number(addForm.advanceAmount) : 0,
+        // Opt-in: post the advance into the chosen wallet (only when paid + picked).
+        ...(addForm.advancePaid && advanceAccountId ? { advanceAccountId } : {}),
         isExternal: isAddingExternal,
         // Occupied unit → the new tenant is queued; schedule the current tenant's move-out.
         outgoingMoveOutDate:
@@ -2061,6 +2078,17 @@ export default function PropertyPage() {
                 onChange={(e) => setAddForm((p) => ({ ...p, advanceAmount: e.target.value }))}
                 size="small"
                 fullWidth
+              />
+            )}
+            {addForm.advancePaid && accounts.length > 0 && (
+              <SearchableSelect
+                label="Add advance to wallet/account (optional)"
+                value={advanceAccountId}
+                options={[
+                  { value: NO_ACCOUNT, label: "— none / don't add to wallet —" },
+                  ...accounts.map((a) => ({ value: a.id, label: a.name })),
+                ]}
+                onChange={setAdvanceAccountId}
               />
             )}
 

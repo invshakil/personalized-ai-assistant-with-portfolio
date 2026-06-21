@@ -33,7 +33,9 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { financeApi, type PaymentFilters } from "@/lib/api/finance";
+import { moneyApi } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
+import type { MoneyAccountRow } from "@/types";
 import type { PaymentRow, EmployeeRow, SourceRow, PaymentKind } from "../types";
 import {
   fmt,
@@ -55,6 +57,9 @@ const KIND_LABEL: Record<PaymentKind, string> = {
   OTHER: "Other",
 };
 
+// Sentinel for "don't post a ledger entry" in the optional account dropdown.
+const NO_ACCOUNT = "";
+
 type PaymentForm = {
   date: string;
   employeeId: string;
@@ -64,6 +69,8 @@ type PaymentForm = {
   amount: string;
   fiscalYear: string;
   notes: string;
+  /** Optional Money account to post a linked DEBIT to (opt-in; create only). */
+  accountId: string;
 };
 
 const BLANK: PaymentForm = {
@@ -75,6 +82,7 @@ const BLANK: PaymentForm = {
   amount: "",
   fiscalYear: fiscalYearOf(new Date()),
   notes: "",
+  accountId: NO_ACCOUNT,
 };
 
 export default function PaymentsPage() {
@@ -113,6 +121,7 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<PaymentRow[]>([]);
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [clients, setClients] = useState<SourceRow[]>([]);
+  const [accounts, setAccounts] = useState<MoneyAccountRow[]>([]);
   // Full fiscal-year set for the dropdown — derived from an unfiltered list.
   const [allFiscalYears, setAllFiscalYears] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,13 +150,15 @@ export default function PaymentsPage() {
   }, [fyFilter, empFilter, typeFilter, clientFilter, hasCustomRange, from, to, period]);
 
   const loadRefData = useCallback(async () => {
-    const [employeesData, clientsData, allPayments] = await Promise.all([
+    const [employeesData, clientsData, accountsData, allPayments] = await Promise.all([
       financeApi.listEmployees(),
       financeApi.listClients(),
+      moneyApi.listAccounts(),
       financeApi.listPayments(),
     ]);
     setEmployees(employeesData ?? []);
     setClients(clientsData ?? []);
+    setAccounts(accountsData ?? []);
     setAllFiscalYears(
       Array.from(new Set([currentFiscalYear(), ...(allPayments ?? []).map((p) => p.fiscalYear)]))
         .sort()
@@ -203,6 +214,13 @@ export default function PaymentsPage() {
       to: undefined,
     });
 
+  // Optional account dropdown (post a linked DEBIT). "— none —" = no ledger entry.
+  const accountSelectOptions: SelectOption[] = [
+    { value: NO_ACCOUNT, label: "— none —" },
+    ...accounts.map((a) => ({ value: a.id, label: a.name })),
+  ];
+  const defaultAccountId = () => accounts.find((a) => a.type === "BANK")?.id ?? NO_ACCOUNT;
+
   const openAdd = () => {
     setEditing(null);
     setForm({
@@ -210,6 +228,7 @@ export default function PaymentsPage() {
       date: todayInput(),
       fiscalYear: fiscalYearOf(new Date()),
       employeeId: employees[0]?.id ?? "",
+      accountId: defaultAccountId(),
     });
     setError(null);
     setDrawerOpen(true);
@@ -226,6 +245,7 @@ export default function PaymentsPage() {
       amount: String(p.amount),
       fiscalYear: p.fiscalYear,
       notes: p.notes ?? "",
+      accountId: NO_ACCOUNT,
     });
     setError(null);
     setDrawerOpen(true);
@@ -253,7 +273,8 @@ export default function PaymentsPage() {
         notes: form.notes || null,
       };
       if (editing) await financeApi.updatePayment(editing, body);
-      else await financeApi.createPayment(body);
+      // accountId is create-only (opt-in link; no back-sync on edit).
+      else await financeApi.createPayment({ ...body, accountId: form.accountId || undefined });
       setDrawerOpen(false);
       load();
       loadRefData();
@@ -594,6 +615,16 @@ export default function PaymentsPage() {
             helperText="Auto-set from the date (July–June); override if needed."
             sx={{ mb: 2 }}
           />
+          {!editing && (
+            <SearchableSelect
+              label="Pay from account (optional)"
+              value={form.accountId}
+              options={accountSelectOptions}
+              onChange={(v) => setForm((f) => ({ ...f, accountId: v }))}
+              clearable
+              sx={{ mb: 2 }}
+            />
+          )}
           <TextField
             label="Notes"
             size="small"

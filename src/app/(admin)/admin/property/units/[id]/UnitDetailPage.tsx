@@ -23,6 +23,8 @@ import {
   DialogContentText,
   DialogActions,
   Alert,
+  Switch,
+  FormControlLabel,
 } from "@mui/material";
 import {
   ArrowLeft,
@@ -38,8 +40,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
+import SearchableSelect from "@/components/admin/SearchableSelect";
 import { propertyApi } from "@/lib/api/property";
+import { moneyApi } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
+import type { MoneyAccountRow } from "@/types";
+
+// Sentinel for the optional "don't add advance to wallet" choice.
+const NO_ACCOUNT = "";
 
 function fmt(n: number) {
   return `৳${n.toLocaleString()}`;
@@ -117,6 +125,14 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
     newRent: "",
     outgoingMoveOutDate: "",
   });
+  // Optional Money-Manager wallet to credit with the advance.
+  const [advanceAccountId, setAdvanceAccountId] = useState<string>(NO_ACCOUNT);
+  const [accounts, setAccounts] = useState<MoneyAccountRow[]>([]);
+
+  // Money accounts for the optional advance wallet link (loaded once).
+  useEffect(() => {
+    moneyApi.listAccounts().then((a) => setAccounts(a ?? []));
+  }, []);
   const [confirmDialog, setConfirmDialog] = useState<{
     title: string;
     message: string;
@@ -214,6 +230,12 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
     );
   };
 
+  const openAddFuture = () => {
+    // Default the advance wallet to the first CASH account; user can clear it.
+    setAdvanceAccountId(accounts.find((a) => a.type === "CASH")?.id ?? NO_ACCOUNT);
+    setAddFutureOpen(true);
+  };
+
   const addFutureTenant = async () => {
     if (!addFutureForm.name || !addFutureForm.moveInDate) return;
     setSaving(true);
@@ -226,6 +248,8 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         leaseEndDate: addFutureForm.leaseEndDate || null,
         advancePaid: addFutureForm.advancePaid,
         advanceAmount: addFutureForm.advancePaid ? Number(addFutureForm.advanceAmount) : 0,
+        // Opt-in: post the advance into the chosen wallet (only when paid + picked).
+        ...(addFutureForm.advancePaid && advanceAccountId ? { advanceAccountId } : {}),
         isExternal: false,
         // When a current tenant is being replaced, schedule their move-out.
         outgoingMoveOutDate: unit?.tenants.some((t) => t.tenantStatus === "CURRENT" && t.isActive)
@@ -520,7 +544,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
                   variant="contained"
                   size="small"
                   startIcon={<Plus size={14} />}
-                  onClick={() => setAddFutureOpen(true)}
+                  onClick={openAddFuture}
                   sx={{ alignSelf: "flex-start" }}
                 >
                   Add Tenant
@@ -648,7 +672,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
                   color="warning"
                   size="small"
                   startIcon={<Plus size={14} />}
-                  onClick={() => setAddFutureOpen(true)}
+                  onClick={openAddFuture}
                   sx={{ alignSelf: "flex-start" }}
                 >
                   Schedule Future Tenant
@@ -885,6 +909,39 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
                   : "Leave blank to use current unit rent"
               }
             />
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={addFutureForm.advancePaid}
+                  onChange={(e) =>
+                    setAddFutureForm((p) => ({ ...p, advancePaid: e.target.checked }))
+                  }
+                />
+              }
+              label="Advance Paid"
+            />
+            {addFutureForm.advancePaid && (
+              <TextField
+                label="Advance Amount (৳)"
+                type="number"
+                value={addFutureForm.advanceAmount}
+                onChange={(e) => setAddFutureForm((p) => ({ ...p, advanceAmount: e.target.value }))}
+                size="small"
+                fullWidth
+              />
+            )}
+            {addFutureForm.advancePaid && accounts.length > 0 && (
+              <SearchableSelect
+                label="Add advance to wallet/account (optional)"
+                value={advanceAccountId}
+                options={[
+                  { value: NO_ACCOUNT, label: "— none / don't add to wallet —" },
+                  ...accounts.map((a) => ({ value: a.id, label: a.name })),
+                ]}
+                onChange={setAdvanceAccountId}
+              />
+            )}
           </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2.5, gap: 1 }}>

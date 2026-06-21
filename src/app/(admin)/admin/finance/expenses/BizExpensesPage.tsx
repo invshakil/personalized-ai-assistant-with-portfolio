@@ -30,7 +30,9 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { financeApi, type BizExpenseFilters } from "@/lib/api/finance";
+import { moneyApi } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
+import type { MoneyAccountRow } from "@/types";
 import type { BizExpenseRow, CategoryRow } from "../types";
 import {
   fmt,
@@ -44,6 +46,9 @@ import {
   type FilterRangePreset,
 } from "../format";
 
+// Sentinel for "don't post a ledger entry" in the optional account dropdown.
+const NO_ACCOUNT = "";
+
 type ExpenseForm = {
   date: string;
   name: string;
@@ -52,6 +57,8 @@ type ExpenseForm = {
   amount: string;
   fiscalYear: string;
   notes: string;
+  /** Optional Money account to post a linked DEBIT to (opt-in; create only). */
+  accountId: string;
 };
 
 const BLANK: ExpenseForm = {
@@ -62,6 +69,7 @@ const BLANK: ExpenseForm = {
   amount: "",
   fiscalYear: fiscalYearOf(new Date()),
   notes: "",
+  accountId: NO_ACCOUNT,
 };
 
 export default function BizExpensesPage() {
@@ -98,6 +106,7 @@ export default function BizExpensesPage() {
 
   const [expenses, setExpenses] = useState<BizExpenseRow[]>([]);
   const [categories, setCategories] = useState<CategoryRow[]>([]);
+  const [accounts, setAccounts] = useState<MoneyAccountRow[]>([]);
   // Full fiscal-year set for the dropdown — derived from an unfiltered list.
   const [allFiscalYears, setAllFiscalYears] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,11 +146,13 @@ export default function BizExpensesPage() {
   }, [fyFilter, categoryFilter, hasCustomRange, from, to, period, q]);
 
   const loadRefData = useCallback(async () => {
-    const [categoriesData, allExpenses] = await Promise.all([
+    const [categoriesData, accountsData, allExpenses] = await Promise.all([
       financeApi.listCategories(),
+      moneyApi.listAccounts(),
       financeApi.listExpenses(),
     ]);
     setCategories(categoriesData ?? []);
+    setAccounts(accountsData ?? []);
     setAllFiscalYears(
       Array.from(new Set([currentFiscalYear(), ...(allExpenses ?? []).map((e) => e.fiscalYear)]))
         .sort()
@@ -188,6 +199,13 @@ export default function BizExpensesPage() {
       to: undefined,
     });
 
+  // Optional account dropdown (post a linked DEBIT). "— none —" = no ledger entry.
+  const accountSelectOptions: SelectOption[] = [
+    { value: NO_ACCOUNT, label: "— none —" },
+    ...accounts.map((a) => ({ value: a.id, label: a.name })),
+  ];
+  const defaultAccountId = () => accounts.find((a) => a.type === "BANK")?.id ?? NO_ACCOUNT;
+
   const openAdd = () => {
     setEditing(null);
     setForm({
@@ -195,6 +213,7 @@ export default function BizExpensesPage() {
       date: todayInput(),
       fiscalYear: fiscalYearOf(new Date()),
       categoryId: categories[0]?.id ?? "",
+      accountId: defaultAccountId(),
     });
     setError(null);
     setDrawerOpen(true);
@@ -210,6 +229,7 @@ export default function BizExpensesPage() {
       amount: String(e.amount),
       fiscalYear: e.fiscalYear,
       notes: e.notes ?? "",
+      accountId: NO_ACCOUNT,
     });
     setError(null);
     setDrawerOpen(true);
@@ -236,7 +256,8 @@ export default function BizExpensesPage() {
         notes: form.notes || null,
       };
       if (editing) await financeApi.updateExpense(editing, body);
-      else await financeApi.createExpense(body);
+      // accountId is create-only (opt-in link; no back-sync on edit).
+      else await financeApi.createExpense({ ...body, accountId: form.accountId || undefined });
       setDrawerOpen(false);
       load();
       loadRefData();
@@ -539,6 +560,16 @@ export default function BizExpensesPage() {
             helperText="Auto-set from the date (July–June); override if needed."
             sx={{ mb: 2 }}
           />
+          {!editing && (
+            <SearchableSelect
+              label="Pay from account (optional)"
+              value={form.accountId}
+              options={accountSelectOptions}
+              onChange={(v) => setForm((f) => ({ ...f, accountId: v }))}
+              clearable
+              sx={{ mb: 2 }}
+            />
+          )}
           <FormControlLabel
             control={
               <Switch

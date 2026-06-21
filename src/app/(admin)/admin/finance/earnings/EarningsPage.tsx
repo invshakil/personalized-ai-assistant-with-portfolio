@@ -28,7 +28,9 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { financeApi, type EarningFilters } from "@/lib/api/finance";
+import { moneyApi } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
+import type { MoneyAccountRow } from "@/types";
 import type { EarningRow, SourceRow, RemittanceType } from "../types";
 import {
   fmt,
@@ -47,6 +49,9 @@ const REMITTANCE_LABEL: Record<RemittanceType, string> = {
   NON_REM: "Non-rem",
 };
 
+// Sentinel for "don't post a ledger entry" in the optional account dropdown.
+const NO_ACCOUNT = "";
+
 type EarningForm = {
   date: string;
   sourceId: string;
@@ -54,6 +59,8 @@ type EarningForm = {
   amount: string;
   fiscalYear: string;
   notes: string;
+  /** Optional Money account to post a linked CREDIT to (opt-in; create only). */
+  accountId: string;
 };
 
 const BLANK: EarningForm = {
@@ -63,6 +70,7 @@ const BLANK: EarningForm = {
   amount: "",
   fiscalYear: fiscalYearOf(new Date()),
   notes: "",
+  accountId: NO_ACCOUNT,
 };
 
 export default function EarningsPage() {
@@ -99,6 +107,7 @@ export default function EarningsPage() {
 
   const [earnings, setEarnings] = useState<EarningRow[]>([]);
   const [sources, setSources] = useState<SourceRow[]>([]);
+  const [accounts, setAccounts] = useState<MoneyAccountRow[]>([]);
   // Full fiscal-year set for the dropdown — derived from an unfiltered list so
   // the option set doesn't shrink as the user narrows the table.
   const [allFiscalYears, setAllFiscalYears] = useState<string[]>([]);
@@ -139,11 +148,13 @@ export default function EarningsPage() {
   }, [fyFilter, sourceFilter, hasCustomRange, from, to, period, q]);
 
   const loadRefData = useCallback(async () => {
-    const [clientsData, allEarnings] = await Promise.all([
+    const [clientsData, accountsData, allEarnings] = await Promise.all([
       financeApi.listClients(),
+      moneyApi.listAccounts(),
       financeApi.listEarnings(),
     ]);
     setSources(clientsData ?? []);
+    setAccounts(accountsData ?? []);
     setAllFiscalYears(
       Array.from(new Set([currentFiscalYear(), ...(allEarnings ?? []).map((e) => e.fiscalYear)]))
         .sort()
@@ -186,6 +197,13 @@ export default function EarningsPage() {
       to: undefined,
     });
 
+  // Optional account dropdown (post a linked CREDIT). "— none —" = no ledger entry.
+  const accountSelectOptions: SelectOption[] = [
+    { value: NO_ACCOUNT, label: "— none —" },
+    ...accounts.map((a) => ({ value: a.id, label: a.name })),
+  ];
+  const defaultAccountId = () => accounts.find((a) => a.type === "BANK")?.id ?? NO_ACCOUNT;
+
   const openAdd = () => {
     setEditing(null);
     setForm({
@@ -193,6 +211,7 @@ export default function EarningsPage() {
       date: todayInput(),
       fiscalYear: fiscalYearOf(new Date()),
       sourceId: sources[0]?.id ?? "",
+      accountId: defaultAccountId(),
     });
     setError(null);
     setDrawerOpen(true);
@@ -207,6 +226,7 @@ export default function EarningsPage() {
       amount: String(e.amount),
       fiscalYear: e.fiscalYear,
       notes: e.notes ?? "",
+      accountId: NO_ACCOUNT,
     });
     setError(null);
     setDrawerOpen(true);
@@ -232,7 +252,8 @@ export default function EarningsPage() {
         notes: form.notes || null,
       };
       if (editing) await financeApi.updateEarning(editing, body);
-      else await financeApi.createEarning(body);
+      // accountId is create-only (opt-in link; no back-sync on edit).
+      else await financeApi.createEarning({ ...body, accountId: form.accountId || undefined });
       setDrawerOpen(false);
       load();
       loadRefData();
@@ -519,6 +540,16 @@ export default function EarningsPage() {
             helperText="Auto-set from the date (July–June); override if needed."
             sx={{ mb: 2 }}
           />
+          {!editing && (
+            <SearchableSelect
+              label="Deposit to account (optional)"
+              value={form.accountId}
+              options={accountSelectOptions}
+              onChange={(v) => setForm((f) => ({ ...f, accountId: v }))}
+              clearable
+              sx={{ mb: 2 }}
+            />
+          )}
           <TextField
             label="Notes"
             size="small"
