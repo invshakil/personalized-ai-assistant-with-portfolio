@@ -15,7 +15,8 @@
     "seed:money": "tsx prisma/seed-money.ts",
     "db:restore": "tsx scripts/db-restore.ts",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
-    "test:money": "node --import tsx --test src/services/money/__tests__/money.scenarios.test.ts"
+    "test:money": "node --import tsx --test src/services/money/__tests__/money.scenarios.test.ts",
+    "test:booking": "node --import tsx --test src/services/booking/__tests__/booking.test.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
