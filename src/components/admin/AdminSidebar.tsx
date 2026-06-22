@@ -45,6 +45,7 @@ import {
   Landmark,
   Upload,
   ListChecks,
+  CalendarClock,
 } from "lucide-react";
 
 const SIDEBAR_WIDTH = 260;
@@ -118,6 +119,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
         ],
       },
       { href: "/admin/renovation", label: "Renovation", icon: Wrench, exact: false },
+      { href: "/admin/bookings", label: "Bookings", icon: CalendarClock, exact: false },
     ],
   },
   {
@@ -134,6 +136,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
           { href: "/admin/settings", label: "Site Settings", icon: SlidersHorizontal },
           { href: "/admin/settings/appearance", label: "Appearance", icon: Palette },
           { href: "/admin/settings/backup", label: "Backups", icon: Database },
+          { href: "/admin/settings/booking", label: "Booking", icon: CalendarClock },
         ],
       },
     ],
