@@ -1,0 +1,394 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+#booking {
+  background: #f8f6f1; // sits between testimonials (warm cream) and contact (dark)
+}
+
+.bk-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: start;
+
+  @include m.respond-to(v.$bp-tablet) {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+}
+
+.bk-heading {
+  font-family: v.$serif;
+  font-size: clamp(28px, 4.5vw, 44px);
+  color: v.$ink;
+  line-height: 1.15;
+  margin-bottom: 18px;
+}
+
+.bk-sub {
+  font-size: 15px;
+  color: v.$ink-2;
+  line-height: 1.7;
+  margin-bottom: 28px;
+}
+
+.bk-card {
+  background: #fff;
+  border: 1px solid rgba(21, 21, 19, 0.08);
+  padding: 24px;
+}
+
+.bk-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.bk-label {
+  @include m.label-text(10px, 0.12em);
+  color: v.$ink-3;
+}
+
+.bk-input,
+.bk-textarea,
+.bk-select {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid rgba(21, 21, 19, 0.12);
+  background: #fff;
+  font: inherit;
+  color: v.$ink;
+  outline: none;
+  transition: border-color v.$transition-fast;
+
+  &:focus {
+    border-color: v.$accent;
+  }
+}
+
+.bk-textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.bk-honeypot {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+.bk-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bk-chip {
+  padding: 8px 13px;
+  border: 1px solid rgba(21, 21, 19, 0.15);
+  background: #fff;
+  font-size: 13px;
+  color: v.$ink;
+  cursor: pointer;
+  transition: all v.$transition-fast;
+
+  &:hover {
+    border-color: v.$accent;
+  }
+
+  &--active {
+    background: v.$accent;
+    color: #fff;
+    border-color: v.$accent;
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+}
+
+.bk-daygrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.bk-day {
+  padding: 9px 0;
+  border: 1px solid transparent;
+  background: rgba(21, 21, 19, 0.04);
+  font-size: 12px;
+  color: v.$ink-2;
+  cursor: pointer;
+  text-align: center;
+  transition: all v.$transition-fast;
+
+  &:hover:not(:disabled) {
+    border-color: v.$accent;
+  }
+
+  &--active {
+    background: v.$accent;
+    color: #fff;
+    border-color: v.$accent;
+  }
+
+  &:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+}
+
+.bk-day-dow {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: v.$ink-3;
+  text-transform: uppercase;
+  display: block;
+}
+
+.bk-day-num {
+  font-weight: 600;
+  font-size: 14px;
+  display: block;
+  margin-top: 2px;
+}
+
+.bk-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 22px;
+  background: v.$accent;
+  color: #fff;
+  border: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background v.$transition-fast;
+
+  &:hover:not(:disabled) {
+    background: darken-by(v.$accent);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+@function darken-by($color) {
+  @return mix(black, $color, 12%);
+}
+
+.bk-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 22px;
+  background: transparent;
+  color: v.$ink;
+  border: 1px solid rgba(21, 21, 19, 0.18);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: border-color v.$transition-fast;
+
+  &:hover {
+    border-color: v.$accent;
+    color: v.$accent;
+  }
+}
+
+.bk-error {
+  margin-top: 12px;
+  padding: 10px 13px;
+  background: #fdecea;
+  color: #5a1a1a;
+  font-size: 13px;
+}
+
+.bk-success {
+  padding: 22px;
+  background: v.$accent-lt;
+  border: 1px solid rgba(30, 107, 69, 0.25);
+
+  .bk-success-title {
+    font-family: v.$serif;
+    font-size: 22px;
+    color: v.$ink;
+    margin-bottom: 10px;
+  }
+
+  .bk-success-row {
+    font-size: 14px;
+    color: v.$ink-2;
+    margin: 6px 0;
+
+    strong {
+      color: v.$ink;
+    }
+  }
+
+  .bk-success-meet {
+    display: inline-block;
+    margin-top: 14px;
+    color: v.$accent;
+    font-weight: 600;
+    text-decoration: underline;
+  }
+}
+
+.bk-quick {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 22px;
+  background: #25d366;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: 16px;
+  transition: filter v.$transition-fast;
+
+  &:hover {
+    filter: brightness(1.05);
+  }
+}
+
+.bk-muted {
+  font-size: 12px;
+  color: v.$ink-3;
+}
+
+// ── Floating "Book a quick call" CTA ──
+// Persistent eye-catcher that follows the visitor until they scroll into
+// #booking. Animated multi-stop gradient + soft outer glow, fades out smoothly
+// when the booking section comes on-screen.
+
+@keyframes fb-cta-shimmer {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes fb-cta-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 10px 28px -8px rgba(30, 107, 69, 0.55),
+      0 0 0 0 rgba(107, 77, 143, 0.45);
+  }
+  50% {
+    box-shadow:
+      0 14px 32px -8px rgba(30, 107, 69, 0.65),
+      0 0 0 14px rgba(107, 77, 143, 0);
+  }
+}
+
+@keyframes fb-cta-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.4);
+  }
+}
+
+@keyframes fb-cta-rise {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fb-cta {
+  position: fixed;
+  right: clamp(16px, 4vw, 32px);
+  bottom: clamp(16px, 4vw, 28px);
+  z-index: 60;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 22px 13px 18px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  border-radius: 999px;
+  background: linear-gradient(
+    100deg,
+    #1e6b45 0%,
+    #2d8e5e 22%,
+    #3d5a80 48%,
+    #6b4d8f 74%,
+    #1e6b45 100%
+  );
+  background-size: 220% 100%;
+  animation:
+    fb-cta-shimmer 7s linear infinite,
+    fb-cta-pulse 2.6s ease-in-out infinite,
+    fb-cta-rise 0.5s ease-out both;
+  transition:
+    opacity v.$transition-slow,
+    transform v.$transition-slow,
+    visibility 0s linear v.$transition-slow;
+  will-change: transform, box-shadow;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  &--hidden {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(20px);
+    pointer-events: none;
+  }
+
+  @include m.respond-to(v.$bp-mobile) {
+    font-size: 13px;
+    padding: 11px 18px 11px 15px;
+  }
+}
+
+.fb-cta-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  animation: fb-cta-dot 1.6s ease-in-out infinite;
+}
+
+.fb-cta-arrow {
+  margin-left: 2px;
+  opacity: 0.85;
+  transition: transform v.$transition-fast;
+}
+
+.fb-cta:hover .fb-cta-arrow {
+  transform: translateX(3px);
+  opacity: 1;
+}
