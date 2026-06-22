@@ -784,3 +784,76 @@ model MoneyImportBatch {
   importedAt DateTime     @default(now())
   entries    MoneyEntry[]
 }
+
+// ─── Public consultation bookings ─────────────────────────────────────────────
+
+// Admin-editable booking config (singleton). workingHours is an array of
+// `{ weekday, start, end }` where weekday is 0=Sun..6=Sat and start/end are
+// "HH:MM" local-time strings; multiple ranges per weekday are allowed.
+// googleToken* mirror the BackupSettings pattern — AES-256-GCM, AI_CONFIG_SECRET.
+model BookingSettings {
+  id                   String   @id @default("singleton")
+  enabled              Boolean  @default(false)
+  calendarId           String   @default("primary")
+  meetingTitleTemplate String   @default("Consultation — {name}")
+  meetingDescription   String?  @db.Text
+  durationsMinutes     Int[]    @default([30])
+  slotIncrementMinutes Int      @default(15)
+  bufferMinutes        Int      @default(15)
+  minNoticeHours       Int      @default(24)
+  maxHorizonDays       Int      @default(14)
+  timezone             String   @default("Asia/Dhaka")
+  workingHours         Json
+  notifyEmail          String? // optional extra invitee on every booking
+  whatsappNumber       String? // E.164 digits (no +), for wa.me link
+  whatsappPrefill      String?
+  whatsappEnabled      Boolean  @default(true)
+  // Google OAuth (Calendar scope) — refresh token at rest, encrypted.
+  googleConnected      Boolean  @default(false)
+  googleEmail          String?
+  googleTokenEnc       String?  @db.Text
+  googleTokenIv        String?
+  googleTokenTag       String?
+  updatedAt            DateTime @updatedAt
+}
+
+// Date-resolution closures (holidays, vacation). One row per blacked-out day.
+model BookingBlackout {
+  id        String   @id @default(cuid())
+  date      DateTime // midnight local on the blacked-out day
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@unique([date])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+// One row per visitor booking. cancelToken backs the visitor's self-cancel link.
+// ip is only kept for rate-limit lookups (per-IP create caps).
+model Booking {
+  id            String        @id @default(cuid())
+  name          String
+  email         String
+  topic         String
+  message       String?       @db.Text
+  startsAt      DateTime
+  endsAt        DateTime
+  durationMin   Int
+  status        BookingStatus @default(CONFIRMED)
+  googleEventId String?
+  meetUrl       String?
+  cancelToken   String        @unique
+  ip            String?
+  cancelledAt   DateTime?
+  cancelReason  String?       @db.Text
+  createdAt     DateTime      @default(now())
+
+  @@index([startsAt])
+  @@index([status, startsAt])
+  @@index([ip, createdAt])
+}
