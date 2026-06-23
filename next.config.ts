@@ -39,7 +39,10 @@ const nextConfig: NextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=63072000; includeSubDomains; preload",
           },
-          { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+          // microphone=(self) lets the admin AI chat use Web Speech API on the
+          // same origin (no embedded frames). Camera and geolocation remain
+          // denied — nothing in the app needs them yet.
+          { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=()" },
           { key: "X-DNS-Prefetch-Control", value: "off" },
         ],
       },
