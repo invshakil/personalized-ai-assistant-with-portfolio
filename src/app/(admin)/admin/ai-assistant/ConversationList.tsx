@@ -29,6 +29,10 @@ interface ConversationListProps {
   /** When true, fills its parent (for the mobile Drawer) instead of the
    *  fixed-width desktop sidebar that hides itself on small screens. */
   inDrawer?: boolean;
+  /** Desktop sidebar width (px). Ignored when inDrawer. */
+  width?: number;
+  /** Mouse-down on the resize handle. Page tracks the drag globally. */
+  onResizeStart?: (startX: number, startWidth: number) => void;
 }
 
 export default function ConversationList({
@@ -40,12 +44,19 @@ export default function ConversationList({
   onDelete,
   onRename,
   inDrawer = false,
+  width,
+  onResizeStart,
 }: ConversationListProps) {
+  const effectiveWidth = inDrawer ? 260 : (width ?? 240);
   const [query, setQuery] = useState("");
   const [menuAnchor, setMenuAnchor] = useState<{ el: HTMLElement; id: string } | null>(null);
   // The row currently being renamed inline. Editing UI replaces the row's label
   // until the user commits (Enter) or cancels (Esc / blur with empty value).
   const [renaming, setRenaming] = useState<{ id: string; draft: string } | null>(null);
+  // Set when "Rename" is clicked; the actual rename state is applied in the
+  // Menu's onExited callback so the autoFocus TextField doesn't grab focus
+  // while MUI is still marking the closing menu aria-hidden.
+  const [pendingRenameId, setPendingRenameId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -54,8 +65,13 @@ export default function ConversationList({
   }, [sessions, query]);
 
   const startRename = (s: ChatSessionSummary) => {
+    // Two-step: close the menu now, apply the rename state when the menu's
+    // exit transition completes (see Menu slotProps.transition.onExited).
+    // This avoids the "aria-hidden blocked because descendant has focus"
+    // warning that fires if the new TextField autofocuses inside the
+    // still-closing menu container.
+    setPendingRenameId(s.id);
     setMenuAnchor(null);
-    setRenaming({ id: s.id, draft: s.title });
   };
 
   const commitRename = async () => {
@@ -70,7 +86,8 @@ export default function ConversationList({
   return (
     <Box
       sx={{
-        width: inDrawer ? 260 : 240,
+        position: "relative",
+        width: effectiveWidth,
         flexShrink: 0,
         display: inDrawer ? "flex" : { xs: "none", sm: "flex" },
         flexDirection: "column",
@@ -204,11 +221,54 @@ export default function ConversationList({
         )}
       </Box>
 
+      {/* Drag handle on the right edge — desktop only (drawer is a fixed-size
+          overlay). 6px wide hit area, 1px visible accent on hover. */}
+      {!inDrawer && onResizeStart && (
+        <Box
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize conversation list"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            onResizeStart(e.clientX, effectiveWidth);
+          }}
+          sx={{
+            position: "absolute",
+            top: 0,
+            right: -3,
+            width: 6,
+            height: "100%",
+            cursor: "col-resize",
+            zIndex: 1,
+            "&:hover::after, &:active::after": {
+              content: '""',
+              position: "absolute",
+              top: 0,
+              left: 2,
+              width: 2,
+              height: "100%",
+              bgcolor: "primary.main",
+              opacity: 0.5,
+            },
+          }}
+        />
+      )}
+
       <Menu
         open={!!menuAnchor}
         anchorEl={menuAnchor?.el ?? null}
         onClose={() => setMenuAnchor(null)}
-        slotProps={{ list: { dense: true } }}
+        slotProps={{
+          list: { dense: true },
+          transition: {
+            onExited: () => {
+              if (!pendingRenameId) return;
+              const s = sessions.find((x) => x.id === pendingRenameId);
+              if (s) setRenaming({ id: s.id, draft: s.title });
+              setPendingRenameId(null);
+            },
+          },
+        }}
       >
         <MenuItem
           onClick={() => {

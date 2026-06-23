@@ -1,49 +1,53 @@
 "use client";
 
-import { useRef, useState, useEffect, useCallback, useMemo } from "react";
-import { Sparkles, Send, History, Square, Cpu, Paperclip, X, Mic, MicOff } from "lucide-react";
-import {
-  Box,
-  Card,
-  Chip,
-  Typography,
-  TextField,
-  Button,
-  Avatar,
-  Alert,
-  Drawer,
-  IconButton,
-  Popper,
-  Paper,
-  MenuList,
-  MenuItem,
-  ListItemText,
-  ClickAwayListener,
-} from "@mui/material";
 import ChatMessage from "@/components/admin/ChatMessage";
 import PageHeader from "@/components/admin/PageHeader";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { aiApi } from "@/lib/api/ai";
 import type { ChatSessionSummary, ProviderConfigView } from "@/services/ai/types";
-import type { Message, MessageAttachment, PendingActionState } from "./types";
-import ConversationList from "./ConversationList";
-import { SLASH_COMMANDS, SLASH_TYPING_RE } from "./commands";
-import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
-  newChat as newChatAction,
-  setCurrentSessionId,
-  loadSession as loadSessionAction,
-  setStreaming,
   addMessage,
-  appendToLastContent,
-  addToolToLast,
   addPendingActionToLast,
-  setUsageOnLast,
-  replaceLastMessage,
-  popLastMessage,
+  addToolToLast,
+  appendToLastContent,
+  loadSession as loadSessionAction,
   markLastStopped,
+  newChat as newChatAction,
   patchAction as patchActionAction,
+  popLastMessage,
+  replaceLastMessage,
+  setCurrentSessionId,
+  setStreaming,
+  setUsageOnLast,
 } from "@/store/slices/aiChatSlice";
+import {
+  Alert,
+  Avatar,
+  Box,
+  Button,
+  Card,
+  Chip,
+  ClickAwayListener,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Drawer,
+  IconButton,
+  ListItemText,
+  MenuItem,
+  MenuList,
+  Paper,
+  Popper,
+  TextField,
+  Typography,
+} from "@mui/material";
+import { Cpu, History, Mic, MicOff, Paperclip, Send, Sparkles, Square, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import ConversationList from "./ConversationList";
+import { SLASH_COMMANDS, SLASH_TYPING_RE } from "./commands";
+import type { Message, MessageAttachment, PendingActionState } from "./types";
 
 // Warn once the running input-token total for a thread crosses this. Message
 // history is re-sent uncached every turn, so cost grows with thread length —
@@ -54,6 +58,13 @@ const LONG_THREAD_TOKENS = 60_000;
 // We persist only the current session id here and reopen that session (messages
 // come from the DB) on reload, so a refresh restores the conversation.
 const LAST_SESSION_KEY = "ai-chat:last-session";
+
+// Persisted sidebar width — lets the user widen the conversation list when
+// titles are getting truncated.
+const SIDEBAR_WIDTH_KEY = "ai-chat:sidebar-width";
+const SIDEBAR_MIN = 200;
+const SIDEBAR_MAX = 480;
+const SIDEBAR_DEFAULT = 240;
 
 // A leading `/property` or `/finance` scopes the assistant to that module's
 // tools for the turn. We parse it client-side, send the scope to the backend,
@@ -90,6 +101,41 @@ export default function AiAssistantPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Resizable sidebar — width persists across visits. Default applied lazily
+  // so SSR + first paint don't read localStorage.
+  const [sidebarWidth, setSidebarWidth] = useState<number>(SIDEBAR_DEFAULT);
+  useEffect(() => {
+    const saved = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+    if (Number.isFinite(saved) && saved >= SIDEBAR_MIN && saved <= SIDEBAR_MAX) {
+      setSidebarWidth(saved);
+    }
+  }, []);
+  const beginSidebarResize = useCallback((startX: number, startW: number) => {
+    const onMove = (e: MouseEvent) => {
+      const next = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, startW + (e.clientX - startX)));
+      setSidebarWidth(next);
+    };
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      // Use the functional updater to read the latest width without a ref —
+      // React passes the current state value, so stale-closure is not a risk.
+      setSidebarWidth((latest) => {
+        try {
+          localStorage.setItem(SIDEBAR_WIDTH_KEY, String(latest));
+        } catch {
+          /* storage quota / disabled — non-fatal */
+        }
+        return latest;
+      });
+    };
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  }, []);
   // State (not a ref) so the slash-menu Popper can anchor to it and read its
   // width during render without tripping the refs-in-render rule.
   const [inputWrapEl, setInputWrapEl] = useState<HTMLDivElement | null>(null);
@@ -153,6 +199,21 @@ export default function AiAssistantPage() {
       setInput((prev) => (prev ? `${prev.replace(/\s+$/, "")} ${trimmed}` : trimmed));
     },
   });
+  const [micHelpOpen, setMicHelpOpen] = useState(false);
+
+  const onMicClick = () => {
+    if (speech.listening) {
+      speech.stop();
+      return;
+    }
+    // Browser remembers the denied state and won't re-prompt — show the
+    // recovery dialog instead of silently failing.
+    if (speech.permissionState === "denied") {
+      setMicHelpOpen(true);
+      return;
+    }
+    speech.start();
+  };
 
   // Pick a session to open on first mount. Runs once after the sessions list
   // has loaded; skipped when an in-memory thread is already present (in-app
@@ -534,6 +595,8 @@ export default function AiAssistantPage() {
           onSelect={loadSession}
           onDelete={deleteSession}
           onRename={renameSessionTitle}
+          width={sidebarWidth}
+          onResizeStart={beginSidebarResize}
         />
 
         {/* Chat column */}
@@ -567,6 +630,43 @@ export default function AiAssistantPage() {
             <Button size="small" onClick={newChat} disabled={isStreaming} sx={{ minWidth: 0 }}>
               New
             </Button>
+          </Box>
+
+          {/* Desktop breadcrumb: shows the active conversation title so the
+              user always knows what thread they're in (and isn't forced to
+              widen the sidebar to read it). */}
+          <Box
+            sx={{
+              display: { xs: "none", sm: "flex" },
+              alignItems: "center",
+              gap: 0.75,
+              px: 2.5,
+              py: 1.25,
+              borderBottom: "1px solid",
+              borderColor: "divider",
+              minHeight: 0,
+            }}
+          >
+            <Typography variant="caption" color="text.disabled" noWrap>
+              AI Assistant
+            </Typography>
+            <Typography variant="caption" color="text.disabled" sx={{ opacity: 0.6 }}>
+              /
+            </Typography>
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}
+              noWrap
+              title={
+                currentSessionId
+                  ? (sessions.find((s) => s.id === currentSessionId)?.title ?? "Conversation")
+                  : "New chat"
+              }
+            >
+              {currentSessionId
+                ? (sessions.find((s) => s.id === currentSessionId)?.title ?? "Conversation")
+                : "New chat"}
+            </Typography>
           </Box>
 
           <Box
@@ -784,6 +884,21 @@ export default function AiAssistantPage() {
                 }}
               />
             )}
+            {speech.listening && (
+              <Chip
+                icon={<Mic size={12} />}
+                label="Listening…"
+                size="small"
+                color="error"
+                variant="outlined"
+                sx={{ height: 22, fontSize: "0.68rem" }}
+              />
+            )}
+            {speech.error && (
+              <Typography variant="caption" color="error.main" sx={{ ml: 0.5 }}>
+                {speech.error}
+              </Typography>
+            )}
           </Box>
 
           {/* Input row */}
@@ -822,7 +937,7 @@ export default function AiAssistantPage() {
             {speech.supported && (
               <IconButton
                 aria-label={speech.listening ? "Stop dictation" : "Dictate"}
-                onClick={() => (speech.listening ? speech.stop() : speech.start())}
+                onClick={onMicClick}
                 disabled={isStreaming || blocked}
                 sx={{
                   width: 40,
@@ -929,6 +1044,63 @@ export default function AiAssistantPage() {
           </Popper>
         </Box>
       </Card>
+
+      {/* Microphone-denied recovery dialog. Browsers won't re-prompt once the
+          user has denied; this surfaces the exact steps to unblock + a Try
+          again button that re-queries the permission state. */}
+      <Dialog
+        open={micHelpOpen}
+        onClose={() => setMicHelpOpen(false)}
+        slotProps={{ paper: { sx: { maxWidth: 480 } } }}
+      >
+        <DialogTitle>Microphone is blocked</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            The browser remembers a previous denial and won&apos;t prompt again. To re-enable
+            dictation:
+          </Typography>
+          <Box component="ol" sx={{ pl: 2.5, my: 0, "& li": { mb: 1.25 } }}>
+            <li>
+              <Typography variant="body2">
+                Click the <strong>lock / tune icon</strong> on the left of the address bar.
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2">
+                Find <strong>Microphone</strong> and switch it from <em>Block</em> to <em>Allow</em>{" "}
+                (or click <em>Reset permission</em>).
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2">
+                On macOS, also check{" "}
+                <strong>System Settings → Privacy &amp; Security → Microphone</strong> and make sure
+                your browser is toggled on.
+              </Typography>
+            </li>
+            <li>
+              <Typography variant="body2">
+                Return here and click <strong>Try again</strong>.
+              </Typography>
+            </li>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setMicHelpOpen(false)}>Close</Button>
+          <Button
+            variant="contained"
+            onClick={async () => {
+              await speech.refreshPermission();
+              if (speech.permissionState !== "denied") {
+                setMicHelpOpen(false);
+                speech.start();
+              }
+            }}
+          >
+            Try again
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Mobile conversation history drawer */}
       <Drawer
