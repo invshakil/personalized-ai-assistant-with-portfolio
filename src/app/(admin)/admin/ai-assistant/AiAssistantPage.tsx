@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback, useMemo } from "react";
-import { Sparkles, Send, History } from "lucide-react";
+import { Sparkles, Send, History, Square } from "lucide-react";
 import {
   Box,
   Card,
@@ -38,6 +38,8 @@ import {
   addPendingActionToLast,
   setUsageOnLast,
   replaceLastMessage,
+  popLastMessage,
+  markLastStopped,
   patchAction as patchActionAction,
 } from "@/store/slices/aiChatSlice";
 
@@ -71,10 +73,14 @@ export default function AiAssistantPage() {
   const isStreaming = useAppSelector((s) => s.aiChat.isStreaming);
   const [input, setInput] = useState("");
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
+  const [sessionsLoaded, setSessionsLoaded] = useState(false);
   const [blocked, setBlocked] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  // AbortController for the in-flight stream. Cleared after each turn so a new
+  // Stop click always aborts the *current* request, not a stale one.
+  const abortRef = useRef<AbortController | null>(null);
   // State (not a ref) so the slash-menu Popper can anchor to it and read its
   // width during render without tripping the refs-in-render rule.
   const [inputWrapEl, setInputWrapEl] = useState<HTMLDivElement | null>(null);
@@ -102,6 +108,8 @@ export default function AiAssistantPage() {
       setSessions(await aiApi.listSessions());
     } catch {
       /* non-fatal — the chat still works without the history list */
+    } finally {
+      setSessionsLoaded(true);
     }
   }, []);
 
@@ -118,21 +126,32 @@ export default function AiAssistantPage() {
     checkBudget();
   }, [refreshSessions, checkBudget]);
 
-  // Restore the last session after a refresh. Runs once; only when the in-memory
-  // thread is empty (a fresh store), so it never clobbers a thread carried over
-  // via in-app navigation. Messages are reloaded from the DB, not the browser.
+  // Pick a session to open on first mount. Runs once after the sessions list
+  // has loaded; skipped when an in-memory thread is already present (in-app
+  // navigation). Preference order:
+  //   1. The id saved in localStorage from the last visit (resume on refresh)
+  //   2. The most recent session in the list (auto-open latest on fresh visit)
+  //   3. Nothing — empty state when the user has no sessions yet
   const rehydratedRef = useRef(false);
   useEffect(() => {
-    if (rehydratedRef.current) return;
+    if (rehydratedRef.current || !sessionsLoaded) return;
     rehydratedRef.current = true;
     if (currentSessionId || messages.length > 0) return;
+
     const saved = localStorage.getItem(LAST_SESSION_KEY);
-    if (!saved) return;
+    const savedIsValid = saved !== null && sessions.some((s) => s.id === saved);
+    const targetId = savedIsValid ? saved : (sessions[0]?.id ?? null);
+    if (!targetId) {
+      if (saved) localStorage.removeItem(LAST_SESSION_KEY);
+      return;
+    }
     aiApi
-      .getSession(saved)
+      .getSession(targetId)
       .then((detail) => dispatch(loadSessionAction({ id: detail.id, messages: detail.messages })))
-      .catch(() => localStorage.removeItem(LAST_SESSION_KEY)); // deleted/invalid — forget it
-  }, [currentSessionId, messages.length, dispatch]);
+      .catch(() => {
+        if (saved) localStorage.removeItem(LAST_SESSION_KEY);
+      });
+  }, [sessionsLoaded, sessions, currentSessionId, messages.length, dispatch]);
 
   // Mirror the active session id to localStorage so the effect above can reopen
   // it after a refresh. Cleared on New Chat (currentSessionId → null). The first
@@ -151,6 +170,21 @@ export default function AiAssistantPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Cmd/Ctrl+K → new chat (skipped while streaming to avoid mid-turn loss).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        if (isStreaming) return;
+        e.preventDefault();
+        dispatch(newChatAction());
+        setInput("");
+        setHistoryOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [isStreaming, dispatch]);
 
   // Keep the highlighted command in range as the filtered list narrows.
   useEffect(() => {
@@ -192,10 +226,11 @@ export default function AiAssistantPage() {
     }
   };
 
-  const sendMessage = async () => {
-    const text = input.trim();
-    if (!text || isStreaming || blocked) return;
-
+  // Core send: appends the user turn (unless re-sending after a failure), opens
+  // the SSE stream, dispatches into the store. Returns when the stream finishes
+  // OR the user aborts via Stop. `priorMessages` lets Retry rebuild the request
+  // body from the thread minus the popped failed assistant turn.
+  const runTurn = async (text: string, priorMessages: Message[]) => {
     // Lazily create a session on the first message (best-effort).
     let sid = currentSessionId;
     if (!sid) {
@@ -208,24 +243,22 @@ export default function AiAssistantPage() {
       }
     }
 
-    const userMsg: Message = { role: "user", content: text };
-    const updatedMessages = [...messages, userMsg];
-    dispatch(addMessage(userMsg));
-    setInput("");
     dispatch(setStreaming(true));
     dispatch(addMessage({ role: "assistant", content: "" }));
+    abortRef.current = new AbortController();
 
     try {
       const res = await fetch("/api/admin/ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: abortRef.current.signal,
         // System lines are client-only approval receipts — never sent to the model.
         // Scope is taken from the latest user message; the `/property|/finance`
         // command is stripped from every user turn so the model only sees intent.
         body: JSON.stringify({
           sessionId: sid,
           scope: parseScope(text),
-          messages: updatedMessages
+          messages: priorMessages
             .filter((m) => m.role !== "system")
             .map(({ role, content }) => ({
               role,
@@ -303,15 +336,49 @@ export default function AiAssistantPage() {
         }
       }
     } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "Sorry, something went wrong. Please try again.";
-      dispatch(replaceLastMessage({ role: "assistant", content: message }));
+      // User-initiated Stop — keep partial content, mark as stopped (no error).
+      if (e instanceof DOMException && e.name === "AbortError") {
+        dispatch(markLastStopped());
+      } else {
+        const message =
+          e instanceof Error ? e.message : "Sorry, something went wrong. Please try again.";
+        dispatch(replaceLastMessage({ role: "assistant", content: "", error: message }));
+      }
     } finally {
+      abortRef.current = null;
       dispatch(setStreaming(false));
       refreshSessions();
       checkBudget();
     }
   };
+
+  const sendMessage = async () => {
+    const text = input.trim();
+    if (!text || isStreaming || blocked) return;
+    const userMsg: Message = { role: "user", content: text };
+    dispatch(addMessage(userMsg));
+    setInput("");
+    await runTurn(text, [...messages, userMsg]);
+  };
+
+  /** Drop the failed assistant turn, then re-send the last user message. */
+  const retryLastTurn = async () => {
+    if (isStreaming || blocked) return;
+    // Walk back: pop the failed assistant bubble, find the last user message,
+    // and re-run with the thread up to and including it.
+    const lastUserIndex = (() => {
+      for (let i = messages.length - 1; i >= 0; i--) {
+        if (messages[i].role === "user") return i;
+      }
+      return -1;
+    })();
+    if (lastUserIndex < 0) return;
+    dispatch(popLastMessage());
+    const prior = messages.slice(0, lastUserIndex + 1);
+    await runTurn(messages[lastUserIndex].content, prior);
+  };
+
+  const stopStreaming = () => abortRef.current?.abort();
 
   const patchAction = (msgIndex: number, actionId: string, patch: Partial<PendingActionState>) =>
     dispatch(patchActionAction({ msgIndex, actionId, patch }));
@@ -474,7 +541,7 @@ export default function AiAssistantPage() {
                   assistant on one module.
                 </Typography>
                 <Typography variant="caption" color="text.disabled">
-                  Shift+Enter for new line · Enter to send
+                  Shift+Enter for new line · Enter to send · ⌘K for new chat
                 </Typography>
               </Box>
             )}
@@ -508,6 +575,13 @@ export default function AiAssistantPage() {
                   onApproveAction={(id) => approveAction(i, id)}
                   onCancelAction={(id) => cancelAction(i, id)}
                   isStreaming={isStreaming && i === messages.length - 1 && msg.role === "assistant"}
+                  error={msg.error}
+                  stopped={msg.stopped}
+                  onRetry={
+                    msg.error && i === messages.length - 1 && msg.role === "assistant"
+                      ? retryLastTurn
+                      : undefined
+                  }
                 />
               )
             )}
@@ -561,14 +635,27 @@ export default function AiAssistantPage() {
               disabled={isStreaming || blocked}
               sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
             />
-            <Button
-              variant="contained"
-              onClick={sendMessage}
-              disabled={!input.trim() || isStreaming || blocked}
-              sx={{ minWidth: 44, width: 44, height: 40, p: 0, borderRadius: 2, flexShrink: 0 }}
-            >
-              <Send size={18} />
-            </Button>
+            {isStreaming ? (
+              <Button
+                variant="contained"
+                color="error"
+                onClick={stopStreaming}
+                aria-label="Stop generating"
+                sx={{ minWidth: 44, width: 44, height: 40, p: 0, borderRadius: 2, flexShrink: 0 }}
+              >
+                <Square size={16} fill="#fff" />
+              </Button>
+            ) : (
+              <Button
+                variant="contained"
+                onClick={sendMessage}
+                disabled={!input.trim() || blocked}
+                aria-label="Send message"
+                sx={{ minWidth: 44, width: 44, height: 40, p: 0, borderRadius: 2, flexShrink: 0 }}
+              >
+                <Send size={18} />
+              </Button>
+            )}
           </Box>
 
           {/* Slash-command autocomplete, anchored above the input row. */}

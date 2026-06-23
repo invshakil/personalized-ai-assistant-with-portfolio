@@ -25,6 +25,10 @@ export interface Message {
   usage?: MessageUsage;
   tools?: string[];
   pendingActions?: PendingActionState[];
+  /** Set when a turn failed — surfaces a Retry button on the assistant bubble. */
+  error?: string;
+  /** Set when the user stopped the stream — keeps partial content visible. */
+  stopped?: boolean;
 }
 
 export interface ChatState {

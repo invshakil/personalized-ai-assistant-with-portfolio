@@ -76,6 +76,15 @@ const aiChatSlice = createSlice({
     replaceLastMessage(state, action: PayloadAction<Message>) {
       if (state.messages.length > 0) state.messages[state.messages.length - 1] = action.payload;
     },
+    /** Drop the last message — used to pop a failed assistant turn before a retry. */
+    popLastMessage(state) {
+      state.messages.pop();
+    },
+    /** Mark the last assistant message as stopped — keeps its partial content. */
+    markLastStopped(state) {
+      const last = lastMessage(state);
+      if (last) last.stopped = true;
+    },
     /** Patch a single pending action's approval lifecycle by message + action id. */
     patchAction(
       state,
@@ -104,6 +113,8 @@ export const {
   addPendingActionToLast,
   setUsageOnLast,
   replaceLastMessage,
+  popLastMessage,
+  markLastStopped,
   patchAction,
 } = aiChatSlice.actions;
 

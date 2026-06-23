@@ -1,5 +1,6 @@
-import { Box, Typography, Avatar } from "@mui/material";
-import { Sparkles } from "lucide-react";
+import { useState } from "react";
+import { Box, Typography, Avatar, IconButton, Tooltip, Button } from "@mui/material";
+import { Sparkles, Copy, Check, RefreshCw, AlertTriangle } from "lucide-react";
 import Markdown from "@/components/admin/Markdown";
 import PendingActionCard from "@/components/admin/PendingActionCard";
 import type { PendingActionState } from "@/app/(admin)/admin/ai-assistant/types";
@@ -22,6 +23,11 @@ interface ChatMessageProps {
   actionsDisabled?: boolean;
   onApproveAction?: (id: string) => void;
   onCancelAction?: (id: string) => void;
+  /** Failed turn — when set, shows the error and a Retry button. */
+  error?: string;
+  /** Stream was stopped by the user — partial content stays, but no error. */
+  stopped?: boolean;
+  onRetry?: () => void;
 }
 
 export default function ChatMessage({
@@ -34,8 +40,22 @@ export default function ChatMessage({
   actionsDisabled,
   onApproveAction,
   onCancelAction,
+  error,
+  stopped,
+  onRetry,
 }: ChatMessageProps) {
   const isUser = role === "user";
+  const [copied, setCopied] = useState(false);
+  const copyText = async () => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      /* clipboard unavailable — ignore */
+    }
+  };
+  const showAssistantToolbar = !isUser && !isStreaming && content.length > 0;
 
   return (
     <Box
@@ -44,6 +64,7 @@ export default function ChatMessage({
         gap: 1.5,
         flexDirection: isUser ? "row-reverse" : "row",
         alignItems: "flex-start",
+        "&:hover .msg-actions": { opacity: 1 },
       }}
     >
       <Avatar
@@ -110,7 +131,51 @@ export default function ChatMessage({
                 ))}
               </Box>
             )}
-            <Markdown content={content} />
+            {content.length > 0 && <Markdown content={content} />}
+            {error && (
+              <Box
+                sx={{
+                  mt: content ? 1.25 : 0,
+                  px: 1.25,
+                  py: 1,
+                  borderRadius: 1.5,
+                  bgcolor: "rgba(234,84,85,0.08)",
+                  border: "1px solid rgba(234,84,85,0.3)",
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 1,
+                }}
+              >
+                <AlertTriangle size={14} color="#ea5455" style={{ marginTop: 2, flexShrink: 0 }} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography
+                    variant="caption"
+                    sx={{ color: "error.main", display: "block", lineHeight: 1.5 }}
+                  >
+                    {error}
+                  </Typography>
+                </Box>
+                {onRetry && (
+                  <Button
+                    size="small"
+                    startIcon={<RefreshCw size={12} />}
+                    onClick={onRetry}
+                    sx={{ minHeight: 24, fontSize: "0.72rem", flexShrink: 0 }}
+                  >
+                    Retry
+                  </Button>
+                )}
+              </Box>
+            )}
+            {stopped && !error && (
+              <Typography
+                variant="caption"
+                color="text.disabled"
+                sx={{ display: "block", mt: 0.75, fontStyle: "italic" }}
+              >
+                Stopped
+              </Typography>
+            )}
             {isStreaming && (
               <Box
                 component="span"
@@ -139,6 +204,28 @@ export default function ChatMessage({
                 onCancel={(id) => onCancelAction?.(id)}
               />
             ))}
+            {showAssistantToolbar && (
+              <Box
+                className="msg-actions"
+                sx={{
+                  mt: 1,
+                  display: "flex",
+                  gap: 0.25,
+                  opacity: 0,
+                  transition: "opacity 0.15s",
+                }}
+              >
+                <Tooltip title={copied ? "Copied" : "Copy"} placement="top">
+                  <IconButton
+                    size="small"
+                    onClick={copyText}
+                    sx={{ width: 24, height: 24, color: "text.secondary" }}
+                  >
+                    {copied ? <Check size={12} /> : <Copy size={12} />}
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            )}
             {!isStreaming && usage && (
               <Box
                 sx={{
