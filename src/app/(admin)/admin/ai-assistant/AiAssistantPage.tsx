@@ -1,10 +1,11 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback, useMemo } from "react";
-import { Sparkles, Send, History, Square } from "lucide-react";
+import { Sparkles, Send, History, Square, Cpu } from "lucide-react";
 import {
   Box,
   Card,
+  Chip,
   Typography,
   TextField,
   Button,
@@ -22,7 +23,7 @@ import {
 import ChatMessage from "@/components/admin/ChatMessage";
 import PageHeader from "@/components/admin/PageHeader";
 import { aiApi } from "@/lib/api/ai";
-import type { ChatSessionSummary } from "@/services/ai/types";
+import type { ChatSessionSummary, ProviderConfigView } from "@/services/ai/types";
 import type { Message, PendingActionState } from "./types";
 import ConversationList from "./ConversationList";
 import { SLASH_COMMANDS, SLASH_TYPING_RE } from "./commands";
@@ -74,6 +75,7 @@ export default function AiAssistantPage() {
   const [input, setInput] = useState("");
   const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
+  const [activeProvider, setActiveProvider] = useState<ProviderConfigView | null>(null);
   const [blocked, setBlocked] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(0);
@@ -124,7 +126,16 @@ export default function AiAssistantPage() {
   useEffect(() => {
     refreshSessions();
     checkBudget();
+    aiApi
+      .listProviders()
+      .then((list) => setActiveProvider(list.find((p) => p.isActive && p.supported) ?? null))
+      .catch(() => {
+        /* non-fatal */
+      });
   }, [refreshSessions, checkBudget]);
+
+  // Show the parsed scope (from the leading slash, if any) as a hint chip.
+  const activeScope = useMemo(() => parseScope(input), [input]);
 
   // Pick a session to open on first mount. Runs once after the sessions list
   // has loaded; skipped when an in-memory thread is already present (in-app
@@ -223,6 +234,15 @@ export default function AiAssistantPage() {
       await refreshSessions();
     } catch {
       /* ignore */
+    }
+  };
+
+  const renameSessionTitle = async (id: string, title: string) => {
+    try {
+      await aiApi.renameSession(id, title);
+      await refreshSessions();
+    } catch {
+      /* ignore — UI will revert on the next refresh */
     }
   };
 
@@ -462,6 +482,7 @@ export default function AiAssistantPage() {
           onNew={newChat}
           onSelect={loadSession}
           onDelete={deleteSession}
+          onRename={renameSessionTitle}
         />
 
         {/* Chat column */}
@@ -608,13 +629,50 @@ export default function AiAssistantPage() {
             </Box>
           )}
 
+          {/* Active scope + model hint */}
+          <Box
+            sx={{
+              px: 2,
+              pt: 1.25,
+              borderTop: "1px solid",
+              borderColor: "divider",
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              flexWrap: "wrap",
+            }}
+          >
+            {activeScope !== "all" && (
+              <Chip
+                label={`Scope: /${activeScope}`}
+                size="small"
+                color="primary"
+                variant="outlined"
+                sx={{ height: 22, fontSize: "0.68rem" }}
+              />
+            )}
+            {activeProvider && (
+              <Chip
+                icon={<Cpu size={12} />}
+                label={`${activeProvider.label} · ${activeProvider.defaultModel}`}
+                size="small"
+                variant="outlined"
+                sx={{
+                  height: 22,
+                  fontSize: "0.68rem",
+                  color: "text.secondary",
+                  borderColor: "divider",
+                }}
+              />
+            )}
+          </Box>
+
           {/* Input row */}
           <Box
             ref={setInputWrapEl}
             sx={{
               p: 2,
-              borderTop: "1px solid",
-              borderColor: "divider",
+              pt: 1.25,
               display: "flex",
               alignItems: "flex-end",
               gap: 1.5,
@@ -723,6 +781,7 @@ export default function AiAssistantPage() {
           onNew={newChat}
           onSelect={loadSession}
           onDelete={deleteSession}
+          onRename={renameSessionTitle}
         />
       </Drawer>
     </Box>
