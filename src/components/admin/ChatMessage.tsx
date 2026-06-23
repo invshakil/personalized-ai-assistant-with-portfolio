@@ -108,7 +108,6 @@ export default function ChatMessage({
                 }}
               >
                 {attachments.map((att) => (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <a
                     key={att.url}
                     href={att.url}
@@ -116,6 +115,7 @@ export default function ChatMessage({
                     rel="noopener noreferrer"
                     style={{ display: "block", lineHeight: 0 }}
                   >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={att.url}
                       alt="attachment"

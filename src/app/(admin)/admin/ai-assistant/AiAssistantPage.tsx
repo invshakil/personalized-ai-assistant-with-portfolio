@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback, useMemo } from "react";
-import { Sparkles, Send, History, Square, Cpu, Paperclip, X } from "lucide-react";
+import { Sparkles, Send, History, Square, Cpu, Paperclip, X, Mic, MicOff } from "lucide-react";
 import {
   Box,
   Card,
@@ -27,6 +27,7 @@ import type { ChatSessionSummary, ProviderConfigView } from "@/services/ai/types
 import type { Message, MessageAttachment, PendingActionState } from "./types";
 import ConversationList from "./ConversationList";
 import { SLASH_COMMANDS, SLASH_TYPING_RE } from "./commands";
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   newChat as newChatAction,
@@ -142,6 +143,16 @@ export default function AiAssistantPage() {
 
   // Show the parsed scope (from the leading slash, if any) as a hint chip.
   const activeScope = useMemo(() => parseScope(input), [input]);
+
+  // Speech-to-text into the input. Each final transcript segment is appended
+  // with a leading space so multi-utterance dictation reads naturally.
+  const speech = useSpeechRecognition({
+    onFinal: (text) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      setInput((prev) => (prev ? `${prev.replace(/\s+$/, "")} ${trimmed}` : trimmed));
+    },
+  });
 
   // Pick a session to open on first mount. Runs once after the sessions list
   // has loaded; skipped when an in-memory thread is already present (in-app
@@ -808,6 +819,30 @@ export default function AiAssistantPage() {
             >
               <Paperclip size={18} />
             </IconButton>
+            {speech.supported && (
+              <IconButton
+                aria-label={speech.listening ? "Stop dictation" : "Dictate"}
+                onClick={() => (speech.listening ? speech.stop() : speech.start())}
+                disabled={isStreaming || blocked}
+                sx={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: 2,
+                  color: speech.listening ? "error.main" : "text.secondary",
+                  bgcolor: speech.listening ? "rgba(234,84,85,0.12)" : "transparent",
+                  flexShrink: 0,
+                  ...(speech.listening && {
+                    animation: "micPulse 1.4s ease-in-out infinite",
+                    "@keyframes micPulse": {
+                      "0%, 100%": { boxShadow: "0 0 0 0 rgba(234,84,85,0.5)" },
+                      "50%": { boxShadow: "0 0 0 6px rgba(234,84,85,0)" },
+                    },
+                  }),
+                }}
+              >
+                {speech.listening ? <MicOff size={18} /> : <Mic size={18} />}
+              </IconButton>
+            )}
             <TextField
               multiline
               minRows={1}
