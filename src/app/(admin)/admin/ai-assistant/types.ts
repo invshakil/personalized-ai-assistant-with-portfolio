@@ -19,6 +19,12 @@ export interface PendingActionState {
   error?: string;
 }
 
+export interface MessageAttachment {
+  /** Auth-gated URL: /api/admin/ai/uploads/YYYY/MM/<cuid>.<ext> */
+  url: string;
+  mimeType: string;
+}
+
 export interface Message {
   role: "user" | "assistant" | "system";
   content: string;
@@ -29,6 +35,8 @@ export interface Message {
   error?: string;
   /** Set when the user stopped the stream — keeps partial content visible. */
   stopped?: boolean;
+  /** Files uploaded with this turn (currently images for vision). */
+  attachments?: MessageAttachment[];
 }
 
 export interface ChatState {

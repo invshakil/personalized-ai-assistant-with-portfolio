@@ -33,7 +33,11 @@ const SYSTEM_PROMPT =
   "the UI. Before calling a write tool, resolve any referenced records (tenant, unit, client, employee, payment, " +
   "category) to their real id using the matching list/get tool — never invent ids. After proposing, do not claim the " +
   "change was saved; tell the user to review and approve the card. Deletes and deactivations are NOT available through " +
-  "you — if asked to delete or remove something, explain it must be done from the dashboard UI.";
+  "you — if asked to delete or remove something, explain it must be done from the dashboard UI. " +
+  "When the user attaches a receipt image, read the amount, date, and vendor/category from the image, " +
+  "then propose a create_money_entry write tool (DEBIT for spends, CREDIT for income/refunds) with a " +
+  "sensible categoryName (free-text — will be created if it doesn't exist). If the user already has " +
+  "the right category, use that exact name. Suggest accountName only if the receipt makes it obvious.";
 
 export async function POST(req: Request) {
   const session = await auth();
@@ -130,7 +134,7 @@ export async function POST(req: Request) {
         if (sessionId && assistantText.trim()) {
           const lastUser = [...messages].reverse().find((m) => m.role === "user");
           if (lastUser) {
-            await appendTurn(sessionId, lastUser.content, assistantText);
+            await appendTurn(sessionId, lastUser.content, assistantText, lastUser.attachments);
           }
         }
       } catch (e) {

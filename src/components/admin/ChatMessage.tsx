@@ -3,7 +3,7 @@ import { Box, Typography, Avatar, IconButton, Tooltip, Button } from "@mui/mater
 import { Sparkles, Copy, Check, RefreshCw, AlertTriangle } from "lucide-react";
 import Markdown from "@/components/admin/Markdown";
 import PendingActionCard from "@/components/admin/PendingActionCard";
-import type { PendingActionState } from "@/app/(admin)/admin/ai-assistant/types";
+import type { PendingActionState, MessageAttachment } from "@/app/(admin)/admin/ai-assistant/types";
 
 interface MessageUsage {
   inputTokens: number;
@@ -28,6 +28,7 @@ interface ChatMessageProps {
   /** Stream was stopped by the user — partial content stays, but no error. */
   stopped?: boolean;
   onRetry?: () => void;
+  attachments?: MessageAttachment[];
 }
 
 export default function ChatMessage({
@@ -43,6 +44,7 @@ export default function ChatMessage({
   error,
   stopped,
   onRetry,
+  attachments,
 }: ChatMessageProps) {
   const isUser = role === "user";
   const [copied, setCopied] = useState(false);
@@ -95,9 +97,45 @@ export default function ChatMessage({
         }}
       >
         {isUser ? (
-          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.65 }}>
-            {content}
-          </Typography>
+          <Box>
+            {attachments && attachments.length > 0 && (
+              <Box
+                sx={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 0.75,
+                  mb: content ? 1 : 0,
+                }}
+              >
+                {attachments.map((att) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <a
+                    key={att.url}
+                    href={att.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: "block", lineHeight: 0 }}
+                  >
+                    <img
+                      src={att.url}
+                      alt="attachment"
+                      style={{
+                        maxWidth: 240,
+                        maxHeight: 240,
+                        borderRadius: 8,
+                        border: "1px solid rgba(255,255,255,0.08)",
+                      }}
+                    />
+                  </a>
+                ))}
+              </Box>
+            )}
+            {content && (
+              <Typography variant="body2" sx={{ whiteSpace: "pre-wrap", lineHeight: 1.65 }}>
+                {content}
+              </Typography>
+            )}
+          </Box>
         ) : (
           <Box>
             {tools && tools.length > 0 && (

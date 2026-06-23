@@ -4,7 +4,13 @@
 // content-block deltas) appear. Adding OpenAI/Gemini = a sibling file here.
 import { randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
+import { readChatAttachment } from "../uploads";
 import type { AiProvider, StreamChatOptions, StreamEvent, UsageTotals } from "../types";
+
+// Anthropic vision accepts these directly. Other image types we accept on
+// upload (gif) would need conversion; we send them as-is and let the API reject
+// to keep this simple — the upload validator already restricts to these four.
+type AnthropicImageMediaType = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
 
 const MAX_ITERATIONS = 6; // cap the tool loop
 const MAX_TOKENS = 2048;
@@ -47,10 +53,30 @@ export function createAnthropicProvider(opts: { apiKey: string; baseURL?: string
       // UI as pending actions the user approves separately.
       const writeNames = new Set(tools.filter((t) => t.kind === "write").map((t) => t.name));
 
-      const convo: Anthropic.MessageParam[] = messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
+      // Build the conversation, expanding any image attachments into Anthropic
+      // image content blocks (base64-inlined from local disk — the upload URLs
+      // are auth-gated and the model can't fetch them). Each turn becomes a
+      // multi-block array iff it has attachments; otherwise plain string.
+      const convo: Anthropic.MessageParam[] = await Promise.all(
+        messages.map(async (m): Promise<Anthropic.MessageParam> => {
+          if (!m.attachments?.length) return { role: m.role, content: m.content };
+          const imageBlocks: Anthropic.ImageBlockParam[] = [];
+          for (const att of m.attachments) {
+            const got = await readChatAttachment(att.url);
+            if (!got) continue;
+            imageBlocks.push({
+              type: "image",
+              source: {
+                type: "base64",
+                media_type: got.mimeType as AnthropicImageMediaType,
+                data: got.buffer.toString("base64"),
+              },
+            });
+          }
+          const textBlock: Anthropic.TextBlockParam = { type: "text", text: m.content || "" };
+          return { role: m.role, content: [...imageBlocks, textBlock] };
+        })
+      );
 
       // Accumulate token usage across every API call this turn makes.
       const usage: UsageTotals = {

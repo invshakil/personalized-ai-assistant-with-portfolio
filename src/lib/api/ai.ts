@@ -1,6 +1,6 @@
 // Typed client for AI provider configuration. Components call these, not fetch().
 // (The chat stream itself stays on native fetch — see AiAssistantPage.)
-import { apiGet, apiPut, apiPost, apiPatch, apiDelete } from "./client";
+import { apiGet, apiPut, apiPost, apiPatch, apiDelete, apiUpload } from "./client";
 import type {
   AiProviderId,
   ProviderConfigView,
@@ -11,6 +11,12 @@ import type {
   UsageSummary,
   CommitResult,
 } from "@/services/ai/types";
+
+export interface UploadedAttachment {
+  url: string;
+  mimeType: string;
+  sizeBytes: number;
+}
 
 export interface SaveProviderBody {
   provider: AiProviderId;
@@ -38,6 +44,13 @@ export const aiApi = {
   // Commit a write the assistant proposed and the user approved.
   executeAction: (tool: string, input: Record<string, unknown>) =>
     apiPost<CommitResult>("/ai/actions/execute", { tool, input }),
+
+  // Upload an image attachment (receipts, screenshots) for the next turn.
+  uploadAttachment: (file: File) => {
+    const fd = new FormData();
+    fd.append("file", file);
+    return apiUpload<UploadedAttachment>("/ai/uploads", fd);
+  },
 
   // Budget & usage
   getUsage: () => apiGet<UsageSummary>("/ai/usage"),

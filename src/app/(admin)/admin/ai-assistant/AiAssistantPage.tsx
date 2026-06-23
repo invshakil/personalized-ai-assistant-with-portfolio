@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback, useMemo } from "react";
-import { Sparkles, Send, History, Square, Cpu } from "lucide-react";
+import { Sparkles, Send, History, Square, Cpu, Paperclip, X } from "lucide-react";
 import {
   Box,
   Card,
@@ -24,7 +24,7 @@ import ChatMessage from "@/components/admin/ChatMessage";
 import PageHeader from "@/components/admin/PageHeader";
 import { aiApi } from "@/lib/api/ai";
 import type { ChatSessionSummary, ProviderConfigView } from "@/services/ai/types";
-import type { Message, PendingActionState } from "./types";
+import type { Message, MessageAttachment, PendingActionState } from "./types";
 import ConversationList from "./ConversationList";
 import { SLASH_COMMANDS, SLASH_TYPING_RE } from "./commands";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
@@ -83,6 +83,12 @@ export default function AiAssistantPage() {
   // AbortController for the in-flight stream. Cleared after each turn so a new
   // Stop click always aborts the *current* request, not a stale one.
   const abortRef = useRef<AbortController | null>(null);
+  // Attachments uploaded for the *next* outgoing turn — committed to the
+  // message when Send fires, then cleared.
+  const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   // State (not a ref) so the slash-menu Popper can anchor to it and read its
   // width during render without tripping the refs-in-render rule.
   const [inputWrapEl, setInputWrapEl] = useState<HTMLDivElement | null>(null);
@@ -280,9 +286,10 @@ export default function AiAssistantPage() {
           scope: parseScope(text),
           messages: priorMessages
             .filter((m) => m.role !== "system")
-            .map(({ role, content }) => ({
+            .map(({ role, content, attachments }) => ({
               role,
               content: role === "user" ? content.replace(SCOPE_RE, "") : content,
+              ...(role === "user" && attachments?.length ? { attachments } : {}),
             })),
         }),
       });
@@ -374,11 +381,20 @@ export default function AiAssistantPage() {
 
   const sendMessage = async () => {
     const text = input.trim();
-    if (!text || isStreaming || blocked) return;
-    const userMsg: Message = { role: "user", content: text };
+    // Allow sending with attachments and no text (e.g. just a receipt).
+    if (isStreaming || blocked) return;
+    if (!text && pendingAttachments.length === 0) return;
+    const attachments = pendingAttachments;
+    const userMsg: Message = {
+      role: "user",
+      content: text,
+      ...(attachments.length && { attachments }),
+    };
     dispatch(addMessage(userMsg));
     setInput("");
-    await runTurn(text, [...messages, userMsg]);
+    setPendingAttachments([]);
+    setUploadError(null);
+    await runTurn(text || "(image attached)", [...messages, userMsg]);
   };
 
   /** Drop the failed assistant turn, then re-send the last user message. */
@@ -399,6 +415,30 @@ export default function AiAssistantPage() {
   };
 
   const stopStreaming = () => abortRef.current?.abort();
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    setUploadError(null);
+    const uploaded: MessageAttachment[] = [];
+    try {
+      for (const file of Array.from(files)) {
+        const res = await aiApi.uploadAttachment(file);
+        uploaded.push({ url: res.url, mimeType: res.mimeType });
+      }
+      setPendingAttachments((prev) => [...prev, ...uploaded]);
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      // Reset the input so the same file can be re-selected immediately.
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const removePendingAttachment = (url: string) => {
+    setPendingAttachments((prev) => prev.filter((a) => a.url !== url));
+  };
 
   const patchAction = (msgIndex: number, actionId: string, patch: Partial<PendingActionState>) =>
     dispatch(patchActionAction({ msgIndex, actionId, patch }));
@@ -603,6 +643,7 @@ export default function AiAssistantPage() {
                       ? retryLastTurn
                       : undefined
                   }
+                  attachments={msg.attachments}
                 />
               )
             )}
@@ -629,12 +670,79 @@ export default function AiAssistantPage() {
             </Box>
           )}
 
+          {/* Attachment previews (image thumbnails + remove buttons) */}
+          {(pendingAttachments.length > 0 || uploading || uploadError) && (
+            <Box
+              sx={{
+                px: 2,
+                pt: 1.25,
+                borderTop: "1px solid",
+                borderColor: "divider",
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                flexWrap: "wrap",
+              }}
+            >
+              {pendingAttachments.map((att) => (
+                <Box
+                  key={att.url}
+                  sx={{
+                    position: "relative",
+                    width: 56,
+                    height: 56,
+                    borderRadius: 1,
+                    overflow: "hidden",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    bgcolor: "background.default",
+                  }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={att.url}
+                    alt="attachment preview"
+                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  />
+                  <IconButton
+                    size="small"
+                    aria-label="Remove attachment"
+                    onClick={() => removePendingAttachment(att.url)}
+                    sx={{
+                      position: "absolute",
+                      top: 2,
+                      right: 2,
+                      width: 18,
+                      height: 18,
+                      bgcolor: "rgba(0,0,0,0.6)",
+                      color: "#fff",
+                      "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
+                    }}
+                  >
+                    <X size={10} />
+                  </IconButton>
+                </Box>
+              ))}
+              {uploading && (
+                <Typography variant="caption" color="text.secondary">
+                  Uploading…
+                </Typography>
+              )}
+              {uploadError && (
+                <Typography variant="caption" color="error.main">
+                  {uploadError}
+                </Typography>
+              )}
+            </Box>
+          )}
+
           {/* Active scope + model hint */}
           <Box
             sx={{
               px: 2,
               pt: 1.25,
-              borderTop: "1px solid",
+              borderTop:
+                pendingAttachments.length > 0 || uploading || uploadError ? "none" : "1px solid",
               borderColor: "divider",
               display: "flex",
               alignItems: "center",
@@ -678,6 +786,28 @@ export default function AiAssistantPage() {
               gap: 1.5,
             }}
           >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              multiple
+              hidden
+              onChange={(e) => handleFiles(e.target.files)}
+            />
+            <IconButton
+              aria-label="Attach image"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isStreaming || blocked || uploading}
+              sx={{
+                width: 40,
+                height: 40,
+                borderRadius: 2,
+                color: "text.secondary",
+                flexShrink: 0,
+              }}
+            >
+              <Paperclip size={18} />
+            </IconButton>
             <TextField
               multiline
               minRows={1}
@@ -707,7 +837,7 @@ export default function AiAssistantPage() {
               <Button
                 variant="contained"
                 onClick={sendMessage}
-                disabled={!input.trim() || blocked}
+                disabled={(!input.trim() && pendingAttachments.length === 0) || blocked}
                 aria-label="Send message"
                 sx={{ minWidth: 44, width: 44, height: 40, p: 0, borderRadius: 2, flexShrink: 0 }}
               >

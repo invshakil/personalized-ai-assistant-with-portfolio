@@ -4,10 +4,18 @@
 
 export type AiProviderId = "anthropic" | "openai" | "google";
 
+/** One attachment uploaded with a user turn (currently images for vision). */
+export interface ChatAttachment {
+  /** Auth-gated URL: /api/admin/ai/uploads/YYYY/MM/<cuid>.<ext> */
+  url: string;
+  mimeType: string;
+}
+
 /** A chat turn as sent by the client (and stored in the UI). */
 export interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+  attachments?: ChatAttachment[];
 }
 
 /**

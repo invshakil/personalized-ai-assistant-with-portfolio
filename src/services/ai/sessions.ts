@@ -2,7 +2,23 @@
 // (tool round-trips are not stored). Titles auto-generate from the first user
 // message. Used by the /api/admin/ai/sessions routes and the chat route.
 import { db } from "@/lib/db";
-import type { ChatSessionSummary, ChatSessionDetail } from "./types";
+import type { Prisma } from "@prisma/client";
+import type { ChatSessionSummary, ChatSessionDetail, ChatAttachment } from "./types";
+
+/** Coerce the JSON `attachments` column back into the typed shape, dropping
+ *  anything that doesn't look right. Defensive: the column is Json. */
+function toAttachments(value: unknown): ChatAttachment[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const out: ChatAttachment[] = [];
+  for (const v of value) {
+    if (v && typeof v === "object" && "url" in v && "mimeType" in v) {
+      const url = (v as { url: unknown }).url;
+      const mimeType = (v as { mimeType: unknown }).mimeType;
+      if (typeof url === "string" && typeof mimeType === "string") out.push({ url, mimeType });
+    }
+  }
+  return out.length ? out : undefined;
+}
 
 const toRole = (r: "USER" | "ASSISTANT"): "user" | "assistant" =>
   r === "USER" ? "user" : "assistant";
@@ -24,7 +40,11 @@ export async function getChatSession(id: string): Promise<ChatSessionDetail | nu
   return {
     id: row.id,
     title: row.title,
-    messages: row.messages.map((m) => ({ role: toRole(m.role), content: m.content })),
+    messages: row.messages.map((m) => ({
+      role: toRole(m.role),
+      content: m.content,
+      ...(toAttachments(m.attachments) && { attachments: toAttachments(m.attachments) }),
+    })),
   };
 }
 
@@ -50,12 +70,26 @@ export async function deleteChatSession(id: string): Promise<void> {
 export async function appendTurn(
   sessionId: string,
   userText: string,
-  assistantText: string
+  assistantText: string,
+  userAttachments?: ChatAttachment[]
 ): Promise<void> {
   const existing = await db.chatMessage.count({ where: { sessionId } });
-  const title = existing === 0 ? userText.trim().slice(0, 60) || "New chat" : undefined;
+  const title =
+    existing === 0
+      ? userText.trim().slice(0, 60) ||
+        (userAttachments?.length ? `Image · ${new Date().toLocaleDateString()}` : "New chat")
+      : undefined;
   await db.$transaction([
-    db.chatMessage.create({ data: { sessionId, role: "USER", content: userText } }),
+    db.chatMessage.create({
+      data: {
+        sessionId,
+        role: "USER",
+        content: userText,
+        ...(userAttachments?.length && {
+          attachments: userAttachments as unknown as Prisma.InputJsonValue,
+        }),
+      },
+    }),
     db.chatMessage.create({ data: { sessionId, role: "ASSISTANT", content: assistantText } }),
     db.chatSession.update({ where: { id: sessionId }, data: title ? { title } : {} }),
   ]);
