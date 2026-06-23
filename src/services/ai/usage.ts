@@ -85,12 +85,21 @@ export async function getUsageSummary(): Promise<UsageSummary> {
   const now = new Date();
   const budget = await getBudget();
 
-  const [monthToDate, allTimeAgg, rows] = await Promise.all([
+  const thirtyDaysAgo = new Date(now);
+  thirtyDaysAgo.setDate(now.getDate() - 29);
+  thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+  const [monthToDate, allTimeAgg, rows, dailyRows] = await Promise.all([
     spendSince(monthStart(now)),
     db.aiUsage.aggregate({ _sum: { costUsd: true } }),
     // Last 12 months of records for the monthly chart.
     db.aiUsage.findMany({
       where: { createdAt: { gte: new Date(now.getFullYear(), now.getMonth() - 11, 1) } },
+      select: { createdAt: true, costUsd: true },
+    }),
+    // Last 30 days of records for the daily chart.
+    db.aiUsage.findMany({
+      where: { createdAt: { gte: thirtyDaysAgo } },
       select: { createdAt: true, costUsd: true },
     }),
   ]);
@@ -111,6 +120,24 @@ export async function getUsageSummary(): Promise<UsageSummary> {
     costUsd: Math.round(costUsd * 1e6) / 1e6,
   }));
 
+  // Daily series — dense 30-day bucket, oldest → today.
+  const dayBuckets = new Map<string, number>();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now);
+    d.setDate(now.getDate() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    dayBuckets.set(key, 0);
+  }
+  for (const r of dailyRows) {
+    const d = r.createdAt;
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    if (dayBuckets.has(key)) dayBuckets.set(key, (dayBuckets.get(key) ?? 0) + toNum(r.costUsd));
+  }
+  const daily = Array.from(dayBuckets.entries()).map(([period, costUsd]) => ({
+    period,
+    costUsd: Math.round(costUsd * 1e6) / 1e6,
+  }));
+
   const limit = budget.monthlyLimitUsd;
   const daysElapsed = now.getDate();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -127,5 +154,6 @@ export async function getUsageSummary(): Promise<UsageSummary> {
     projectedMonthEnd: Math.round(projectedMonthEnd * 100) / 100,
     overBudget: budget.enforce && limit !== null && monthToDate >= limit,
     monthly,
+    daily,
   };
 }

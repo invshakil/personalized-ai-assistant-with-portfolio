@@ -145,4 +145,5 @@ export interface UsageSummary {
   projectedMonthEnd: number; // run-rate projection for the current month
   overBudget: boolean; // enforce && limit && monthToDate >= limit
   monthly: { period: string; costUsd: number }[]; // "YYYY-MM", oldest first
+  daily: { period: string; costUsd: number }[]; // "YYYY-MM-DD", last 30 days, oldest first
 }

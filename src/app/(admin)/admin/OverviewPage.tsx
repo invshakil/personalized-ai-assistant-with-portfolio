@@ -29,6 +29,11 @@ import {
   RefreshCw,
   Wallet,
   FileBarChart,
+  CreditCard,
+  PiggyBank,
+  HandCoins,
+  ShoppingBag,
+  Landmark,
 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import AiSpendPanel from "./AiSpendPanel";
@@ -61,10 +66,10 @@ const quickLinks = [
     solidBg: "#00cfe8",
   },
   {
-    href: "/admin/property",
-    label: "Property",
-    desc: "Units, tenants & payments",
-    icon: Building2,
+    href: "/admin/money",
+    label: "Money Manager",
+    desc: "Personal cash flow",
+    icon: Wallet,
     solidBg: "#28c76f",
   },
 ];
@@ -80,6 +85,62 @@ function Metric({ label, value, color }: { label: string; value: string; color?:
         {value}
       </Typography>
     </Box>
+  );
+}
+
+type Kpi = {
+  label: string;
+  value: string;
+  icon: typeof TrendingUp;
+  solidBg: string;
+  borderColor: string;
+  cardBg: string;
+  href: string;
+};
+
+function KpiCard({ kpi, delay }: { kpi: Kpi; delay: number }) {
+  const { label, value, icon: Icon, solidBg, borderColor, cardBg, href } = kpi;
+  return (
+    <Card
+      component={Link}
+      href={href}
+      sx={{
+        bgcolor: cardBg,
+        border: "1px solid",
+        borderColor,
+        boxShadow: "none",
+        textDecoration: "none",
+        display: "block",
+        transition: "transform 0.15s, box-shadow 0.15s",
+        "&:hover": {
+          transform: "translateY(-2px)",
+          boxShadow: `0 6px 20px ${solidBg}33`,
+        },
+        animation: `${fadeUp} 0.45s ease-out both`,
+        animationDelay: `${delay}s`,
+      }}
+    >
+      <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
+        <Avatar
+          sx={{
+            width: 42,
+            height: 42,
+            borderRadius: "10px",
+            bgcolor: solidBg,
+            boxShadow: `0 4px 14px ${solidBg}55`,
+            mb: 2,
+          }}
+        >
+          <Icon size={20} color="#fff" />
+        </Avatar>
+        <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
+          {value}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {label}
+        </Typography>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -110,8 +171,9 @@ export default function OverviewPage() {
   const net = (n: number) => (n >= 0 ? "success.main" : "error.main");
   const f = data?.finance;
   const p = data?.property;
+  const m = data?.money;
 
-  const kpis = data
+  const kpis: Kpi[] = data
     ? [
         {
           label: `Business net · ${data.monthLabel}`,
@@ -120,6 +182,7 @@ export default function OverviewPage() {
           solidBg: "#7367f0",
           borderColor: "rgba(115,103,240,0.35)",
           cardBg: "rgba(115,103,240,0.08)",
+          href: "/admin/reports/financial",
         },
         {
           label: `Property net · ${data.monthLabel}`,
@@ -128,6 +191,7 @@ export default function OverviewPage() {
           solidBg: "#28c76f",
           borderColor: "rgba(40,199,111,0.35)",
           cardBg: "rgba(40,199,111,0.08)",
+          href: "/admin/property/dashboard",
         },
         {
           label: `Subscriptions · ${f!.subscriptionCount} active`,
@@ -136,20 +200,65 @@ export default function OverviewPage() {
           solidBg: "#ff9f43",
           borderColor: "rgba(255,159,67,0.35)",
           cardBg: "rgba(255,159,67,0.08)",
+          href: "/admin/finance/subscriptions",
         },
         {
-          label: `Rent due · ${p!.overdueCount} overdue`,
+          label:
+            p!.overdueCount > 0
+              ? `Rent due · ${p!.overdueCount} this month`
+              : `Rent due · ${data.monthLabel}`,
           value: fmt(p!.totalDue),
           icon: AlertTriangle,
           solidBg: "#ea5455",
           borderColor: "rgba(234,84,85,0.35)",
           cardBg: "rgba(234,84,85,0.08)",
+          href: "/admin/property/dashboard",
+        },
+        {
+          label: "Cash position",
+          value: fmt(m!.cashPosition),
+          icon: Landmark,
+          solidBg: "#00cfe8",
+          borderColor: "rgba(0,207,232,0.35)",
+          cardBg: "rgba(0,207,232,0.08)",
+          href: "/admin/money/accounts",
+        },
+        {
+          label: "Credit-card debt",
+          value: fmt(m!.cardDebt),
+          icon: CreditCard,
+          solidBg: m!.cardDebt > 0 ? "#ea5455" : "#28c76f",
+          borderColor: m!.cardDebt > 0 ? "rgba(234,84,85,0.35)" : "rgba(40,199,111,0.35)",
+          cardBg: m!.cardDebt > 0 ? "rgba(234,84,85,0.08)" : "rgba(40,199,111,0.08)",
+          href: "/admin/money/accounts",
+        },
+        {
+          label: `Personal savings · ${data.monthLabel}`,
+          value: fmt(m!.savings),
+          icon: PiggyBank,
+          solidBg: "#7367f0",
+          borderColor: "rgba(115,103,240,0.35)",
+          cardBg: "rgba(115,103,240,0.08)",
+          href: "/admin/money",
+        },
+        {
+          label: m!.topCategory ? `Top spend · ${m!.topCategory.name}` : "Top spend category",
+          value: m!.topCategory ? fmt(m!.topCategory.total) : "—",
+          icon: ShoppingBag,
+          solidBg: "#ff9f43",
+          borderColor: "rgba(255,159,67,0.35)",
+          cardBg: "rgba(255,159,67,0.08)",
+          href: m!.topCategory
+            ? `/admin/money/entries?type=DEBIT&period=this_month&category=${m!.topCategory.id}`
+            : "/admin/money/entries?type=DEBIT&period=this_month",
         },
       ]
     : [];
 
   const collectionPct =
     p && p.expected > 0 ? Math.min(100, Math.round((p.collected / p.expected) * 100)) : 0;
+
+  const savingsPct = m && m.income > 0 ? Math.min(100, Math.round(m.savingsRate * 100)) : 0;
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -165,58 +274,26 @@ export default function OverviewPage() {
         </Card>
       ) : (
         <>
-          {/* ── KPI row ── */}
+          {/* ── KPI grid (8 cards, deep-linked) ── */}
           <Box
             sx={{
               display: "grid",
               gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(4, 1fr)" },
               gap: 2.5,
-              ...animated(0.05),
             }}
           >
-            {kpis.map(({ label, value, icon: Icon, solidBg, borderColor, cardBg }, i) => (
-              <Card
-                key={label}
-                sx={{
-                  bgcolor: cardBg,
-                  border: "1px solid",
-                  borderColor,
-                  boxShadow: "none",
-                  animation: `${fadeUp} 0.45s ease-out both`,
-                  animationDelay: `${0.05 + i * 0.07}s`,
-                }}
-              >
-                <CardContent sx={{ p: 2.5, "&:last-child": { pb: 2.5 } }}>
-                  <Avatar
-                    sx={{
-                      width: 42,
-                      height: 42,
-                      borderRadius: "10px",
-                      bgcolor: solidBg,
-                      boxShadow: `0 4px 14px ${solidBg}55`,
-                      mb: 2,
-                    }}
-                  >
-                    <Icon size={20} color="#fff" />
-                  </Avatar>
-                  <Typography variant="h5" sx={{ fontWeight: 700, mb: 0.5 }}>
-                    {value}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {label}
-                  </Typography>
-                </CardContent>
-              </Card>
+            {kpis.map((kpi, i) => (
+              <KpiCard key={kpi.label} kpi={kpi} delay={0.05 + i * 0.04} />
             ))}
           </Box>
 
-          {/* ── Financial + Property quick views ── */}
+          {/* ── Financial + Property detail ── */}
           <Box
             sx={{
               display: "grid",
               gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
               gap: 2.5,
-              ...animated(0.2),
+              ...animated(0.35),
             }}
           >
             {/* Financial Tracker */}
@@ -306,7 +383,7 @@ export default function OverviewPage() {
 
                 <Divider sx={{ mb: 1 }} />
                 <Typography variant="overline" color="text.secondary">
-                  Top dues
+                  Dues this month
                 </Typography>
                 {p!.topDue.length === 0 ? (
                   <Typography variant="body2" color="success.main" sx={{ mt: 0.5 }}>
@@ -325,11 +402,6 @@ export default function OverviewPage() {
                             <Typography variant="body2" sx={{ fontWeight: 500 }}>
                               {d.tenantName}
                               {d.unitNumber ? ` · ${d.unitNumber}` : ""}
-                            </Typography>
-                          }
-                          secondary={
-                            <Typography variant="caption" color="text.secondary">
-                              {d.monthsUnpaid} mo unpaid
                             </Typography>
                           }
                         />
@@ -353,13 +425,105 @@ export default function OverviewPage() {
             </Card>
           </Box>
 
-          {/* ── AI spend ── */}
-          <Box sx={animated(0.35)}>
+          {/* ── Money Manager + AI usage (half-half) ── */}
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+              gap: 2.5,
+              ...animated(0.45),
+            }}
+          >
+            {/* Money Manager */}
+            <Card>
+              <CardContent sx={{ p: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+                  <Wallet size={16} style={{ color: "#28c76f" }} />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    Money Manager · {data.monthLabel}
+                  </Typography>
+                  <Chip
+                    component={Link}
+                    href="/admin/money"
+                    clickable
+                    label="Open"
+                    size="small"
+                    variant="outlined"
+                    sx={{ ml: "auto", height: 22, fontSize: "0.68rem" }}
+                  />
+                </Box>
+
+                <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Savings rate
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                    {savingsPct}%
+                  </Typography>
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={savingsPct}
+                  color={savingsPct >= 0 ? "success" : "error"}
+                  sx={{ mb: 1.5 }}
+                />
+
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75, mb: 2 }}>
+                  <Metric label="Income" value={fmt(m!.income)} color="success.main" />
+                  <Metric label="Expense" value={fmt(m!.expense)} color="error.main" />
+                  <Divider sx={{ my: 0.5 }} />
+                  <Metric label="Savings" value={fmt(m!.savings)} color={net(m!.savings)} />
+                </Box>
+
+                <Divider sx={{ mb: 1.25 }} />
+
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.75 }}>
+                  <Box
+                    sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                      <HandCoins size={14} style={{ color: "#8692a8" }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Owed to me
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 700, color: "success.main" }}>
+                        {fmt(m!.owedToMe)}
+                      </Typography>
+                      <Chip
+                        component={Link}
+                        href="/admin/money/people"
+                        clickable
+                        label="View"
+                        size="small"
+                        variant="outlined"
+                        sx={{ height: 20, fontSize: "0.62rem" }}
+                      />
+                    </Box>
+                  </Box>
+                  <Box
+                    sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
+                  >
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                      <HandCoins size={14} style={{ color: "#8692a8" }} />
+                      <Typography variant="body2" color="text.secondary">
+                        Owed by me
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" sx={{ fontWeight: 700, color: "error.main" }}>
+                      {fmt(m!.owedByMe)}
+                    </Typography>
+                  </Box>
+                </Box>
+              </CardContent>
+            </Card>
+
             <AiSpendPanel />
           </Box>
 
           {/* ── Quick access ── */}
-          <Card sx={animated(0.45)}>
+          <Card sx={animated(0.55)}>
             <CardContent sx={{ p: 3, "&:last-child": { pb: 2 } }}>
               <Typography
                 variant="overline"

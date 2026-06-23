@@ -107,6 +107,32 @@ export async function getDashboardStats(month: number, year: number) {
     .sort((a, b) => b.totalDue - a.totalDue)
     .slice(0, 10);
 
+  // Current-month-only dues (matches the "Rent collected this month" stat
+  // shown alongside on the admin overview, which is scoped to {month, year}).
+  const currentMonthDuePayments = await db.payment.findMany({
+    where: { month, year, status: { in: ["PENDING", "OVERDUE", "PARTIAL"] } },
+    include: {
+      tenant: { select: { id: true, tenantCode: true, name: true } },
+      unit: { select: { unitNumber: true } },
+    },
+  });
+  const currentMonthTopDue = currentMonthDuePayments
+    .map((p) => {
+      const balance = toNum(p.rentDue) - toNum(p.amountPaid) - toNum(p.advanceApplied);
+      return {
+        tenantId: p.tenantId,
+        tenantCode: p.tenant.tenantCode,
+        tenantName: p.tenant.name,
+        unitNumber: p.unit?.unitNumber ?? null,
+        totalDue: balance,
+        monthsUnpaid: 1,
+        lastPaidDate: null as string | null,
+        alert: (p.status === "OVERDUE" ? "OVERDUE" : "PENDING") as "OVERDUE" | "PENDING",
+      };
+    })
+    .filter((d) => d.totalDue > 0)
+    .sort((a, b) => b.totalDue - a.totalDue);
+
   // Yearly trend data
   const [yearPayments, yearExpenses] = await Promise.all([
     db.payment.findMany({
@@ -149,6 +175,7 @@ export async function getDashboardStats(month: number, year: number) {
     overdueCount,
     yearlyData,
     topDue,
+    currentMonthTopDue,
     pendingRentChanges: pendingRentChanges.map((rc) => ({
       id: rc.id,
       tenantId: rc.tenantId,

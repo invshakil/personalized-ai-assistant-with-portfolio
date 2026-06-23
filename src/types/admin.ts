@@ -42,6 +42,17 @@ export interface AdminOverview {
       alert: "OVERDUE" | "PENDING";
     }[];
   };
+  money: {
+    income: number; // this month, ledger CREDIT into INCOME categories
+    expense: number; // this month, ledger DEBIT from EXPENSE categories
+    savings: number; // income - expense
+    savingsRate: number; // 0..1
+    cashPosition: number; // sum of non-CC account balances
+    cardDebt: number; // |sum of CC account negative balances|
+    owedByMe: number; // money you owe people
+    owedToMe: number; // money people owe you
+    topCategory: { id: string; name: string; total: number } | null;
+  };
 }
 
 // ── Database backups ──
