@@ -13,9 +13,11 @@ import {
   ListItemText,
   Typography,
   Divider,
-  Avatar,
   Drawer,
 } from "@mui/material";
+import Logo from "@/components/shared/Logo";
+
+const PORTFOLIO_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://sshakil.com";
 import {
   LayoutDashboard,
   Building2,
@@ -104,6 +106,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
           { href: "/admin/money/entries", label: "Ledger", icon: ListChecks },
           { href: "/admin/money/people", label: "People & Loans", icon: HandCoins },
           { href: "/admin/money/accounts", label: "Accounts", icon: Landmark },
+          { href: "/admin/money/categories", label: "Categories", icon: Tag },
           { href: "/admin/money/import", label: "Import CSV", icon: Upload },
         ],
       },
@@ -173,27 +176,36 @@ function SidebarContents({ onClose }: { onClose?: () => void }) {
         bgcolor: "background.paper",
       }}
     >
-      {/* Brand */}
+      {/* Brand — opens public portfolio in a new tab */}
       <Box sx={{ px: 3, py: 2.5 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <Avatar
-            sx={{
-              bgcolor: "primary.main",
-              width: 36,
-              height: 36,
-              fontSize: "0.8125rem",
-              fontWeight: 700,
-              borderRadius: "8px",
-            }}
-          >
-            SS
-          </Avatar>
+        <Box
+          component="a"
+          href={PORTFOLIO_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Open sshakil.com portfolio in a new tab"
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+            textDecoration: "none",
+            color: "inherit",
+            borderRadius: 1,
+            "&:hover .brand-subtitle": { color: "primary.main" },
+          }}
+        >
+          <Logo size={36} />
           <Box>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.3 }}>
               sshakil
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
-              Admin Panel
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              className="brand-subtitle"
+              sx={{ lineHeight: 1, transition: "color 0.15s" }}
+            >
+              sshakil.com ↗
             </Typography>
           </Box>
         </Box>
