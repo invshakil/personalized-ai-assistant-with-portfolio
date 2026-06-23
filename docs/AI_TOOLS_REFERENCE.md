@@ -426,7 +426,7 @@ grows).
 | Tier                | Largest scope       | Strategy                                                                                                                                                    | Status     |
 | ------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
 | **1. Feed-all**     | up to ~50 tools     | Send the whole catalog every turn (cached). Simplest; no false-negative risk — the model can always see every tool.                                         | superseded |
-| **2. Manual scope** | ~50–`migrate` (120) | `/property` / `/finance` load that module + shared tools only. Smaller payload, better accuracy, cache-friendly per scope. **← current**                    | **active** |
+| **2. Manual scope** | ~50–`migrate` (120) | `/property` / `/finance` / `/money` load that module + shared tools only. Smaller payload, better accuracy, cache-friendly per scope. **← current**         | **active** |
 | **3. Retrieval**    | hundreds–thousands  | A `search_tools` index (semantic / keyword) injects only the top-K relevant tool schemas per query. Required once a single module alone is too big to send. | future     |
 
 **Why per-scope count, not total:** the model only ever sees one scope's worth of tools at a time, so
@@ -440,7 +440,7 @@ ten 50-tool modules is fine under manual scoping; a single 500-tool module is no
 - `getToolsForScope(scope)` (`tools.ts`) returns `domain === scope || domain === "shared"`; `"all"`
   returns the full catalog. **Shared (cross-domain) tools load in every scope** so questions like
   "how am I doing overall" still work.
-- The chat UI parses a leading `/property` or `/finance` from the message, sends `scope` to the chat
+- The chat UI parses a leading `/property`, `/finance`, or `/money` from the message, sends `scope` to the chat
   route, and strips the command so the model only sees intent. Unknown/absent scope → `"all"` (never
   loses capability).
 - Each scope is a **stable prefix**, so the 1h tool prompt-cache stores one entry per scope and reuses

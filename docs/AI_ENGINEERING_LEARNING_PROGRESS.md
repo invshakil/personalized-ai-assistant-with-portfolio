@@ -166,7 +166,7 @@ backend builds the `tools` list per query.** Four ways to build it:
 
 **In my code:** `domain` tag on `AiToolDef`; `getToolsForScope()` in `tools.ts`;
 `TOOL_SCOPE_LIMITS {warn:80, migrate:120}` with a `console.warn` at build/start when the largest scope
-outgrows manual scoping; `/property|/finance` parsing in `AiAssistantPage.tsx`. Full write-up in
+outgrows manual scoping; `/property|/finance|/money` parsing in `AiAssistantPage.tsx`. Full write-up in
 `AI_TOOLS_REFERENCE.md` §8.
 
 **Why manual scope now (when caching already cut cost):** scoping is **both-and** — ~43% less tool cost

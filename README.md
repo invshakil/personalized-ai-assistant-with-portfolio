@@ -14,7 +14,7 @@ The public side is a marketing/portfolio page. The private side is a full operat
 
 ## Highlights
 
-- **AI assistant with tool use** — chat over your real data. The model calls read tools to answer questions and proposes write actions (create/update) that you approve with a button before anything is saved. Vendor-neutral provider seam (Claude today; OpenAI/Gemini are drop-in adapter slots), encrypted API keys, prompt caching, and `/property` · `/finance` slash commands to scope the toolset.
+- **AI assistant with tool use** — chat over your real data. The model calls read tools to answer questions and proposes write actions (create/update) that you approve with a button before anything is saved. Vendor-neutral provider seam (Claude today; OpenAI/Gemini are drop-in adapter slots), encrypted API keys, prompt caching, and `/property` · `/finance` · `/money` slash commands to scope the toolset.
 - **Financial tracker** — client income, employee salaries, business expenses, and recurring subscriptions, with fiscal-year (Jul→June) reporting in BDT (৳).
 - **Property management** — rental units, tenants, monthly rent rows, payments, property expenses, add-on services, scheduled rent changes, and PDF rent receipts.
 - **Reports & dashboard** — month/fiscal-year overviews with charts.
@@ -117,7 +117,7 @@ docs/                         Architecture & deep-dive docs (see below)
 
 The standout feature. How it works end to end:
 
-1. You chat in `/admin/ai-assistant`. Optionally prefix with `/property` or `/finance` to load only that module's tools (cheaper, more focused).
+1. You chat in `/admin/ai-assistant`. Optionally prefix with `/property`, `/finance`, or `/money` to load only that module's tools (cheaper, more focused).
 2. The model answers questions by calling **read tools** (live data, no side effects).
 3. To change data it calls a **write tool** — which only _proposes_ the action and renders an **approval card**. Nothing is written while the model is in the loop.
 4. You click **Approve**; a separate endpoint commits it through the same service layer the dashboard uses. (Deletes are intentionally not exposed to the AI.)

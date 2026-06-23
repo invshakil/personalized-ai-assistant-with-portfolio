@@ -66,9 +66,9 @@ const SIDEBAR_MIN = 200;
 const SIDEBAR_MAX = 480;
 const SIDEBAR_DEFAULT = 240;
 
-// A leading `/property` or `/finance` scopes the assistant to that module's
-// tools for the turn. We parse it client-side, send the scope to the backend,
-// and strip the command so the model never sees it.
+// A leading `/property`, `/finance`, or `/money` scopes the assistant to that
+// module's tools for the turn. We parse it client-side, send the scope to the
+// backend, and strip the command so the model never sees it.
 const SCOPE_RE = /^\/(property|finance|money)\b\s*/i;
 
 function parseScope(text: string): "property" | "finance" | "money" | "all" {
@@ -351,7 +351,7 @@ export default function AiAssistantPage() {
         headers: { "Content-Type": "application/json" },
         signal: abortRef.current.signal,
         // System lines are client-only approval receipts — never sent to the model.
-        // Scope is taken from the latest user message; the `/property|/finance`
+        // Scope is taken from the latest user message; the `/property|/finance|/money`
         // command is stripped from every user turn so the model only sees intent.
         body: JSON.stringify({
           sessionId: sid,
@@ -576,7 +576,7 @@ export default function AiAssistantPage() {
     >
       <PageHeader
         title="AI Assistant"
-        subtitle="Ask about your finances, property, or anything else."
+        subtitle="Ask about your finances, property, money manager, or anything else."
       />
 
       {blocked && (
@@ -709,8 +709,8 @@ export default function AiAssistantPage() {
                   Ask me anything — about your properties, finances, or anything else.
                 </Typography>
                 <Typography variant="caption" color="text.disabled" sx={{ mb: 0.25 }}>
-                  Start with <strong>/property</strong> or <strong>/finance</strong> to focus the
-                  assistant on one module.
+                  Start with <strong>/property</strong>, <strong>/finance</strong>, or{" "}
+                  <strong>/money</strong> to focus the assistant on one module.
                 </Typography>
                 <Typography variant="caption" color="text.disabled">
                   Shift+Enter for new line · Enter to send · ⌘K for new chat
