@@ -13,7 +13,9 @@
     "seed": "npx prisma db seed",
     "seed:financial": "tsx prisma/seed-financial.ts",
     "seed:money": "tsx prisma/seed-money.ts",
+    "seed:solar": "tsx prisma/seed-solar.ts",
     "db:restore": "tsx scripts/db-restore.ts",
+    "solis:test": "tsx scripts/solis-test.ts",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "test:money": "node --import tsx --test src/services/money/__tests__/money.scenarios.test.ts",
     "test:booking": "node --import tsx --test src/services/booking/__tests__/booking.test.ts"
