@@ -860,3 +860,90 @@ model Booking {
   @@index([status, startsAt])
   @@index([ip, createdAt])
 }
+
+// ─── Solar Monitoring (SolisCloud) ──────────────────────────────────────────
+// Read-only solar telemetry pulled from SolisCloud on a schedule into
+// SolisDailyReading. We NEVER write to / control the inverter via the API —
+// only read endpoints are implemented. Electricity cost is computed from
+// effective-dated BPDB slab tariffs (ElectricityTariff + TariffSlab). API
+// credentials live in env (SOLIS_KEY_ID / SOLIS_KEY_SECRET / SOLIS_API_URL),
+// never in the DB.
+
+// System configuration singleton. Holds non-secret config: capacity, battery
+// size, install cost (for the payback tracker), location (for weather), and the
+// last-sync status. stationId is auto-discovered from the API on first sync.
+model SolarSettings {
+  id                String    @id @default("singleton")
+  systemSizeKwp     Decimal?  @db.Decimal(8, 2) // array DC capacity; auto-filled from API if null
+  batteryKwh        Decimal?  @db.Decimal(8, 2) // storage capacity (e.g. 16)
+  installCost       Decimal   @default(0) @db.Decimal(12, 2) // BDT — total system cost (e.g. 580000)
+  installDate       DateTime? // commissioning date; backfill + payback start here
+  currency          String    @default("BDT")
+  co2FactorKgPerKwh Decimal    @default(0.6495) @db.Decimal(8, 4) // grid emission factor (kg CO2 / kWh)
+  latitude          Float? // plant location — used for the weather forecast
+  longitude         Float?
+  stationId         String? // SolisCloud plant id (auto-discovered on first sync)
+  lastSyncAt        DateTime?
+  lastSyncStatus    String? // "ok" | "error"
+  lastSyncError     String?   @db.Text
+  updatedAt         DateTime  @updatedAt
+}
+
+// Effective-dated electricity tariff version (mirrors the SubscriptionRateChange
+// pattern). The tariff in force for a given month is the one with the latest
+// effectiveFrom <= that month. Each version owns its slab table, demand charge,
+// and VAT — so a government revision is just a new row + slabs.
+model ElectricityTariff {
+  id                String       @id @default(cuid())
+  name              String // e.g. "BPDB Residential — pre-June 2026"
+  distributor       String       @default("BPDB")
+  effectiveFrom     DateTime // normalized to the 1st of the month it takes effect
+  demandChargePerKw Decimal      @default(0) @db.Decimal(10, 2) // BDT per sanctioned kW
+  vatPercent        Decimal      @default(5) @db.Decimal(5, 2) // % applied to (energy + demand)
+  note              String?
+  slabs             TariffSlab[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([effectiveFrom])
+}
+
+// One consumption band of a tariff. Slabs are cumulative over the billing month:
+// the month's total units fall through fromUnit..toUnit. The top slab has a null
+// toUnit (unbounded). rate is BDT per kWh.
+model TariffSlab {
+  id        String            @id @default(cuid())
+  tariff    ElectricityTariff @relation(fields: [tariffId], references: [id], onDelete: Cascade)
+  tariffId  String
+  fromUnit  Int // inclusive lower bound in kWh (e.g. 0, 51, 76)
+  toUnit    Int? // inclusive upper bound; null = unbounded top slab
+  rate      Decimal           @db.Decimal(10, 4) // BDT per kWh
+  createdAt DateTime          @default(now())
+
+  @@index([tariffId])
+}
+
+// One row per day per inverter — the local snapshot of SolisCloud daily energy
+// flows. Reports aggregate over these, so they're instant and survive API
+// downtime / rate limits. `raw` keeps the original payload for audit/repair.
+model SolisDailyReading {
+  id                  String   @id @default(cuid())
+  date                DateTime // midnight local of the reading day
+  inverterSn          String // inverter serial number
+  generationKwh       Decimal  @default(0) @db.Decimal(10, 3) // PV produced
+  gridImportKwh       Decimal  @default(0) @db.Decimal(10, 3) // bought from grid
+  gridExportKwh       Decimal  @default(0) @db.Decimal(10, 3) // sold to grid (~0 today)
+  batteryChargeKwh    Decimal  @default(0) @db.Decimal(10, 3)
+  batteryDischargeKwh Decimal  @default(0) @db.Decimal(10, 3)
+  consumptionKwh      Decimal  @default(0) @db.Decimal(10, 3) // household load
+  peakPowerKw         Decimal  @default(0) @db.Decimal(10, 3) // highest instantaneous AC power
+  batterySocMin       Decimal? @db.Decimal(5, 2) // % at day's lowest
+  batterySocMax       Decimal? @db.Decimal(5, 2) // % at day's highest
+  inverterTempC       Decimal? @db.Decimal(6, 2)
+  raw                 Json? // original API payload (audit / re-derivation)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([inverterSn, date])
+  @@index([date])
+}
