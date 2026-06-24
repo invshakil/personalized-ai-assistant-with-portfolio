@@ -234,20 +234,39 @@ function pgDump(filePath: string): Promise<void> {
 /** Create a backup: pg_dump → local file → (optional) Drive upload → prune. */
 export async function runBackup(
   trigger: "manual" | "scheduled" = "manual"
-): Promise<{ ok: boolean; record?: AdminBackupRecord; error?: string }> {
+): Promise<{ ok: boolean; record?: AdminBackupRecord; error?: string; warning?: string }> {
   const dir = backupDir();
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `backup-${stamp}.dump`;
   const filePath = path.join(dir, filename);
 
+  // 1) Local dump — this IS the backup. Only a pg_dump failure is fatal; if it
+  //    fails there's nothing worth keeping, so clean up and record the error.
+  let size = 0;
   try {
     await fs.mkdir(dir, { recursive: true });
     await pgDump(filePath);
-    const { size } = await fs.stat(filePath);
+    ({ size } = await fs.stat(filePath));
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Backup failed";
+    await fs.rm(filePath, { force: true }).catch(() => {});
+    await db.backupRecord.create({
+      data: { filename, sizeBytes: 0, location: "local", trigger, status: "error", error: message },
+    });
+    await db.backupSettings.update({
+      where: { id: "singleton" },
+      data: { lastRunAt: new Date(), lastStatus: "error", lastError: message },
+    });
+    return { ok: false, error: message };
+  }
 
-    let location: AdminBackupRecord["location"] = "local";
-    let driveFileId: string | null = null;
-
+  // 2) Drive upload — best-effort. A failure here (e.g. an expired/revoked
+  //    refresh token) must NOT discard the local dump: it stays on disk and
+  //    downloadable. We just note the reason on the record.
+  let location: AdminBackupRecord["location"] = "local";
+  let driveFileId: string | null = null;
+  let driveError: string | null = null;
+  try {
     const row = await getSettingsRow();
     if (row.driveConnected && isDriveConfigured()) {
       const refresh = readRefreshToken(row);
@@ -265,30 +284,30 @@ export async function runBackup(
         location = "local+drive";
       }
     }
-
-    const rec = await db.backupRecord.create({
-      data: { filename, sizeBytes: size, location, driveFileId, trigger, status: "ok" },
-    });
-    await db.backupSettings.update({
-      where: { id: "singleton" },
-      data: { lastRunAt: new Date(), lastStatus: "ok", lastError: null },
-    });
-
-    await pruneBackups();
-    return { ok: true, record: toRecord(rec) };
   } catch (e) {
-    const message = e instanceof Error ? e.message : "Backup failed";
-    // Clean up a partial dump file if pg_dump failed mid-write.
-    await fs.rm(filePath, { force: true }).catch(() => {});
-    await db.backupRecord.create({
-      data: { filename, sizeBytes: 0, location: "local", trigger, status: "error", error: message },
-    });
-    await db.backupSettings.update({
-      where: { id: "singleton" },
-      data: { lastRunAt: new Date(), lastStatus: "error", lastError: message },
-    });
-    return { ok: false, error: message };
+    driveError = `Google Drive upload failed: ${e instanceof Error ? e.message : "unknown error"}`;
   }
+
+  // 3) The local backup succeeded — record it as OK (downloadable), carrying any
+  //    Drive warning so the UI can flag that the offsite copy didn't happen.
+  const rec = await db.backupRecord.create({
+    data: {
+      filename,
+      sizeBytes: size,
+      location,
+      driveFileId,
+      trigger,
+      status: "ok",
+      error: driveError,
+    },
+  });
+  await db.backupSettings.update({
+    where: { id: "singleton" },
+    data: { lastRunAt: new Date(), lastStatus: "ok", lastError: driveError },
+  });
+
+  await pruneBackups();
+  return { ok: true, record: toRecord(rec), ...(driveError ? { warning: driveError } : {}) };
 }
 
 /** Keep the newest `retentionCount` successful backups; delete older files + rows. */

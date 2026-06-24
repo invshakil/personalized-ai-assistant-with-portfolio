@@ -37,6 +37,7 @@ import {
   Check,
   RotateCcw,
   Copy,
+  TriangleAlert,
 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
@@ -58,6 +59,7 @@ export default function BackupSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
+  const [warning, setWarning] = useState("");
   const [flash, setFlash] = useState<string>("");
   const [retention, setRetention] = useState("7");
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
@@ -136,10 +138,14 @@ export default function BackupSettingsPage() {
   const backupNow = async () => {
     setRunning(true);
     setError("");
+    setWarning("");
     setFlash("");
     try {
-      await adminApi.runBackupNow();
-      setFlash("Backup created.");
+      const rec = await adminApi.runBackupNow();
+      // A local backup was created. rec.error is set only when the offsite
+      // Drive upload failed — the local copy is still saved and downloadable.
+      if (rec?.error) setWarning(`Backup saved locally and is downloadable, but ${rec.error}`);
+      else setFlash("Backup created.");
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Backup failed");
@@ -195,6 +201,11 @@ export default function BackupSettingsPage() {
           onClose={() => setFlash("")}
         >
           {flash}
+        </Alert>
+      )}
+      {warning && (
+        <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setWarning("")}>
+          {warning}
         </Alert>
       )}
       {error && (
@@ -409,7 +420,18 @@ export default function BackupSettingsPage() {
                         </Box>
                       </TableCell>
                       <TableCell data-label="Status">
-                        {r.status === "ok" ? (
+                        {r.status === "ok" && r.error ? (
+                          <Tooltip title={r.error}>
+                            <Chip
+                              icon={<TriangleAlert size={13} />}
+                              label="Local only"
+                              size="small"
+                              color="warning"
+                              variant="outlined"
+                              sx={{ height: 20 }}
+                            />
+                          </Tooltip>
+                        ) : r.status === "ok" ? (
                           <Chip
                             label="OK"
                             size="small"
