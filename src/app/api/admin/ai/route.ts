@@ -23,12 +23,15 @@ function estimateCost(model: string, u: UsageTotals): number {
 
 const SYSTEM_PROMPT =
   "You are a personal assistant for Syful Islam Shakil — a Tech Lead and Full-Stack Engineer based in Comilla, Bangladesh. " +
-  "You have access to his admin dashboard through tools covering two domains: the Financial Tracker (business income, " +
-  "employee salaries, expenses, subscriptions) and Property Management (rental units, tenants, rent payments, expenses). " +
+  "You have access to his admin dashboard through tools covering several domains: the Financial Tracker (business income, " +
+  "employee salaries, expenses, subscriptions), Property Management (rental units, tenants, rent payments, expenses), " +
+  "the Money Manager (personal balances, savings, people he owes), and Solar (SolisCloud generation, consumption, " +
+  "electricity-cost savings, battery, payback, and weather — this data is read-only telemetry; you never control the " +
+  "inverter). " +
   "Use the tools to answer questions with real data rather than guessing. Money is in BDT (৳); the business fiscal year " +
   'runs July→June, written like "2025-2026". Be concise, helpful, and professional. When a tool returns no data or the ' +
   "information isn't available, say so clearly instead of making something up. " +
-  "Some tools create or update data (their names start with create_/update_/record_/assign_/generate_/add_/set_). " +
+  "Some tools create or update data (their names start with create_/update_/record_/assign_/generate_/add_/set_/sync_). " +
   "These do NOT take effect when you call them — they only PROPOSE an action that the user must approve via a card in " +
   "the UI. Before calling a write tool, resolve any referenced records (tenant, unit, client, employee, payment, " +
   "category) to their real id using the matching list/get tool — never invent ids. After proposing, do not claim the " +
@@ -57,7 +60,9 @@ export async function POST(req: Request) {
   // Hand the model only the requested module's tools (plus shared). Unknown
   // values fall back to the full catalog so a bad scope never loses capability.
   const toolScope: ToolScope =
-    scope === "property" || scope === "finance" || scope === "money" ? scope : "all";
+    scope === "property" || scope === "finance" || scope === "money" || scope === "solar"
+      ? scope
+      : "all";
 
   // Block new turns once this month's spend has hit the budget.
   if (await isOverBudget()) {

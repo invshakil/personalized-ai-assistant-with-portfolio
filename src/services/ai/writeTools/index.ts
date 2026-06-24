@@ -10,6 +10,7 @@ import type { Raw, WriteToolDef } from "./shared";
 import { propertyTools } from "./property";
 import { financeTools } from "./finance";
 import { moneyTools } from "./money";
+import { solarTools } from "./solar";
 
 export type { WriteToolDef } from "./shared";
 
@@ -17,6 +18,7 @@ export const WRITE_TOOLS: WriteToolDef[] = [
   ...propertyTools.map((t): WriteToolDef => ({ ...t, domain: "property" })),
   ...financeTools.map((t): WriteToolDef => ({ ...t, domain: "finance" })),
   ...moneyTools.map((t): WriteToolDef => ({ ...t, domain: "money" })),
+  ...solarTools.map((t): WriteToolDef => ({ ...t, domain: "solar" })),
 ];
 
 const byName = new Map(WRITE_TOOLS.map((t) => [t.name, t]));

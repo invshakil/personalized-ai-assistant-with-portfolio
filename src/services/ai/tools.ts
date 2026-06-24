@@ -47,6 +47,12 @@ import {
   getCategories as getMoneyCategories,
   listAccountsWithBalances,
 } from "@/services/money";
+import {
+  getSolarOverview,
+  getSolarReport,
+  getSolarWeather,
+  listTariffs as listElectricityTariffs,
+} from "@/services/solar";
 import { PERIOD_TOKENS } from "@/services/_shared/dateRange";
 import { PaymentKind, ExpenseCategory } from "@prisma/client";
 import { writeToolDefs, isWriteTool, previewWrite } from "./writeTools";
@@ -419,6 +425,52 @@ const moneyReadTools: AiToolDef[] = [
   },
 ];
 
+const solarReadTools: AiToolDef[] = [
+  // ── Solar (SolisCloud, read-only telemetry) ──
+  {
+    name: "get_solar_overview",
+    description:
+      "Solar snapshot: this month's generation, consumption, savings and self-sufficiency; lifetime " +
+      "generation, savings and CO2 avoided; latest battery state-of-charge; and the payback tracker " +
+      "(percent of install cost recovered + projected break-even). Use for 'how is my solar doing'.",
+    parameters: obj({}),
+  },
+  {
+    name: "get_solar_report",
+    description:
+      "Month-by-month solar report over a date range (from/to, ISO yyyy-mm-dd; omit for all months): " +
+      "generation, consumption with its source split (solar-direct / battery / grid), grid import/export, " +
+      "battery charge/discharge, what electricity would have cost vs what was actually spent (BPDB slab " +
+      "tariff), monthly savings, self-sufficiency %, and CO2 avoided. Includes the payback tracker.",
+    parameters: obj({
+      from: { type: "string", description: "Start date ISO yyyy-mm-dd (optional)" },
+      to: { type: "string", description: "End date ISO yyyy-mm-dd (optional)" },
+    }),
+  },
+  {
+    name: "get_solar_payback",
+    description:
+      "Solar payback / ROI tracker: total install cost, cumulative savings to date, percent recovered, " +
+      "amount remaining, average monthly savings, and the projected break-even date. Answers 'how much " +
+      "of my solar investment have I recovered and when do I break even'.",
+    parameters: obj({}),
+  },
+  {
+    name: "get_solar_weather",
+    description:
+      "7-day weather forecast for the plant location (temperature, cloud cover, rain probability, solar " +
+      "irradiance) with an estimated generation per day. Use for 'what will my solar output be this week'.",
+    parameters: obj({}),
+  },
+  {
+    name: "list_electricity_tariffs",
+    description:
+      "List the configured electricity tariff versions (effective date, distributor, VAT, demand charge, " +
+      "and the slab bands with their BDT/kWh rates). Use to check or compare current vs previous rates.",
+    parameters: obj({}),
+  },
+];
+
 const sharedReadTools: AiToolDef[] = [
   // ── Cross-domain ──
   {
@@ -434,6 +486,7 @@ const READ_TOOLS: AiToolDef[] = [
   ...financeReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "finance" })),
   ...propertyReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "property" })),
   ...moneyReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "money" })),
+  ...solarReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "solar" })),
   ...sharedReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "shared" })),
 ];
 
@@ -474,8 +527,9 @@ export const TOOL_SCOPE_LIMITS = {
     property: getToolsForScope("property").length,
     finance: getToolsForScope("finance").length,
     money: getToolsForScope("money").length,
+    solar: getToolsForScope("solar").length,
   };
-  const biggest = Math.max(sizes.property, sizes.finance, sizes.money);
+  const biggest = Math.max(sizes.property, sizes.finance, sizes.money, sizes.solar);
   const detail = `Largest scope=${biggest} tools ${JSON.stringify(sizes)}. See AI_TOOLS_REFERENCE §"Tool selection strategy".`;
   if (biggest > TOOL_SCOPE_LIMITS.migrate) {
     console.warn(
@@ -622,6 +676,12 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
       limit: num(i.limit),
     });
   },
+  // Solar (read-only telemetry)
+  get_solar_overview: () => getSolarOverview(),
+  get_solar_report: (i) => getSolarReport({ from: str(i.from), to: str(i.to) }),
+  get_solar_payback: async () => (await getSolarReport()).payback,
+  get_solar_weather: () => getSolarWeather(),
+  list_electricity_tariffs: () => listElectricityTariffs(),
   // Cross-domain
   get_combined_income_summary: async (i) => {
     const [fin, prop] = await Promise.all([

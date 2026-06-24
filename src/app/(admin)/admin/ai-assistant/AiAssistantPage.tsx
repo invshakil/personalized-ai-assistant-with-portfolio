@@ -66,14 +66,14 @@ const SIDEBAR_MIN = 200;
 const SIDEBAR_MAX = 480;
 const SIDEBAR_DEFAULT = 240;
 
-// A leading `/property`, `/finance`, or `/money` scopes the assistant to that
-// module's tools for the turn. We parse it client-side, send the scope to the
-// backend, and strip the command so the model never sees it.
-const SCOPE_RE = /^\/(property|finance|money)\b\s*/i;
+// A leading `/property`, `/finance`, `/money`, or `/solar` scopes the assistant
+// to that module's tools for the turn. We parse it client-side, send the scope
+// to the backend, and strip the command so the model never sees it.
+const SCOPE_RE = /^\/(property|finance|money|solar)\b\s*/i;
 
-function parseScope(text: string): "property" | "finance" | "money" | "all" {
+function parseScope(text: string): "property" | "finance" | "money" | "solar" | "all" {
   const m = text.match(SCOPE_RE);
-  return m ? (m[1].toLowerCase() as "property" | "finance" | "money") : "all";
+  return m ? (m[1].toLowerCase() as "property" | "finance" | "money" | "solar") : "all";
 }
 
 export default function AiAssistantPage() {

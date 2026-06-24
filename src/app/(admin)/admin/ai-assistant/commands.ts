@@ -1,7 +1,8 @@
-// Slash commands available in the AI chat input. `/property`, `/finance`, and
-// `/money` scope the assistant to one module's tools for the turn (see SCOPE_RE
-// in AiAssistantPage); they are stripped from the message before it reaches the
-// model. Keep this list in sync with the ToolScope values the backend accepts.
+// Slash commands available in the AI chat input. `/property`, `/finance`,
+// `/money`, and `/solar` scope the assistant to one module's tools for the turn
+// (see SCOPE_RE in AiAssistantPage); they are stripped from the message before
+// it reaches the model. Keep this list in sync with the ToolScope values the
+// backend accepts.
 export interface SlashCommand {
   /** Including the leading slash, e.g. "/property". */
   cmd: string;
@@ -13,6 +14,7 @@ export const SLASH_COMMANDS: SlashCommand[] = [
   { cmd: "/property", desc: "Focus on property — units, tenants, rent, building expenses" },
   { cmd: "/finance", desc: "Focus on finance — income, salaries, expenses, subscriptions" },
   { cmd: "/money", desc: "Focus on money manager — savings, balances, people you owe" },
+  { cmd: "/solar", desc: "Focus on solar — generation, savings, battery, payback, weather" },
 ];
 
 // Matches a slash command being typed as the first token (no whitespace yet),
