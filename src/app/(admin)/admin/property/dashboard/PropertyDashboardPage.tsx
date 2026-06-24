@@ -8,12 +8,6 @@ import {
   CardContent,
   Typography,
   Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   CircularProgress,
   Select,
   MenuItem,
@@ -22,10 +16,9 @@ import {
   Alert,
 } from "@mui/material";
 
-import { TrendingUp, AlertTriangle } from "lucide-react";
+import { TrendingUp, AlertTriangle, LogIn, LogOut } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import { propertyApi } from "@/lib/api/property";
-import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { PropertyDashboardStats } from "@/types";
 
 const PropertyCharts = dynamic(() => import("./PropertyCharts"), {
@@ -188,85 +181,137 @@ export default function PropertyDashboardPage() {
 
           <PropertyCharts data={data} month={month} year={year} />
 
-          {/* Pending rent changes */}
+          {/* Upcoming rent changes (full-width notice) */}
           {data.pendingRentChanges.length > 0 && (
             <Alert severity="info" icon={<TrendingUp size={18} />} sx={{ mb: 3 }}>
               <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                Pending Rent Changes
+                Upcoming Rent Changes
               </Typography>
               {data.pendingRentChanges.map((rc) => (
                 <Typography key={rc.id} variant="caption" sx={{ display: "block" }}>
-                  {(rc as { tenantName?: string }).tenantName ?? rc.tenantId}:{" "}
-                  {fmt(rc.previousRent)} → {fmt(rc.newRent)} from{" "}
-                  {new Date(rc.effectiveDate).toLocaleDateString()}
-                  {rc.reason ? ` (${rc.reason})` : ""}
+                  {rc.tenantName}
+                  {rc.unitNumber ? ` (${rc.unitNumber})` : ""}: {fmt(rc.previousRent)} →{" "}
+                  {fmt(rc.newRent)} ({rc.increase >= 0 ? "+" : ""}
+                  {fmt(rc.increase)}) from {new Date(rc.effectiveDate).toLocaleDateString()}
+                  {rc.reason ? ` — ${rc.reason}` : ""}
                 </Typography>
               ))}
             </Alert>
           )}
 
-          {/* Due tracker */}
-          {data.topDue.length > 0 && (
-            <Card sx={{ bgcolor: "background.paper" }}>
-              <CardContent>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-                  <AlertTriangle size={16} color="var(--mui-palette-warning-main)" />
-                  <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                    Outstanding Dues
+          {/* Tenant movements + outstanding dues — side by side */}
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 3, alignItems: "flex-start" }}>
+            {/* Tenant movements — recent & upcoming move-ins / move-outs */}
+            {data.tenantMovements.length > 0 && (
+              <Card sx={{ bgcolor: "background.paper", flex: "1 1 360px", minWidth: 0 }}>
+                <CardContent>
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    sx={{ fontWeight: 600, mb: 1.5 }}
+                  >
+                    Tenant Movements
                   </Typography>
-                </Box>
-                <TableContainer>
-                  <Table size="small" sx={mobileCardTableSx}>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={{ fontWeight: 700 }}>Tenant</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }}>Unit</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }}>Total Due</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }}>Months Unpaid</TableCell>
-                        <TableCell sx={{ fontWeight: 700 }}>Alert</TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {data.topDue.map((d) => (
-                        <TableRow key={d.tenantId} hover>
-                          <TableCell data-label="Tenant">
-                            <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              {d.tenantName}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {d.tenantCode}
-                            </Typography>
-                          </TableCell>
-                          <TableCell data-label="Unit">{d.unitNumber ?? "—"}</TableCell>
-                          <TableCell data-label="Total Due">
-                            <Typography
-                              variant="body2"
-                              sx={{ fontWeight: 700, color: "error.main" }}
-                            >
-                              {fmt(d.totalDue)}
-                            </Typography>
-                          </TableCell>
-                          <TableCell data-label="Months Unpaid">{d.monthsUnpaid}</TableCell>
-                          <TableCell data-label="Alert">
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                    {data.tenantMovements.map((mv) => {
+                      const isIn = mv.kind === "MOVE_IN";
+                      const color = isIn ? "success.main" : "warning.main";
+                      const verb = isIn
+                        ? mv.timing === "upcoming"
+                          ? "moving in"
+                          : "moved in"
+                        : mv.timing === "upcoming"
+                          ? "moving out"
+                          : "moved out";
+                      return (
+                        <Box
+                          key={`${mv.kind}-${mv.tenantId}`}
+                          sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+                        >
+                          <Box sx={{ color, display: "flex" }}>
+                            {isIn ? <LogIn size={16} /> : <LogOut size={16} />}
+                          </Box>
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}
+                          >
+                            {mv.tenantName}
+                            {mv.unitNumber ? ` · ${mv.unitNumber}` : ""}
+                          </Typography>
+                          {isIn && mv.isNew && (
                             <Chip
-                              label={d.alert}
+                              label="New"
                               size="small"
                               sx={{
-                                bgcolor: d.alert === "OVERDUE" ? "error.main" : "warning.main",
+                                bgcolor: "primary.main",
                                 color: "#fff",
                                 fontWeight: 600,
-                                fontSize: "0.6875rem",
+                                fontSize: "0.625rem",
+                                height: 18,
                               }}
                             />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
-          )}
+                          )}
+                          <Typography variant="caption" sx={{ color }}>
+                            {verb}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(mv.date).toLocaleDateString()}
+                          </Typography>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Outstanding dues — compact list */}
+            {data.topDue.length > 0 && (
+              <Card sx={{ bgcolor: "background.paper", flex: "1 1 360px", minWidth: 0 }}>
+                <CardContent>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+                    <AlertTriangle size={16} color="var(--mui-palette-warning-main)" />
+                    <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                      Outstanding Dues
+                    </Typography>
+                  </Box>
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 1.25 }}>
+                    {data.topDue.map((d) => (
+                      <Box
+                        key={d.tenantId}
+                        sx={{ display: "flex", alignItems: "center", gap: 1.5 }}
+                      >
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {d.tenantName}
+                            {d.unitNumber ? ` · ${d.unitNumber}` : ""}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {d.tenantCode ? `${d.tenantCode} · ` : ""}
+                            {d.monthsUnpaid} {d.monthsUnpaid === 1 ? "month" : "months"} unpaid
+                          </Typography>
+                        </Box>
+                        <Typography variant="body2" sx={{ fontWeight: 700, color: "error.main" }}>
+                          {fmt(d.totalDue)}
+                        </Typography>
+                        <Chip
+                          label={d.alert === "OVERDUE" ? "Overdue" : "Pending"}
+                          size="small"
+                          sx={{
+                            bgcolor: d.alert === "OVERDUE" ? "error.main" : "warning.main",
+                            color: "#fff",
+                            fontWeight: 600,
+                            fontSize: "0.625rem",
+                            height: 20,
+                          }}
+                        />
+                      </Box>
+                    ))}
+                  </Box>
+                </CardContent>
+              </Card>
+            )}
+          </Box>
         </>
       ) : error ? (
         <Alert severity="error">{error}</Alert>
