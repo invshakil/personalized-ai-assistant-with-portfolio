@@ -22,3 +22,4 @@ export * from "./money";
 export * from "./admin";
 export * from "./portfolio";
 export * from "./booking";
+export * from "./solar";
