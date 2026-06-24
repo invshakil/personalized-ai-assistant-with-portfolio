@@ -57,7 +57,7 @@ type SortDir = "asc" | "desc";
 const PERIOD_TO_RANGE = Object.fromEntries(
   (Object.keys(MONEY_RANGE_PERIOD) as MoneyRange[]).map((r) => [MONEY_RANGE_PERIOD[r], r])
 ) as Record<string, MoneyRange>;
-const DEFAULT_PERIOD = MONEY_RANGE_PERIOD.M3;
+const DEFAULT_PERIOD = MONEY_RANGE_PERIOD.M1;
 
 type EntryForm = {
   date: string;
@@ -124,7 +124,7 @@ export default function EntriesPage() {
   const hasCustomRange = Boolean(from || to);
   const activePreset: MoneyRange | "CUSTOM" = hasCustomRange
     ? "CUSTOM"
-    : (period && PERIOD_TO_RANGE[period]) || "M3";
+    : (period && PERIOD_TO_RANGE[period]) || "M1";
 
   /** Merge a patch into the URL query (undefined/"" removes the key). */
   const setParams = useCallback(

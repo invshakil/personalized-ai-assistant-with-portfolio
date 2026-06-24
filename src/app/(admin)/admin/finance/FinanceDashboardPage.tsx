@@ -81,7 +81,7 @@ export default function FinanceDashboardPage() {
   const [data, setData] = useState<FinanceDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [range, setRange] = useState<RangePreset>("FY");
+  const [range, setRange] = useState<RangePreset>("M1");
 
   useEffect(() => {
     (async () => {

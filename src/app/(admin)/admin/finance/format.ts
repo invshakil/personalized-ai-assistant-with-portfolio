@@ -96,12 +96,13 @@ const monthsAgoStart = (n: number) => {
 
 // Maps a finance UI range preset to the shared server-side PeriodToken
 // (src/services/_shared/dateRange.ts). Stored in the URL as `?period=<token>`;
-// the list services resolve it against the current date. List pages use the
-// FY/3-month/6-month/1-year/2-year/all set (no single-month preset).
-export const FILTER_RANGE_PRESETS = ["FY", "M3", "M6", "Y1", "Y2", "ALL"] as const;
+// the list services resolve it against the current date. Lists default to the
+// current month (M1) — see each page's activePreset fallback.
+export const FILTER_RANGE_PRESETS = ["M1", "FY", "M3", "M6", "Y1", "Y2", "ALL"] as const;
 export type FilterRangePreset = (typeof FILTER_RANGE_PRESETS)[number];
 
 export const FILTER_RANGE_LABELS: Record<FilterRangePreset, string> = {
+  M1: "This month",
   FY: "This fiscal year",
   M3: "Last 3 months",
   M6: "Last 6 months",
@@ -111,6 +112,7 @@ export const FILTER_RANGE_LABELS: Record<FilterRangePreset, string> = {
 };
 
 export const FILTER_RANGE_TOKEN: Record<FilterRangePreset, string> = {
+  M1: "this_month",
   FY: "this_fiscal_year",
   M3: "last_3_months",
   M6: "last_6_months",

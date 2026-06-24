@@ -88,7 +88,7 @@ export default function BizExpensesPage() {
   const hasCustomRange = Boolean(from || to);
   const activePreset: FilterRangePreset | "CUSTOM" = hasCustomRange
     ? "CUSTOM"
-    : (period && TOKEN_TO_FILTER_RANGE[period]) || "ALL";
+    : (period && TOKEN_TO_FILTER_RANGE[period]) || "M1";
 
   /** Merge a patch into the URL query (undefined/"" removes the key). */
   const setParams = useCallback(
@@ -136,7 +136,7 @@ export default function BizExpensesPage() {
       const filters: BizExpenseFilters = {
         ...(fyFilter !== "ALL" && { fiscalYear: fyFilter }),
         ...(categoryFilter !== "ALL" && { categoryId: categoryFilter }),
-        ...(hasCustomRange ? { from, to } : period ? { period } : {}),
+        ...(hasCustomRange ? { from, to } : { period: period ?? "this_month" }),
         ...(q && { q }),
       };
       setExpenses((await financeApi.listExpenses(filters)) ?? []);
@@ -194,7 +194,7 @@ export default function BizExpensesPage() {
 
   const onPresetChange = (preset: FilterRangePreset) =>
     setParams({
-      period: preset === "ALL" ? undefined : FILTER_RANGE_TOKEN[preset],
+      period: FILTER_RANGE_TOKEN[preset],
       from: undefined,
       to: undefined,
     });

@@ -102,7 +102,7 @@ export default function PaymentsPage() {
   const hasCustomRange = Boolean(from || to);
   const activePreset: FilterRangePreset | "CUSTOM" = hasCustomRange
     ? "CUSTOM"
-    : (period && TOKEN_TO_FILTER_RANGE[period]) || "ALL";
+    : (period && TOKEN_TO_FILTER_RANGE[period]) || "M1";
 
   /** Merge a patch into the URL query (undefined/"" removes the key). */
   const setParams = useCallback(
@@ -141,7 +141,7 @@ export default function PaymentsPage() {
         ...(empFilter !== "ALL" && { employeeId: empFilter }),
         ...(typeFilter !== "ALL" && { type: typeFilter }),
         ...(clientFilter !== "ALL" && { clientId: clientFilter }),
-        ...(hasCustomRange ? { from, to } : period ? { period } : {}),
+        ...(hasCustomRange ? { from, to } : { period: period ?? "this_month" }),
       };
       setPayments((await financeApi.listPayments(filters)) ?? []);
     } finally {
@@ -209,7 +209,7 @@ export default function PaymentsPage() {
 
   const onPresetChange = (preset: FilterRangePreset) =>
     setParams({
-      period: preset === "ALL" ? undefined : FILTER_RANGE_TOKEN[preset],
+      period: FILTER_RANGE_TOKEN[preset],
       from: undefined,
       to: undefined,
     });
