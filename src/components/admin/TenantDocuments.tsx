@@ -12,7 +12,7 @@ import {
   LinearProgress,
   Alert,
 } from "@mui/material";
-import { FileUp, FileDown, Trash2, File, FileImage, FileText } from "lucide-react";
+import { FileUp, FileDown, Trash2, File, FileImage, FileText, Eye } from "lucide-react";
 import { propertyApi } from "@/lib/api/property";
 
 type Doc = {
@@ -28,6 +28,11 @@ function fileIcon(mimeType: string) {
   if (mimeType.startsWith("image/")) return <FileImage size={15} />;
   if (mimeType === "application/pdf") return <FileText size={15} />;
   return <File size={15} />;
+}
+
+// Types the browser can render natively in a new tab.
+function canPreview(mimeType: string) {
+  return mimeType.startsWith("image/") || mimeType === "application/pdf";
 }
 
 function fmtSize(bytes: number) {
@@ -204,12 +209,26 @@ export default function TenantDocuments({ tenantId, compact = false }: Props) {
               </Box>
 
               <Box sx={{ display: "flex", gap: 0.25, flexShrink: 0 }}>
+                {canPreview(doc.mimeType) && (
+                  <Tooltip title="Preview">
+                    <IconButton
+                      size="small"
+                      color="primary"
+                      component="a"
+                      href={`/api/admin/property/tenants/${tenantId}/documents/${doc.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Eye size={14} />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 <Tooltip title="Download">
                   <IconButton
                     size="small"
                     color="primary"
                     component="a"
-                    href={`/api/admin/property/tenants/${tenantId}/documents/${doc.id}`}
+                    href={`/api/admin/property/tenants/${tenantId}/documents/${doc.id}?download=1`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
