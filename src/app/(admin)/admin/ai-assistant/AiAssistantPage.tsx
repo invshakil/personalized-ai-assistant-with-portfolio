@@ -734,8 +734,9 @@ export default function AiAssistantPage() {
                   Ask me anything — about your properties, finances, or anything else.
                 </Typography>
                 <Typography variant="caption" color="text.disabled" sx={{ mb: 0.25 }}>
-                  Start with <strong>/property</strong>, <strong>/finance</strong>, or{" "}
-                  <strong>/money</strong> to focus the assistant on one module.
+                  Start with <strong>/property</strong>, <strong>/finance</strong>,{" "}
+                  <strong>/money</strong>, or <strong>/solar</strong> to focus the assistant on one
+                  module.
                 </Typography>
                 <Typography variant="caption" color="text.disabled">
                   Enter for new line · Ctrl+Enter to send · ⌘K for new chat
