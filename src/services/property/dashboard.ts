@@ -33,9 +33,24 @@ export async function getDashboardStats(month: number, year: number) {
   const totalExpenses = monthExpenses.reduce((sum, e) => sum + toNum(e.amount), 0);
   const overdueCount = monthPayments.filter((p) => p.status === "OVERDUE").length;
 
-  const [activeTenantsCount, occupiedUnits, totalUnits, advanceStats] = await Promise.all([
-    db.tenant.count({ where: { isActive: true } }),
-    db.unit.count({ where: { isOccupied: true } }),
+  // Active tenants & occupancy must reflect the SELECTED month, not "now". The
+  // current-state flags (isActive / isOccupied) would count tenants scheduled to
+  // move in next month (FUTURE) as active today. Instead, count tenants actually
+  // present during the month using the same date conditions paymentGeneration
+  // uses to decide who is billed: moved in by month-end, and not moved out / lease
+  // ended before the month began.
+  const monthStartDate = new Date(year, month - 1, 1);
+  const monthEndDate = new Date(year, month, 0); // last day of the month
+  const presentThisMonth = {
+    moveInDate: { lte: monthEndDate },
+    AND: [
+      { OR: [{ moveOutDate: null }, { moveOutDate: { gte: monthStartDate } }] },
+      { OR: [{ leaseEndDate: null }, { leaseEndDate: { gte: monthStartDate } }] },
+    ],
+  };
+
+  const [activeTenants, totalUnits, advanceStats] = await Promise.all([
+    db.tenant.findMany({ where: presentThisMonth, select: { unitId: true } }),
     db.unit.count(),
     db.tenant.aggregate({
       where: { isActive: true, advancePaid: true },
@@ -44,9 +59,18 @@ export async function getDashboardStats(month: number, year: number) {
     }),
   ]);
 
-  // Due tracker — aggregate across all unpaid months per tenant
-  const duePayments = await db.payment.findMany({
-    where: { status: { in: ["PENDING", "OVERDUE", "PARTIAL"] } },
+  const activeTenantsCount = activeTenants.length;
+  const occupiedUnits = new Set(activeTenants.filter((t) => t.unitId).map((t) => t.unitId)).size;
+
+  // Due tracker — true outstanding per tenant, as of the selected month.
+  //
+  // carryForward means each month's `rentDue` already folds in the prior month's
+  // unpaid balance, so a tenant's real debt is simply the balance of their MOST
+  // RECENT payment record — not a sum across months. (Earlier records keep their
+  // PENDING/OVERDUE status forever even after the debt is cleared via a later
+  // month's payment, so summing or filtering on status over-reports.)
+  const allPayments = await db.payment.findMany({
+    where: { OR: [{ year: { lt: year } }, { year, month: { lte: month } }] },
     include: {
       tenant: { select: { id: true, tenantCode: true, name: true } },
       unit: { select: { unitNumber: true } },
@@ -65,45 +89,52 @@ export async function getDashboardStats(month: number, year: number) {
     alert: "OVERDUE" | "PENDING";
   };
 
-  const dueMap = new Map<string, DueEntry>();
-  for (const p of duePayments) {
-    const balance = toNum(p.rentDue) - toNum(p.amountPaid) - toNum(p.advanceApplied);
-    if (balance <= 0) continue;
-    const existing = dueMap.get(p.tenantId);
-    if (existing) {
-      existing.totalDue += balance;
-      existing.monthsUnpaid += 1;
-      if (p.status === "OVERDUE") existing.alert = "OVERDUE";
-    } else {
-      dueMap.set(p.tenantId, {
-        tenantId: p.tenantId,
-        tenantCode: p.tenant.tenantCode,
-        tenantName: p.tenant.name,
-        unitNumber: p.unit?.unitNumber ?? null,
-        totalDue: balance,
-        monthsUnpaid: 1,
-        lastPaidDate: null,
-        alert: p.status === "OVERDUE" ? "OVERDUE" : "PENDING",
-      });
-    }
+  // Group each tenant's payments (already sorted ascending by period).
+  const byTenant = new Map<string, typeof allPayments>();
+  for (const p of allPayments) {
+    const arr = byTenant.get(p.tenantId) ?? [];
+    arr.push(p);
+    byTenant.set(p.tenantId, arr);
   }
 
-  // Batch-fetch last paid dates (avoids N+1 query)
-  const tenantIds = Array.from(dueMap.keys());
-  if (tenantIds.length > 0) {
-    const lastPaidPayments = await db.payment.findMany({
-      where: { tenantId: { in: tenantIds }, status: { in: ["PAID", "PARTIAL"] } },
-      orderBy: [{ year: "desc" }, { month: "desc" }],
-      select: { tenantId: true, paidDate: true },
-      distinct: ["tenantId"],
+  const balanceOf = (p: (typeof allPayments)[number]) =>
+    toNum(p.rentDue) - toNum(p.amountPaid) - toNum(p.advanceApplied);
+
+  const dueEntries: DueEntry[] = [];
+  for (const pays of byTenant.values()) {
+    const latest = pays[pays.length - 1];
+    const outstanding = balanceOf(latest);
+    if (outstanding <= 0) continue; // fully settled (incl. all carried arrears)
+
+    // Months behind: count consecutive unpaid records back from the latest until
+    // a fully-paid month (balance <= 0) resets the carry-forward chain.
+    let monthsUnpaid = 0;
+    let overdue = false;
+    let lastPaidDate: string | null = null;
+    for (let i = pays.length - 1; i >= 0; i--) {
+      if (balanceOf(pays[i]) > 0) {
+        monthsUnpaid += 1;
+        if (pays[i].status === "OVERDUE") overdue = true;
+      } else {
+        lastPaidDate = toIso(pays[i].paidDate);
+        break;
+      }
+    }
+
+    dueEntries.push({
+      tenantId: latest.tenantId,
+      tenantCode: latest.tenant.tenantCode,
+      tenantName: latest.tenant.name,
+      unitNumber: latest.unit?.unitNumber ?? null,
+      totalDue: Math.round(outstanding),
+      monthsUnpaid,
+      lastPaidDate,
+      alert: overdue ? "OVERDUE" : "PENDING",
     });
-    for (const p of lastPaidPayments) {
-      const entry = dueMap.get(p.tenantId);
-      if (entry) entry.lastPaidDate = toIso(p.paidDate);
-    }
   }
 
-  const topDue = Array.from(dueMap.values())
+  const topDue = dueEntries
+    .filter((d) => d.totalDue > 0)
     .sort((a, b) => b.totalDue - a.totalDue)
     .slice(0, 10);
 
@@ -153,12 +184,78 @@ export async function getDashboardStats(month: number, year: number) {
     return { month: m, label, collected, expenses, netProfit: collected - expenses };
   });
 
-  // Pending rent changes
+  // Scheduled rent changes: any not-yet-applied change for an active tenant.
+  // `appliedAt: null` is the "scheduled / upcoming" signal — payment generation
+  // sets it once the change takes effect, so anything still null is genuinely
+  // pending. Changes for departed tenants are excluded.
+  const now = new Date();
   const pendingRentChanges = await db.rentChange.findMany({
-    where: { appliedAt: null },
-    include: { tenant: { select: { tenantCode: true, name: true } } },
+    where: {
+      appliedAt: null,
+      tenant: { isActive: true },
+    },
+    include: {
+      tenant: { select: { tenantCode: true, name: true, unit: { select: { unitNumber: true } } } },
+    },
     orderBy: { effectiveDate: "asc" },
   });
+
+  // Recent & upcoming tenant movements — who is moving in (incl. brand-new
+  // tenants) and who is moving out, within a window around today.
+  const movementStart = new Date(now);
+  movementStart.setDate(movementStart.getDate() - 60);
+  const movementEnd = new Date(now);
+  movementEnd.setDate(movementEnd.getDate() + 180);
+
+  const [moveIns, moveOuts] = await Promise.all([
+    db.tenant.findMany({
+      where: { moveInDate: { gte: movementStart, lte: movementEnd } },
+      select: {
+        id: true,
+        name: true,
+        tenantCode: true,
+        moveInDate: true,
+        createdAt: true,
+        unit: { select: { unitNumber: true } },
+      },
+      orderBy: { moveInDate: "asc" },
+    }),
+    db.tenant.findMany({
+      where: { moveOutDate: { gte: movementStart, lte: movementEnd } },
+      select: {
+        id: true,
+        name: true,
+        tenantCode: true,
+        moveOutDate: true,
+        unit: { select: { unitNumber: true } },
+      },
+      orderBy: { moveOutDate: "asc" },
+    }),
+  ]);
+
+  const tenantMovements = [
+    ...moveIns.map((t) => ({
+      tenantId: t.id,
+      tenantName: t.name,
+      tenantCode: t.tenantCode,
+      unitNumber: t.unit?.unitNumber ?? null,
+      date: t.moveInDate.toISOString(),
+      kind: "MOVE_IN" as const,
+      timing: (t.moveInDate > now ? "upcoming" : "recent") as "upcoming" | "recent",
+      // Brand-new tenant: their record was created around the same time they moved in.
+      isNew: t.createdAt >= movementStart,
+    })),
+    ...moveOuts.map((t) => ({
+      tenantId: t.id,
+      tenantName: t.name,
+      tenantCode: t.tenantCode,
+      unitNumber: t.unit?.unitNumber ?? null,
+      date: t.moveOutDate!.toISOString(),
+      kind: "MOVE_OUT" as const,
+      timing: (t.moveOutDate! > now ? "upcoming" : "recent") as "upcoming" | "recent",
+      isNew: false,
+    })),
+  ].sort((a, b) => a.date.localeCompare(b.date));
 
   return {
     month,
@@ -181,11 +278,13 @@ export async function getDashboardStats(month: number, year: number) {
       tenantId: rc.tenantId,
       tenantCode: rc.tenant.tenantCode,
       tenantName: rc.tenant.name,
+      unitNumber: rc.tenant.unit?.unitNumber ?? null,
       effectiveDate: rc.effectiveDate.toISOString(),
       previousRent: toNum(rc.previousRent),
       newRent: toNum(rc.newRent),
+      increase: toNum(rc.newRent) - toNum(rc.previousRent),
       reason: rc.reason,
-      appliedAt: null,
     })),
+    tenantMovements,
   };
 }

@@ -189,6 +189,32 @@ export interface DueTenantEntry {
   alert: "OVERDUE" | "PENDING";
 }
 
+/** An upcoming, not-yet-applied scheduled rent change (with tenant context). */
+export interface PendingRentChangeEntry {
+  id: string;
+  tenantId: string;
+  tenantName: string;
+  tenantCode: string | null;
+  unitNumber: string | null;
+  effectiveDate: string;
+  previousRent: number;
+  newRent: number;
+  increase: number;
+  reason: string | null;
+}
+
+/** A recent or upcoming tenant move-in / move-out, for the activity panel. */
+export interface TenantMovement {
+  tenantId: string;
+  tenantName: string;
+  tenantCode: string | null;
+  unitNumber: string | null;
+  date: string; // ISO move-in date (MOVE_IN) or move-out date (MOVE_OUT)
+  kind: "MOVE_IN" | "MOVE_OUT";
+  timing: "upcoming" | "recent"; // relative to today
+  isNew: boolean; // MOVE_IN of a brand-new tenant (no prior tenancy)
+}
+
 export interface PropertyDashboardStats {
   month: number;
   year: number;
@@ -204,7 +230,8 @@ export interface PropertyDashboardStats {
   overdueCount: number;
   yearlyData: YearlyDataPoint[];
   topDue: DueTenantEntry[];
-  pendingRentChanges: RentChange[];
+  pendingRentChanges: PendingRentChangeEntry[];
+  tenantMovements: TenantMovement[];
 }
 
 export interface YearlyDataPoint {

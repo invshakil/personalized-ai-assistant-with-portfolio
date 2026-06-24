@@ -192,6 +192,10 @@ export async function getRentRoll() {
 
 /** Cross-month arrears: who owes, how much, how far behind. */
 export async function getArrearsReport() {
+  // carryForward folds each month's unpaid balance into the next month's rentDue,
+  // so a tenant's true debt is the balance of their LATEST payment record — not a
+  // sum across months (older records keep PENDING/OVERDUE status even once the
+  // debt is cleared via a later payment, so summing over-reports).
   const payments = await db.payment.findMany({
     select: {
       rentDue: true,
@@ -199,42 +203,48 @@ export async function getArrearsReport() {
       advanceApplied: true,
       month: true,
       year: true,
+      status: true,
+      tenantId: true,
       tenant: { select: { name: true, tenantCode: true } },
       unit: { select: { unitNumber: true } },
     },
+    orderBy: [{ year: "asc" }, { month: "asc" }],
   });
 
-  const byTenant = new Map<
-    string,
-    { unit: string; code: string | null; outstanding: number; months: number; oldest: number }
-  >();
+  const balanceOf = (p: (typeof payments)[number]) =>
+    toNum(p.rentDue) - toNum(p.amountPaid) - toNum(p.advanceApplied);
+
+  const byTenant = new Map<string, typeof payments>();
   for (const p of payments) {
-    const balance = toNum(p.rentDue) - toNum(p.amountPaid) - toNum(p.advanceApplied);
-    if (balance <= 0) continue;
-    const key = p.tenant.name;
-    const ord = p.year * 12 + p.month;
-    const e = byTenant.get(key) ?? {
-      unit: p.unit?.unitNumber ?? "—",
-      code: p.tenant.tenantCode,
-      outstanding: 0,
-      months: 0,
-      oldest: ord,
-    };
-    e.outstanding += balance;
-    e.months += 1;
-    e.oldest = Math.min(e.oldest, ord);
-    byTenant.set(key, e);
+    const arr = byTenant.get(p.tenantId) ?? [];
+    arr.push(p);
+    byTenant.set(p.tenantId, arr);
   }
 
-  const rows = Array.from(byTenant.entries())
-    .map(([tenant, v]) => ({
-      tenant,
-      tenantCode: v.code,
-      unit: v.unit,
-      totalOutstanding: Math.round(v.outstanding),
-      monthsBehind: v.months,
-      oldestUnpaid: mk(Math.floor((v.oldest - 1) / 12), ((v.oldest - 1) % 12) + 1),
-    }))
+  const rows = Array.from(byTenant.values())
+    .map((pays) => {
+      const latest = pays[pays.length - 1];
+      const outstanding = balanceOf(latest);
+      // Count consecutive unpaid months back from the latest, and find the oldest
+      // of that current unpaid streak.
+      let monthsBehind = 0;
+      let oldest = latest.year * 12 + latest.month;
+      for (let i = pays.length - 1; i >= 0; i--) {
+        if (balanceOf(pays[i]) > 0) {
+          monthsBehind += 1;
+          oldest = pays[i].year * 12 + pays[i].month;
+        } else break;
+      }
+      return {
+        tenant: latest.tenant.name,
+        tenantCode: latest.tenant.tenantCode,
+        unit: latest.unit?.unitNumber ?? "—",
+        totalOutstanding: Math.round(outstanding),
+        monthsBehind,
+        oldestUnpaid: mk(Math.floor((oldest - 1) / 12), ((oldest - 1) % 12) + 1),
+      };
+    })
+    .filter((r) => r.totalOutstanding > 0)
     .sort((a, b) => b.totalOutstanding - a.totalOutstanding);
 
   return {
@@ -324,10 +334,11 @@ export async function getLeaseExpiryReport(input: { withinDays?: number } = {}) 
   return { withinDays, upcoming: rows };
 }
 
-/** Pending (not-yet-applied) scheduled rent changes. */
+/** Scheduled (not-yet-applied) rent changes for active tenants. `appliedAt: null`
+ *  is the pending signal — payment generation clears it once a change takes effect. */
 export async function getScheduledRentChanges() {
   const changes = await db.rentChange.findMany({
-    where: { appliedAt: null },
+    where: { appliedAt: null, tenant: { isActive: true } },
     select: {
       effectiveDate: true,
       previousRent: true,
