@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Box, Typography, Avatar, IconButton, Tooltip, Button } from "@mui/material";
-import { Sparkles, Copy, Check, RefreshCw, AlertTriangle } from "lucide-react";
+import { Sparkles, Copy, Check, RefreshCw, AlertTriangle, CheckCheck } from "lucide-react";
 import Markdown from "@/components/admin/Markdown";
 import PendingActionCard from "@/components/admin/PendingActionCard";
 import type { PendingActionState, MessageAttachment } from "@/app/(admin)/admin/ai-assistant/types";
@@ -23,6 +23,7 @@ interface ChatMessageProps {
   actionsDisabled?: boolean;
   onApproveAction?: (id: string) => void;
   onCancelAction?: (id: string) => void;
+  onApproveAll?: () => void;
   /** Failed turn — when set, shows the error and a Retry button. */
   error?: string;
   /** Stream was stopped by the user — partial content stays, but no error. */
@@ -41,6 +42,7 @@ export default function ChatMessage({
   actionsDisabled,
   onApproveAction,
   onCancelAction,
+  onApproveAll,
   error,
   stopped,
   onRetry,
@@ -233,15 +235,45 @@ export default function ChatMessage({
                 }}
               />
             )}
-            {pendingActions?.map((action) => (
-              <PendingActionCard
-                key={action.id}
-                action={action}
-                disabled={actionsDisabled}
-                onApprove={(id) => onApproveAction?.(id)}
-                onCancel={(id) => onCancelAction?.(id)}
-              />
-            ))}
+            {(() => {
+              if (!pendingActions?.length) return null;
+              const pendingCount = pendingActions.filter(
+                (a) => a.status === "pending" || a.status === "error"
+              ).length;
+              return (
+                <>
+                  {pendingCount > 1 && (
+                    <Box
+                      sx={{
+                        mt: 1.25,
+                        display: "flex",
+                        justifyContent: "flex-end",
+                      }}
+                    >
+                      <Button
+                        size="small"
+                        variant="contained"
+                        color="success"
+                        startIcon={<CheckCheck size={14} />}
+                        disabled={actionsDisabled}
+                        onClick={onApproveAll}
+                      >
+                        Approve All ({pendingCount})
+                      </Button>
+                    </Box>
+                  )}
+                  {pendingActions.map((action) => (
+                    <PendingActionCard
+                      key={action.id}
+                      action={action}
+                      disabled={actionsDisabled}
+                      onApprove={(id) => onApproveAction?.(id)}
+                      onCancel={(id) => onCancelAction?.(id)}
+                    />
+                  ))}
+                </>
+              );
+            })()}
             {showAssistantToolbar && (
               <Box
                 className="msg-actions"

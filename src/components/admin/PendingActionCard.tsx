@@ -1,6 +1,39 @@
-import { Box, Typography, Button, CircularProgress } from "@mui/material";
+import { Box, Typography, Button, CircularProgress, Divider } from "@mui/material";
 import { Check, X, ShieldAlert, CircleCheck } from "lucide-react";
 import type { PendingActionState } from "@/app/(admin)/admin/ai-assistant/types";
+
+const SKIP_KEYS = new Set(["id"]);
+
+function labelFromKey(key: string): string {
+  return key
+    .replace(/([A-Z])/g, " $1")
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatVal(val: unknown): string {
+  if (val === null || val === undefined) return "—";
+  if (typeof val === "boolean") return val ? "Yes" : "No";
+  if (typeof val === "number") return val.toLocaleString();
+  if (typeof val === "string") {
+    if (/^\d{4}-\d{2}-\d{2}/.test(val)) {
+      try {
+        return new Date(val).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      } catch {
+        return val;
+      }
+    }
+    return val;
+  }
+  if (Array.isArray(val)) return val.join(", ");
+  return JSON.stringify(val);
+}
 
 interface PendingActionCardProps {
   action: PendingActionState;
@@ -64,6 +97,37 @@ export default function PendingActionCard({
           <Typography variant="body2" sx={{ mt: 0.25, lineHeight: 1.55 }}>
             {action.summary}
           </Typography>
+
+          {/* Entry fields — all input values except internal ids */}
+          {(() => {
+            const entries = Object.entries(action.input).filter(
+              ([k, v]) => !SKIP_KEYS.has(k) && v !== null && v !== undefined
+            );
+            if (!entries.length) return null;
+            return (
+              <>
+                <Divider sx={{ my: 1, borderColor: "rgba(231,227,252,0.1)" }} />
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                  {entries.map(([k, v]) => (
+                    <Box key={k} sx={{ display: "flex", gap: 1.5, alignItems: "baseline" }}>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: "text.disabled", whiteSpace: "nowrap", minWidth: 90 }}
+                      >
+                        {labelFromKey(k)}
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: "text.primary", fontWeight: 500, wordBreak: "break-word" }}
+                      >
+                        {formatVal(v)}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Box>
+              </>
+            );
+          })()}
 
           {status === "done" && action.resultSummary && (
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.75 }}>

@@ -44,7 +44,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Cpu, History, Mic, MicOff, Paperclip, Send, Sparkles, Square, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ConversationList from "./ConversationList";
 import { SLASH_COMMANDS, SLASH_TYPING_RE } from "./commands";
 import type { Message, MessageAttachment, PendingActionState } from "./types";
@@ -101,6 +101,21 @@ export default function AiAssistantPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const inputTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+
+  // Autogrow: our useLayoutEffect runs after MUI's (parent after child), so we take
+  // ownership of the height. Cap at 12 rows using the actual computed line-height so
+  // the limit is font-size-agnostic. Show a scrollbar only when content overflows the cap.
+  useLayoutEffect(() => {
+    const el = inputTextareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const lineH = parseFloat(getComputedStyle(el).lineHeight) || 24;
+    const maxH = lineH * 12;
+    el.style.height = `${Math.min(el.scrollHeight, maxH)}px`;
+    el.style.overflow = el.scrollHeight > maxH ? "auto" : "hidden";
+  }, [input]);
+
   // Resizable sidebar — width persists across visits. Default applied lazily
   // so SSR + first paint don't read localStorage.
   const [sidebarWidth, setSidebarWidth] = useState<number>(SIDEBAR_DEFAULT);
@@ -535,6 +550,15 @@ export default function AiAssistantPage() {
   const cancelAction = (msgIndex: number, actionId: string) =>
     patchAction(msgIndex, actionId, { status: "cancelled" });
 
+  const approveAllActions = async (msgIndex: number) => {
+    if (isStreaming || blocked) return;
+    const pending = messages[msgIndex]?.pendingActions?.filter(
+      (a) => a.status === "pending" || a.status === "error"
+    );
+    if (!pending?.length) return;
+    await Promise.all(pending.map((a) => approveAction(msgIndex, a.id)));
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     // While the slash menu is open, arrows/Enter/Tab drive the menu, not send.
     if (slashOpen) {
@@ -559,7 +583,8 @@ export default function AiAssistantPage() {
         return;
       }
     }
-    if (e.key === "Enter" && !e.shiftKey) {
+    // Ctrl/Cmd+Enter sends; plain Enter inserts a newline (default textarea behaviour).
+    if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       sendMessage();
     }
@@ -713,7 +738,7 @@ export default function AiAssistantPage() {
                   <strong>/money</strong> to focus the assistant on one module.
                 </Typography>
                 <Typography variant="caption" color="text.disabled">
-                  Shift+Enter for new line · Enter to send · ⌘K for new chat
+                  Enter for new line · Ctrl+Enter to send · ⌘K for new chat
                 </Typography>
               </Box>
             )}
@@ -746,6 +771,7 @@ export default function AiAssistantPage() {
                   actionsDisabled={isStreaming}
                   onApproveAction={(id) => approveAction(i, id)}
                   onCancelAction={(id) => cancelAction(i, id)}
+                  onApproveAll={() => approveAllActions(i)}
                   isStreaming={isStreaming && i === messages.length - 1 && msg.role === "assistant"}
                   error={msg.error}
                   stopped={msg.stopped}
@@ -964,6 +990,7 @@ export default function AiAssistantPage() {
               maxRows={12}
               fullWidth
               size="small"
+              inputRef={inputTextareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
@@ -971,7 +998,10 @@ export default function AiAssistantPage() {
                 blocked ? "AI budget reached — chat paused" : "Ask a question…  (/ for commands)"
               }
               disabled={isStreaming || blocked}
-              sx={{ "& .MuiOutlinedInput-root": { borderRadius: 2 } }}
+              sx={{
+                "& .MuiOutlinedInput-root": { borderRadius: 2 },
+                "& textarea": { overflow: "hidden" },
+              }}
             />
             {isStreaming ? (
               <Button
