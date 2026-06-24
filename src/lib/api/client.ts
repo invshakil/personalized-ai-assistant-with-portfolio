@@ -62,10 +62,17 @@ export async function apiDelete<T>(url: string, config?: AxiosRequestConfig): Pr
   return res.data?.data as T;
 }
 
-/** Multipart upload (FormData). Axios sets the multipart boundary itself. */
+/**
+ * Multipart upload (FormData). We must NOT set Content-Type ourselves: the
+ * browser/axios needs to emit `multipart/form-data; boundary=…` with the
+ * generated boundary. Setting a bare `multipart/form-data` (no boundary) makes
+ * the xhr adapter forward it verbatim, and the server then parses zero files.
+ * Passing `Content-Type: null` removes the JSON default from the instance so
+ * axios fills in the boundaried value for this request.
+ */
 export async function apiUpload<T>(url: string, formData: FormData): Promise<T> {
   const res = await apiClient.post(url, formData, {
-    headers: { "Content-Type": "multipart/form-data" },
+    headers: { "Content-Type": null },
   });
   return res.data?.data as T;
 }
