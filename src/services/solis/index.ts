@@ -9,11 +9,13 @@ export {
   inverterList,
   inverterDetail,
   inverterDay,
+  inverterMonth,
   stationDay,
 } from "./client";
 export {
   mapStations,
   mapInverters,
+  mapMonthDays,
   dailyFromInverterDetail,
   enrichFromDaySeries,
 } from "./fieldMap";

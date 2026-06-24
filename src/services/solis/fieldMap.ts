@@ -39,9 +39,41 @@ function str(obj: SolisJson, keys: string[]): string {
 /** Pulls the array of records out of a list response (handles page-wrapped shapes). */
 export function records(data: SolisJson): SolisJson[] {
   const page = data.page as SolisJson | undefined;
-  const candidates = [page?.records, data.records, data.stationStatusVo, data.list];
+  const candidates = [page?.records, data.records, data.stationStatusVo, data.list, data.data];
   for (const c of candidates) if (Array.isArray(c)) return c as SolisJson[];
   return Array.isArray(data) ? (data as SolisJson[]) : [];
+}
+
+/**
+ * Maps an inverterMonth response (array of per-day energy records) to normalized
+ * DailyEnergy rows. This is the historical-backfill source — unlike inverterDay
+ * (intraday series), each record carries the day's energy totals. Peak power and
+ * SOC aren't reported per-day here, so they default to 0/null (today's row gets
+ * them from inverterDetail). The caller sets `inverterSn`.
+ */
+export function mapMonthDays(monthResp: SolisJson): DailyEnergy[] {
+  return records(monthResp)
+    .map((r): DailyEnergy => {
+      const dateStr =
+        str(r, ["dateStr"]) ||
+        (typeof r.date === "number" ? new Date(r.date).toISOString().slice(0, 10) : "");
+      return {
+        date: dateStr,
+        inverterSn: "",
+        generationKwh: num(r, ["energy", "produceEnergy", "pvAndAcCoupledEnergy"]),
+        gridImportKwh: num(r, ["gridPurchasedEnergy"]),
+        gridExportKwh: num(r, ["gridSellEnergy"]),
+        batteryChargeKwh: num(r, ["batteryChargeEnergy"]),
+        batteryDischargeKwh: num(r, ["batteryDischargeEnergy"]),
+        consumptionKwh: num(r, ["consumeEnergy", "homeLoadEnergy"]),
+        peakPowerKw: 0,
+        batterySocMin: null,
+        batterySocMax: null,
+        inverterTempC: null,
+        raw: r,
+      };
+    })
+    .filter((d) => d.date);
 }
 
 export function mapStations(data: SolisJson): SolisStation[] {

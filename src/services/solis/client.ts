@@ -133,6 +133,18 @@ export function inverterDay(
   return signedRead("/v1/api/inverterDay", { timeZone: 6, money: "BDT", ...payload }, cfg);
 }
 
+/**
+ * Per-day energy totals for an inverter across a month (yyyy-MM). Unlike
+ * inverterDay (intraday series), this returns one record per day with daily
+ * energy figures — the right source for historical backfill.
+ */
+export function inverterMonth(
+  payload: { sn: string; id?: string; month: string; timeZone?: number; money?: string },
+  cfg?: SolisConfig
+): Promise<SolisJson> {
+  return signedRead("/v1/api/inverterMonth", { timeZone: 6, money: "BDT", ...payload }, cfg);
+}
+
 /** One day's intraday series for a plant (yyyy-MM-dd). */
 export function stationDay(
   payload: { id: string; time: string; timeZone?: number; money?: string },

@@ -3,15 +3,17 @@
 // are instant and survive API downtime / rate limits.
 //
 // Strategy: each run syncs *today* from inverterDetail (live cumulative totals),
-// enriched with today's intraday series for true peak power + SOC range. By
-// day's end today's row holds the full day. An optional backfill re-derives the
-// previous N days from inverterDay. Read-only — we never write to the API.
+// enriched with today's intraday series for true peak power + SOC range. History
+// is backfilled from inverterMonth, which returns per-day energy totals (the
+// intraday inverterDay endpoint has no daily totals). Read-only — we never write
+// to the API.
 import { db } from "@/lib/db";
 import {
   getSolisConfig,
   inverterDay,
   inverterDetail,
   inverterList,
+  inverterMonth,
   userStationList,
   type SolisConfig,
 } from "./client";
@@ -19,6 +21,7 @@ import {
   dailyFromInverterDetail,
   enrichFromDaySeries,
   mapInverters,
+  mapMonthDays,
   mapStations,
 } from "./fieldMap";
 import type { DailyEnergy, SolisInverter } from "./types";
@@ -36,25 +39,29 @@ function dayDate(dateStr: string): Date {
   return new Date(`${dateStr}T00:00:00.000Z`);
 }
 
-/** Ascending yyyy-mm-dd list from `fromStr` to `toStr`, inclusive. */
-function daysBetween(fromStr: string, toStr: string): string[] {
+/** Ascending "yyyy-MM" list from `fromMonth` to `toMonth`, inclusive. */
+function monthsBetween(fromMonth: string, toMonth: string): string[] {
+  const [fy, fm] = fromMonth.split("-").map((n) => parseInt(n, 10));
+  const [ty, tm] = toMonth.split("-").map((n) => parseInt(n, 10));
   const out: string[] = [];
-  let t = Date.parse(`${fromStr}T00:00:00.000Z`);
-  const end = Date.parse(`${toStr}T00:00:00.000Z`);
-  const DAY = 24 * 60 * 60 * 1000;
-  while (t <= end && out.length <= 800) {
-    out.push(new Date(t).toISOString().slice(0, 10));
-    t += DAY;
+  let y = fy;
+  let m = fm;
+  while ((y < ty || (y === ty && m <= tm)) && out.length <= 120) {
+    out.push(`${y}-${String(m).padStart(2, "0")}`);
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
   }
   return out;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// Bound a single sync call so it finishes well under a typical reverse-proxy
-// timeout: at most this many past days are fetched per invocation (the UI loops
-// until `remaining` hits 0; the scheduler chips away over its ticks).
-const BACKFILL_CHUNK = 30;
+// One API call per month covers all its days, so even a multi-year history is a
+// handful of calls. Cap the months fetched per invocation as a safety bound.
+const MONTH_CAP = 36;
 const RATE_DELAY_MS = 350; // gentle with the SolisCloud rate limit (~3 req / 5s)
 
 async function loadSettings() {
@@ -135,37 +142,40 @@ async function syncInverterToday(inv: SolisInverter, cfg: SolisConfig) {
   return daily;
 }
 
-/** Re-derives a past day for one inverter from its inverterDay response. */
-async function syncInverterDay(inv: SolisInverter, dateStr: string, cfg: SolisConfig) {
-  const resp = await inverterDay({ sn: inv.sn, id: inv.id, time: dateStr }, cfg);
-  // Day responses commonly carry daily totals at the top level alongside the
-  // intraday series — reuse the same field extraction, then enrich peak/SOC.
-  const daily = enrichFromDaySeries(dailyFromInverterDetail(resp, inv.sn, dateStr), resp);
-  await upsertReading(daily);
-  return daily;
+/** Backfills every day of a month for one inverter from inverterMonth totals. */
+async function syncInverterMonth(inv: SolisInverter, month: string, cfg: SolisConfig) {
+  const resp = await inverterMonth({ sn: inv.sn, id: inv.id, month }, cfg);
+  const days = mapMonthDays(resp);
+  let written = 0;
+  for (const d of days) {
+    await upsertReading({ ...d, inverterSn: inv.sn });
+    written++;
+  }
+  return written;
 }
 
 export interface SyncResult {
   ok: boolean;
   inverters: number;
   daysWritten: number;
-  /** Backfill days still missing after this call (UI loops until 0). */
+  /** Months still unfetched after this call (UI loops until 0). */
   remaining: number;
   error?: string;
 }
 
 export interface SyncOptions {
-  /** Backfill missing days from this yyyy-mm-dd up to today (oldest first). */
+  /** Backfill from the month of this yyyy-mm-dd up to the current month. */
   from?: string;
-  /** Or backfill the last N days (ignored when `from` is set). */
+  /** Or backfill the last N days (resolved to whole months; ignored when `from` is set). */
   backfillDays?: number;
 }
 
 /**
- * Runs a sync: refreshes today for every inverter, then backfills MISSING days
- * in the requested window (oldest first, capped at BACKFILL_CHUNK per call so a
- * single request stays short). Already-synced days are skipped, so repeated
- * calls make forward progress. Records status on SolarSettings.
+ * Runs a sync: backfills daily totals month-by-month over the requested window
+ * (one inverterMonth call per month), then refreshes today from the live
+ * inverterDetail so it reflects the latest cumulative totals. Upserts are
+ * idempotent. With no options it refreshes the current month + today. Records
+ * status on SolarSettings.
  */
 export async function runSolisSync(opts: SyncOptions = {}): Promise<SyncResult> {
   const cfg = getSolisConfig();
@@ -176,42 +186,39 @@ export async function runSolisSync(opts: SyncOptions = {}): Promise<SyncResult> 
     const { inverters } = await discover(cfg);
     inverterCount = inverters.length;
 
-    // Always refresh today's row.
     const today = localDateStr(new Date());
-    for (const inv of inverters) {
-      await syncInverterToday(inv, cfg);
-      daysWritten++;
-    }
+    const currentMonth = today.slice(0, 7);
 
-    // Resolve the backfill window (exclusive of today — already synced above).
-    let startStr: string | null = null;
-    if (opts.from) startStr = opts.from.slice(0, 10);
+    // Resolve the month window (defaults to the current month).
+    let startMonth = currentMonth;
+    if (opts.from) startMonth = opts.from.slice(0, 7);
     else if (opts.backfillDays && opts.backfillDays > 0) {
-      startStr = localDateStr(new Date(Date.now() - opts.backfillDays * 24 * 60 * 60 * 1000));
+      startMonth = localDateStr(
+        new Date(Date.now() - opts.backfillDays * 24 * 60 * 60 * 1000)
+      ).slice(0, 7);
     }
 
-    if (startStr && startStr < today) {
-      const window = daysBetween(startStr, today).filter((d) => d < today);
-      // Days that already have at least one reading — skip them.
-      const existing = await db.solisDailyReading.findMany({
-        where: { date: { gte: dayDate(startStr), lt: dayDate(today) } },
-        select: { date: true },
-      });
-      const have = new Set(existing.map((r) => r.date.toISOString().slice(0, 10)));
-      const missing = window.filter((d) => !have.has(d)); // oldest first
-      const chunk = missing.slice(0, BACKFILL_CHUNK);
-      remaining = missing.length - chunk.length;
+    const months = monthsBetween(startMonth, currentMonth);
+    const chunk = months.slice(0, MONTH_CAP);
+    remaining = months.length - chunk.length;
 
-      for (const dateStr of chunk) {
-        for (const inv of inverters) {
-          try {
-            await syncInverterDay(inv, dateStr, cfg);
-            daysWritten++;
-          } catch {
-            // Skip days the API can't serve; keep going.
-          }
-          await sleep(RATE_DELAY_MS);
+    for (const month of chunk) {
+      for (const inv of inverters) {
+        try {
+          daysWritten += await syncInverterMonth(inv, month, cfg);
+        } catch {
+          // Skip months the API can't serve; keep going.
         }
+        await sleep(RATE_DELAY_MS);
+      }
+    }
+
+    // Refresh today precisely from the live detail (overwrites the monthly row).
+    for (const inv of inverters) {
+      try {
+        await syncInverterToday(inv, cfg);
+      } catch {
+        // Non-fatal — the monthly row for today still stands.
       }
     }
 
