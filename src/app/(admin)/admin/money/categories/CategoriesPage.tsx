@@ -1,11 +1,13 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import NextLink from "next/link";
 import {
   Box,
   Card,
   Typography,
   Button,
+  Link,
   Table,
   TableBody,
   TableCell,
@@ -177,7 +179,15 @@ export default function CategoriesPage() {
                 filtered.map((c) => (
                   <TableRow key={c.id} hover>
                     <TableCell data-label="Name" sx={{ fontWeight: 600 }}>
-                      {c.name}
+                      <Link
+                        component={NextLink}
+                        href={`/admin/money/entries?category=${c.id}&period=all`}
+                        underline="hover"
+                        color="primary"
+                        title="View this category's entries in the ledger"
+                      >
+                        {c.name}
+                      </Link>
                     </TableCell>
                     <TableCell data-label="Kind">
                       <Chip
