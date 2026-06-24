@@ -8,7 +8,7 @@ A personal site and private admin dashboard for **Syful Islam Shakil**, built as
 | **Admin**     | `/admin/*`     | Private — personal dashboard | Required |
 | **Login**     | `/admin/login` | Auth gate                    | None     |
 
-The public side is a marketing/portfolio page. The private side is a full operations dashboard — finances, rental property management, reports, database backups, and an **AI assistant that can read _and_ write your data through natural language** (behind an approval gate).
+The public side is a marketing/portfolio page. The private side is a full operations dashboard — finances, rental property management, home **solar monitoring**, reports, database backups, and an **AI assistant that can read _and_ write your data through natural language** (behind an approval gate).
 
 ---
 
@@ -17,6 +17,7 @@ The public side is a marketing/portfolio page. The private side is a full operat
 - **AI assistant with tool use** — chat over your real data. The model calls read tools to answer questions and proposes write actions (create/update) that you approve with a button before anything is saved. Vendor-neutral provider seam (Claude today; OpenAI/Gemini are drop-in adapter slots), encrypted API keys, prompt caching, and `/property` · `/finance` · `/money` slash commands to scope the toolset.
 - **Financial tracker** — client income, employee salaries, business expenses, and recurring subscriptions, with fiscal-year (Jul→June) reporting in BDT (৳).
 - **Property management** — rental units, tenants, monthly rent rows, payments, property expenses, add-on services, scheduled rent changes, and PDF rent receipts.
+- **Solar monitoring** — read-only SolisCloud telemetry synced on a schedule into local readings, with reports on generation, consumption (split by solar/battery/grid), electricity-cost savings under effective-dated BPDB slab tariffs, a payback/ROI tracker, battery, CO₂, and a 7-day weather + predicted-generation forecast. The inverter is never controlled — read-only by design.
 - **Reports & dashboard** — month/fiscal-year overviews with charts.
 - **Database backups** — one-click `pg_dump`, optional upload to your Google Drive, scheduled retention.
 - **Two isolated design systems** — Tailwind v4 + SCSS for the portfolio, MUI v9 (themeable, settings-driven) for the admin.
@@ -30,7 +31,7 @@ The public side is a marketing/portfolio page. The private side is a full operat
 | Framework    | **Next.js 16** (App Router, TypeScript strict, `src/`)      |
 | UI (public)  | **Tailwind CSS v4** + SCSS                                  |
 | UI (admin)   | **Material UI v9** + Emotion                                |
-| Database     | **PostgreSQL** via **Prisma** (37 models)                   |
+| Database     | **PostgreSQL** via **Prisma** (41 models)                   |
 | Auth         | **NextAuth v5** (credentials provider, JWT sessions)        |
 | AI           | **Anthropic SDK** behind a vendor-neutral `AiProvider` seam |
 | PDF / charts | `@react-pdf/renderer`, `recharts`                           |
@@ -74,6 +75,7 @@ All secrets live in `.env.local` (never committed). See `.env.example` for the f
 | `NEXT_PUBLIC_SITE_URL` / `NEXT_PUBLIC_CV_URL`           | Public site URL and CV download link                                |
 | `BACKUP_DIR` / `PG_BIN_DIR`                             | Where backups are written / location of `pg_dump` if not on PATH    |
 | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | Optional — Drive upload for backups (local backups work without it) |
+| `SOLIS_KEY_ID` / `SOLIS_KEY_SECRET` / `SOLIS_API_URL`   | SolisCloud API credentials for solar monitoring (read-only)         |
 
 ---
 
@@ -87,8 +89,10 @@ src/
 │   │   └── admin/            account · ai-assistant · finance · property · renovation · reports · settings
 │   ├── admin/login/          Login page (outside the admin group — no sidebar)
 │   └── api/admin/            API route handlers (thin — delegate to services/)
-├── services/<domain>/        Server business logic + Prisma (finance, property, admin, ai)
-│   └── ai/                   Provider seam, tool catalog, read/write tools, sessions, usage
+├── services/<domain>/        Server business logic + Prisma (finance, property, admin, ai, solar, solis)
+│   ├── ai/                   Provider seam, tool catalog, read/write tools, sessions, usage
+│   ├── solis/                SolisCloud signed client (read-only) + sync + scheduler
+│   └── solar/                Tariff math (slab), report aggregation, payback, weather
 ├── lib/
 │   ├── api/                  Client-side Axios API layer (components call these, not fetch())
 │   ├── auth.ts               NextAuth config
@@ -117,7 +121,7 @@ docs/                         Architecture & deep-dive docs (see below)
 
 The standout feature. How it works end to end:
 
-1. You chat in `/admin/ai-assistant`. Optionally prefix with `/property`, `/finance`, or `/money` to load only that module's tools (cheaper, more focused).
+1. You chat in `/admin/ai-assistant`. Optionally prefix with `/property`, `/finance`, `/money`, or `/solar` to load only that module's tools (cheaper, more focused).
 2. The model answers questions by calling **read tools** (live data, no side effects).
 3. To change data it calls a **write tool** — which only _proposes_ the action and renders an **approval card**. Nothing is written while the model is in the loop.
 4. You click **Approve**; a separate endpoint commits it through the same service layer the dashboard uses. (Deletes are intentionally not exposed to the AI.)
@@ -130,15 +134,18 @@ See [docs/AI_TOOLS_REFERENCE.md](docs/AI_TOOLS_REFERENCE.md) for the full tool l
 
 ## Scripts
 
-| Command                   | Does                                      |
-| ------------------------- | ----------------------------------------- |
-| `npm run dev`             | Start the dev server                      |
-| `npm run build` / `start` | Production build / serve                  |
-| `npm run lint`            | ESLint over `src/`                        |
-| `npm run format`          | Prettier write (`format:check` to verify) |
-| `npm run seed`            | Seed admin user + base data               |
-| `npm run seed:financial`  | Seed financial sample data                |
-| `npm run db:restore`      | Restore a `pg_dump` backup                |
+| Command                   | Does                                          |
+| ------------------------- | --------------------------------------------- |
+| `npm run dev`             | Start the dev server                          |
+| `npm run build` / `start` | Production build / serve                      |
+| `npm run lint`            | ESLint over `src/`                            |
+| `npm run format`          | Prettier write (`format:check` to verify)     |
+| `npm run seed`            | Seed admin user + base data                   |
+| `npm run seed:financial`  | Seed financial sample data                    |
+| `npm run seed:solar`      | Seed solar system details + BPDB tariffs      |
+| `npm run db:restore`      | Restore a `pg_dump` backup                    |
+| `npm run solis:test`      | Test the SolisCloud connection + print fields |
+| `npm run test`            | Run unit tests (node:test via tsx)            |
 
 ---
 

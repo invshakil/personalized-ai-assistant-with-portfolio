@@ -83,6 +83,10 @@ Defined in `prisma/schema.prisma`. Do not modify schema without updating this do
 | `Beneficiary`                             | Money Manager — a person you pay (allowance/loan); `relationship?`, soft-deleted via `isActive`                                                                                                                                                                                            |
 | `BeneficiaryObligation`                   | Money Manager — a `RECURRING` allowance or `LOAN` (principal); `direction` (OWED_BY_ME/OWED_TO_ME), `status`. Loan outstanding = principal − Σ repayments                                                                                                                                  |
 | `MoneyImportBatch`                        | Money Manager — one CSV import (reversible); `fileName`, `rowCount`, `mapping` (JSON). Deleting it rolls back its entries                                                                                                                                                                  |
+| `SolarSettings`                           | Solar — singleton; non-secret config: `systemSizeKwp?`, `batteryKwh?`, `installCost` (payback), `installDate?`, `latitude?`/`longitude?` (weather), `co2FactorKgPerKwh`, `currency`, auto-discovered `stationId`, last-sync status. Solis credentials live in env, never here              |
+| `ElectricityTariff`                       | Solar — effective-dated tariff version (mirrors `SubscriptionRateChange`); `effectiveFrom` (1st of month), `distributor` (BPDB), `demandChargePerKw` (flat monthly), `vatPercent`. Has many `TariffSlab`. The version in force for a month is the latest `effectiveFrom <=` it             |
+| `TariffSlab`                              | Solar — one cumulative consumption band of a tariff; `fromUnit`, `toUnit?` (null = unbounded top band), `rate` (BDT/kWh). Cascade-deleted with the tariff                                                                                                                                  |
+| `SolisDailyReading`                       | Solar — one row per inverter per day (read-only SolisCloud telemetry); generation/grid import+export/battery charge+discharge/consumption (kWh), `peakPowerKw`, SOC min/max, temp, `raw` JSON. Unique `[inverterSn, date]`                                                                 |
 
 Currency: **BDT (Bangladeshi Taka ৳)** throughout. All `Decimal` fields are BDT unless noted.
 
@@ -302,6 +306,17 @@ from the ledger** (`openingBalance + Σ credits − Σ debits ± transfers`), so
 - **CSV import** — column-mapping importer with preview, duplicate detection, and reversible batches (`MoneyImportBatch`).
 - **Pages:** Overview dashboard (savings trend + expense-by-category charts, balances, people-owed, venture context), Ledger (entries + transfer action), People & Loans, Accounts, Categories, Import CSV.
 - **Service-layer-first** (`src/services/money/`): the same functions back the API routes, read-only **AI tools** (`get_money_overview`, `get_monthly_savings`, `get_personal_expense_breakdown`, `get_account_balances`, `get_people_balances`, `list_money_entries` — scope `/money`), the **`scripts/money.ts` CLI**, and the **`/money` Claude Code slash command**.
+
+### Solar Monitoring (`/admin/reports/solar` + `/admin/settings/solar`) ✅ functional
+
+Home solar via **SolisCloud**. **Read-only by design** — we only pull telemetry, never command the
+inverter (no control/write endpoints exist in `src/services/solis/`).
+
+- **Ingestion** (`src/services/solis/`) — a signed (HMAC-SHA1) read-only API client; `fieldMap.ts` is the single place that knows raw Solis field names (verify with `npm run solis:test`). `sync.ts` normalizes a day's flows into `SolisDailyReading` (upsert) and an in-app scheduler (`scheduler.ts`, started from `instrumentation.ts`, ~every 2h, globalThis-guarded) keeps today's row fresh. Credentials are env-only (`SOLIS_KEY_ID/SECRET/URL`).
+- **Tariffs** (`ElectricityTariff` + `TariffSlab`) — effective-dated BPDB residential slab rates (seeded: pre-June-2026 + the June-2026 BERC revision; editable, verify against your bill). Billing is cumulative over the month; the engine + math live in `src/services/solar/tariff.ts` (unit-tested in `__tests__/tariff.test.ts`).
+- **Reports** (`src/services/solar/reports.ts`) — monthly generation, consumption with its source split (solar-direct / battery / grid), grid import/export, battery charge/discharge, would-have-cost vs actual spent, monthly savings, self-sufficiency %, CO₂ avoided, and the **payback/ROI tracker** (% of install cost recovered + projected break-even). Weather via Open-Meteo (`weather.ts`): 7-day forecast + predicted generation.
+- **Pages:** Solar Reports (payback hero, stat tiles, recharts, weather strip, monthly table) and Solar Settings (system info, connection status, **Sync now**, tariff editor). Sidebar parent "Solar" → Reports + Settings.
+- **Service-layer-first** (`src/services/solar/`): the same functions back the API routes (`/api/admin/solar/*`), read-only **AI tools** (`get_solar_overview`, `get_solar_report`, `get_solar_payback`, `get_solar_weather`, `list_electricity_tariffs`), local-only **write tools** (`sync_solar_data`, `update_solar_settings`, `add_electricity_tariff` — never write to Solis), and the **`/solar` slash command** (scope filtering).
 
 ### 4. Renovation Tracker (`/admin/renovation`)
 

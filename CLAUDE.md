@@ -83,7 +83,9 @@ src/app/(portfolio)/              ← public portfolio pages
 src/app/(admin)/                  ← auth-gated admin pages (MUI themed via AdminShell)
 src/app/admin/login/              ← login page (outside admin group — no sidebar; has its own ThemeProvider)
 src/app/api/admin/                ← admin API route handlers (thin; delegate to src/services/)
-src/services/<domain>/            ← server services: business logic + Prisma (finance, property)
+src/services/<domain>/            ← server services: business logic + Prisma (finance, property, solar)
+src/services/solis/               ← SolisCloud signed API client (READ-ONLY) + sync + scheduler
+src/services/solar/               ← tariff slab math, report aggregation, payback, weather (Open-Meteo)
 src/lib/api/                      ← client API layer (Axios) — components call these, not fetch()
 src/components/portfolio/         ← portfolio section components (Tailwind)
 src/components/admin/             ← shared admin components (MUI)
@@ -187,6 +189,7 @@ semantic keys and both modes work automatically.
 - **Do not** use MUI components inside portfolio components — use Tailwind
 - **Do not** use `<Box component="nav">` in admin — use `<Box role="navigation">` (global SCSS `nav { position: fixed }` bleeds in)
 - **Do not** use the `<form>` HTML element in React components — use `onSubmit` with controlled state
+- **Do not** add inverter-control / write endpoints to `src/services/solis/` — the SolisCloud integration is **read-only by design**. We only pull telemetry; we never command the inverter.
 
 ---
 
@@ -208,6 +211,8 @@ All vars live in `.env.local` (never committed). See `.env.example` for the full
 | `BACKUP_DIR`                                            | Where `pg_dump` backups are written (defaults to `./backups`)                                                             |
 | `PG_BIN_DIR`                                            | Folder holding `pg_dump`/`pg_restore` if not on PATH (macOS Homebrew libpq: `/opt/homebrew/opt/libpq/bin`)                |
 | `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` | OAuth client for uploading DB backups to your Google Drive (Settings → Backups). Optional — local backups work without it |
+| `SOLIS_KEY_ID` / `SOLIS_KEY_SECRET`                     | SolisCloud API credentials (Basic Settings → API Management). Secret stays in `.env.local`; never persisted to the DB     |
+| `SOLIS_API_URL`                                         | SolisCloud API base URL (usually `https://www.soliscloud.com:13333`)                                                      |
 
 ---
 

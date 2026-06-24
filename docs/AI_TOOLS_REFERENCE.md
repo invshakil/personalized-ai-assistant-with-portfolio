@@ -192,9 +192,19 @@ prompt). Snapshot reports take no range.
 | `get_scheduled_rent_changes`     | `getScheduledRentChanges()`                          | —                     | Pending (not-yet-applied) rent increases                            |
 | `get_tenant_statement`           | `getTenantStatement(id, range?)`                     | `tenantId`, range     | Per-tenant month-by-month due/paid + running balance                |
 | `get_combined_income_summary`    | `getMonthlyPnl` + `getPropertyFinancials` (composed) | range                 | Business + property income/net over one range (overall view)        |
+| `get_solar_overview`             | `getSolarOverview()`                                 | —                     | Solar snapshot: month + lifetime gen/savings/CO₂, SOC, payback      |
+| `get_solar_report`               | `getSolarReport({from?,to?})`                        | from/to               | Monthly gen, consumption split, cost vs actual, savings, self-suff. |
+| `get_solar_payback`              | `getSolarReport().payback`                           | —                     | % of install cost recovered + projected break-even                  |
+| `get_solar_weather`              | `getSolarWeather()`                                  | —                     | 7-day forecast + predicted generation (Open-Meteo)                  |
+| `list_electricity_tariffs`       | `listTariffs()`                                      | —                     | Configured BPDB slab tariff versions (current vs previous rates)    |
 
 > `range` = `{ period?, from?, to? }`. All return small, pre-aggregated, JSON-safe summaries (totals +
 > short/top-N arrays), so a report never dumps every row into the context window.
+
+> **Solar (`/solar` scope, `@/services/solar`)** is read-only SolisCloud telemetry — the read tools
+> above plus local-only write tools `sync_solar_data`, `update_solar_settings`, and
+> `add_electricity_tariff`. None write to / control the inverter; `sync_solar_data` reads from
+> SolisCloud and writes local readings, gated behind the same approval card as every write tool.
 
 `get_combined_income_summary` has no service function of its own — it composes the two domains in the
 tool handler (`src/services/ai/tools.ts`), summing the monthly P&L for the business side so both sides
