@@ -3,7 +3,7 @@
 **Owner:** Syful Islam Shakil  
 **Domain:** sshakil.com  
 **Repo:** https://github.com/invshakil/personalized-ai-assistant-with-portfolio  
-**Last updated:** 2026-06-16
+**Last updated:** 2026-06-24
 
 > This is the living project document. Update the **Progress** section as you implement features.
 > Claude Code should read this at the start of every session.
@@ -120,7 +120,7 @@ sshakil-app/
 │   │   │       ├── AiSpendPanel.tsx   ✅ AI spend cards + monthly-cost bar chart
 │   │   │       ├── property/          ✅ complete — Units & Tenants, payments, expenses, services, payees, service-types, settings, [tenants/units]/[id]
 │   │   │       ├── finance/           ✅ complete — earnings, payments (salaries), expenses, subscriptions, settings (page.tsx redirects → /finance/earnings)
-│   │   │       ├── reports/           ✅ Reports hub — financial/ + property/ (reuse the dashboard components); page.tsx → /reports/financial
+│   │   │       ├── reports/           ✅ Reports hub — financial/ + property/ + solar/; page.tsx → /reports/financial
 │   │   │       ├── renovation/        🔲 stub (MUI StubPage)
 │   │   │       ├── ai-assistant/      ✅ MUI chat UI — streaming, provider-swappable, tool use, ConversationList
 │   │   │       ├── settings/          ✅ Site Settings; settings/ai (AI provider + budget); settings/appearance (theme)
@@ -144,7 +144,7 @@ sshakil-app/
 │   │   │   ├── Education.tsx      ✅ 3 entries, flat flex layout
 │   │   │   └── Contact.tsx        ✅ 5 links, SVG icons, dark bg
 │   │   ├── admin/                 ← all MUI — shared across admin routes
-│   │   │   ├── AdminSidebar.tsx   ✅ MUI List nav, sticky, collapsible groups, <Box role="navigation">
+│   │   │   ├── AdminSidebar.tsx   ✅ MUI List nav, sticky, collapsible groups, <Box role="navigation"> (no top-level Reports item — Solar/Property/Finance each carry their own Reports child)
 │   │   │   ├── AdminHeader.tsx    ✅ MUI Box header — breadcrumb + light/dark toggle + user avatar
 │   │   │   ├── AdminThemeProvider.tsx ✅ "use client" — theme context (live preview + persist) wrapping ThemeProvider
 │   │   │   ├── AdminBreadcrumb.tsx ✅ MUI Typography breadcrumb
@@ -289,9 +289,11 @@ Centralized reporting hub (sidebar group). Dedicated pages reuse the existing da
 
 - `/admin/reports/financial` — Financial Tracker report (per-FY P&L, charts, salary matrix, PDF export)
 - `/admin/reports/property` — Property report (charts, occupancy, due tracker)
+- `/admin/reports/solar` — Solar Reports (text-first; see Solar Monitoring section)
 
 `/admin/reports` redirects to the financial report. The per-module "Dashboard" links were removed in favour
 of this hub; the live cross-domain summary lives on the **Overview** (`/admin`, `getAdminOverview()`).
+The top-level **Reports** sidebar entry was removed (redundant with the per-module Reports children).
 
 ### Money Manager (`/admin/money`) ✅ complete
 
@@ -315,7 +317,8 @@ inverter (no control/write endpoints exist in `src/services/solis/`).
 - **Ingestion** (`src/services/solis/`) — a signed (HMAC-SHA1) read-only API client; `fieldMap.ts` is the single place that knows raw Solis field names (verify with `npm run solis:test`). `sync.ts` normalizes a day's flows into `SolisDailyReading` (upsert). It refreshes **today** every run and **backfills missing days** (oldest-first, `BACKFILL_CHUNK`=30/call so a request stays short; reruns skip already-synced days). The in-app scheduler (`scheduler.ts`, from `instrumentation.ts`, ~every 2h, globalThis-guarded) progressively fills history from the install date; the **Backfill history** button in Settings → Solar loops `runSolisSync({from: installDate})` until `remaining` is 0 for an immediate fill. Credentials are env-only (`SOLIS_KEY_ID/SECRET/URL`).
 - **Tariffs** (`ElectricityTariff` + `TariffSlab`) — effective-dated BPDB residential slab rates (seeded: pre-June-2026 + the June-2026 BERC revision; editable, verify against your bill). Billing is cumulative over the month; the engine + math live in `src/services/solar/tariff.ts` (unit-tested in `__tests__/tariff.test.ts`).
 - **Reports** (`src/services/solar/reports.ts`) — monthly generation, consumption with its source split (solar-direct / battery / grid), grid import/export, battery charge/discharge, would-have-cost vs actual spent, monthly savings, self-sufficiency %, CO₂ avoided, and the **payback/ROI tracker** (% of install cost recovered + projected break-even). Weather via Open-Meteo (`weather.ts`): 7-day forecast + predicted generation.
-- **Pages:** Solar Reports (payback hero, stat tiles, recharts, weather strip, monthly table) and Solar Settings (system info, connection status, **Sync now**, tariff editor). Sidebar parent "Solar" → Reports + Settings.
+- **Pages:** Solar Reports and Solar Settings (system info, connection status, **Sync now**, tariff editor). Sidebar parent "Solar" → Reports + Settings.
+  - **Solar Reports** (`SolarReportsPage.tsx`) — text-first, no recharts: payback hero tile, stat row, selected-period totals card, stacked **source-split bar** (solar / battery / grid), monthly detail table with inline self-sufficiency % meters, and a 7-day **weather forecast card** at the bottom. Range presets: **1M · 3M · 6M · 12M · All** (each fires a real API call). Weather card has three states: loaded days / API error (red dashed, links to Solar Settings) / no location set (grey dashed).
 - **Service-layer-first** (`src/services/solar/`): the same functions back the API routes (`/api/admin/solar/*`), read-only **AI tools** (`get_solar_overview`, `get_solar_report`, `get_solar_payback`, `get_solar_weather`, `list_electricity_tariffs`), local-only **write tools** (`sync_solar_data`, `update_solar_settings`, `add_electricity_tariff` — never write to Solis), and the **`/solar` slash command** (scope filtering).
 
 ### 4. Renovation Tracker (`/admin/renovation`)
