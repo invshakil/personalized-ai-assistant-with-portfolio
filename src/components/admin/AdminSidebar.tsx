@@ -47,6 +47,7 @@ import {
   Upload,
   ListChecks,
   CalendarClock,
+  Sun,
 } from "lucide-react";
 
 const SIDEBAR_WIDTH = 260;
@@ -109,6 +110,16 @@ const navGroups: { label: string; items: NavItem[] }[] = [
           { href: "/admin/money/accounts", label: "Accounts", icon: Landmark },
           { href: "/admin/money/categories", label: "Categories", icon: Tag },
           { href: "/admin/money/import", label: "Import CSV", icon: Upload },
+        ],
+      },
+      {
+        href: "/admin/reports/solar",
+        label: "Solar",
+        icon: Sun,
+        exact: false,
+        children: [
+          { href: "/admin/reports/solar", label: "Reports", icon: FileBarChart },
+          { href: "/admin/settings/solar", label: "Settings", icon: SlidersHorizontal },
         ],
       },
       { href: "/admin/reports", label: "Reports", icon: FileBarChart, exact: false },
