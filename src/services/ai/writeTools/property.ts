@@ -23,6 +23,7 @@ import {
   updateServiceType,
   getUnit,
   getTenant,
+  getTenants,
   getPayment,
   getServices,
   getPayees,
@@ -86,6 +87,63 @@ async function serviceById(id: string) {
   if (!s) throw new Error(`No add-on service found with id "${id}".`);
   return s;
 }
+// Resolve a tenant by id, tenant code (e.g. "T01"), or exact name
+// (case-insensitive) so the model can attach services without knowing the cuid.
+async function resolveTenantRef(ref: string) {
+  const byId = await getTenant(ref);
+  if (byId) {
+    return {
+      id: field(byId, "id")!,
+      name: field(byId, "name"),
+      tenantCode: field(byId, "tenantCode"),
+    };
+  }
+  const norm = ref.trim().toLowerCase();
+  const all = await getTenants("all");
+  const match = all.find(
+    (t) =>
+      field(t, "tenantCode")?.toLowerCase() === norm || field(t, "name")?.toLowerCase() === norm
+  );
+  if (!match)
+    throw new Error(
+      `No tenant matches "${ref}" (by id, code, or name). Use list_tenants to find it.`
+    );
+  return {
+    id: field(match, "id")!,
+    name: field(match, "name"),
+    tenantCode: field(match, "tenantCode"),
+  };
+}
+// Resolve an add-on service by id or exact name (e.g. "WiFi"), case-insensitive.
+async function resolveServiceRef(ref: string) {
+  const all = await getServices();
+  const norm = ref.trim().toLowerCase();
+  const match = all.find((s) => s.id === ref || s.name.toLowerCase() === norm);
+  if (!match) {
+    const names = all.map((s) => s.name).join(", ");
+    throw new Error(
+      `No add-on service matches "${ref}". ` +
+        (names ? `Available: ${names}.` : "Create one first with create_service.")
+    );
+  }
+  return match;
+}
+// Parse an optional list of services to attach at tenant-creation time.
+function parseServiceList(
+  v: unknown
+): { serviceRef: string; monthlyFee: number; startDate?: string }[] {
+  if (v === undefined || v === null) return [];
+  if (!Array.isArray(v)) throw new Error('"services" must be a list of services.');
+  return v.map((raw, idx) => {
+    if (!raw || typeof raw !== "object") throw new Error(`services[${idx}] must be an object.`);
+    const o = raw as Record<string, unknown>;
+    return {
+      serviceRef: reqStr(o.service ?? o.serviceName ?? o.name, `services[${idx}].service`),
+      monthlyFee: reqNum(o.monthlyFee ?? o.fee, `services[${idx}].monthlyFee`),
+      startDate: optDate(o.startDate, `services[${idx}].startDate`),
+    };
+  });
+}
 async function serviceTypeById(id: string) {
   const s = (await getServiceTypes()).find((x) => x.id === id);
   if (!s) throw new Error(`No service type found with id "${id}".`);
@@ -113,7 +171,8 @@ export const propertyTools: WriteToolDef[] = [
       "are scheduled (defaults to the day before this tenant's move-in; override with outgoingMoveOutDate). " +
       "Optionally pass advanceAccountName (a Money-Manager wallet/account); when an advance was paid the " +
       "advance amount is also posted into that account's ledger as Tenant Advance so the deposit lands " +
-      "in its balance.",
+      "in its balance. Optionally pass services to attach add-ons (WiFi, parking, etc.) in the same step " +
+      "— each service is identified by id or name and the assignment starts on moveInDate unless overridden.",
     parameters: schema(
       {
         name: Str("Tenant full name"),
@@ -135,6 +194,22 @@ export const propertyTools: WriteToolDef[] = [
           "When the unit is occupied, the current tenant's move-out date YYYY-MM-DD " +
             "(optional; defaults to the day before moveInDate)"
         ),
+        services: {
+          type: "array",
+          description:
+            'Optional add-on services to attach immediately, e.g. [{"service":"WiFi","monthlyFee":1000}]. ' +
+            "service is the service id or name (it must already exist — create it with create_service first); " +
+            "startDate defaults to moveInDate.",
+          items: {
+            type: "object",
+            properties: {
+              service: Str("Add-on service id or name (e.g. WiFi, Parking)"),
+              monthlyFee: Num("Monthly fee in BDT"),
+              startDate: Str("Start date YYYY-MM-DD (optional; defaults to moveInDate)"),
+            },
+            required: ["service", "monthlyFee"],
+          },
+        },
       },
       ["name", "moveInDate"]
     ),
@@ -152,6 +227,7 @@ export const propertyTools: WriteToolDef[] = [
       isExternal: optBool(i.isExternal),
       notes: optStr(i.notes) ?? null,
       outgoingMoveOutDate: optDate(i.outgoingMoveOutDate, "outgoingMoveOutDate") ?? null,
+      services: parseServiceList(i.services),
     }),
     preview: async (a) => {
       let unitLabel = "external (no unit)";
@@ -161,16 +237,40 @@ export const propertyTools: WriteToolDef[] = [
       }
       const acct = a.advanceAccountName ? ` → ${a.advanceAccountName}` : "";
       const adv = a.advanceAmount ? `, advance ${taka(a.advanceAmount)}${acct}` : "";
-      return `Create tenant "${a.name}" — ${unitLabel}, move-in ${a.moveInDate}${adv}.`;
+      let svc = "";
+      if (a.services.length) {
+        const resolved = await Promise.all(a.services.map((x) => resolveServiceRef(x.serviceRef)));
+        svc =
+          " + add-ons: " +
+          resolved
+            .map((s, idx) => `${nameOf(s)} (${taka(a.services[idx].monthlyFee)}/mo)`)
+            .join(", ");
+      }
+      return `Create tenant "${a.name}" — ${unitLabel}, move-in ${a.moveInDate}${adv}${svc}.`;
     },
     commit: async (a) => {
-      const { advanceAccountName, ...rest } = a;
+      const { advanceAccountName, services, ...rest } = a;
       const advanceAccountId = advanceAccountName
         ? (await moneyAccountByName(advanceAccountName)).id
         : undefined;
       const t = await createTenant({ ...rest, advanceAccountId });
+      const tenantId = field(t, "id");
+      const attached: string[] = [];
+      if (tenantId) {
+        for (const svc of services) {
+          const s = await resolveServiceRef(svc.serviceRef);
+          await assignService({
+            tenantId,
+            serviceId: s.id,
+            monthlyFee: svc.monthlyFee,
+            startDate: svc.startDate ?? rest.moveInDate,
+          });
+          attached.push(nameOf(s) ?? s.id);
+        }
+      }
+      const svcNote = attached.length ? ` with ${attached.join(", ")}` : "";
       return {
-        summary: `Created tenant ${field(t, "name")} (${field(t, "tenantCode")}).`,
+        summary: `Created tenant ${field(t, "name")} (${field(t, "tenantCode")})${svcNote}.`,
         data: t,
       };
     },
@@ -714,31 +814,51 @@ export const propertyTools: WriteToolDef[] = [
 
   write({
     name: "assign_service",
-    description: "Assign an add-on service to a tenant at a monthly fee, starting on a date.",
+    description:
+      "Assign an add-on service to a tenant at a monthly fee, starting on a date. Identify the tenant " +
+      "by id, tenant code (e.g. T01), or name, and the service by id or name (e.g. WiFi) — the ids do " +
+      "not need to be looked up first.",
     parameters: schema(
       {
-        tenantId: Str("Tenant id"),
-        serviceId: Str("Service id"),
+        tenant: Str("Tenant id, tenant code (e.g. T01), or full name"),
+        service: Str("Add-on service id or name (e.g. WiFi, Parking)"),
         monthlyFee: Num("Monthly fee in BDT"),
         startDate: Str("Start date YYYY-MM-DD"),
         notes: Str("Notes (optional)"),
       },
-      ["tenantId", "serviceId", "monthlyFee", "startDate"]
+      ["tenant", "service", "monthlyFee", "startDate"]
     ),
     parse: (i) => ({
-      tenantId: reqStr(i.tenantId, "tenantId"),
-      serviceId: reqStr(i.serviceId, "serviceId"),
+      // Accept the new `tenant`/`service` refs, falling back to legacy id fields.
+      tenantRef: reqStr(i.tenant ?? i.tenantId, "tenant"),
+      serviceRef: reqStr(i.service ?? i.serviceId, "service"),
       monthlyFee: reqNum(i.monthlyFee, "monthlyFee"),
       startDate: reqDate(i.startDate, "startDate"),
       notes: optStr(i.notes) ?? null,
     }),
     preview: async (a) => {
-      const [t, s] = await Promise.all([tenantById(a.tenantId), serviceById(a.serviceId)]);
-      return `Assign "${nameOf(s)}" to ${field(t, "name")} at ${taka(a.monthlyFee)}/month from ${a.startDate}.`;
+      const [t, s] = await Promise.all([
+        resolveTenantRef(a.tenantRef),
+        resolveServiceRef(a.serviceRef),
+      ]);
+      return `Assign "${nameOf(s)}" to ${t.name} (${t.tenantCode}) at ${taka(a.monthlyFee)}/month from ${a.startDate}.`;
     },
     commit: async (a) => {
-      const r = await assignService(a);
-      return { summary: `Assigned service at ${taka(a.monthlyFee)}/month.`, data: r };
+      const [t, s] = await Promise.all([
+        resolveTenantRef(a.tenantRef),
+        resolveServiceRef(a.serviceRef),
+      ]);
+      const r = await assignService({
+        tenantId: t.id,
+        serviceId: s.id,
+        monthlyFee: a.monthlyFee,
+        startDate: a.startDate,
+        notes: a.notes,
+      });
+      return {
+        summary: `Assigned ${nameOf(s)} to ${t.name} at ${taka(a.monthlyFee)}/month.`,
+        data: r,
+      };
     },
   }),
 
