@@ -22,9 +22,10 @@ import {
   CircularProgress,
   Alert,
   IconButton,
+  InputAdornment,
   Tooltip,
 } from "@mui/material";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, Search } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { moneyApi } from "@/lib/api/money";
@@ -46,6 +47,11 @@ export default function CategoriesPage() {
   const [pendingDelete, setPendingDelete] = useState<MoneyCategoryRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+
+  const filtered = categories.filter((c) =>
+    c.name.toLowerCase().includes(query.trim().toLowerCase())
+  );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -112,7 +118,23 @@ export default function CategoriesPage() {
     <Box>
       <PageHeader title="Categories" subtitle="Income & expense categories for your ledger" />
 
-      <Box sx={{ display: "flex", mb: 3 }}>
+      <Box sx={{ display: "flex", gap: 2, mb: 3, alignItems: "center", flexWrap: "wrap" }}>
+        <TextField
+          placeholder="Search categories"
+          size="small"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={16} />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ minWidth: 240 }}
+        />
         <Button
           variant="contained"
           startIcon={<Plus size={16} />}
@@ -141,14 +163,18 @@ export default function CategoriesPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {categories.length === 0 ? (
+              {filtered.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} sx={{ textAlign: "center", py: 4 }}>
-                    <Typography color="text.secondary">No categories yet</Typography>
+                    <Typography color="text.secondary">
+                      {categories.length === 0
+                        ? "No categories yet"
+                        : `No categories match "${query}"`}
+                    </Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                categories.map((c) => (
+                filtered.map((c) => (
                   <TableRow key={c.id} hover>
                     <TableCell data-label="Name" sx={{ fontWeight: 600 }}>
                       {c.name}

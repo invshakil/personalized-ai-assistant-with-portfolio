@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { Fragment, useState, useEffect, useCallback } from "react";
+import NextLink from "next/link";
 import {
   Box,
   Card,
@@ -13,6 +14,7 @@ import {
   TableHead,
   TableRow,
   Chip,
+  Collapse,
   Drawer,
   TextField,
   Select,
@@ -26,13 +28,13 @@ import {
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronRight, ChevronDown } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { moneyApi } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import type { MoneyAccountRow, MoneyAccountType } from "@/types";
-import { fmt, ACCOUNT_TYPE_LABEL } from "../format";
+import type { MoneyAccountRow, MoneyAccountType, MoneyEntryRow } from "@/types";
+import { fmt, fmtDate, ACCOUNT_TYPE_LABEL } from "../format";
 
 const TYPES: MoneyAccountType[] = ["CASH", "BANK", "MOBILE_WALLET", "CREDIT_CARD", "OTHER"];
 
@@ -65,15 +67,58 @@ export default function AccountsPage() {
   const [pendingDelete, setPendingDelete] = useState<MoneyAccountRow | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
+  // Inline "recent transactions" expansion, fetched on demand and cached per account.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [txByAccount, setTxByAccount] = useState<Record<string, MoneyEntryRow[]>>({});
+  const [txLoading, setTxLoading] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       setAccounts((await moneyApi.listAccounts()) ?? []);
+      // Balances may have changed — drop cached rows and collapse.
+      setExpandedId(null);
+      setTxByAccount({});
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const toggleExpand = async (id: string) => {
+    if (expandedId === id) {
+      setExpandedId(null);
+      return;
+    }
+    setExpandedId(id);
+    if (!txByAccount[id]) {
+      setTxLoading(id);
+      try {
+        const rows =
+          (await moneyApi.listEntries({
+            accountId: id,
+            limit: 10,
+            sortBy: "date",
+            sortDir: "desc",
+          })) ?? [];
+        setTxByAccount((m) => ({ ...m, [id]: rows }));
+      } finally {
+        setTxLoading(null);
+      }
+    }
+  };
+
+  const amountColor = (d: MoneyEntryRow["direction"]) =>
+    d === "CREDIT" ? "success.main" : d === "DEBIT" ? "error.main" : "text.secondary";
+  const amountText = (e: MoneyEntryRow) =>
+    e.direction === "CREDIT"
+      ? `+${fmt(e.amount)}`
+      : e.direction === "DEBIT"
+        ? `−${fmt(e.amount)}`
+        : fmt(e.amount);
+  const entryLabel = (e: MoneyEntryRow) =>
+    e.direction === "TRANSFER"
+      ? `${e.accountName ?? "—"} → ${e.transferAccountName ?? "—"}`
+      : (e.categoryName ?? e.description ?? "—");
 
   useEffect(() => {
     load();
@@ -220,51 +265,136 @@ export default function AccountsPage() {
                 </TableRow>
               ) : (
                 accounts.map((a) => (
-                  <TableRow key={a.id} hover>
-                    <TableCell data-label="Name" sx={{ fontWeight: 600 }}>
-                      {a.name}
-                    </TableCell>
-                    <TableCell data-label="Type">{ACCOUNT_TYPE_LABEL[a.type]}</TableCell>
-                    <TableCell
-                      align="right"
-                      data-label="Balance"
-                      sx={{ fontWeight: 700, color: balanceColor(a) }}
-                    >
-                      {fmt(a.balance)}
-                    </TableCell>
-                    <TableCell align="right" data-label="Available credit">
-                      {a.availableCredit != null ? fmt(a.availableCredit) : "—"}
-                    </TableCell>
-                    <TableCell data-label="Status">
-                      <Chip
-                        size="small"
-                        label={a.isActive ? "Active" : "Inactive"}
-                        color={a.isActive ? "success" : "default"}
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell data-label="Actions">
-                      <Box sx={{ display: "flex" }}>
-                        <Tooltip title="Edit">
-                          <IconButton size="small" onClick={() => openEdit(a)}>
-                            <Pencil size={14} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => {
-                              setDeleteError(null);
-                              setPendingDelete(a);
-                            }}
-                          >
-                            <Trash2 size={14} />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
+                  <Fragment key={a.id}>
+                    <TableRow hover onClick={() => toggleExpand(a.id)} sx={{ cursor: "pointer" }}>
+                      <TableCell data-label="Name" sx={{ fontWeight: 600 }}>
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                          {expandedId === a.id ? (
+                            <ChevronDown size={15} />
+                          ) : (
+                            <ChevronRight size={15} />
+                          )}
+                          {a.name}
+                        </Box>
+                      </TableCell>
+                      <TableCell data-label="Type">{ACCOUNT_TYPE_LABEL[a.type]}</TableCell>
+                      <TableCell
+                        align="right"
+                        data-label="Balance"
+                        sx={{ fontWeight: 700, color: balanceColor(a) }}
+                      >
+                        {fmt(a.balance)}
+                      </TableCell>
+                      <TableCell align="right" data-label="Available credit">
+                        {a.availableCredit != null ? fmt(a.availableCredit) : "—"}
+                      </TableCell>
+                      <TableCell data-label="Status">
+                        <Chip
+                          size="small"
+                          label={a.isActive ? "Active" : "Inactive"}
+                          color={a.isActive ? "success" : "default"}
+                          variant="outlined"
+                        />
+                      </TableCell>
+                      <TableCell data-label="Actions">
+                        <Box sx={{ display: "flex" }} onClick={(e) => e.stopPropagation()}>
+                          <Tooltip title="Edit">
+                            <IconButton size="small" onClick={() => openEdit(a)}>
+                              <Pencil size={14} />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete">
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => {
+                                setDeleteError(null);
+                                setPendingDelete(a);
+                              }}
+                            >
+                              <Trash2 size={14} />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell colSpan={6} sx={{ p: 0, border: 0, bgcolor: "action.hover" }}>
+                        <Collapse in={expandedId === a.id} timeout="auto" unmountOnExit>
+                          <Box sx={{ px: 2, py: 1.5 }}>
+                            <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
+                              <Typography
+                                variant="caption"
+                                sx={{ fontWeight: 700, color: "text.secondary" }}
+                              >
+                                Recent transactions
+                              </Typography>
+                              <Button
+                                component={NextLink}
+                                href={`/admin/money/entries?account=${a.id}&period=all`}
+                                size="small"
+                                sx={{ ml: "auto", fontSize: "0.7rem", py: 0 }}
+                              >
+                                View all
+                              </Button>
+                            </Box>
+                            {txLoading === a.id ? (
+                              <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
+                                <CircularProgress size={18} />
+                              </Box>
+                            ) : (txByAccount[a.id]?.length ?? 0) === 0 ? (
+                              <Typography variant="caption" color="text.secondary">
+                                No transactions yet.
+                              </Typography>
+                            ) : (
+                              <Box sx={{ display: "flex", flexDirection: "column" }}>
+                                {txByAccount[a.id].map((e) => (
+                                  <Box
+                                    key={e.id}
+                                    sx={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 1.5,
+                                      py: 0.5,
+                                      borderBottom: "1px solid",
+                                      borderColor: "divider",
+                                      "&:last-of-type": { borderBottom: 0 },
+                                    }}
+                                  >
+                                    <Typography
+                                      variant="caption"
+                                      color="text.secondary"
+                                      sx={{ minWidth: 64, flexShrink: 0 }}
+                                    >
+                                      {fmtDate(e.date)}
+                                    </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        flex: 1,
+                                        minWidth: 0,
+                                        overflow: "hidden",
+                                        textOverflow: "ellipsis",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      {entryLabel(e)}
+                                    </Typography>
+                                    <Typography
+                                      variant="body2"
+                                      sx={{ fontWeight: 700, color: amountColor(e.direction) }}
+                                    >
+                                      {amountText(e)}
+                                    </Typography>
+                                  </Box>
+                                ))}
+                              </Box>
+                            )}
+                          </Box>
+                        </Collapse>
+                      </TableCell>
+                    </TableRow>
+                  </Fragment>
                 ))
               )}
             </TableBody>
