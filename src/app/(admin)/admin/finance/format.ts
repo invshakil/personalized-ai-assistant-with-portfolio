@@ -52,6 +52,28 @@ export function thisMonthInput(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
+const MONTH_ABBR = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
+
+/** "2025-08" → "Aug '25" (compact) or "Aug 2025" (long). */
+export function fmtPeriod(period: string, opts?: { long?: boolean }): string {
+  const [y, m] = period.split("-");
+  const month = MONTH_ABBR[Number(m) - 1] ?? m;
+  return opts?.long ? `${month} ${y}` : `${month} '${y.slice(2)}`;
+}
+
 // ─── Dashboard date-range presets ─────────────────────────────────────────────
 
 export type RangePreset = "FY" | "M1" | "M3" | "M6" | "Y1" | "Y2" | "ALL";

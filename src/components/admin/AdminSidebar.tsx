@@ -89,12 +89,11 @@ const navGroups: { label: string; items: NavItem[] }[] = [
         icon: BarChart3,
         exact: false,
         children: [
-          { href: "/admin/finance", label: "Dashboard", icon: LayoutDashboard },
+          { href: "/admin/reports/financial", label: "Reports", icon: FileBarChart },
           { href: "/admin/finance/earnings", label: "Earnings", icon: TrendingUp },
           { href: "/admin/finance/payments", label: "Salaries", icon: Users },
           { href: "/admin/finance/expenses", label: "Expenses", icon: Receipt },
           { href: "/admin/finance/subscriptions", label: "Subscriptions", icon: RefreshCw },
-          { href: "/admin/reports/financial", label: "Reports", icon: FileBarChart },
           { href: "/admin/finance/settings", label: "Settings", icon: SlidersHorizontal },
         ],
       },

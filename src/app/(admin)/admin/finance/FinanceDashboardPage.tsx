@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import {
   Box,
@@ -28,7 +28,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import { financeApi } from "@/lib/api/finance";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { FinanceDashboardData } from "./types";
-import { fmt, fmtPct, rangeBounds, RANGE_LABELS, type RangePreset } from "./format";
+import { fmt, fmtPct, fmtPeriod, rangeBounds, RANGE_LABELS, type RangePreset } from "./format";
 
 const RANGE_ORDER: RangePreset[] = ["M1", "M3", "M6", "FY", "Y1", "Y2", "ALL"];
 
@@ -42,16 +42,36 @@ const FinanceCharts = dynamic(() => import("./FinanceCharts"), {
   ),
 });
 
-function StatCard({ label, value, color }: { label: string; value: string; color?: string }) {
+function StatCard({
+  label,
+  value,
+  color,
+  sub,
+}: {
+  label: string;
+  value: string;
+  color?: string;
+  sub?: ReactNode;
+}) {
   return (
     <Card sx={{ flex: "1 1 150px", minWidth: 150, bgcolor: "background.paper" }}>
       <CardContent sx={{ py: "14px !important", px: 2 }}>
-        <Typography variant="h5" sx={{ fontWeight: 700, color: color ?? "text.primary" }}>
+        <Typography variant="h5" noWrap sx={{ fontWeight: 700, color: color ?? "text.primary" }}>
           {value}
         </Typography>
-        <Typography variant="caption" color="text.secondary">
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
           {label}
         </Typography>
+        {sub != null && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            noWrap
+            sx={{ display: "block", mt: 0.25, opacity: 0.85 }}
+          >
+            {sub}
+          </Typography>
+        )}
       </CardContent>
     </Card>
   );
@@ -151,17 +171,73 @@ export default function FinanceDashboardPage() {
   const remTotal = remittance.rem + remittance.nonRem;
   const remPct = remTotal ? (remittance.rem / remTotal) * 100 : 0;
 
+  // ── Derived "at-a-glance" insights (computed client-side from the range data) ──
+  const monthly = data.monthlyIncome;
+  const monthsTracked = monthly.length;
+  const avgMonthly = monthsTracked ? totals.income / monthsTracked : 0;
+  const bestMonth = monthly.reduce<{ period: string; amount: number } | null>(
+    (best, m) => (best && best.amount >= m.amount ? best : m),
+    null
+  );
+  const latest = monthly[monthly.length - 1];
+  const prev = monthly[monthly.length - 2];
+  const mom = latest && prev && prev.amount ? (latest.amount - prev.amount) / prev.amount : null;
+
+  const clients = [...data.bySource].sort((a, b) => b.total - a.total);
+  const topClient = clients[0] ?? null;
+  const clientConcentration = topClient && totals.income ? topClient.total / totals.income : 0;
+
   return (
     <Box>
       {header}
 
       {/* Totals for the selected range */}
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 3 }}>
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 2 }}>
         <StatCard label="Total Income" value={fmt(totals.income)} color="info.main" />
         <StatCard label="Employee Costs" value={fmt(totals.empCosts)} color="warning.main" />
         <StatCard label="Tools / Subscriptions" value={fmt(totals.toolSubs)} color="warning.main" />
         <StatCard label="Net Profit" value={fmt(totals.netProfit)} color="success.main" />
         <StatCard label="Profit Margin" value={fmtPct(totals.margin)} color="primary.main" />
+      </Box>
+
+      {/* Derived insights — readable without touching the charts */}
+      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 3 }}>
+        <StatCard
+          label="Avg Monthly Income"
+          value={fmt(avgMonthly)}
+          sub={`across ${monthsTracked} month${monthsTracked === 1 ? "" : "s"}`}
+        />
+        <StatCard
+          label="Best Month"
+          value={bestMonth ? fmt(bestMonth.amount) : "—"}
+          color="info.main"
+          sub={bestMonth ? fmtPeriod(bestMonth.period, { long: true }) : "no income yet"}
+        />
+        <StatCard
+          label="Month-on-Month"
+          value={mom == null ? "—" : `${mom >= 0 ? "+" : ""}${fmtPct(mom)}`}
+          color={mom == null ? "text.secondary" : mom >= 0 ? "success.main" : "error.main"}
+          sub={
+            latest && prev
+              ? `${fmtPeriod(prev.period)} → ${fmtPeriod(latest.period)}`
+              : "need 2+ months"
+          }
+        />
+        <StatCard
+          label="Top Client"
+          value={topClient ? topClient.name : "—"}
+          color="primary.main"
+          sub={
+            topClient
+              ? `${fmt(topClient.total)} · ${fmtPct(clientConcentration)} of income`
+              : "no clients yet"
+          }
+        />
+        <StatCard
+          label="Active Clients"
+          value={String(clients.length)}
+          sub="income sources in range"
+        />
       </Box>
 
       <FinanceCharts data={data} />
