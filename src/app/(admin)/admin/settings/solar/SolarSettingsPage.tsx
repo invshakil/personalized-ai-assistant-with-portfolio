@@ -24,7 +24,7 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import { Check, RefreshCw, Plus, Pencil, Trash2, X } from "lucide-react";
+import { Check, RefreshCw, Plus, Pencil, Trash2, X, History } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { solarApi } from "@/lib/api/solar";
@@ -59,6 +59,7 @@ export default function SolarSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
   const [error, setError] = useState("");
   const [flash, setFlash] = useState("");
 
@@ -143,7 +144,7 @@ export default function SolarSettingsPage() {
     setError("");
     setFlash("");
     try {
-      const r = await solarApi.syncNow(0);
+      const r = await solarApi.syncNow();
       setFlash(`Synced ${r.daysWritten} reading(s) across ${r.inverters} inverter(s).`);
       const s = await solarApi.getSettings();
       hydrate(s);
@@ -151,6 +152,37 @@ export default function SolarSettingsPage() {
       setError(e instanceof Error ? e.message : "Sync failed");
     }
     setSyncing(false);
+  };
+
+  // Backfill every missing day from the install date. The server returns at most
+  // a chunk per call, so we loop until nothing remains (bounded request time).
+  const handleBackfill = async () => {
+    const from = form.installDate || settings?.installDate?.slice(0, 10);
+    if (!from) {
+      setError("Set the install date first — that's where history starts.");
+      return;
+    }
+    setBackfilling(true);
+    setError("");
+    setFlash("");
+    try {
+      let total = 0;
+      // Safety cap on iterations (≈ BACKFILL_CHUNK × 40 days).
+      for (let i = 0; i < 40; i++) {
+        const r = await solarApi.syncNow({ from });
+        total += r.daysWritten;
+        setFlash(
+          r.remaining > 0
+            ? `Backfilling… ${total} day(s) so far, ${r.remaining} remaining.`
+            : `Backfill complete — ${total} day(s) synced.`
+        );
+        if (r.remaining <= 0) break;
+      }
+      hydrate(await solarApi.getSettings());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Backfill failed");
+    }
+    setBackfilling(false);
   };
 
   // ── Tariff editor ──
@@ -295,17 +327,32 @@ export default function SolarSettingsPage() {
                 </Typography>
               )}
             </Box>
-            <Button
-              variant="contained"
-              onClick={handleSync}
-              disabled={syncing || !settings?.configured}
-              startIcon={
-                syncing ? <CircularProgress size={14} color="inherit" /> : <RefreshCw size={16} />
-              }
-              sx={{ flexShrink: 0 }}
-            >
-              {syncing ? "Syncing…" : "Sync now"}
-            </Button>
+            <Box sx={{ display: "flex", gap: 1, flexShrink: 0 }}>
+              <Button
+                variant="outlined"
+                onClick={handleBackfill}
+                disabled={syncing || backfilling || !settings?.configured}
+                startIcon={
+                  backfilling ? (
+                    <CircularProgress size={14} color="inherit" />
+                  ) : (
+                    <History size={16} />
+                  )
+                }
+              >
+                {backfilling ? "Backfilling…" : "Backfill history"}
+              </Button>
+              <Button
+                variant="contained"
+                onClick={handleSync}
+                disabled={syncing || backfilling || !settings?.configured}
+                startIcon={
+                  syncing ? <CircularProgress size={14} color="inherit" /> : <RefreshCw size={16} />
+                }
+              >
+                {syncing ? "Syncing…" : "Sync now"}
+              </Button>
+            </Box>
           </Box>
         </CardContent>
       </Card>

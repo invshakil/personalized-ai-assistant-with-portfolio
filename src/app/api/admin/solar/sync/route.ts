@@ -9,14 +9,16 @@ export async function POST(req: NextRequest) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   let backfillDays = 0;
+  let from: string | undefined;
   try {
     const body = await req.json();
     backfillDays = Number(body?.backfillDays) || 0;
+    if (typeof body?.from === "string" && body.from) from = body.from;
   } catch {
     /* no body — sync today only */
   }
 
-  const result = await runSolisSync({ backfillDays });
+  const result = await runSolisSync(from ? { from } : { backfillDays });
   if (!result.ok) return Response.json({ error: result.error ?? "Sync failed" }, { status: 502 });
   return Response.json({ data: result });
 }

@@ -36,6 +36,27 @@ function dayDate(dateStr: string): Date {
   return new Date(`${dateStr}T00:00:00.000Z`);
 }
 
+/** Ascending yyyy-mm-dd list from `fromStr` to `toStr`, inclusive. */
+function daysBetween(fromStr: string, toStr: string): string[] {
+  const out: string[] = [];
+  let t = Date.parse(`${fromStr}T00:00:00.000Z`);
+  const end = Date.parse(`${toStr}T00:00:00.000Z`);
+  const DAY = 24 * 60 * 60 * 1000;
+  while (t <= end && out.length <= 800) {
+    out.push(new Date(t).toISOString().slice(0, 10));
+    t += DAY;
+  }
+  return out;
+}
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Bound a single sync call so it finishes well under a typical reverse-proxy
+// timeout: at most this many past days are fetched per invocation (the UI loops
+// until `remaining` hits 0; the scheduler chips away over its ticks).
+const BACKFILL_CHUNK = 30;
+const RATE_DELAY_MS = 350; // gentle with the SolisCloud rate limit (~3 req / 5s)
+
 async function loadSettings() {
   return db.solarSettings.upsert({
     where: { id: "singleton" },
@@ -128,36 +149,68 @@ export interface SyncResult {
   ok: boolean;
   inverters: number;
   daysWritten: number;
+  /** Backfill days still missing after this call (UI loops until 0). */
+  remaining: number;
   error?: string;
 }
 
+export interface SyncOptions {
+  /** Backfill missing days from this yyyy-mm-dd up to today (oldest first). */
+  from?: string;
+  /** Or backfill the last N days (ignored when `from` is set). */
+  backfillDays?: number;
+}
+
 /**
- * Runs a sync: today for every inverter, plus an optional backfill of the
- * previous `backfillDays` days. Records status on SolarSettings.
+ * Runs a sync: refreshes today for every inverter, then backfills MISSING days
+ * in the requested window (oldest first, capped at BACKFILL_CHUNK per call so a
+ * single request stays short). Already-synced days are skipped, so repeated
+ * calls make forward progress. Records status on SolarSettings.
  */
-export async function runSolisSync(opts: { backfillDays?: number } = {}): Promise<SyncResult> {
+export async function runSolisSync(opts: SyncOptions = {}): Promise<SyncResult> {
   const cfg = getSolisConfig();
   let daysWritten = 0;
   let inverterCount = 0;
+  let remaining = 0;
   try {
     const { inverters } = await discover(cfg);
     inverterCount = inverters.length;
 
+    // Always refresh today's row.
+    const today = localDateStr(new Date());
     for (const inv of inverters) {
       await syncInverterToday(inv, cfg);
       daysWritten++;
     }
 
-    const backfill = Math.max(0, Math.min(opts.backfillDays ?? 0, 365));
-    for (let i = 1; i <= backfill; i++) {
-      const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
-      const dateStr = localDateStr(d);
-      for (const inv of inverters) {
-        try {
-          await syncInverterDay(inv, dateStr, cfg);
-          daysWritten++;
-        } catch {
-          // Skip days the API can't serve; keep going.
+    // Resolve the backfill window (exclusive of today — already synced above).
+    let startStr: string | null = null;
+    if (opts.from) startStr = opts.from.slice(0, 10);
+    else if (opts.backfillDays && opts.backfillDays > 0) {
+      startStr = localDateStr(new Date(Date.now() - opts.backfillDays * 24 * 60 * 60 * 1000));
+    }
+
+    if (startStr && startStr < today) {
+      const window = daysBetween(startStr, today).filter((d) => d < today);
+      // Days that already have at least one reading — skip them.
+      const existing = await db.solisDailyReading.findMany({
+        where: { date: { gte: dayDate(startStr), lt: dayDate(today) } },
+        select: { date: true },
+      });
+      const have = new Set(existing.map((r) => r.date.toISOString().slice(0, 10)));
+      const missing = window.filter((d) => !have.has(d)); // oldest first
+      const chunk = missing.slice(0, BACKFILL_CHUNK);
+      remaining = missing.length - chunk.length;
+
+      for (const dateStr of chunk) {
+        for (const inv of inverters) {
+          try {
+            await syncInverterDay(inv, dateStr, cfg);
+            daysWritten++;
+          } catch {
+            // Skip days the API can't serve; keep going.
+          }
+          await sleep(RATE_DELAY_MS);
         }
       }
     }
@@ -166,7 +219,7 @@ export async function runSolisSync(opts: { backfillDays?: number } = {}): Promis
       where: { id: "singleton" },
       data: { lastSyncAt: new Date(), lastSyncStatus: "ok", lastSyncError: null },
     });
-    return { ok: true, inverters: inverterCount, daysWritten };
+    return { ok: true, inverters: inverterCount, daysWritten, remaining };
   } catch (e) {
     const error = e instanceof Error ? e.message : "Sync failed";
     await db.solarSettings
@@ -175,7 +228,7 @@ export async function runSolisSync(opts: { backfillDays?: number } = {}): Promis
         data: { lastSyncAt: new Date(), lastSyncStatus: "error", lastSyncError: error },
       })
       .catch(() => {});
-    return { ok: false, inverters: inverterCount, daysWritten, error };
+    return { ok: false, inverters: inverterCount, daysWritten, remaining, error };
   }
 }
 
@@ -189,8 +242,14 @@ export async function isSyncDue(): Promise<boolean> {
   return Date.now() - s.lastSyncAt.getTime() >= SYNC_MIN_GAP_MS;
 }
 
-/** Scheduler entry point — syncs today (+1 day backfill to finalize yesterday). */
+/**
+ * Scheduler entry point — refreshes today and chips away at any missing history
+ * from the install date (a chunk per tick), so history fills in over time with
+ * no manual action. Falls back to a 2-day backfill when no install date is set.
+ */
 export async function runScheduledSyncIfDue(): Promise<void> {
   if (!(await isSyncDue())) return;
-  await runSolisSync({ backfillDays: 1 });
+  const s = await db.solarSettings.findUnique({ where: { id: "singleton" } });
+  const from = s?.installDate ? s.installDate.toISOString().slice(0, 10) : undefined;
+  await runSolisSync(from ? { from } : { backfillDays: 2 });
 }

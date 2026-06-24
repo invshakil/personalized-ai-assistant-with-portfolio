@@ -28,7 +28,8 @@ export const solarApi = {
   updateSettings: (body: SolarSettingsPayload) =>
     apiPut<SolarSettingsData>("/solar/settings", body),
 
-  syncNow: (backfillDays = 0) => apiPost<SyncResult>("/solar/sync", { backfillDays }),
+  syncNow: (opts: { backfillDays?: number; from?: string } = {}) =>
+    apiPost<SyncResult>("/solar/sync", opts),
 
   listTariffs: () => apiGet<TariffRow[]>("/solar/tariffs"),
   createTariff: (body: TariffInput) => apiPost<TariffRow>("/solar/tariffs", body),

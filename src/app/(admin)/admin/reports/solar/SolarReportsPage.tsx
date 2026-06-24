@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
@@ -39,6 +39,15 @@ const SolarCharts = dynamic(() => import("./SolarCharts"), {
 });
 
 type RangePreset = "6M" | "12M" | "ALL";
+
+/** Server-side from/to bounds for a preset (from = 1st of the first month). */
+function rangeBounds(preset: RangePreset): { from?: string; to?: string } {
+  if (preset === "ALL") return {};
+  const months = preset === "6M" ? 6 : 12;
+  const now = new Date();
+  const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
+  return { from: from.toISOString().slice(0, 10) };
+}
 
 function StatTile({
   icon,
@@ -81,28 +90,30 @@ export default function SolarReportsPage() {
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<RangePreset>("12M");
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [r, o] = await Promise.all([solarApi.report(), solarApi.overview()]);
-      setReport(r);
-      setOverview(o);
-      // Weather is best-effort — never block the report on it.
-      solarApi
-        .weather()
-        .then(setWeather)
-        .catch(() => setWeather(null));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load solar reports");
-    } finally {
-      setLoading(false);
-    }
+  // Overview (lifetime + payback) and weather load once — they don't depend on
+  // the visible range.
+  useEffect(() => {
+    solarApi
+      .overview()
+      .then(setOverview)
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load solar overview"));
+    solarApi
+      .weather()
+      .then(setWeather)
+      .catch(() => setWeather(null));
   }, []);
 
+  // The report refetches whenever the range changes — a real API request with
+  // from/to bounds, not a client-side slice.
   useEffect(() => {
-    load();
-  }, [load]);
+    setLoading(true);
+    setError(null);
+    solarApi
+      .report(rangeBounds(range))
+      .then(setReport)
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load solar reports"))
+      .finally(() => setLoading(false));
+  }, [range]);
 
   const money = (v: number) =>
     `${overview?.currency === "BDT" ? "৳" : ""}${Math.round(v).toLocaleString("en-US")}`;
@@ -162,8 +173,7 @@ export default function SolarReportsPage() {
 
   const pb = report!.payback;
   const pct = Math.min(100, Math.max(0, pb.percentRecovered));
-  const months =
-    range === "ALL" ? report!.months : report!.months.slice(-(range === "6M" ? 6 : 12));
+  const months = report!.months;
 
   return (
     <Box>
