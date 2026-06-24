@@ -122,7 +122,6 @@ const navGroups: { label: string; items: NavItem[] }[] = [
           { href: "/admin/settings/solar", label: "Settings", icon: SlidersHorizontal },
         ],
       },
-      { href: "/admin/reports", label: "Reports", icon: FileBarChart, exact: false },
       { href: "/admin/bookings", label: "Bookings", icon: CalendarClock, exact: false },
     ],
   },

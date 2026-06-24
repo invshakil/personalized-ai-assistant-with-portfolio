@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   Box,
@@ -25,25 +24,21 @@ import { Sun, Leaf, BatteryCharging, Wallet } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import { solarApi } from "@/lib/api/solar";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import type { SolarReport, SolarOverview, SolarWeather } from "@/types";
+import type { SolarReport, SolarOverview, SolarWeather, SolarMonthRow } from "@/types";
 
-const SolarCharts = dynamic(() => import("./SolarCharts"), {
-  ssr: false,
-  loading: () => (
-    <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", lg: "1fr 1fr" }, gap: 3, mb: 3 }}>
-      {Array.from({ length: 4 }).map((_, i) => (
-        <Card key={i} sx={{ bgcolor: "background.paper", height: 300 }} />
-      ))}
-    </Box>
-  ),
-});
+type RangePreset = "1M" | "3M" | "6M" | "12M" | "ALL";
 
-type RangePreset = "6M" | "12M" | "ALL";
+const RANGE_MONTHS: Record<Exclude<RangePreset, "ALL">, number> = {
+  "1M": 1,
+  "3M": 3,
+  "6M": 6,
+  "12M": 12,
+};
 
 /** Server-side from/to bounds for a preset (from = 1st of the first month). */
 function rangeBounds(preset: RangePreset): { from?: string; to?: string } {
   if (preset === "ALL") return {};
-  const months = preset === "6M" ? 6 : 12;
+  const months = RANGE_MONTHS[preset];
   const now = new Date();
   const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
   return { from: from.toISOString().slice(0, 10) };
@@ -82,10 +77,109 @@ function StatTile({
   );
 }
 
+/** Single stacked horizontal bar — solar / battery / grid. */
+function SourceSplitBar({
+  solarKwh,
+  batteryKwh,
+  gridKwh,
+  height = 12,
+}: {
+  solarKwh: number;
+  batteryKwh: number;
+  gridKwh: number;
+  height?: number;
+}) {
+  const total = Math.max(0, solarKwh + batteryKwh + gridKwh);
+  if (total <= 0) {
+    return (
+      <Box
+        sx={{
+          height,
+          borderRadius: height / 2,
+          bgcolor: "action.hover",
+        }}
+      />
+    );
+  }
+  const pct = (v: number) => (v / total) * 100;
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        height,
+        borderRadius: height / 2,
+        overflow: "hidden",
+        bgcolor: "action.hover",
+      }}
+    >
+      <Box sx={{ width: `${pct(solarKwh)}%`, bgcolor: "warning.main" }} />
+      <Box sx={{ width: `${pct(batteryKwh)}%`, bgcolor: "primary.main" }} />
+      <Box sx={{ width: `${pct(gridKwh)}%`, bgcolor: "info.main" }} />
+    </Box>
+  );
+}
+
+/** Small inline % bar for use inside a table cell. */
+function InlineMeter({ pct, color = "success.main" }: { pct: number; color?: string }) {
+  const v = Math.min(100, Math.max(0, pct));
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1, justifyContent: "flex-end" }}>
+      <Box
+        sx={{
+          width: 56,
+          height: 6,
+          borderRadius: 3,
+          bgcolor: "action.hover",
+          overflow: "hidden",
+        }}
+      >
+        <Box sx={{ width: `${v}%`, height: "100%", bgcolor: color }} />
+      </Box>
+      <Typography variant="body2" sx={{ minWidth: 36, fontVariantNumeric: "tabular-nums" }}>
+        {v.toFixed(0)}%
+      </Typography>
+    </Box>
+  );
+}
+
+/** Sum source-split + totals across the months in view. */
+function rangeTotals(months: SolarMonthRow[]) {
+  return months.reduce(
+    (acc, m) => {
+      acc.generationKwh += m.generationKwh;
+      acc.consumptionKwh += m.consumptionKwh;
+      acc.gridImportKwh += m.gridImportKwh;
+      acc.gridExportKwh += m.gridExportKwh;
+      acc.fromSolarDirectKwh += m.fromSolarDirectKwh;
+      acc.fromBatteryKwh += m.fromBatteryKwh;
+      acc.fromGridKwh += m.fromGridKwh;
+      acc.savings += m.savings;
+      acc.wouldHaveCost += m.wouldHaveCost;
+      acc.actualCost += m.actualCost;
+      acc.co2AvoidedKg += m.co2AvoidedKg;
+      return acc;
+    },
+    {
+      generationKwh: 0,
+      consumptionKwh: 0,
+      gridImportKwh: 0,
+      gridExportKwh: 0,
+      fromSolarDirectKwh: 0,
+      fromBatteryKwh: 0,
+      fromGridKwh: 0,
+      savings: 0,
+      wouldHaveCost: 0,
+      actualCost: 0,
+      co2AvoidedKg: 0,
+    }
+  );
+}
+
 export default function SolarReportsPage() {
   const [report, setReport] = useState<SolarReport | null>(null);
   const [overview, setOverview] = useState<SolarOverview | null>(null);
   const [weather, setWeather] = useState<SolarWeather | null>(null);
+  const [weatherError, setWeatherError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<RangePreset>("12M");
@@ -99,8 +193,14 @@ export default function SolarReportsPage() {
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load solar overview"));
     solarApi
       .weather()
-      .then(setWeather)
-      .catch(() => setWeather(null));
+      .then((w) => {
+        setWeather(w);
+        setWeatherError(null);
+      })
+      .catch((e) => {
+        setWeather(null);
+        setWeatherError(e instanceof Error ? e.message : "Failed to load weather");
+      });
   }, []);
 
   // The report refetches whenever the range changes — a real API request with
@@ -117,6 +217,7 @@ export default function SolarReportsPage() {
 
   const money = (v: number) =>
     `${overview?.currency === "BDT" ? "৳" : ""}${Math.round(v).toLocaleString("en-US")}`;
+  const kwh = (v: number) => `${Math.round(v).toLocaleString("en-US")} kWh`;
 
   const header = (
     <PageHeader title="Solar Reports" subtitle="Generation, savings, battery, and payback." />
@@ -174,6 +275,9 @@ export default function SolarReportsPage() {
   const pb = report!.payback;
   const pct = Math.min(100, Math.max(0, pb.percentRecovered));
   const months = report!.months;
+  const totals = rangeTotals(months);
+  const sourceTotal = totals.fromSolarDirectKwh + totals.fromBatteryKwh + totals.fromGridKwh;
+  const pctOf = (v: number) => (sourceTotal > 0 ? (v / sourceTotal) * 100 : 0);
 
   return (
     <Box>
@@ -194,6 +298,8 @@ export default function SolarReportsPage() {
           onChange={(_, v) => v && setRange(v)}
           sx={{ mb: { xs: 2, md: 3 } }}
         >
+          <ToggleButton value="1M">1M</ToggleButton>
+          <ToggleButton value="3M">3M</ToggleButton>
           <ToggleButton value="6M">6M</ToggleButton>
           <ToggleButton value="12M">12M</ToggleButton>
           <ToggleButton value="ALL">All</ToggleButton>
@@ -262,7 +368,7 @@ export default function SolarReportsPage() {
               </Typography>
               <Typography variant="body1" sx={{ fontWeight: 700 }}>
                 {pb.remaining <= 0
-                  ? "Reached 🎉"
+                  ? "Reached"
                   : pb.projectedBreakEvenDate
                     ? new Date(pb.projectedBreakEvenDate).toLocaleDateString("en-US", {
                         month: "short",
@@ -287,7 +393,7 @@ export default function SolarReportsPage() {
         <StatTile
           icon={<Sun size={16} />}
           label="This month"
-          value={`${overview.monthGenerationKwh.toLocaleString("en-US")} kWh`}
+          value={kwh(overview.monthGenerationKwh)}
           sub={`${overview.monthSelfSufficiencyPct.toFixed(0)}% self-sufficient`}
         />
         <StatTile
@@ -299,7 +405,7 @@ export default function SolarReportsPage() {
         <StatTile
           icon={<Sun size={16} />}
           label="Lifetime generation"
-          value={`${Math.round(overview.lifetimeGenerationKwh).toLocaleString("en-US")} kWh`}
+          value={kwh(overview.lifetimeGenerationKwh)}
         />
         <StatTile
           icon={<BatteryCharging size={16} />}
@@ -311,18 +417,232 @@ export default function SolarReportsPage() {
         />
       </Box>
 
-      <SolarCharts months={months} currency={overview.currency} />
+      {/* Range summary — totals + power-source split (text-first, single stacked bar) */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent sx={{ p: 3 }}>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, mb: 2 }}>
+            Selected period — {months.length} month{months.length === 1 ? "" : "s"}
+          </Typography>
 
-      {/* Weather */}
-      {weather?.available && weather.days.length > 0 && (
-        <Card sx={{ mb: 3 }}>
-          <CardContent>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
-              <Leaf size={16} />
-              <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
-                7-Day Forecast & Expected Generation
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr 1fr", md: "repeat(5, 1fr)" },
+              gap: 2,
+              mb: 3,
+            }}
+          >
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Generated
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: "warning.main" }}>
+                {kwh(totals.generationKwh)}
               </Typography>
             </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Consumed
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {kwh(totals.consumptionKwh)}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Grid imported
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: "info.main" }}>
+                {kwh(totals.gridImportKwh)}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Grid exported
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                {kwh(totals.gridExportKwh)}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Saved
+              </Typography>
+              <Typography variant="h6" sx={{ fontWeight: 700, color: "success.main" }}>
+                {money(totals.savings)}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontWeight: 600, display: "block", mb: 1 }}
+          >
+            Where your power came from
+          </Typography>
+          <SourceSplitBar
+            solarKwh={totals.fromSolarDirectKwh}
+            batteryKwh={totals.fromBatteryKwh}
+            gridKwh={totals.fromGridKwh}
+            height={14}
+          />
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: { xs: "1fr", sm: "repeat(3, 1fr)" },
+              gap: 1.5,
+              mt: 2,
+            }}
+          >
+            <SourceLegendRow
+              swatchColor="warning.main"
+              label="Solar (direct)"
+              kwh={totals.fromSolarDirectKwh}
+              pct={pctOf(totals.fromSolarDirectKwh)}
+            />
+            <SourceLegendRow
+              swatchColor="primary.main"
+              label="From battery"
+              kwh={totals.fromBatteryKwh}
+              pct={pctOf(totals.fromBatteryKwh)}
+            />
+            <SourceLegendRow
+              swatchColor="info.main"
+              label="From grid"
+              kwh={totals.fromGridKwh}
+              pct={pctOf(totals.fromGridKwh)}
+            />
+          </Box>
+
+          <Box
+            sx={{
+              mt: 3,
+              pt: 2,
+              borderTop: 1,
+              borderColor: "divider",
+              display: "flex",
+              flexWrap: "wrap",
+              gap: 3,
+            }}
+          >
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Would have paid
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 700, color: "error.main" }}>
+                {money(totals.wouldHaveCost)}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Actually paid
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 700 }}>
+                {money(totals.actualCost)}
+              </Typography>
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                CO₂ avoided
+              </Typography>
+              <Typography variant="body1" sx={{ fontWeight: 700, color: "success.main" }}>
+                {Math.round(totals.co2AvoidedKg).toLocaleString("en-US")} kg
+              </Typography>
+            </Box>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Monthly table */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, mb: 2 }}>
+            Monthly detail
+          </Typography>
+          <Table size="small" sx={mobileCardTableSx}>
+            <TableHead>
+              <TableRow>
+                <TableCell>Month</TableCell>
+                <TableCell align="right">Generation</TableCell>
+                <TableCell align="right">Consumption</TableCell>
+                <TableCell align="right">Grid import</TableCell>
+                <TableCell align="right">Without solar</TableCell>
+                <TableCell align="right">Actual</TableCell>
+                <TableCell align="right">Saved</TableCell>
+                <TableCell align="right">Self-suff.</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {[...months].reverse().map((m) => (
+                <TableRow key={m.month}>
+                  <TableCell data-label="Month">{m.label}</TableCell>
+                  <TableCell
+                    data-label="Generation"
+                    align="right"
+                    sx={{ fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {kwh(m.generationKwh)}
+                  </TableCell>
+                  <TableCell
+                    data-label="Consumption"
+                    align="right"
+                    sx={{ fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {kwh(m.consumptionKwh)}
+                  </TableCell>
+                  <TableCell
+                    data-label="Grid import"
+                    align="right"
+                    sx={{ fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {kwh(m.gridImportKwh)}
+                  </TableCell>
+                  <TableCell
+                    data-label="Without solar"
+                    align="right"
+                    sx={{ fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {money(m.wouldHaveCost)}
+                  </TableCell>
+                  <TableCell
+                    data-label="Actual"
+                    align="right"
+                    sx={{ fontVariantNumeric: "tabular-nums" }}
+                  >
+                    {money(m.actualCost)}
+                  </TableCell>
+                  <TableCell
+                    data-label="Saved"
+                    align="right"
+                    sx={{
+                      color: "success.main",
+                      fontWeight: 600,
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {money(m.savings)}
+                  </TableCell>
+                  <TableCell data-label="Self-suff." align="right">
+                    <InlineMeter pct={m.selfSufficiencyPct} />
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Weather — bottom of page, forward-looking after all historical data */}
+      <Card>
+        <CardContent>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2 }}>
+            <Leaf size={16} />
+            <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600 }}>
+              7-Day Forecast & Expected Generation
+            </Typography>
+          </Box>
+          {weather?.available && weather.days.length > 0 ? (
             <Box sx={{ display: "flex", gap: 1.5, overflowX: "auto", pb: 1 }}>
               {weather.days.map((d) => (
                 <Box
@@ -357,64 +677,102 @@ export default function SolarReportsPage() {
                 </Box>
               ))}
             </Box>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Monthly table */}
-      <Card>
-        <CardContent>
-          <Typography variant="subtitle2" color="text.secondary" sx={{ fontWeight: 600, mb: 2 }}>
-            Monthly detail
-          </Typography>
-          <Table size="small" sx={mobileCardTableSx}>
-            <TableHead>
-              <TableRow>
-                <TableCell>Month</TableCell>
-                <TableCell align="right">Generation</TableCell>
-                <TableCell align="right">Consumption</TableCell>
-                <TableCell align="right">Grid import</TableCell>
-                <TableCell align="right">Without solar</TableCell>
-                <TableCell align="right">Actual</TableCell>
-                <TableCell align="right">Saved</TableCell>
-                <TableCell align="right">Self-suff.</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {[...months].reverse().map((m) => (
-                <TableRow key={m.month}>
-                  <TableCell data-label="Month">{m.label}</TableCell>
-                  <TableCell data-label="Generation" align="right">
-                    {m.generationKwh.toLocaleString("en-US")} kWh
-                  </TableCell>
-                  <TableCell data-label="Consumption" align="right">
-                    {m.consumptionKwh.toLocaleString("en-US")} kWh
-                  </TableCell>
-                  <TableCell data-label="Grid import" align="right">
-                    {m.gridImportKwh.toLocaleString("en-US")} kWh
-                  </TableCell>
-                  <TableCell data-label="Without solar" align="right">
-                    {money(m.wouldHaveCost)}
-                  </TableCell>
-                  <TableCell data-label="Actual" align="right">
-                    {money(m.actualCost)}
-                  </TableCell>
-                  <TableCell
-                    data-label="Saved"
-                    align="right"
-                    sx={{ color: "success.main", fontWeight: 600 }}
-                  >
-                    {money(m.savings)}
-                  </TableCell>
-                  <TableCell data-label="Self-suff." align="right">
-                    {m.selfSufficiencyPct.toFixed(0)}%
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          ) : weatherError ? (
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: "1px dashed",
+                borderColor: "error.main",
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+              }}
+            >
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5, color: "error.main" }}>
+                  Weather forecast failed
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {weatherError}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: "block", mt: 0.5 }}
+                >
+                  Check that latitude/longitude are valid decimal degrees (e.g. 23.8103, 90.4125 for
+                  Dhaka).
+                </Typography>
+              </Box>
+              <Button
+                component={Link}
+                href="/admin/settings/solar"
+                size="small"
+                variant="outlined"
+                color="error"
+              >
+                Fix in Solar settings
+              </Button>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                p: 2,
+                borderRadius: 2,
+                border: "1px dashed",
+                borderColor: "divider",
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+              }}
+            >
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Location not set
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Set the plant&apos;s latitude and longitude in Solar settings to enable the 7-day
+                  forecast and expected generation. For Dhaka: 23.8103, 90.4125.
+                </Typography>
+              </Box>
+              <Button component={Link} href="/admin/settings/solar" size="small" variant="outlined">
+                Open Solar settings
+              </Button>
+            </Box>
+          )}
         </CardContent>
       </Card>
+    </Box>
+  );
+}
+
+function SourceLegendRow({
+  swatchColor,
+  label,
+  kwh,
+  pct,
+}: {
+  swatchColor: string;
+  label: string;
+  kwh: number;
+  pct: number;
+}) {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+      <Box sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: swatchColor }} />
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+          {label}
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          {Math.round(kwh).toLocaleString("en-US")} kWh · {pct.toFixed(1)}%
+        </Typography>
+      </Box>
     </Box>
   );
 }
