@@ -1,6 +1,7 @@
 import { ExpenseCategory, PaymentStatus, PrismaClient, TransactionType } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { seedFinancial } from "./seed-financial";
+import { seedSolar } from "./seed-solar";
 
 const db = new PrismaClient();
 
@@ -21,6 +22,9 @@ async function main() {
 
   // ─── Financial Tracker (own guard; runs before the property early-return) ──
   await seedFinancial(db);
+
+  // ─── Solar settings + BPDB tariffs (idempotent; before property early-return) ──
+  await seedSolar(db);
 
   // ─── Property Service Types (idempotent — always runs) ───────────────────
   const serviceTypes: { name: string; category: ExpenseCategory; description?: string }[] = [
