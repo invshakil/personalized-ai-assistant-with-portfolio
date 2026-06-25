@@ -14,7 +14,7 @@ The public side is a marketing/portfolio page. The private side is a full operat
 
 ## Highlights
 
-- **AI assistant with tool use** — chat over your real data. The model calls read tools to answer questions and proposes write actions (create/update) that you approve with a button before anything is saved. Vendor-neutral provider seam (Claude today; OpenAI/Gemini are drop-in adapter slots), encrypted API keys, prompt caching, and `/property` · `/finance` · `/money` slash commands to scope the toolset.
+- **AI assistant with tool use** — chat over your real data. The model calls read tools to answer questions and proposes write actions (create/update) that you approve with a button before anything is saved. Vendor-neutral provider seam (Claude today; OpenAI/Gemini are drop-in adapter slots), encrypted API keys, prompt caching, and `/property` · `/finance` · `/money`.`/solar` slash commands to scope the toolset.
 - **Financial tracker** — client income, employee salaries, business expenses, and recurring subscriptions, with fiscal-year (Jul→June) reporting in BDT (৳).
 - **Property management** — rental units, tenants, monthly rent rows, payments, property expenses, add-on services, scheduled rent changes, and PDF rent receipts.
 - **Solar monitoring** — read-only SolisCloud telemetry synced on a schedule into local readings. Reports use a text-first layout (stacked source-split bar, inline self-sufficiency meters, range presets 1M/3M/6M/12M/All) covering generation, consumption split by solar/battery/grid, electricity-cost savings under effective-dated BPDB slab tariffs, a payback/ROI tracker, CO₂ avoided, and a 7-day weather + predicted-generation forecast at the bottom. The inverter is never controlled — read-only by design.
