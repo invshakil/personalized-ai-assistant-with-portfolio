@@ -31,8 +31,12 @@ Replaces a manually-maintained Google Sheet that tracks the software business:
 **Fiscal year = July → June (Bangladesh standard).** Stored as a string `"YYYY-YYYY"` on every row
 and also derivable from the date via a helper.
 
-**Currency: BDT (৳) only** — matches the property module and the Excel as-is. The remittance flag
-is captured separately for tax context; no FX conversion stored.
+**Reporting currency: BDT (৳).** As of 2026-06-30 the tracker is **multi-currency**: an
+`Earning`/`EmployeePayment` can be recorded in EUR/USD (`currency`, `originalAmount`, `fxRate`), but
+`amount` stays the BDT-canonical value (`= originalAmount × fxRate`, computed server-side) so every
+report keeps summing BDT unchanged. The live rate is auto-fetched (`open.er-api.com`) + editable per
+row; see PROJECT_PLANNING.md "Database schema summary" for the full FX seam. The remittance flag is
+still captured separately for tax context.
 
 ---
 
