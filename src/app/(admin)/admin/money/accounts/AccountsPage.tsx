@@ -467,38 +467,34 @@ export default function AccountsPage() {
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
             sx={{ mb: 2 }}
           />
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-            <FormControl fullWidth size="small">
-              <InputLabel>Type</InputLabel>
-              <Select
-                label="Type"
-                value={form.type}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, type: e.target.value as MoneyAccountType }))
-                }
-              >
-                {TYPES.map((t) => (
-                  <MenuItem key={t} value={t}>
-                    {ACCOUNT_TYPE_LABEL[t]}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <FormControl size="small" sx={{ width: 130 }} disabled={editingHasEntries}>
-              <InputLabel>Currency</InputLabel>
-              <Select
-                label="Currency"
-                value={form.currency}
-                onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
-              >
-                {SUPPORTED_CURRENCIES.map((c) => (
-                  <MenuItem key={c} value={c}>
-                    {c}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
+          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
+            <InputLabel>Type</InputLabel>
+            <Select
+              label="Type"
+              value={form.type}
+              onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as MoneyAccountType }))}
+            >
+              {TYPES.map((t) => (
+                <MenuItem key={t} value={t}>
+                  {ACCOUNT_TYPE_LABEL[t]}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          <FormControl fullWidth size="small" sx={{ mb: 2 }} disabled={editingHasEntries}>
+            <InputLabel>Currency</InputLabel>
+            <Select
+              label="Currency"
+              value={form.currency}
+              onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}
+            >
+              {SUPPORTED_CURRENCIES.map((c) => (
+                <MenuItem key={c} value={c}>
+                  {c}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           {editingHasEntries && (
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
               Currency is locked because this account already has ledger entries.

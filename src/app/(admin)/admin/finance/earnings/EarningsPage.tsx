@@ -591,23 +591,22 @@ export default function EarningsPage() {
             onChange={(v) => setForm((f) => ({ ...f, remittance: v as RemittanceType }))}
             sx={{ mb: 2 }}
           />
-          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-            <SearchableSelect
-              label="Currency"
-              value={form.currency}
-              options={CURRENCY_OPTIONS}
-              onChange={onCurrencyChange}
-              sx={{ width: 120 }}
-            />
-            <TextField
-              label={`Amount (${currencySymbol(form.currency)})`}
-              type="number"
-              size="small"
-              fullWidth
-              value={form.amount}
-              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-            />
-          </Box>
+          <SearchableSelect
+            label="Currency"
+            value={form.currency}
+            options={CURRENCY_OPTIONS}
+            onChange={onCurrencyChange}
+            sx={{ mb: 2 }}
+          />
+          <TextField
+            label={`Amount (${currencySymbol(form.currency)})`}
+            type="number"
+            size="small"
+            fullWidth
+            value={form.amount}
+            onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+            sx={{ mb: 2 }}
+          />
           {form.currency !== "BDT" && (
             <>
               <TextField
