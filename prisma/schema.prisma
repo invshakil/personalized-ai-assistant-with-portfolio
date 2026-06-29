@@ -582,6 +582,15 @@ model Earning {
   currency       String  @default("BDT") // original currency: BDT | USD | EUR
   originalAmount Decimal? @db.Decimal(14, 2) // amount in `currency`; null legacy rows fall back to `amount`
   fxRate         Decimal @default(1) @db.Decimal(18, 6) // BDT per 1 unit of `currency` at transaction time
+  // Realized-basis income: a foreign earning is "pending" (realizedAt NULL) and NOT counted in the BDT
+  // P&L until converted; on conversion these capture the ACTUAL BDT received at the real rate, booked in
+  // the conversion period. BDT earnings are realized-on-earn (realizedAt=date, realizedAmount=amount,
+  // realizedRate=1) so reports treat them identically. Reports sum `realizedAmount` bucketed by realizedAt.
+  realizedAt      DateTime? // conversion value-date; NULL = pending conversion
+  realizedAmount  Decimal?  @db.Decimal(14, 2) // actual BDT booked on conversion (what reports sum)
+  realizedRate    Decimal?  @db.Decimal(18, 6) // actual BDT per 1 unit at conversion
+  transferEntryId String? // the foreign→BDT MoneyEntry that realized it (many earnings may share one)
+  transfer        MoneyEntry? @relation("EarningRealization", fields: [transferEntryId], references: [id], onDelete: SetNull)
   fiscalYear String // "2023-2024"
   notes      String?
   createdAt  DateTime       @default(now())
@@ -589,6 +598,7 @@ model Earning {
 
   @@index([fiscalYear])
   @@index([sourceId])
+  @@index([realizedAt])
 }
 
 model EmployeePayment {
@@ -781,6 +791,8 @@ model MoneyEntry {
   source            MoneyEntrySource       @default(MANUAL)
   importBatch       MoneyImportBatch?      @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
   importBatchId     String?
+  // Earnings realized by this (cross-currency TRANSFER) entry — see Earning.transfer.
+  realizedEarnings  Earning[]              @relation("EarningRealization")
   createdAt         DateTime               @default(now())
   updatedAt         DateTime               @updatedAt
 
