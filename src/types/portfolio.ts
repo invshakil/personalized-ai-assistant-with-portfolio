@@ -11,7 +11,13 @@ export interface ExperienceEntry {
   isCurrent: boolean;
   role: string;
   company: string;
+  /** Public-folder path to the company logo, e.g. "/savannah-logo.png". */
+  logo: string;
+  /** LinkedIn company page — the company name links here for verification. */
+  companyUrl: string;
   summary: string;
+  /** Emphasised lead line framing the product-ownership involvement. */
+  lead?: string;
   bullets: string[];
 }
 
