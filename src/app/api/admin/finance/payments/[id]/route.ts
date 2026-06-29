@@ -18,6 +18,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const data = await updateEmployeePayment(id, {
     ...body,
     ...(body.amount != null && { amount: Number(body.amount) }),
+    ...(body.originalAmount != null && { originalAmount: Number(body.originalAmount) }),
+    ...(body.fxRate != null && { fxRate: Number(body.fxRate) }),
+    ...(body.currency && { currency: String(body.currency) }),
     ...(body.type && { type: body.type as PaymentKind }),
   });
   return Response.json({ data });

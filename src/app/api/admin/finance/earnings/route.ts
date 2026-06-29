@@ -24,9 +24,21 @@ export async function POST(req: NextRequest) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { date, sourceId, remittance, amount, fiscalYear, notes, accountId } = body;
+  const {
+    date,
+    sourceId,
+    remittance,
+    amount,
+    currency,
+    originalAmount,
+    fxRate,
+    fiscalYear,
+    notes,
+    accountId,
+  } = body;
 
-  if (!date || !sourceId || amount == null) {
+  const amountSource = originalAmount ?? amount;
+  if (!date || !sourceId || amountSource == null) {
     return Response.json({ error: "date, sourceId and amount are required" }, { status: 400 });
   }
   if (remittance && !(remittance in RemittanceType)) {
@@ -37,7 +49,10 @@ export async function POST(req: NextRequest) {
     date,
     sourceId,
     remittance: (remittance as RemittanceType) ?? RemittanceType.NON_REM,
-    amount: Number(amount),
+    ...(amount != null && { amount: Number(amount) }),
+    ...(currency && { currency: String(currency) }),
+    ...(originalAmount != null && { originalAmount: Number(originalAmount) }),
+    ...(fxRate != null && { fxRate: Number(fxRate) }),
     fiscalYear,
     notes,
     accountId: accountId || undefined,

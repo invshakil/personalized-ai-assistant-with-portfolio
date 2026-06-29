@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextRequest } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { ReceiptDocument, pdfResponse, pdfDate } from "@/services/finance/pdfKit";
+import { ReceiptDocument, pdfResponse, pdfDate, pdfForeign } from "@/services/finance/pdfKit";
 import { getBusinessProfile } from "@/services/admin";
 
 const KIND: Record<string, string> = {
@@ -40,10 +40,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
         { label: "Payment type", value: KIND[p.type] ?? p.type },
         { label: "Client(s)", value: clientNames || "—" },
         ...(p.reference ? [{ label: "Note", value: p.reference }] : []),
+        ...(p.currency !== "BDT"
+          ? [
+              {
+                label: "Original amount",
+                value: pdfForeign(
+                  p.currency,
+                  Number(p.originalAmount ?? p.amount),
+                  Number(p.fxRate)
+                ),
+              },
+            ]
+          : []),
         { label: "Payment date", value: pdfDate(p.date.toISOString()) },
         { label: "Fiscal year", value: p.fiscalYear },
       ]}
-      amountLabel="Amount paid"
+      amountLabel={p.currency !== "BDT" ? "Amount paid (BDT)" : "Amount paid"}
       amount={Number(p.amount)}
       leftSignLabel="Employee signature"
       rightSignLabel="Employer signature"

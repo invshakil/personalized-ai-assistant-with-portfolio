@@ -2,7 +2,13 @@ import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getEarnings } from "@/services/finance";
-import { ListDocument, pdfResponse, pdfMoney, pdfDate } from "@/services/finance/pdfKit";
+import {
+  ListDocument,
+  pdfResponse,
+  pdfMoney,
+  pdfDate,
+  pdfForeign,
+} from "@/services/finance/pdfKit";
 import { getBusinessProfile } from "@/services/admin";
 
 export async function GET(req: NextRequest) {
@@ -27,14 +33,16 @@ export async function GET(req: NextRequest) {
       columns={[
         { label: "Date", flex: 1.4 },
         { label: "Client", flex: 2 },
-        { label: "Type", flex: 1.3 },
-        { label: "Fiscal Year", flex: 1.4 },
-        { label: "Amount", flex: 1.5, align: "right" },
+        { label: "Type", flex: 1.2 },
+        { label: "Original", flex: 1.8 },
+        { label: "Fiscal Year", flex: 1.3 },
+        { label: "Amount (BDT)", flex: 1.5, align: "right" },
       ]}
       rows={rows.map((r) => [
         pdfDate(r.date),
         r.sourceName,
         r.remittance === "REM" ? "Remittance" : "Non-rem",
+        r.currency === "BDT" ? "—" : pdfForeign(r.currency, r.originalAmount, r.fxRate),
         r.fiscalYear,
         pdfMoney(r.amount),
       ])}

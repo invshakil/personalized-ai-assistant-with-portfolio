@@ -10,7 +10,10 @@ export interface EarningRow {
   sourceId: string;
   sourceName: string;
   remittance: RemittanceType;
-  amount: number;
+  amount: number; // BDT-equivalent (canonical)
+  currency: string; // original currency: BDT | USD | EUR
+  originalAmount: number; // amount in `currency` (= amount for BDT)
+  fxRate: number; // BDT per 1 unit of `currency`
   fiscalYear: string;
   notes: string | null;
 }
@@ -23,7 +26,10 @@ export interface PaymentRow {
   type: PaymentKind;
   reference: string | null;
   clients: { id: string; name: string }[];
-  amount: number;
+  amount: number; // BDT-equivalent (canonical)
+  currency: string; // original currency: BDT | USD | EUR
+  originalAmount: number; // amount in `currency` (= amount for BDT)
+  fxRate: number; // BDT per 1 unit of `currency`
   fiscalYear: string;
   notes: string | null;
 }

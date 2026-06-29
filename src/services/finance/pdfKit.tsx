@@ -17,6 +17,20 @@ export function pdfMoney(n: number): string {
   return `BDT ${Math.round(n).toLocaleString("en-IN")}`;
 }
 
+// Foreign symbols ($/€) exist in the standard PDF fonts (unlike ৳).
+const PDF_CURRENCY_SYMBOL: Record<string, string> = { USD: "$", EUR: "€" };
+
+/** "$1,000.00 @ 121.5 BDT/USD" — the original foreign amount + the rate used. */
+export function pdfForeign(currency: string, originalAmount: number, fxRate: number): string {
+  const sym = PDF_CURRENCY_SYMBOL[currency] ?? `${currency} `;
+  const amt = originalAmount.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const rate = fxRate.toLocaleString("en-US", { maximumFractionDigits: 4 });
+  return `${sym}${amt} @ ${rate} BDT/${currency}`;
+}
+
 export function pdfDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   return new Date(iso).toLocaleDateString("en-GB", {

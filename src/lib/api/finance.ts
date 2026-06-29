@@ -15,12 +15,20 @@ import type {
   RemittanceType,
   PaymentKind,
 } from "@/app/(admin)/admin/finance/types";
+import type { FxRateResult } from "@/types";
 
 export interface EarningPayload {
   date: string;
   sourceId: string;
   remittance: RemittanceType;
-  amount: number;
+  /** BDT-equivalent (canonical). Derived server-side from originalAmount × fxRate. */
+  amount?: number;
+  /** Original currency (BDT | USD | EUR). */
+  currency?: string;
+  /** Amount in `currency`. */
+  originalAmount?: number;
+  /** BDT per 1 unit of `currency`. */
+  fxRate?: number;
   fiscalYear?: string;
   notes?: string | null;
   /** Opt-in cross-domain link: post a CREDIT to this Money account (create only). */
@@ -33,7 +41,14 @@ export interface PaymentPayload {
   type: PaymentKind;
   reference?: string | null;
   clientIds?: string[];
-  amount: number;
+  /** BDT-equivalent (canonical). Derived server-side from originalAmount × fxRate. */
+  amount?: number;
+  /** Original currency (BDT | USD | EUR). */
+  currency?: string;
+  /** Amount in `currency`. */
+  originalAmount?: number;
+  /** BDT per 1 unit of `currency`. */
+  fxRate?: number;
   fiscalYear?: string;
   notes?: string | null;
   /** Opt-in cross-domain link: post a DEBIT to this Money account (create only). */
@@ -113,6 +128,9 @@ export interface OverridePayload {
 }
 
 export const financeApi = {
+  // ── FX rate (BDT per 1 unit of `from`) — prefill foreign transactions ─────
+  getFxRate: (from: string) => apiGet<FxRateResult>("/fx-rate", { params: { from } }),
+
   // ── Dashboard ──────────────────────────────────────────────────────────
   dashboard: (params?: { from?: string; to?: string }) =>
     apiGet<FinanceDashboardData>("/finance/dashboard", { params }),

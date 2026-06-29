@@ -3,7 +3,7 @@ import { Prisma, RemittanceType } from "@prisma/client";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { resolveRange, dateColumnWhere } from "@/services/_shared/dateRange";
 import { recordLinkedEntry } from "@/services/money";
-import { toNum, toIso } from "./_serializers";
+import { toNum, toIso, resolveMoney, resolveMoneyUpdate } from "./_serializers";
 
 export interface GetEarningsOptions {
   fiscalYear?: string;
@@ -60,6 +60,9 @@ export async function getEarnings(opts: GetEarningsOptions = {}) {
     sourceName: e.source.name,
     remittance: e.remittance,
     amount: toNum(e.amount),
+    currency: e.currency,
+    originalAmount: e.originalAmount == null ? toNum(e.amount) : toNum(e.originalAmount),
+    fxRate: toNum(e.fxRate),
     fiscalYear: e.fiscalYear,
     notes: e.notes,
   }));
@@ -69,7 +72,14 @@ export interface CreateEarningInput {
   date: string;
   sourceId: string;
   remittance: RemittanceType;
-  amount: number;
+  /** BDT-equivalent. Derived server-side from originalAmount × fxRate; legacy BDT callers may pass this. */
+  amount?: number;
+  /** Original currency (BDT | USD | EUR). Defaults to BDT. */
+  currency?: string;
+  /** Amount in `currency`. Falls back to `amount` for BDT/legacy callers. */
+  originalAmount?: number;
+  /** BDT per 1 unit of `currency`. Defaults to 1. */
+  fxRate?: number;
   fiscalYear?: string;
   notes?: string | null;
   /**
@@ -83,12 +93,16 @@ export interface CreateEarningInput {
 
 export async function createEarning(input: CreateEarningInput) {
   const date = new Date(input.date);
+  const money = resolveMoney(input);
   const earning = await db.earning.create({
     data: {
       date,
       sourceId: input.sourceId,
       remittance: input.remittance,
-      amount: input.amount,
+      amount: money.amount, // BDT canonical
+      currency: money.currency,
+      originalAmount: money.originalAmount,
+      fxRate: money.fxRate,
       fiscalYear: input.fiscalYear || fiscalYearOf(date),
       notes: input.notes ?? null,
     },
@@ -103,7 +117,10 @@ export async function createEarning(input: CreateEarningInput) {
     await recordLinkedEntry({
       accountId: input.accountId,
       direction: "CREDIT",
-      amount: input.amount,
+      amount: money.amount,
+      currency: money.currency,
+      originalAmount: money.originalAmount,
+      fxRate: money.fxRate,
       date: input.date,
       categoryName: "Business Income",
       description: `${source?.name ?? "client"} (${input.remittance})`,
@@ -118,19 +135,50 @@ export interface UpdateEarningInput {
   sourceId?: string;
   remittance?: RemittanceType;
   amount?: number;
+  currency?: string;
+  originalAmount?: number;
+  fxRate?: number;
   fiscalYear?: string;
   notes?: string | null;
 }
 
 export async function updateEarning(id: string, input: UpdateEarningInput) {
   const nextDate = input.date ? new Date(input.date) : undefined;
+
+  // Re-resolve the currency fields (recomputes BDT `amount`) only when one of
+  // them is in the patch; otherwise leave amount/currency/originalAmount/fxRate alone.
+  let money: ReturnType<typeof resolveMoney> | null = null;
+  if (
+    input.amount !== undefined ||
+    input.currency !== undefined ||
+    input.originalAmount !== undefined ||
+    input.fxRate !== undefined
+  ) {
+    const current = await db.earning.findUnique({
+      where: { id },
+      select: { currency: true, originalAmount: true, fxRate: true, amount: true },
+    });
+    if (!current) throw new Error("Earning not found");
+    money = resolveMoneyUpdate(input, {
+      currency: current.currency,
+      originalAmount:
+        current.originalAmount == null ? toNum(current.amount) : toNum(current.originalAmount),
+      fxRate: toNum(current.fxRate),
+    });
+  }
+
   const earning = await db.earning.update({
     where: { id },
     data: {
       ...(nextDate && { date: nextDate }),
       ...(input.sourceId && { sourceId: input.sourceId }),
       ...(input.remittance && { remittance: input.remittance }),
-      ...(input.amount != null && { amount: input.amount }),
+      ...(money && {
+        amount: money.amount,
+        currency: money.currency,
+        originalAmount: money.originalAmount,
+        fxRate: money.fxRate,
+      }),
       // Recompute fiscal year from the new date unless one is explicitly given.
       ...(input.fiscalYear
         ? { fiscalYear: input.fiscalYear }

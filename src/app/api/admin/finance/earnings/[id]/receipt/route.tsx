@@ -2,7 +2,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { NextRequest } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { ReceiptDocument, pdfResponse, pdfDate } from "@/services/finance/pdfKit";
+import { ReceiptDocument, pdfResponse, pdfDate, pdfForeign } from "@/services/finance/pdfKit";
 import { getBusinessProfile } from "@/services/admin";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -25,10 +25,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       fields={[
         { label: "Client / Source", value: e.source.name },
         { label: "Type", value: e.remittance === "REM" ? "Remittance" : "Non-remittance" },
+        ...(e.currency !== "BDT"
+          ? [
+              {
+                label: "Original amount",
+                value: pdfForeign(
+                  e.currency,
+                  Number(e.originalAmount ?? e.amount),
+                  Number(e.fxRate)
+                ),
+              },
+            ]
+          : []),
         { label: "Received on", value: pdfDate(e.date.toISOString()) },
         { label: "Fiscal year", value: e.fiscalYear },
       ]}
-      amountLabel="Amount received"
+      amountLabel={e.currency !== "BDT" ? "Amount received (BDT)" : "Amount received"}
       amount={Number(e.amount)}
       leftSignLabel="Received by"
       rightSignLabel="For the record"

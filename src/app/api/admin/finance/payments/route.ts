@@ -38,10 +38,23 @@ export async function POST(req: NextRequest) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { date, employeeId, type, reference, clientIds, amount, fiscalYear, notes, accountId } =
-    body;
+  const {
+    date,
+    employeeId,
+    type,
+    reference,
+    clientIds,
+    amount,
+    currency,
+    originalAmount,
+    fxRate,
+    fiscalYear,
+    notes,
+    accountId,
+  } = body;
 
-  if (!date || !employeeId || amount == null) {
+  const amountSource = originalAmount ?? amount;
+  if (!date || !employeeId || amountSource == null) {
     return Response.json({ error: "date, employeeId and amount are required" }, { status: 400 });
   }
   if (type && !(type in PaymentKind)) {
@@ -57,7 +70,10 @@ export async function POST(req: NextRequest) {
     type: (type as PaymentKind) ?? PaymentKind.SALARY,
     reference,
     clientIds: Array.isArray(clientIds) ? clientIds : undefined,
-    amount: Number(amount),
+    ...(amount != null && { amount: Number(amount) }),
+    ...(currency && { currency: String(currency) }),
+    ...(originalAmount != null && { originalAmount: Number(originalAmount) }),
+    ...(fxRate != null && { fxRate: Number(fxRate) }),
     fiscalYear,
     notes,
     accountId: accountId || undefined,

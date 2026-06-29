@@ -30,11 +30,13 @@ import { fiscalYearOf } from "@/lib/fiscalYear";
 import { financeApi, type EarningFilters } from "@/lib/api/finance";
 import { moneyApi } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import type { MoneyAccountRow } from "@/types";
+import { SUPPORTED_CURRENCIES, type MoneyAccountRow } from "@/types";
 import type { EarningRow, SourceRow, RemittanceType } from "../types";
 import {
   fmt,
   fmtDate,
+  fmtForeign,
+  currencySymbol,
   todayInput,
   currentFiscalYear,
   FILTER_RANGE_PRESETS,
@@ -56,7 +58,11 @@ type EarningForm = {
   date: string;
   sourceId: string;
   remittance: RemittanceType;
+  /** Amount in the chosen currency (= BDT amount when currency is BDT). */
   amount: string;
+  currency: string;
+  /** BDT per 1 unit of `currency`; "1" for BDT. */
+  fxRate: string;
   fiscalYear: string;
   notes: string;
   /** Optional Money account to post a linked CREDIT to (opt-in; create only). */
@@ -68,10 +74,14 @@ const BLANK: EarningForm = {
   sourceId: "",
   remittance: "REM",
   amount: "",
+  currency: "BDT",
+  fxRate: "1",
   fiscalYear: fiscalYearOf(new Date()),
   notes: "",
   accountId: NO_ACCOUNT,
 };
+
+const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES.map((c) => ({ value: c, label: c }));
 
 export default function EarningsPage() {
   const searchParams = useSearchParams();
@@ -119,6 +129,8 @@ export default function EarningsPage() {
   const [error, setError] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [rateLoading, setRateLoading] = useState(false);
+  const [rateNote, setRateNote] = useState<string | null>(null);
 
   // Debounced search box: local input mirrors ?q, pushed to the URL after a pause.
   const [searchInput, setSearchInput] = useState(q);
@@ -223,11 +235,14 @@ export default function EarningsPage() {
       date: e.date ? e.date.split("T")[0] : todayInput(),
       sourceId: e.sourceId,
       remittance: e.remittance,
-      amount: String(e.amount),
+      amount: String(e.originalAmount),
+      currency: e.currency,
+      fxRate: String(e.fxRate),
       fiscalYear: e.fiscalYear,
       notes: e.notes ?? "",
       accountId: NO_ACCOUNT,
     });
+    setRateNote(null);
     setError(null);
     setDrawerOpen(true);
   };
@@ -239,15 +254,60 @@ export default function EarningsPage() {
       fiscalYear: date ? fiscalYearOf(new Date(date)) : f.fiscalYear,
     }));
 
+  // Fetch the live BDT rate for a currency and prefill the editable field.
+  const fetchRate = useCallback(async (currency: string) => {
+    setRateLoading(true);
+    setRateNote(null);
+    try {
+      const res = await financeApi.getFxRate(currency);
+      if (res && res.rate > 0) {
+        setForm((f) => ({ ...f, fxRate: String(res.rate) }));
+        setRateNote(
+          res.source === "live" || res.source === "cache"
+            ? `Live rate ৳${res.rate} / ${currency}${res.asOf ? ` (as of ${fmtDate(res.asOf)})` : ""}`
+            : null
+        );
+      } else {
+        setRateNote("Couldn't fetch a rate — enter it manually.");
+      }
+    } catch {
+      setRateNote("Couldn't fetch a rate — enter it manually.");
+    } finally {
+      setRateLoading(false);
+    }
+  }, []);
+
+  const onCurrencyChange = (currency: string) => {
+    if (currency === "BDT") {
+      setForm((f) => ({ ...f, currency, fxRate: "1" }));
+      setRateNote(null);
+      return;
+    }
+    setForm((f) => ({ ...f, currency }));
+    fetchRate(currency);
+  };
+
+  // BDT-equivalent preview from the current form (originalAmount × rate).
+  const previewBdt = (() => {
+    const amt = parseFloat(form.amount);
+    const rate = parseFloat(form.fxRate);
+    if (!Number.isFinite(amt) || !Number.isFinite(rate)) return null;
+    return amt * rate;
+  })();
+  const rateMissing = form.currency !== "BDT" && !(parseFloat(form.fxRate) > 0);
+
   const save = async () => {
     setSaving(true);
     setError(null);
     try {
+      const isBdt = form.currency === "BDT";
       const body = {
         date: form.date,
         sourceId: form.sourceId,
         remittance: form.remittance,
-        amount: parseFloat(form.amount),
+        currency: form.currency,
+        originalAmount: parseFloat(form.amount),
+        fxRate: isBdt ? 1 : parseFloat(form.fxRate),
         fiscalYear: form.fiscalYear,
         notes: form.notes || null,
       };
@@ -443,6 +503,15 @@ export default function EarningsPage() {
                       sx={{ fontWeight: 600, color: "info.main" }}
                     >
                       {fmt(e.amount)}
+                      {e.currency !== "BDT" && (
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: "block", fontWeight: 400 }}
+                        >
+                          {fmtForeign(e.currency, e.originalAmount, e.fxRate)}
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell data-label="Fiscal Year">{e.fiscalYear}</TableCell>
                     <TableCell data-label="Notes">
@@ -522,15 +591,46 @@ export default function EarningsPage() {
             onChange={(v) => setForm((f) => ({ ...f, remittance: v as RemittanceType }))}
             sx={{ mb: 2 }}
           />
-          <TextField
-            label="Amount (৳)"
-            type="number"
-            size="small"
-            fullWidth
-            value={form.amount}
-            onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-            sx={{ mb: 2 }}
-          />
+          <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+            <SearchableSelect
+              label="Currency"
+              value={form.currency}
+              options={CURRENCY_OPTIONS}
+              onChange={onCurrencyChange}
+              sx={{ width: 120 }}
+            />
+            <TextField
+              label={`Amount (${currencySymbol(form.currency)})`}
+              type="number"
+              size="small"
+              fullWidth
+              value={form.amount}
+              onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+            />
+          </Box>
+          {form.currency !== "BDT" && (
+            <>
+              <TextField
+                label={`FX rate (৳ per 1 ${form.currency})`}
+                type="number"
+                size="small"
+                fullWidth
+                value={form.fxRate}
+                onChange={(e) => setForm((f) => ({ ...f, fxRate: e.target.value }))}
+                helperText={
+                  rateLoading
+                    ? "Fetching live rate…"
+                    : (rateNote ?? "Editable — use your bank's actual rate.")
+                }
+                sx={{ mb: 1 }}
+              />
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
+                {previewBdt != null
+                  ? `= ${fmt(previewBdt)} (stored as BDT)`
+                  : "Enter amount and rate to see the BDT value."}
+              </Typography>
+            </>
+          )}
           <TextField
             label="Fiscal Year"
             size="small"
@@ -569,7 +669,7 @@ export default function EarningsPage() {
             variant="contained"
             fullWidth
             onClick={save}
-            disabled={saving || !form.sourceId || !form.amount}
+            disabled={saving || !form.sourceId || !form.amount || rateMissing}
           >
             {saving ? "Saving…" : editing ? "Save Changes" : "Add Earning"}
           </Button>

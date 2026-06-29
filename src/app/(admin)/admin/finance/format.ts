@@ -8,6 +8,28 @@ export function fmt(n: number): string {
   return `৳${Math.round(n).toLocaleString("en-IN")}`;
 }
 
+/** Display symbol per currency. */
+export const CURRENCY_SYMBOL: Record<string, string> = { BDT: "৳", USD: "$", EUR: "€" };
+
+/** Symbol for a currency code (falls back to the code itself). */
+export function currencySymbol(code: string): string {
+  return CURRENCY_SYMBOL[code] ?? code;
+}
+
+/** Amount in its own currency: $1,000.00 / €500.00 / ৳12,000 (integer BDT, 2dp foreign). */
+export function fmtCurrency(n: number, code: string): string {
+  const sym = currencySymbol(code);
+  if (code === "BDT") return `${sym}${Math.round(n).toLocaleString("en-IN")}`;
+  return `${sym}${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/** "€500.00 @ 132.40" — the original foreign amount and rate (no BDT). */
+export function fmtForeign(currency: string, originalAmount: number, fxRate: number): string {
+  return `${fmtCurrency(originalAmount, currency)} @ ${fxRate.toLocaleString("en-US", {
+    maximumFractionDigits: 4,
+  })}`;
+}
+
 /** Compact currency for chart axes / tight cells: ৳1.2Cr, ৳3.4L, ৳5k */
 export function fmtShort(n: number): string {
   const abs = Math.abs(n);
