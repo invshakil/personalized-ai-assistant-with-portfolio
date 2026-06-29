@@ -66,6 +66,15 @@ const PAYMENT_DIRS = ["DEBIT", "CREDIT"] as const;
 const ACCOUNT_TYPES = ["CASH", "BANK", "MOBILE_WALLET", "CREDIT_CARD", "OTHER"] as const;
 const OBLIGATION_DIRS = ["OWED_BY_ME", "OWED_TO_ME"] as const;
 const OBLIGATION_TYPES = ["LOAN", "RECURRING"] as const;
+const CURRENCIES = ["BDT", "USD", "EUR"] as const;
+
+const CUR_SYMBOL: Record<string, string> = { BDT: "৳", USD: "$", EUR: "€" };
+/** Amount in its own currency (integer BDT, 2dp foreign) for tool previews/summaries. */
+const cur = (n: number, code: string) => {
+  const sym = CUR_SYMBOL[code] ?? `${code} `;
+  if (code === "BDT") return taka(n);
+  return `${sym}${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
@@ -78,12 +87,13 @@ export const moneyTools: WriteToolDef[] = [
       "Add a personal income (CREDIT) or expense (DEBIT) ledger entry. " +
       "direction=CREDIT for money coming in, DEBIT for money going out. " +
       "categoryName is free-text — it will be created if it doesn't exist (INCOME for CREDIT, EXPENSE for DEBIT). " +
-      "accountName must match an existing account (use get_account_balances to list them). " +
+      "accountName must match an existing account (use get_account_balances to list them); the amount is " +
+      "in that account's currency (e.g. a USD account → amount is USD; BDT/no account → BDT). " +
       "To move money between accounts (e.g. cash withdrawal) use record_money_transfer instead.",
     parameters: schema(
       {
         direction: Enum(DIRECTIONS, "CREDIT (income) or DEBIT (expense)"),
-        amount: Num("Amount in BDT"),
+        amount: Num("Amount, in the account's currency (BDT if no account)"),
         date: Str("Date YYYY-MM-DD"),
         categoryName: Str("Category name (created if needed, e.g. Groceries, Salary)"),
         accountName: Str("Account name, e.g. Cash, bKash (optional)"),
@@ -102,26 +112,28 @@ export const moneyTools: WriteToolDef[] = [
       notes: optStr(i.notes) ?? null,
     }),
     preview: async (a) => {
+      const account = a.accountName ? await accountByName(a.accountName) : null;
+      const ccy = account?.currency ?? "BDT";
       const acct = a.accountName ? ` from ${a.accountName}` : "";
       const verb = a.direction === "CREDIT" ? "Record income" : "Record expense";
-      return `${verb}: ${taka(a.amount)} — ${a.categoryName}${acct} on ${a.date}.`;
+      return `${verb}: ${cur(a.amount, ccy)} — ${a.categoryName}${acct} on ${a.date}.`;
     },
     commit: async (a) => {
       const kind = a.direction === "CREDIT" ? "INCOME" : "EXPENSE";
       const categoryId = await ensureCategory(a.categoryName, kind);
-      const accountId = a.accountName ? (await accountByName(a.accountName)).id : null;
+      const account = a.accountName ? await accountByName(a.accountName) : null;
       const entry = await createEntry({
         date: a.date,
         direction: a.direction,
         amount: a.amount,
         categoryId,
-        accountId,
+        accountId: account?.id ?? null,
         description: a.description,
         notes: a.notes,
       });
       const acct = a.accountName ? ` → ${a.accountName}` : "";
       return {
-        summary: `Recorded ${taka(a.amount)} ${a.direction === "CREDIT" ? "income" : "expense"} (${a.categoryName}${acct}).`,
+        summary: `Recorded ${cur(a.amount, account?.currency ?? "BDT")} ${a.direction === "CREDIT" ? "income" : "expense"} (${a.categoryName}${acct}).`,
         data: entry,
       };
     },
@@ -241,13 +253,17 @@ export const moneyTools: WriteToolDef[] = [
     description:
       "Move money between two accounts (e.g. bank → cash withdrawal, paying a credit-card bill). " +
       "Recorded as a TRANSFER — excluded from income/expense totals and savings. " +
-      "Source account balance goes down, destination goes up. " +
+      "Source account balance goes down by amount (source currency), destination goes up by toAmount (destination currency). " +
+      "For a CROSS-CURRENCY transfer (the two accounts hold different currencies, e.g. a USD→BDT exchange) you MUST pass toAmount = the amount that arrives in the destination currency. " +
       "Account names must match existing accounts (use get_account_balances to list them).",
     parameters: schema(
       {
         fromAccountName: Str("Source account name (e.g. Bank, bKash)"),
         toAccountName: Str("Destination account name (e.g. Cash, Credit Card)"),
-        amount: Num("Amount in BDT"),
+        amount: Num("Amount leaving the source, in the source account's currency"),
+        toAmount: Num(
+          "Amount arriving at the destination, in the destination currency — required only for cross-currency transfers"
+        ),
         date: Str("Date YYYY-MM-DD"),
         description: Str("Description (optional)"),
         notes: Str("Notes (optional)"),
@@ -258,12 +274,22 @@ export const moneyTools: WriteToolDef[] = [
       fromAccountName: reqStr(i.fromAccountName, "fromAccountName"),
       toAccountName: reqStr(i.toAccountName, "toAccountName"),
       amount: reqNum(i.amount, "amount"),
+      toAmount: optNum(i.toAmount),
       date: reqDate(i.date, "date"),
       description: optStr(i.description) ?? null,
       notes: optStr(i.notes) ?? null,
     }),
-    preview: async (a) =>
-      `Transfer ${taka(a.amount)} from ${a.fromAccountName} → ${a.toAccountName} on ${a.date}.`,
+    preview: async (a) => {
+      const [from, to] = await Promise.all([
+        accountByName(a.fromAccountName),
+        accountByName(a.toAccountName),
+      ]);
+      const dest =
+        from.currency !== to.currency && a.toAmount != null
+          ? ` → ${cur(a.toAmount, to.currency)}`
+          : "";
+      return `Transfer ${cur(a.amount, from.currency)} from ${from.name} → ${to.name}${dest} on ${a.date}.`;
+    },
     commit: async (a) => {
       const [from, to] = await Promise.all([
         accountByName(a.fromAccountName),
@@ -276,9 +302,14 @@ export const moneyTools: WriteToolDef[] = [
         date: a.date,
         description: a.description,
         notes: a.notes,
+        ...(a.toAmount != null && { toAmount: a.toAmount }),
       });
+      const dest =
+        from.currency !== to.currency && entry.toAmount != null
+          ? ` → ${cur(entry.toAmount, to.currency)} (@ ${entry.fxRate})`
+          : "";
       return {
-        summary: `Transferred ${taka(a.amount)} from ${from.name} → ${to.name}.`,
+        summary: `Transferred ${cur(a.amount, from.currency)} from ${from.name} → ${to.name}${dest}.`,
         data: entry,
       };
     },
@@ -373,8 +404,9 @@ export const moneyTools: WriteToolDef[] = [
       {
         name: Str("Account name, e.g. Cash, City Bank, bKash"),
         type: Enum(ACCOUNT_TYPES, "CASH, BANK, MOBILE_WALLET, CREDIT_CARD or OTHER"),
-        openingBalance: Num("Starting balance in BDT (default 0)"),
-        creditLimit: Num("Credit limit in BDT (CREDIT_CARD only, optional)"),
+        currency: Enum(CURRENCIES, "Account currency: BDT (default), USD or EUR"),
+        openingBalance: Num("Starting balance in the account's currency (default 0)"),
+        creditLimit: Num("Credit limit (CREDIT_CARD only, optional)"),
         notes: Str("Notes (optional)"),
       },
       ["name", "type"]
@@ -382,13 +414,18 @@ export const moneyTools: WriteToolDef[] = [
     parse: (i) => ({
       name: reqStr(i.name, "name"),
       type: reqEnum(i.type, ACCOUNT_TYPES, "type") as MoneyAccountType,
+      currency: (optEnum(i.currency, CURRENCIES, "currency") ?? "BDT") as string,
       openingBalance: optNum(i.openingBalance),
       creditLimit: optNum(i.creditLimit),
       notes: optStr(i.notes) ?? null,
     }),
     preview: async (a) => {
-      const bal = a.openingBalance != null ? ` with opening balance ${taka(a.openingBalance)}` : "";
-      return `Create ${a.type.toLowerCase().replace("_", " ")} account "${a.name}"${bal}.`;
+      const bal =
+        a.openingBalance != null
+          ? ` with opening balance ${cur(a.openingBalance, a.currency)}`
+          : "";
+      const ccy = a.currency !== "BDT" ? ` (${a.currency})` : "";
+      return `Create ${a.type.toLowerCase().replace("_", " ")} account "${a.name}"${ccy}${bal}.`;
     },
     commit: async (a) => {
       const existing = await listAccountsWithBalances();
@@ -398,11 +435,15 @@ export const moneyTools: WriteToolDef[] = [
       const account = await createAccount({
         name: a.name,
         type: a.type,
+        currency: a.currency,
         openingBalance: a.openingBalance ?? 0,
         creditLimit: a.creditLimit ?? null,
         notes: a.notes,
       });
-      return { summary: `Created ${a.type} account "${account.name}".`, data: account };
+      return {
+        summary: `Created ${a.type} account "${account.name}" (${account.currency}).`,
+        data: account,
+      };
     },
   }),
 

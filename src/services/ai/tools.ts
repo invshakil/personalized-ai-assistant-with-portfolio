@@ -93,6 +93,8 @@ const financeReadTools: AiToolDef[] = [
     name: "list_earnings",
     description:
       "List client income (earnings): date, client, remittance (REM/NON_REM), amount, fiscal year. " +
+      "Each row's `amount` is the BDT-equivalent (canonical, always sum/report in BDT); `currency`, " +
+      "`originalAmount`, and `fxRate` (BDT per 1 unit) give the original foreign amount when not BDT. " +
       "Filter by fiscalYear, income-source id (sourceId), a date range (period or from/to), and search " +
       "notes + the remittance type label with q (e.g. q='remittance').",
     parameters: obj({
@@ -109,6 +111,8 @@ const financeReadTools: AiToolDef[] = [
     name: "list_salary_payments",
     description:
       "List salary/bonus payments to employees: date, employee, type, attributed clients, amount, note. " +
+      "Each row's `amount` is the BDT-equivalent (canonical, always sum/report in BDT); `currency`, " +
+      "`originalAmount`, and `fxRate` (BDT per 1 unit) give the original foreign amount when not BDT. " +
       "Filter by fiscalYear, employee id, payment type (SALARY/BONUS/ADVANCE/OTHER), attributed client id, " +
       "and a date range (period or from/to).",
     parameters: obj({
@@ -378,7 +382,7 @@ const moneyReadTools: AiToolDef[] = [
   {
     name: "get_account_balances",
     description:
-      "Current balance of every personal account (cash, bank, mobile wallet, credit card), plus total cash position and total credit-card debt. Answers 'how much money do I have right now'.",
+      "Current balance of every personal account (cash, bank, mobile wallet, credit card). Each account's `balance` is in its own `currency`; `balanceBdt` is the BDT-converted value. The totals `cashPositionBdt` and `cardDebtBdt` are in BDT (foreign balances converted at the latest rate). Answers 'how much money do I have right now'.",
     parameters: obj({}),
   },
   {

@@ -52,6 +52,13 @@ function parseArgs(argv: string[]): Args {
 }
 
 const bdt = (n: number) => `৳${Math.round(n).toLocaleString("en-IN")}`;
+const CUR_SYMBOL: Record<string, string> = { BDT: "৳", USD: "$", EUR: "€" };
+/** Amount in its own currency (integer BDT, 2dp foreign). */
+const cur = (n: number, code: string) => {
+  const sym = CUR_SYMBOL[code] ?? `${code} `;
+  if (code === "BDT") return `${sym}${Math.round(n).toLocaleString("en-IN")}`;
+  return `${sym}${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
 const todayIso = () => new Date().toISOString().slice(0, 10);
 
 function reqStr(flags: Record<string, string | true>, key: string): string {
@@ -90,10 +97,14 @@ async function main() {
       const data = await money.getAccountBalances();
       out(
         [
-          ...data.accounts.map((a) => `  ${a.name.padEnd(20)} ${bdt(a.balance)}`),
+          ...data.accounts.map(
+            (a) =>
+              `  ${a.name.padEnd(20)} ${cur(a.balance, a.currency)}` +
+              (a.currency !== "BDT" ? ` (≈ ${bdt(a.balanceBdt)})` : "")
+          ),
           `  ${"—".repeat(28)}`,
-          `  Cash position: ${bdt(data.cashPosition)}`,
-          `  Credit-card debt: ${bdt(data.cardDebt)}`,
+          `  Cash position: ${bdt(data.cashPositionBdt)} (BDT-converted)`,
+          `  Credit-card debt: ${bdt(data.cardDebtBdt)}`,
         ].join("\n"),
         data
       );
@@ -144,7 +155,7 @@ async function main() {
         accountId: typeof flags.account === "string" ? await resolveAccountId(flags.account) : null,
         description: typeof flags.desc === "string" ? flags.desc : null,
       });
-      out(`Recorded expense ${bdt(entry.amount)} (${entry.categoryName}).`, entry);
+      out(`Recorded expense ${cur(entry.amount, entry.currency)} (${entry.categoryName}).`, entry);
       break;
     }
     case "add-income": {
@@ -157,18 +168,27 @@ async function main() {
         accountId: typeof flags.account === "string" ? await resolveAccountId(flags.account) : null,
         description: typeof flags.desc === "string" ? flags.desc : null,
       });
-      out(`Recorded income ${bdt(entry.amount)} (${entry.categoryName}).`, entry);
+      out(`Recorded income ${cur(entry.amount, entry.currency)} (${entry.categoryName}).`, entry);
       break;
     }
     case "transfer": {
+      const toAmount =
+        typeof flags["to-amount"] === "string" ? Number(flags["to-amount"]) : undefined;
       const entry = await money.recordTransfer({
         fromAccountId: await resolveAccountId(reqStr(flags, "from")),
         toAccountId: await resolveAccountId(reqStr(flags, "to")),
         amount: reqNum(flags, "amount"),
         date: typeof flags.date === "string" ? flags.date : todayIso(),
         description: typeof flags.desc === "string" ? flags.desc : null,
+        ...(toAmount != null && { toAmount }),
       });
-      out(`Transferred ${bdt(entry.amount)}.`, entry);
+      const crossCurrency = entry.toAmount != null && entry.toAmount !== entry.amount;
+      out(
+        `Transferred ${cur(entry.amount, entry.currency)}` +
+          (crossCurrency ? ` (arrived ${entry.toAmount} @ rate ${entry.fxRate})` : "") +
+          ".",
+        entry
+      );
       break;
     }
     case "pay-person": {
@@ -199,7 +219,7 @@ async function main() {
           "  owed",
           "  add-expense --amount N --category NAME [--account NAME] [--date YYYY-MM-DD] [--desc TEXT]",
           "  add-income  --amount N --category NAME [--account NAME] [--date] [--desc]",
-          "  transfer --from NAME --to NAME --amount N [--date] [--desc]",
+          "  transfer --from NAME --to NAME --amount N [--to-amount N] [--date] [--desc]",
           "  pay-person --person NAME --amount N [--account NAME] [--direction out|in] [--date]",
           "Add --json for machine-readable output.",
         ].join("\n")
