@@ -23,3 +23,4 @@ export * from "./admin";
 export * from "./portfolio";
 export * from "./booking";
 export * from "./solar";
+export * from "./fx";
