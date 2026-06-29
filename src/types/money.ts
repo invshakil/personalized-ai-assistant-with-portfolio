@@ -18,12 +18,13 @@ export interface MoneyAccountRow {
   id: string;
   name: string;
   type: MoneyAccountType;
+  currency: string; // BDT | USD | EUR — balance is in this currency
   openingBalance: number;
   creditLimit: number | null;
   isActive: boolean;
   notes: string | null;
   // Computed (service layer):
-  balance: number; // openingBalance + Σ credits − Σ debits ± transfers
+  balance: number; // openingBalance + Σ credits − Σ debits ± transfers (in `currency`)
   availableCredit: number | null; // CREDIT_CARD only = creditLimit + balance
   entryCount: number;
 }
@@ -44,8 +45,10 @@ export interface MoneyEntryRow {
   id: string;
   date: string; // ISO
   direction: MoneyEntryDirection;
-  amount: number;
+  amount: number; // in `currency` (source account currency for TRANSFER)
   currency: string;
+  toAmount: number | null; // TRANSFER: amount arriving at destination, in dest currency
+  fxRate: number | null; // BDT per 1 unit of `currency` (null treated as 1)
   categoryId: string | null; // null for TRANSFER
   categoryName: string | null;
   categoryKind: MoneyCategoryKind | null;
@@ -124,9 +127,18 @@ export interface AccountBalanceSummary {
   id: string;
   name: string;
   type: MoneyAccountType;
-  balance: number;
+  currency: string;
+  balance: number; // in `currency`
   creditLimit: number | null;
   availableCredit: number | null;
+}
+
+/** Per-currency asset-balance breakdown (for the combined-total panel). */
+export interface CurrencyBalance {
+  currency: string;
+  native: number; // sum of asset-account balances in this currency
+  rate: number | null; // BDT per 1 unit (null = no rate available)
+  bdt: number; // native × rate (0 when rate unavailable)
 }
 
 export interface MoneyDashboardData {
@@ -140,8 +152,10 @@ export interface MoneyDashboardData {
   savings: SavingsPoint[]; // calendar-month series, oldest first
   expenseByCategory: ExpenseCategorySlice[]; // largest first
   accounts: AccountBalanceSummary[];
-  cashPosition: number; // Σ asset-account balances (excludes credit cards)
-  cardDebt: number; // Σ owed across credit cards (positive number)
+  cashPosition: number; // Σ asset-account balances in BDT (foreign converted at latest rate)
+  cardDebt: number; // Σ owed across credit cards, in BDT (positive number)
+  balancesByCurrency: CurrencyBalance[]; // per-currency asset breakdown (native + BDT)
+  fxAsOf: string | null; // ISO timestamp of the latest FX rate used (null = all BDT)
   peopleOwed: {
     owedByMe: number; // total I still owe
     owedToMe: number; // total still owed to me

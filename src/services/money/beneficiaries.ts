@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { ObligationDirection, ObligationStatus, ObligationType } from "@prisma/client";
 import { toNum, toIso } from "./_serializers";
 import { ensureCategory } from "./categories";
-import { getEntries } from "./entries";
+import { getEntries, createEntry } from "./entries";
 import type { BeneficiaryDetail, BeneficiaryRow, ObligationRow } from "@/types";
 
 /** Map of obligationId → { debit, credit } summed across tagged ledger entries. */
@@ -294,7 +294,6 @@ export interface RecordPaymentInput {
 }
 
 export async function recordPayment(input: RecordPaymentInput) {
-  if (input.amount == null || input.amount <= 0) throw new Error("amount must be greater than 0");
   const direction = input.direction ?? "DEBIT";
   const categoryId =
     input.categoryId ??
@@ -303,43 +302,19 @@ export async function recordPayment(input: RecordPaymentInput) {
       direction === "DEBIT" ? "EXPENSE" : "INCOME"
     ));
 
-  const e = await db.moneyEntry.create({
-    data: {
-      date: new Date(input.date),
-      direction,
-      amount: input.amount,
-      categoryId,
-      accountId: input.accountId ?? null,
-      beneficiaryId: input.beneficiaryId,
-      obligationId: input.obligationId ?? null,
-      description: input.description ?? null,
-      notes: input.notes ?? null,
-    },
-    include: {
-      category: { select: { name: true, kind: true } },
-      account: { select: { name: true } },
-      transferAccount: { select: { name: true } },
-      beneficiary: { select: { name: true } },
-    },
+  // Delegate to createEntry so the entry inherits the account's currency + the
+  // captured fxRate (and amount validation), and returns a full MoneyEntryRow —
+  // the same path manual entries and cross-domain links use. The payment is just
+  // a ledger entry tagged with the beneficiary (+ obligation for loan repayments).
+  return createEntry({
+    date: input.date,
+    direction,
+    amount: input.amount,
+    categoryId,
+    accountId: input.accountId ?? null,
+    beneficiaryId: input.beneficiaryId,
+    obligationId: input.obligationId ?? null,
+    description: input.description ?? null,
+    notes: input.notes ?? null,
   });
-  return {
-    id: e.id,
-    date: toIso(e.date)!,
-    direction: e.direction,
-    amount: toNum(e.amount),
-    currency: e.currency,
-    categoryId: e.categoryId,
-    categoryName: e.category?.name ?? null,
-    categoryKind: e.category?.kind ?? null,
-    accountId: e.accountId,
-    accountName: e.account?.name ?? null,
-    transferAccountId: e.transferAccountId,
-    transferAccountName: e.transferAccount?.name ?? null,
-    beneficiaryId: e.beneficiaryId,
-    beneficiaryName: e.beneficiary?.name ?? null,
-    obligationId: e.obligationId,
-    description: e.description,
-    notes: e.notes,
-    source: e.source,
-  };
 }

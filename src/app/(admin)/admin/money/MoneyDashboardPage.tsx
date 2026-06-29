@@ -30,6 +30,8 @@ import type { MoneyDashboardData } from "@/types";
 import {
   fmt,
   fmtPct,
+  fmtCurrency,
+  fmtDate,
   ACCOUNT_TYPE_LABEL,
   MONEY_RANGE_LABELS,
   MONEY_RANGE_PERIOD,
@@ -237,6 +239,12 @@ export default function MoneyDashboardPage() {
                   label="Cash position"
                   value={fmt(data.cashPosition)}
                   color="success.main"
+                  sub={(() => {
+                    const foreign = data.balancesByCurrency.filter((b) => b.currency !== "BDT");
+                    if (foreign.length === 0) return undefined;
+                    const parts = foreign.map((b) => fmtCurrency(b.native, b.currency)).join(", ");
+                    return `incl. ${parts}${data.fxAsOf ? ` · @ ${fmtDate(data.fxAsOf)}` : ""}`;
+                  })()}
                 />
                 <StatCard label="Credit-card debt" value={fmt(data.cardDebt)} color="error.main" />
                 <StatCard
@@ -286,7 +294,10 @@ export default function MoneyDashboardPage() {
                             <TableCell data-label="Account" sx={{ fontWeight: 600 }}>
                               {a.name}
                             </TableCell>
-                            <TableCell data-label="Type">{ACCOUNT_TYPE_LABEL[a.type]}</TableCell>
+                            <TableCell data-label="Type">
+                              {ACCOUNT_TYPE_LABEL[a.type]}
+                              {a.currency !== "BDT" ? ` · ${a.currency}` : ""}
+                            </TableCell>
                             <TableCell
                               align="right"
                               data-label="Balance"
@@ -295,7 +306,7 @@ export default function MoneyDashboardPage() {
                                 color: a.balance < 0 ? "error.main" : "text.primary",
                               }}
                             >
-                              {fmt(a.balance)}
+                              {fmtCurrency(a.balance, a.currency)}
                             </TableCell>
                           </TableRow>
                         ))

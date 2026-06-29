@@ -7,16 +7,26 @@ export {
   fmtPct,
   fmtDate,
   fmtMonth,
+  fmtCurrency,
+  currencySymbol,
+  fmtForeign,
   todayInput,
   thisMonthInput,
 } from "@/app/(admin)/admin/finance/format";
 
+import { fmtCurrency } from "@/app/(admin)/admin/finance/format";
 import type { MoneyAccountType, MoneyEntryDirection } from "@/types";
 
 /** Signed currency: green for in, red-ish handled by caller. e.g. +৳5,000 / −৳1,200 */
 export function fmtSigned(n: number): string {
   const sign = n < 0 ? "−" : "+";
   return `${sign}৳${Math.round(Math.abs(n)).toLocaleString("en-IN")}`;
+}
+
+/** Signed amount in a specific currency: +$1,000.00 / −€500.00 / +৳5,000 */
+export function fmtSignedCurrency(n: number, code: string): string {
+  const sign = n < 0 ? "−" : "+";
+  return `${sign}${fmtCurrency(Math.abs(n), code)}`;
 }
 
 export const ACCOUNT_TYPE_LABEL: Record<MoneyAccountType, string> = {

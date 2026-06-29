@@ -243,8 +243,11 @@ export async function commitImport(
   const skipped = parsed.length - toInsert.length;
 
   // Resolve account names → ids (case-insensitive), with a default fallback.
-  const accounts = await db.moneyAccount.findMany({ select: { id: true, name: true } });
+  const accounts = await db.moneyAccount.findMany({
+    select: { id: true, name: true, currency: true },
+  });
   const accountByName = new Map(accounts.map((a) => [a.name.toLowerCase(), a.id]));
+  const currencyByAccountId = new Map(accounts.map((a) => [a.id, a.currency]));
 
   // Resolve categories up front (ensure they exist with the right kind).
   const catCache = new Map<string, string>();
@@ -272,10 +275,16 @@ export async function commitImport(
             input.mapping.defaultAccountId ??
             null)
           : (input.mapping.defaultAccountId ?? null);
+        // Imported rows take the currency of their account (BDT if none). fxRate
+        // is left null (treated as 1) — set the rate later if you need foreign
+        // imports converted in the BDT savings series.
+        const currency = accountId ? (currencyByAccountId.get(accountId) ?? "BDT") : "BDT";
         return {
           date: new Date(r.date!),
           direction: r.direction!,
           amount: r.amount!,
+          currency,
+          fxRate: currency === "BDT" ? 1 : null,
           categoryId: catCache.get(catKeyOf(r.categoryName!, kind))!,
           accountId,
           description: r.description,

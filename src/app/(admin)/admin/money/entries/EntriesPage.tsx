@@ -40,6 +40,8 @@ import type {
 } from "@/types";
 import {
   fmt,
+  fmtCurrency,
+  currencySymbol,
   fmtDate,
   todayInput,
   DIRECTION_LABEL,
@@ -76,6 +78,8 @@ type TransferForm = {
   fromAccountId: string;
   toAccountId: string;
   amount: string;
+  /** Destination amount (destination currency) for a cross-currency transfer. */
+  toAmount: string;
   description: string;
 };
 
@@ -102,6 +106,7 @@ const BLANK_TRANSFER: TransferForm = {
   fromAccountId: "",
   toAccountId: "",
   amount: "",
+  toAmount: "",
   description: "",
 };
 
@@ -427,6 +432,7 @@ export default function EntriesPage() {
         amount: parseFloat(transfer.amount),
         date: transfer.date,
         description: transfer.description || null,
+        ...(transfer.toAmount !== "" && { toAmount: parseFloat(transfer.toAmount) }),
       });
       setTransferOpen(false);
       loadEntries();
@@ -453,12 +459,15 @@ export default function EntriesPage() {
 
   const amountColor = (d: MoneyEntryRow["direction"]) =>
     d === "CREDIT" ? "success.main" : d === "DEBIT" ? "error.main" : "text.secondary";
-  const amountText = (e: MoneyEntryRow) =>
-    e.direction === "CREDIT"
-      ? `+${fmt(e.amount)}`
-      : e.direction === "DEBIT"
-        ? `−${fmt(e.amount)}`
-        : fmt(e.amount);
+  const amountText = (e: MoneyEntryRow) => {
+    if (e.direction === "CREDIT") return `+${fmtCurrency(e.amount, e.currency)}`;
+    if (e.direction === "DEBIT") return `−${fmtCurrency(e.amount, e.currency)}`;
+    // TRANSFER: show the cross-currency arrival amount when it differs.
+    if (e.toAmount != null && e.toAmount !== e.amount) {
+      return `${fmtCurrency(e.amount, e.currency)} → ${e.toAmount.toLocaleString("en-US")}`;
+    }
+    return fmtCurrency(e.amount, e.currency);
+  };
   const dirColor = (d: MoneyEntryRow["direction"]) =>
     d === "CREDIT" ? "success" : d === "DEBIT" ? "warning" : "info";
 
@@ -783,7 +792,9 @@ export default function EntriesPage() {
             sx={{ mb: 2 }}
           />
           <TextField
-            label="Amount (৳)"
+            label={`Amount (${currencySymbol(
+              accounts.find((a) => a.id === form.accountId)?.currency ?? "BDT"
+            )})`}
             type="number"
             size="small"
             fullWidth
@@ -938,38 +949,65 @@ export default function EntriesPage() {
             onChange={(v) => setTransfer((t) => ({ ...t, toAccountId: v }))}
             sx={{ mb: 2 }}
           />
-          <TextField
-            label="Amount (৳)"
-            type="number"
-            size="small"
-            fullWidth
-            value={transfer.amount}
-            onChange={(e) => setTransfer((t) => ({ ...t, amount: e.target.value }))}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label="Description"
-            size="small"
-            fullWidth
-            value={transfer.description}
-            onChange={(e) => setTransfer((t) => ({ ...t, description: e.target.value }))}
-            sx={{ mb: 2 }}
-          />
-          {transferError && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {transferError}
-            </Alert>
-          )}
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={saveTransfer}
-            disabled={
-              transferSaving || !transfer.fromAccountId || !transfer.toAccountId || !transfer.amount
-            }
-          >
-            {transferSaving ? "Saving…" : "Record Transfer"}
-          </Button>
+          {(() => {
+            const fromCur =
+              accounts.find((a) => a.id === transfer.fromAccountId)?.currency ?? "BDT";
+            const toCur = accounts.find((a) => a.id === transfer.toAccountId)?.currency ?? "BDT";
+            const crossCurrency =
+              !!transfer.fromAccountId && !!transfer.toAccountId && fromCur !== toCur;
+            return (
+              <>
+                <TextField
+                  label={`Amount (${currencySymbol(fromCur)})`}
+                  type="number"
+                  size="small"
+                  fullWidth
+                  value={transfer.amount}
+                  onChange={(e) => setTransfer((t) => ({ ...t, amount: e.target.value }))}
+                  sx={{ mb: 2 }}
+                />
+                {crossCurrency && (
+                  <TextField
+                    label={`Amount received (${currencySymbol(toCur)})`}
+                    type="number"
+                    size="small"
+                    fullWidth
+                    value={transfer.toAmount}
+                    onChange={(e) => setTransfer((t) => ({ ...t, toAmount: e.target.value }))}
+                    helperText={`Cross-currency: enter how much ${toCur} arrives in the destination.`}
+                    sx={{ mb: 2 }}
+                  />
+                )}
+                <TextField
+                  label="Description"
+                  size="small"
+                  fullWidth
+                  value={transfer.description}
+                  onChange={(e) => setTransfer((t) => ({ ...t, description: e.target.value }))}
+                  sx={{ mb: 2 }}
+                />
+                {transferError && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {transferError}
+                  </Alert>
+                )}
+                <Button
+                  variant="contained"
+                  fullWidth
+                  onClick={saveTransfer}
+                  disabled={
+                    transferSaving ||
+                    !transfer.fromAccountId ||
+                    !transfer.toAccountId ||
+                    !transfer.amount ||
+                    (crossCurrency && !transfer.toAmount)
+                  }
+                >
+                  {transferSaving ? "Saving…" : "Record Transfer"}
+                </Button>
+              </>
+            );
+          })()}
         </Box>
       </Drawer>
 

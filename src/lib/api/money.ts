@@ -15,11 +15,13 @@ import type {
   ObligationDirection,
   ObligationStatus,
   MoneyDashboardData,
+  FxRateResult,
 } from "@/types";
 
 export interface AccountPayload {
   name: string;
   type: MoneyAccountType;
+  currency?: string;
   openingBalance?: number;
   creditLimit?: number | null;
   isActive?: boolean;
@@ -51,6 +53,8 @@ export interface TransferPayload {
   date: string;
   description?: string | null;
   notes?: string | null;
+  /** Destination amount (destination currency) — required for a cross-currency transfer. */
+  toAmount?: number;
 }
 
 export interface ObligationPayload {
@@ -151,6 +155,9 @@ function qs(params: Record<string, string | number | undefined>): string {
 }
 
 export const moneyApi = {
+  // FX rate (BDT per 1 unit of `from`) — prefill for foreign transfers
+  getFxRate: (from: string) => apiGet<FxRateResult>(`/fx-rate${qs({ from })}`),
+
   // Dashboard
   dashboard: (params: RangeParams = {}) =>
     apiGet<MoneyDashboardData>(`/money/dashboard${qs({ ...params })}`),

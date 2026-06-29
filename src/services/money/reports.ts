@@ -2,6 +2,7 @@
 // Thin wrappers over the dashboard/services so the savings/balance definitions
 // live in one place. All accept a flexible date range; money is BDT.
 import { type RangeInput } from "@/services/_shared/dateRange";
+import { getLatestRatesToBdt } from "@/services/_shared/fx";
 import { getPersonalSavings, getMoneyDashboard } from "./dashboard";
 import { listAccountsWithBalances } from "./accounts";
 import { getBeneficiaries } from "./beneficiaries";
@@ -22,22 +23,32 @@ export async function getExpenseBreakdown(input: RangeInput = {}) {
   };
 }
 
-/** Current balance of each account, plus aggregate cash position and card debt. */
+/**
+ * Current balance of each account (in its own currency), plus aggregate cash
+ * position and card debt CONVERTED TO BDT at the latest rate so the totals are
+ * comparable across currencies.
+ */
 export async function getAccountBalances() {
   const accounts = await listAccountsWithBalances();
+  const rates = await getLatestRatesToBdt(accounts.map((a) => a.currency));
+  const toBdt = (amount: number, currency: string) =>
+    currency === "BDT" ? amount : amount * (rates.get(currency)?.rate ?? 0);
+
   const cashPosition = accounts
     .filter((a) => a.type !== "CREDIT_CARD")
-    .reduce((s, a) => s + a.balance, 0);
+    .reduce((s, a) => s + toBdt(a.balance, a.currency), 0);
   const cardDebt = accounts
     .filter((a) => a.type === "CREDIT_CARD")
-    .reduce((s, a) => s + Math.max(0, -a.balance), 0);
+    .reduce((s, a) => s + Math.max(0, -toBdt(a.balance, a.currency)), 0);
   return {
-    cashPosition,
-    cardDebt,
+    cashPositionBdt: cashPosition,
+    cardDebtBdt: cardDebt,
     accounts: accounts.map((a) => ({
       name: a.name,
       type: a.type,
-      balance: a.balance,
+      currency: a.currency,
+      balance: a.balance, // in the account's currency
+      balanceBdt: toBdt(a.balance, a.currency),
       availableCredit: a.availableCredit,
     })),
   };

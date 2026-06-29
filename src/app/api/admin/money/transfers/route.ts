@@ -22,6 +22,7 @@ export async function POST(req: NextRequest) {
       date,
       description: body.description ?? null,
       notes: body.notes ?? null,
+      ...(body.toAmount != null && { toAmount: Number(body.toAmount) }),
     });
     return Response.json({ data }, { status: 201 });
   } catch (e) {

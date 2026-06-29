@@ -26,7 +26,9 @@ async function accountFlows(): Promise<Map<string, Flows>> {
     db.moneyEntry.groupBy({
       by: ["transferAccountId"],
       where: { direction: "TRANSFER", transferAccountId: { not: null } },
-      _sum: { amount: true },
+      // Transfer-in is the DESTINATION-currency amount (toAmount), which equals
+      // `amount` for same-currency transfers (and for all backfilled legacy rows).
+      _sum: { toAmount: true },
     }),
   ]);
 
@@ -40,11 +42,11 @@ async function accountFlows(): Promise<Map<string, Flows>> {
     const amt = toNum(r._sum.amount);
     if (r.direction === "CREDIT") f.credit += amt;
     else if (r.direction === "DEBIT") f.debit += amt;
-    else f.transferOut += amt; // TRANSFER leaving the source account
+    else f.transferOut += amt; // TRANSFER leaving the source account (source currency)
   }
   for (const r of transfersIn) {
     if (!r.transferAccountId) continue;
-    get(r.transferAccountId).transferIn += toNum(r._sum.amount);
+    get(r.transferAccountId).transferIn += toNum(r._sum.toAmount);
   }
   return map;
 }
@@ -71,6 +73,7 @@ export async function listAccountsWithBalances(): Promise<MoneyAccountRow[]> {
       id: a.id,
       name: a.name,
       type: a.type,
+      currency: a.currency,
       openingBalance: opening,
       creditLimit: limit,
       isActive: a.isActive,
@@ -98,7 +101,7 @@ export async function getAccountBalance(id: string): Promise<number> {
     }),
     db.moneyEntry.aggregate({
       where: { direction: "TRANSFER", transferAccountId: id },
-      _sum: { amount: true },
+      _sum: { toAmount: true },
     }),
   ]);
 
@@ -108,13 +111,14 @@ export async function getAccountBalance(id: string): Promise<number> {
     if (r.direction === "CREDIT") balance += amt;
     else balance -= amt; // DEBIT and TRANSFER-out both reduce the source
   }
-  balance += toNum(transferIn._sum.amount);
+  balance += toNum(transferIn._sum.toAmount); // arrives in this account's currency
   return balance;
 }
 
 export interface CreateAccountInput {
   name: string;
   type: MoneyAccountType;
+  currency?: string;
   openingBalance?: number;
   creditLimit?: number | null;
   isActive?: boolean;
@@ -126,6 +130,7 @@ export async function createAccount(input: CreateAccountInput) {
     data: {
       name: input.name,
       type: input.type,
+      currency: (input.currency ?? "BDT").toUpperCase(),
       openingBalance: input.openingBalance ?? 0,
       creditLimit: input.type === "CREDIT_CARD" ? (input.creditLimit ?? null) : null,
       isActive: input.isActive ?? true,
@@ -137,6 +142,7 @@ export async function createAccount(input: CreateAccountInput) {
 export interface UpdateAccountInput {
   name?: string;
   type?: MoneyAccountType;
+  currency?: string;
   openingBalance?: number;
   creditLimit?: number | null;
   isActive?: boolean;
@@ -144,11 +150,32 @@ export interface UpdateAccountInput {
 }
 
 export async function updateAccount(id: string, input: UpdateAccountInput) {
+  // Changing currency once entries exist would desync the denormalized
+  // MoneyEntry.currency and mix units in the balance — block it.
+  if (input.currency) {
+    const account = await db.moneyAccount.findUnique({
+      where: { id },
+      select: { currency: true },
+    });
+    const nextCurrency = input.currency.toUpperCase();
+    if (account && account.currency !== nextCurrency) {
+      const entryCount = await db.moneyEntry.count({
+        where: { OR: [{ accountId: id }, { transferAccountId: id }] },
+      });
+      if (entryCount > 0) {
+        throw new Error(
+          "Cannot change an account's currency once it has ledger entries. Create a new account instead."
+        );
+      }
+    }
+  }
+
   return db.moneyAccount.update({
     where: { id },
     data: {
       ...(input.name && { name: input.name }),
       ...(input.type && { type: input.type }),
+      ...(input.currency && { currency: input.currency.toUpperCase() }),
       ...(input.openingBalance != null && { openingBalance: input.openingBalance }),
       ...(input.creditLimit !== undefined && { creditLimit: input.creditLimit }),
       ...(input.isActive != null && { isActive: input.isActive }),

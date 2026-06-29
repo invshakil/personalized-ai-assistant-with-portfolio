@@ -6,6 +6,7 @@
 import { db } from "@/lib/db";
 import { MoneyEntryDirection, MoneyEntrySource, Prisma } from "@prisma/client";
 import { resolveRange, dateColumnWhere, type RangeInput } from "@/services/_shared/dateRange";
+import { getFxRateToBdt } from "@/services/_shared/fx";
 import { toNum, toIso } from "./_serializers";
 import type { MoneyEntryRow } from "@/types";
 
@@ -25,6 +26,8 @@ function serializeEntry(e: EntryWithRelations): MoneyEntryRow {
     direction: e.direction,
     amount: toNum(e.amount),
     currency: e.currency,
+    toAmount: e.toAmount == null ? null : toNum(e.toAmount),
+    fxRate: e.fxRate == null ? null : toNum(e.fxRate),
     categoryId: e.categoryId,
     categoryName: e.category?.name ?? null,
     categoryKind: e.category?.kind ?? null,
@@ -113,9 +116,31 @@ async function assertCategoryMatchesDirection(
   }
 }
 
+/** The currency an account holds (BDT when no account / not found). */
+async function accountCurrency(accountId: string | null | undefined): Promise<string> {
+  if (!accountId) return "BDT";
+  const acct = await db.moneyAccount.findUnique({
+    where: { id: accountId },
+    select: { currency: true },
+  });
+  return acct?.currency ?? "BDT";
+}
+
+/**
+ * Capture the BDT-per-unit rate for a foreign currency: caller override wins,
+ * else the live/cached rate, else 1 (so a missing feed never blocks a write).
+ */
+async function resolveEntryFxRate(currency: string, override?: number): Promise<number> {
+  if (currency === "BDT") return 1;
+  if (override && override > 0) return override;
+  const live = await getFxRateToBdt(currency);
+  return live.rate > 0 ? live.rate : 1;
+}
+
 export interface CreateEntryInput {
   date: string;
   direction: "CREDIT" | "DEBIT";
+  /** Amount in the account's currency. */
   amount: number;
   categoryId: string;
   accountId?: string | null;
@@ -124,17 +149,33 @@ export interface CreateEntryInput {
   description?: string | null;
   notes?: string | null;
   source?: MoneyEntrySource;
+  /**
+   * Currency of this entry. Defaults to the account's currency; only the
+   * cross-domain bridge passes it explicitly. Must match the account currency.
+   */
+  currency?: string;
+  /** Override the captured BDT rate (else live/cached, else 1). */
+  fxRate?: number;
 }
 
 export async function createEntry(input: CreateEntryInput): Promise<MoneyEntryRow> {
   if (input.amount == null || input.amount <= 0) throw new Error("amount must be greater than 0");
   await assertCategoryMatchesDirection(input.categoryId, input.direction);
 
+  const acctCurrency = await accountCurrency(input.accountId);
+  const currency = (input.currency ?? acctCurrency).toUpperCase();
+  if (input.accountId && currency !== acctCurrency) {
+    throw new Error(`Entry currency ${currency} does not match account currency ${acctCurrency}`);
+  }
+  const fxRate = await resolveEntryFxRate(currency, input.fxRate);
+
   const e = await db.moneyEntry.create({
     data: {
       date: new Date(input.date),
       direction: input.direction,
       amount: input.amount,
+      currency,
+      fxRate,
       categoryId: input.categoryId,
       accountId: input.accountId ?? null,
       beneficiaryId: input.beneficiaryId ?? null,
@@ -205,27 +246,59 @@ export async function deleteEntry(id: string) {
 export interface RecordTransferInput {
   fromAccountId: string;
   toAccountId: string;
+  /** Amount leaving the source, in the source account's currency. */
   amount: number;
   date: string;
   description?: string | null;
   notes?: string | null;
+  /**
+   * Amount arriving at the destination, in the DESTINATION currency. Required
+   * for a cross-currency transfer; ignored (set = amount) for same-currency.
+   */
+  toAmount?: number;
 }
 
 /**
  * Move money between two accounts (e.g. bank → cash withdrawal, or paying a
  * credit-card bill bank → card). Recorded as ONE TRANSFER entry with no category;
- * excluded from income/expense/savings. The source loses, the destination gains.
+ * excluded from income/expense/savings. The source loses `amount` (source
+ * currency); the destination gains `toAmount` (destination currency). For a
+ * same-currency transfer toAmount == amount and fxRate = 1; for a cross-currency
+ * transfer the caller supplies toAmount and fxRate = toAmount / amount is stored.
  */
 export async function recordTransfer(input: RecordTransferInput): Promise<MoneyEntryRow> {
   if (input.amount == null || input.amount <= 0) throw new Error("amount must be greater than 0");
   if (input.fromAccountId === input.toAccountId) {
     throw new Error("Transfer source and destination must be different accounts");
   }
+
+  const [from, to] = await Promise.all([
+    db.moneyAccount.findUnique({ where: { id: input.fromAccountId }, select: { currency: true } }),
+    db.moneyAccount.findUnique({ where: { id: input.toAccountId }, select: { currency: true } }),
+  ]);
+  if (!from || !to) throw new Error("Transfer account not found");
+
+  const crossCurrency = from.currency !== to.currency;
+  let toAmount = input.amount;
+  let fxRate = 1;
+  if (crossCurrency) {
+    if (input.toAmount == null || !(input.toAmount > 0)) {
+      throw new Error(
+        `Cross-currency transfer (${from.currency} → ${to.currency}) requires the destination amount`
+      );
+    }
+    toAmount = input.toAmount;
+    fxRate = Math.round((toAmount / input.amount) * 1e6) / 1e6;
+  }
+
   const e = await db.moneyEntry.create({
     data: {
       date: new Date(input.date),
       direction: MoneyEntryDirection.TRANSFER,
       amount: input.amount,
+      currency: from.currency,
+      toAmount,
+      fxRate,
       categoryId: null,
       accountId: input.fromAccountId,
       transferAccountId: input.toAccountId,
