@@ -97,6 +97,9 @@ export async function getBeneficiaries(): Promise<BeneficiaryRow[]> {
   const paidMap = new Map(paidByBen.map((p) => [p.beneficiaryId, toNum(p._sum.amount)]));
 
   return beneficiaries.map((b) => {
+    // Net within each direction so an overpayment on one loan reduces the
+    // person's other loans, then clamp once at the person level. Clamping per
+    // obligation would discard the excess and overstate the running due.
     let owedByMe = 0;
     let owedToMe = 0;
     for (const o of b.obligations) {
@@ -107,10 +110,12 @@ export async function getBeneficiaries(): Promise<BeneficiaryRow[]> {
         toNum(o.amount),
         flows.get(o.id)
       );
-      const open = Math.max(0, outstanding);
-      if (o.direction === "OWED_BY_ME") owedByMe += open;
-      else owedToMe += open;
+      // outstanding may be negative (overpaid); keep the sign so it spills over.
+      if (o.direction === "OWED_BY_ME") owedByMe += outstanding;
+      else owedToMe += outstanding;
     }
+    owedByMe = Math.max(0, owedByMe);
+    owedToMe = Math.max(0, owedToMe);
     return {
       id: b.id,
       name: b.name,
@@ -137,12 +142,20 @@ export async function getBeneficiaryDetail(id: string): Promise<BeneficiaryDetai
   const obligations = b.obligations.map((o) => serializeObligation(o, flows));
   const payments = await getEntries({ beneficiaryId: id });
 
-  const owedByMe = obligations
-    .filter((o) => o.type === "LOAN" && o.status === "ACTIVE" && o.direction === "OWED_BY_ME")
-    .reduce((s, o) => s + Math.max(0, o.outstanding), 0);
-  const owedToMe = obligations
-    .filter((o) => o.type === "LOAN" && o.status === "ACTIVE" && o.direction === "OWED_TO_ME")
-    .reduce((s, o) => s + Math.max(0, o.outstanding), 0);
+  // Net across same-direction loans (an overpaid loan offsets the others), then
+  // clamp once — mirrors getBeneficiaries so list and detail totals agree.
+  const owedByMe = Math.max(
+    0,
+    obligations
+      .filter((o) => o.type === "LOAN" && o.status === "ACTIVE" && o.direction === "OWED_BY_ME")
+      .reduce((s, o) => s + o.outstanding, 0)
+  );
+  const owedToMe = Math.max(
+    0,
+    obligations
+      .filter((o) => o.type === "LOAN" && o.status === "ACTIVE" && o.direction === "OWED_TO_ME")
+      .reduce((s, o) => s + o.outstanding, 0)
+  );
   const totalPaid = payments
     .filter((p) => p.direction === "DEBIT")
     .reduce((s, p) => s + p.amount, 0);

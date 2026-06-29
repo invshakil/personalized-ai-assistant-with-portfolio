@@ -158,6 +158,43 @@ test("'add to due' grows the obligation; outstanding follows", async () => {
   assert.equal(d?.obligations[0].outstanding, 35000);
 });
 
+test("overpaying one loan spills over to the person's other loans", async () => {
+  // Three OWED_BY_ME loans: 20000 + 10000 + 30000 = 60000 owed.
+  const ben = await createBeneficiary({ name: `${TAG} Spill Shop` });
+  const mk = (amount: number) =>
+    createObligation({
+      beneficiaryId: ben.id,
+      type: "LOAN",
+      direction: "OWED_BY_ME",
+      amount,
+      startDate: "2024-01-01",
+    });
+  const o1 = await mk(20000);
+  const o2 = await mk(10000);
+  const o3 = await mk(30000);
+
+  const pay = (obligationId: string, amount: number) =>
+    recordPayment({
+      beneficiaryId: ben.id,
+      amount,
+      date: "2024-02-10",
+      direction: "DEBIT",
+      obligationId,
+    });
+
+  // Pay 55000 total, overpaying loan #1 by 10000 (30000 against a 20000 loan).
+  await pay(o1.id, 30000);
+  await pay(o2.id, 10000);
+  await pay(o3.id, 15000);
+
+  // True net due = 60000 − 55000 = 5000. The old per-obligation clamp threw the
+  // 10000 overpayment away and reported 15000.
+  const detail = await getBeneficiaryDetail(ben.id);
+  assert.equal(detail?.outstandingByMe, 5000);
+  const listed = (await getBeneficiaries()).find((b) => b.id === ben.id);
+  assert.equal(listed?.outstandingByMe, 5000); // list and detail agree
+});
+
 // ─── AI write tool ↔ service sync ───────────────────────────────────────────--
 
 test("AI record_person_payment auto-applies a repayment to the lone open loan", async () => {
