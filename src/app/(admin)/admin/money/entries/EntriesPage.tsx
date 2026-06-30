@@ -122,9 +122,12 @@ export default function EntriesPage() {
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
   const dirFilter = (searchParams.get("type") as DirFilter | null) ?? "ALL";
-  const categoryFilter = searchParams.get("category")?.split(",").filter(Boolean) ?? [];
-  const accountFilter = searchParams.get("account")?.split(",").filter(Boolean) ?? [];
-  const currencyFilter = searchParams.get("currency")?.split(",").filter(Boolean) ?? [];
+  const categoryParam = searchParams.get("category") ?? "";
+  const categoryFilter = useMemo(() => categoryParam.split(",").filter(Boolean), [categoryParam]);
+  const accountParam = searchParams.get("account") ?? "";
+  const accountFilter = useMemo(() => accountParam.split(",").filter(Boolean), [accountParam]);
+  const currencyParam = searchParams.get("currency") ?? "";
+  const currencyFilter = useMemo(() => currencyParam.split(",").filter(Boolean), [currencyParam]);
   const q = searchParams.get("q") ?? "";
   const sortBy = (searchParams.get("sort") as SortBy | null) ?? "date";
   const sortDir = (searchParams.get("order") as SortDir | null) ?? "desc";
