@@ -31,6 +31,8 @@ import {
   reqEnum,
   optEnum,
   taka,
+  cur,
+  CURRENCIES,
   schema,
   Str,
   Num,
@@ -66,15 +68,6 @@ const PAYMENT_DIRS = ["DEBIT", "CREDIT"] as const;
 const ACCOUNT_TYPES = ["CASH", "BANK", "MOBILE_WALLET", "CREDIT_CARD", "OTHER"] as const;
 const OBLIGATION_DIRS = ["OWED_BY_ME", "OWED_TO_ME"] as const;
 const OBLIGATION_TYPES = ["LOAN", "RECURRING"] as const;
-const CURRENCIES = ["BDT", "USD", "EUR"] as const;
-
-const CUR_SYMBOL: Record<string, string> = { BDT: "৳", USD: "$", EUR: "€" };
-/** Amount in its own currency (integer BDT, 2dp foreign) for tool previews/summaries. */
-const cur = (n: number, code: string) => {
-  const sym = CUR_SYMBOL[code] ?? `${code} `;
-  if (code === "BDT") return taka(n);
-  return `${sym}${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-};
 
 const todayIso = () => new Date().toISOString().slice(0, 10);
 

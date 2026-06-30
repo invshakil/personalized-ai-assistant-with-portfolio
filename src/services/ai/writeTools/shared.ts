@@ -108,6 +108,17 @@ export function requireUpdate(obj: Record<string, unknown>): void {
 
 export const taka = (n: number) => `৳${Math.round(n).toLocaleString("en-US")}`;
 
+/** Supported transaction currencies (mirrors SUPPORTED_CURRENCIES / the money + finance services). */
+export const CURRENCIES = ["BDT", "USD", "EUR"] as const;
+
+const CUR_SYMBOL: Record<string, string> = { BDT: "৳", USD: "$", EUR: "€" };
+/** Format an amount in its own currency (integer BDT, 2dp foreign) for previews/summaries. */
+export const cur = (n: number, code: string) => {
+  const sym = CUR_SYMBOL[code] ?? `${code} `;
+  if (code === "BDT") return taka(n);
+  return `${sym}${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+};
+
 const MONTHS = [
   "",
   "Jan",
