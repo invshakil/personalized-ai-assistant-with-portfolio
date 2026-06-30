@@ -14,6 +14,23 @@ import axios, { type AxiosRequestConfig } from "axios";
 export const apiClient = axios.create({
   baseURL: "/api/admin",
   headers: { "Content-Type": "application/json" },
+  // Serialize array params as comma-joined strings (e.g. categoryIds=["a","b"] →
+  // ?categoryIds=a,b) so API routes can parse with .split(","). Axios's default
+  // repeats the key (categoryIds[]=a&categoryIds[]=b) which Next.js doesn't parse.
+  paramsSerializer: {
+    serialize: (params: Record<string, unknown>) => {
+      const sp = new URLSearchParams();
+      for (const [k, v] of Object.entries(params)) {
+        if (v == null || v === "") continue;
+        if (Array.isArray(v)) {
+          if (v.length > 0) sp.set(k, v.join(","));
+        } else {
+          sp.set(k, String(v));
+        }
+      }
+      return sp.toString();
+    },
+  },
 });
 
 apiClient.interceptors.response.use(
