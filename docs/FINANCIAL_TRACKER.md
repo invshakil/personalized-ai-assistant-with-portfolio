@@ -31,12 +31,16 @@ Replaces a manually-maintained Google Sheet that tracks the software business:
 **Fiscal year = July → June (Bangladesh standard).** Stored as a string `"YYYY-YYYY"` on every row
 and also derivable from the date via a helper.
 
-**Reporting currency: BDT (৳).** As of 2026-06-30 the tracker is **multi-currency**: an
-`Earning`/`EmployeePayment` can be recorded in EUR/USD (`currency`, `originalAmount`, `fxRate`), but
-`amount` stays the BDT-canonical value (`= originalAmount × fxRate`, computed server-side) so every
-report keeps summing BDT unchanged. The live rate is auto-fetched (`open.er-api.com`) + editable per
-row; see PROJECT_PLANNING.md "Database schema summary" for the full FX seam. The remittance flag is
-still captured separately for tax context.
+**Reporting currency: BDT (৳).** As of 2026-06-30 the tracker is **multi-currency** with
+**realized-basis foreign income**: an `Earning` can be recorded in EUR/USD (`currency`,
+`originalAmount`, `fxRate`), but a foreign earning is **pending** (excluded from the BDT P&L) until it is
+**converted to BDT** via the Withdraw/Convert action — then `realizedAmount`/`realizedRate`/`realizedAt`
+carry the actual BDT received, booked in the conversion period. BDT earnings are realized-on-earn, so
+historical numbers are unchanged. Income aggregations route through `src/services/finance/_realized.ts`
+(sum `realizedAmount` by `realizedAt`); a `pendingForeign` panel shows unconverted foreign income in its
+original currency. Salary payments stay counted at pay-date. The live rate is auto-fetched
+(`open.er-api.com`) + editable; see PROJECT_PLANNING.md "Database schema summary" for the full FX +
+realization seam. The remittance flag is still captured for tax context.
 
 ---
 
