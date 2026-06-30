@@ -29,6 +29,7 @@ import { Plus, Pencil, Trash2, ArrowLeftRight, Search, X } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
 import { moneyApi, type EntryFilters } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import {
@@ -121,9 +122,9 @@ export default function EntriesPage() {
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
   const dirFilter = (searchParams.get("type") as DirFilter | null) ?? "ALL";
-  const categoryFilter = searchParams.get("category") ?? "ALL";
-  const accountFilter = searchParams.get("account") ?? "ALL";
-  const currencyFilter = searchParams.get("currency") ?? "ALL";
+  const categoryFilter = searchParams.get("category")?.split(",").filter(Boolean) ?? [];
+  const accountFilter = searchParams.get("account")?.split(",").filter(Boolean) ?? [];
+  const currencyFilter = searchParams.get("currency")?.split(",").filter(Boolean) ?? [];
   const q = searchParams.get("q") ?? "";
   const sortBy = (searchParams.get("sort") as SortBy | null) ?? "date";
   const sortDir = (searchParams.get("order") as SortDir | null) ?? "desc";
@@ -189,9 +190,9 @@ export default function EntriesPage() {
       const filters: EntryFilters = {
         ...(hasCustomRange ? { from, to } : { period: period ?? DEFAULT_PERIOD }),
         ...(dirFilter !== "ALL" && { direction: dirFilter }),
-        ...(categoryFilter !== "ALL" && { categoryId: categoryFilter }),
-        ...(accountFilter !== "ALL" && { accountId: accountFilter }),
-        ...(currencyFilter !== "ALL" && { currency: currencyFilter }),
+        ...(categoryFilter.length && { categoryIds: categoryFilter }),
+        ...(accountFilter.length && { accountIds: accountFilter }),
+        ...(currencyFilter.length && { currencies: currencyFilter }),
         ...(q && { q }),
         sortBy,
         sortDir,
@@ -282,35 +283,37 @@ export default function EntriesPage() {
     { value: "DEBIT", label: "Expense" },
     { value: "TRANSFER", label: "Transfer" },
   ];
-  const categoryFilterOptions: SelectOption[] = [
-    { value: "ALL", label: "All categories" },
-    ...categoryOptions.map((c) => ({ value: c.id, label: c.name })),
-  ];
-  const categoryFilterValue = categoryOptions.some((c) => c.id === categoryFilter)
-    ? categoryFilter
-    : "ALL";
-  const accountFilterOptions: SelectOption[] = [
-    { value: "ALL", label: "All accounts" },
-    ...accounts.map((a) => ({ value: a.id, label: a.name })),
-  ];
+  const categoryFilterOptions: SelectOption[] = categoryOptions.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
+  const accountFilterOptions: SelectOption[] = accounts.map((a) => ({
+    value: a.id,
+    label: a.name,
+  }));
 
   const hasActiveFilters =
     dirFilter !== "ALL" ||
-    categoryFilter !== "ALL" ||
-    accountFilter !== "ALL" ||
-    currencyFilter !== "ALL" ||
+    categoryFilter.length > 0 ||
+    accountFilter.length > 0 ||
+    currencyFilter.length > 0 ||
     Boolean(q);
 
   // Changing the type may invalidate the selected category — clear it if so.
   const onTypeChange = (next: DirFilter) => {
     const patch: Record<string, string | undefined> = { type: next === "ALL" ? undefined : next };
-    if (categoryFilter !== "ALL") {
-      const stillValid =
-        next === "ALL" ||
-        next === "TRANSFER" ||
-        categories.find((c) => c.id === categoryFilter)?.kind ===
-          (next === "CREDIT" ? "INCOME" : "EXPENSE");
-      if (!stillValid) patch.category = undefined;
+    if (categoryFilter.length > 0) {
+      const validIds = categoryFilter.filter((id) => {
+        const kind = categories.find((c) => c.id === id)?.kind;
+        return (
+          next === "ALL" ||
+          next === "TRANSFER" ||
+          kind === (next === "CREDIT" ? "INCOME" : "EXPENSE")
+        );
+      });
+      if (validIds.length !== categoryFilter.length) {
+        patch.category = validIds.length ? validIds.join(",") : undefined;
+      }
     }
     setParams(patch);
   };
@@ -522,29 +525,26 @@ export default function EntriesPage() {
           onChange={(v) => onTypeChange(v as DirFilter)}
           sx={{ minWidth: 140 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Category"
-          value={categoryFilterValue}
+          value={categoryFilter}
           options={categoryFilterOptions}
           disabled={dirFilter === "TRANSFER"}
-          onChange={(v) => setParams({ category: v === "ALL" ? undefined : v })}
+          onChange={(ids) => setParams({ category: ids.length ? ids.join(",") : undefined })}
           sx={{ minWidth: 180 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Account"
           value={accountFilter}
           options={accountFilterOptions}
-          onChange={(v) => setParams({ account: v === "ALL" ? undefined : v })}
+          onChange={(ids) => setParams({ account: ids.length ? ids.join(",") : undefined })}
           sx={{ minWidth: 160 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Currency"
           value={currencyFilter}
-          options={[
-            { value: "ALL", label: "All currencies" },
-            ...SUPPORTED_CURRENCIES.map((c) => ({ value: c, label: c })),
-          ]}
-          onChange={(v) => setParams({ currency: v === "ALL" ? undefined : v })}
+          options={SUPPORTED_CURRENCIES.map((c) => ({ value: c, label: c }))}
+          onChange={(ids) => setParams({ currency: ids.length ? ids.join(",") : undefined })}
           sx={{ minWidth: 140 }}
         />
         <TextField

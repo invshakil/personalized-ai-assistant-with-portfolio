@@ -83,10 +83,10 @@ export interface EntryFilters {
   period?: string;
   from?: string;
   to?: string;
-  categoryId?: string;
-  accountId?: string;
+  categoryIds?: string[];
+  accountIds?: string[];
   beneficiaryId?: string;
-  currency?: string;
+  currencies?: string[];
   /** Case-insensitive description search. */
   q?: string;
   direction?: MoneyEntryDirection;
@@ -146,10 +146,15 @@ export interface ImportBatchRow {
   currentEntryCount: number;
 }
 
-function qs(params: Record<string, string | number | undefined>): string {
+function qs(params: Record<string, string | string[] | number | undefined>): string {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== "") sp.set(k, String(v));
+    if (v === undefined || v === "") continue;
+    if (Array.isArray(v)) {
+      if (v.length > 0) sp.set(k, v.join(","));
+    } else {
+      sp.set(k, String(v));
+    }
   }
   const s = sp.toString();
   return s ? `?${s}` : "";

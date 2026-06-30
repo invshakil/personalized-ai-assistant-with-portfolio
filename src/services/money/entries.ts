@@ -48,12 +48,12 @@ export type EntrySortBy = "date" | "amount" | "category";
 export type EntrySortDir = "asc" | "desc";
 
 export interface GetEntriesOpts extends RangeInput {
-  categoryId?: string;
-  accountId?: string;
+  categoryIds?: string[];
+  accountIds?: string[];
   direction?: MoneyEntryDirection;
   beneficiaryId?: string;
   /** Filter to entries in a specific currency (BDT | USD | EUR). */
-  currency?: string;
+  currencies?: string[];
   /** Case-insensitive search over the description field. */
   q?: string;
   sortBy?: EntrySortBy;
@@ -82,13 +82,16 @@ export async function getEntries(opts: GetEntriesOpts = {}): Promise<MoneyEntryR
   const entries = await db.moneyEntry.findMany({
     where: {
       ...dateColumnWhere(range),
-      ...(opts.categoryId && { categoryId: opts.categoryId }),
-      ...(opts.accountId && {
-        OR: [{ accountId: opts.accountId }, { transferAccountId: opts.accountId }],
+      ...(opts.categoryIds?.length && { categoryId: { in: opts.categoryIds } }),
+      ...(opts.accountIds?.length && {
+        OR: [
+          { accountId: { in: opts.accountIds } },
+          { transferAccountId: { in: opts.accountIds } },
+        ],
       }),
       ...(opts.direction && { direction: opts.direction }),
       ...(opts.beneficiaryId && { beneficiaryId: opts.beneficiaryId }),
-      ...(opts.currency && { currency: opts.currency }),
+      ...(opts.currencies?.length && { currency: { in: opts.currencies } }),
       ...(opts.q && { description: { contains: opts.q, mode: "insensitive" } }),
     },
     orderBy: entryOrderBy(opts.sortBy, opts.sortDir),

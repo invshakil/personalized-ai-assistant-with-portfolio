@@ -102,7 +102,7 @@ export default function AccountsPage() {
       try {
         const rows =
           (await moneyApi.listEntries({
-            accountId: id,
+            accountIds: [id],
             limit: 10,
             sortBy: "date",
             sortDir: "desc",
