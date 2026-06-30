@@ -2,6 +2,8 @@ import { db } from "@/lib/db";
 import { RemittanceType } from "@prisma/client";
 import { toNum } from "./_serializers";
 import { generateSubscriptionCharges } from "./subscriptions";
+import { resolveRange, dateColumnWhere } from "@/services/_shared/dateRange";
+import { getRealizedEarnings } from "./_realized";
 
 export interface FinanceDashboard {
   fiscalYears: string[];
@@ -23,6 +25,8 @@ export interface FinanceDashboard {
   bySource: { sourceId: string; name: string; total: number; count: number }[];
   remittance: { rem: number; nonRem: number };
   monthlyIncome: { period: string; amount: number }[]; // "YYYY-MM", oldest first
+  // Foreign income earned but not yet converted to BDT (excluded from income above).
+  pendingForeign: { currency: string; original: number; count: number }[];
 }
 
 export interface DashboardRange {
@@ -34,59 +38,57 @@ export async function getFinanceDashboard(range: DashboardRange = {}): Promise<F
   // Keep subscription charges current so reports reflect this month.
   await generateSubscriptionCharges();
 
-  // Same date filter applies to all ledgers (each has a `date` column).
-  const dateFilter =
-    range.from || range.to
-      ? {
-          date: {
-            ...(range.from && { gte: new Date(range.from) }),
-            ...(range.to && { lte: new Date(range.to) }),
-          },
-        }
-      : {};
+  // Income is realized-basis: foreign earnings count only once converted, in the
+  // conversion period (realizedAt). Costs (payments/expenses) stay on their `date`.
+  const resolved = resolveRange({ from: range.from, to: range.to }, "all");
+  const dateFilter = dateColumnWhere(resolved);
 
-  const [
-    earningsByFy,
-    paymentsByFy,
-    expensesByFy,
-    paymentsByEmpFy,
-    employees,
-    sources,
-    remitGroups,
-    allEarnings,
-  ] = await Promise.all([
-    db.earning.groupBy({ by: ["fiscalYear"], where: dateFilter, _sum: { amount: true } }),
-    db.employeePayment.groupBy({ by: ["fiscalYear"], where: dateFilter, _sum: { amount: true } }),
-    db.bizExpense.groupBy({ by: ["fiscalYear"], where: dateFilter, _sum: { amount: true } }),
-    db.employeePayment.groupBy({
-      by: ["employeeId", "fiscalYear"],
-      where: dateFilter,
-      _sum: { amount: true },
-    }),
-    db.employee.findMany({ select: { id: true, name: true } }),
-    db.earning.groupBy({
-      by: ["sourceId"],
-      where: dateFilter,
-      _sum: { amount: true },
-      _count: true,
-    }),
-    db.earning.groupBy({ by: ["remittance"], where: dateFilter, _sum: { amount: true } }),
-    db.earning.findMany({ where: dateFilter, select: { date: true, amount: true } }),
-  ]);
+  const [realized, paymentsByFy, expensesByFy, paymentsByEmpFy, employees, pendingRows] =
+    await Promise.all([
+      getRealizedEarnings(resolved),
+      db.employeePayment.groupBy({ by: ["fiscalYear"], where: dateFilter, _sum: { amount: true } }),
+      db.bizExpense.groupBy({ by: ["fiscalYear"], where: dateFilter, _sum: { amount: true } }),
+      db.employeePayment.groupBy({
+        by: ["employeeId", "fiscalYear"],
+        where: dateFilter,
+        _sum: { amount: true },
+      }),
+      db.employee.findMany({ select: { id: true, name: true } }),
+      db.earning.groupBy({
+        by: ["currency"],
+        where: { realizedAt: null, currency: { not: "BDT" } },
+        _sum: { originalAmount: true },
+        _count: true,
+      }),
+    ]);
 
   const sourceNames = await db.incomeSource.findMany({ select: { id: true, name: true } });
   const sourceNameById = new Map(sourceNames.map((s) => [s.id, s.name]));
   const empNameById = new Map(employees.map((e) => [e.id, e.name]));
 
-  // Union of all fiscal years present across the three ledgers, newest first.
+  // Bucket realized income (by realizedAt) for FY P&L, by-client, remittance, and month.
+  const incomeByFy = new Map<string, number>();
+  const bySourceMap = new Map<string, { total: number; count: number }>();
+  const remByType = new Map<RemittanceType, number>();
+  const monthMap = new Map<string, number>();
+  for (const r of realized) {
+    incomeByFy.set(r.fiscalYear, (incomeByFy.get(r.fiscalYear) ?? 0) + r.realizedAmount);
+    const s = bySourceMap.get(r.sourceId) ?? { total: 0, count: 0 };
+    s.total += r.realizedAmount;
+    s.count += 1;
+    bySourceMap.set(r.sourceId, s);
+    remByType.set(r.remittance, (remByType.get(r.remittance) ?? 0) + r.realizedAmount);
+    monthMap.set(r.period, (monthMap.get(r.period) ?? 0) + r.realizedAmount);
+  }
+
+  // Union of all fiscal years present across realized income + the two cost ledgers.
   const fySet = new Set<string>([
-    ...earningsByFy.map((r) => r.fiscalYear),
+    ...incomeByFy.keys(),
     ...paymentsByFy.map((r) => r.fiscalYear),
     ...expensesByFy.map((r) => r.fiscalYear),
   ]);
   const fiscalYears = Array.from(fySet).sort().reverse();
 
-  const incomeByFy = new Map(earningsByFy.map((r) => [r.fiscalYear, toNum(r._sum.amount)]));
   const empByFy = new Map(paymentsByFy.map((r) => [r.fiscalYear, toNum(r._sum.amount)]));
   const toolByFy = new Map(expensesByFy.map((r) => [r.fiscalYear, toNum(r._sum.amount)]));
 
@@ -130,30 +132,38 @@ export async function getFinanceDashboard(range: DashboardRange = {}): Promise<F
     .map(([employeeId, v]) => ({ employeeId, name: empNameById.get(employeeId) ?? "—", ...v }))
     .sort((a, b) => b.total - a.total);
 
-  const bySource = sources
-    .map((s) => ({
-      sourceId: s.sourceId,
-      name: sourceNameById.get(s.sourceId) ?? "—",
-      total: toNum(s._sum.amount),
-      count: s._count,
+  const bySource = Array.from(bySourceMap.entries())
+    .map(([sourceId, v]) => ({
+      sourceId,
+      name: sourceNameById.get(sourceId) ?? "—",
+      total: v.total,
+      count: v.count,
     }))
     .sort((a, b) => b.total - a.total);
 
-  const remByType = new Map(remitGroups.map((r) => [r.remittance, toNum(r._sum.amount)]));
   const remittance = {
     rem: remByType.get(RemittanceType.REM) ?? 0,
     nonRem: remByType.get(RemittanceType.NON_REM) ?? 0,
   };
 
-  // Monthly income trend, bucketed by calendar YYYY-MM.
-  const monthMap = new Map<string, number>();
-  for (const e of allEarnings) {
-    const key = `${e.date.getFullYear()}-${String(e.date.getMonth() + 1).padStart(2, "0")}`;
-    monthMap.set(key, (monthMap.get(key) ?? 0) + toNum(e.amount));
-  }
+  // Monthly realized-income trend (bucketed by conversion month, YYYY-MM).
   const monthlyIncome = Array.from(monthMap.entries())
     .map(([period, amount]) => ({ period, amount }))
     .sort((a, b) => a.period.localeCompare(b.period));
 
-  return { fiscalYears, pnl, totals, byEmployee, bySource, remittance, monthlyIncome };
+  const pendingForeign = pendingRows
+    .map((r) => ({ currency: r.currency, original: toNum(r._sum.originalAmount), count: r._count }))
+    .filter((r) => r.original > 0)
+    .sort((a, b) => a.currency.localeCompare(b.currency));
+
+  return {
+    fiscalYears,
+    pnl,
+    totals,
+    byEmployee,
+    bySource,
+    remittance,
+    monthlyIncome,
+    pendingForeign,
+  };
 }

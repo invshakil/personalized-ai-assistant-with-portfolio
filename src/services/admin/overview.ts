@@ -45,10 +45,18 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     moneyBeneficiaries,
     monthExpenseRows,
   ] = await Promise.all([
-    db.earning.aggregate({ where: monthWhere, _sum: { amount: true } }),
+    // Income is realized-basis: count BDT actually realized (realizedAt in window),
+    // summing realizedAmount. Pending foreign earnings are excluded until converted.
+    db.earning.aggregate({
+      where: { realizedAt: { gte: monthStart, lte: monthEnd } },
+      _sum: { realizedAmount: true },
+    }),
     db.employeePayment.aggregate({ where: monthWhere, _sum: { amount: true } }),
     db.bizExpense.aggregate({ where: monthWhere, _sum: { amount: true } }),
-    db.earning.aggregate({ where: fyWhere, _sum: { amount: true } }),
+    db.earning.aggregate({
+      where: { realizedAt: { gte: fyStart, lte: fyEnd } },
+      _sum: { realizedAmount: true },
+    }),
     db.employeePayment.aggregate({ where: fyWhere, _sum: { amount: true } }),
     db.bizExpense.aggregate({ where: fyWhere, _sum: { amount: true } }),
     getSubscriptionSpendReport(),
@@ -63,13 +71,13 @@ export async function getAdminOverview(): Promise<AdminOverview> {
   ]);
 
   const monthBiz = {
-    income: num(monthIncome._sum.amount),
+    income: num(monthIncome._sum.realizedAmount),
     costs: num(monthEmp._sum.amount) + num(monthExp._sum.amount),
     expenses: num(monthExp._sum.amount),
     salaries: num(monthEmp._sum.amount),
   };
   const fyBiz = {
-    income: num(fyIncome._sum.amount),
+    income: num(fyIncome._sum.realizedAmount),
     costs: num(fyEmp._sum.amount) + num(fyExp._sum.amount),
     expenses: num(fyExp._sum.amount),
     salaries: num(fyEmp._sum.amount),

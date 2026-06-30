@@ -4,16 +4,15 @@
 import { db } from "@/lib/db";
 import { toNum } from "./_serializers";
 import { resolveRange, dateColumnWhere, type RangeInput } from "@/services/_shared/dateRange";
-
-const monthKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+import { getRealizedEarnings, monthKey } from "./_realized";
 
 /** Month-by-month P&L (income, costs, net) within a range. Default: last 12 months. */
 export async function getMonthlyPnl(input: RangeInput = {}) {
   const range = resolveRange(input, "last_12_months");
   const where = dateColumnWhere(range);
 
-  const [earnings, payments, expenses] = await Promise.all([
-    db.earning.findMany({ where, select: { date: true, amount: true } }),
+  const [realized, payments, expenses] = await Promise.all([
+    getRealizedEarnings(range), // income realized-basis, bucketed by conversion month
     db.employeePayment.findMany({ where, select: { date: true, amount: true } }),
     db.bizExpense.findMany({ where, select: { date: true, amount: true } }),
   ]);
@@ -21,7 +20,7 @@ export async function getMonthlyPnl(input: RangeInput = {}) {
   const buckets = new Map<string, { income: number; empCosts: number; toolSubs: number }>();
   const get = (k: string) =>
     buckets.get(k) ?? buckets.set(k, { income: 0, empCosts: 0, toolSubs: 0 }).get(k)!;
-  for (const r of earnings) get(monthKey(r.date)).income += toNum(r.amount);
+  for (const r of realized) get(r.period).income += r.realizedAmount;
   for (const r of payments) get(monthKey(r.date)).empCosts += toNum(r.amount);
   for (const r of expenses) get(monthKey(r.date)).toolSubs += toNum(r.amount);
 
@@ -44,9 +43,9 @@ export async function getClientProfitability(input: RangeInput = {}) {
   const range = resolveRange(input, "this_fiscal_year");
   const where = dateColumnWhere(range);
 
-  const [sources, earningsBySource, payments] = await Promise.all([
+  const [sources, realized, payments] = await Promise.all([
     db.incomeSource.findMany({ select: { id: true, name: true } }),
-    db.earning.groupBy({ by: ["sourceId"], where, _sum: { amount: true } }),
+    getRealizedEarnings(range), // realized-basis income per client (by conversion date)
     db.employeePayment.findMany({
       where,
       select: { amount: true, clients: { select: { id: true } } },
@@ -55,7 +54,8 @@ export async function getClientProfitability(input: RangeInput = {}) {
 
   const name = new Map(sources.map((s) => [s.id, s.name]));
   const income = new Map<string, number>();
-  for (const r of earningsBySource) income.set(r.sourceId, toNum(r._sum.amount));
+  for (const r of realized)
+    income.set(r.sourceId, (income.get(r.sourceId) ?? 0) + r.realizedAmount);
 
   const attributed = new Map<string, number>();
   for (const p of payments) {
@@ -219,13 +219,9 @@ export async function getSubscriptionSpendReport() {
 /** Remittance vs non-remittance income — totals, monthly trend, top clients. */
 export async function getRemittanceReport(input: RangeInput = {}) {
   const range = resolveRange(input, "this_fiscal_year");
-  const where = dateColumnWhere(range);
 
   const [rows, sources] = await Promise.all([
-    db.earning.findMany({
-      where,
-      select: { date: true, amount: true, remittance: true, sourceId: true },
-    }),
+    getRealizedEarnings(range), // realized-basis: REM/non-REM of BDT actually received
     db.incomeSource.findMany({ select: { id: true, name: true } }),
   ]);
   const name = new Map(sources.map((s) => [s.id, s.name]));
@@ -235,11 +231,11 @@ export async function getRemittanceReport(input: RangeInput = {}) {
   const byMonth = new Map<string, { rem: number; nonRem: number }>();
   const byClient = new Map<string, { rem: number; nonRem: number }>();
   for (const r of rows) {
-    const amt = toNum(r.amount);
+    const amt = r.realizedAmount;
     const isRem = r.remittance === "REM";
     if (isRem) rem += amt;
     else nonRem += amt;
-    const mk = monthKey(r.date);
+    const mk = r.period;
     const m = byMonth.get(mk) ?? { rem: 0, nonRem: 0 };
     m[isRem ? "rem" : "nonRem"] += amt;
     byMonth.set(mk, m);
@@ -267,12 +263,15 @@ export async function getRemittanceReport(input: RangeInput = {}) {
 
 /** Fiscal-year-over-year comparison with growth deltas (all years). */
 export async function getFiscalYearComparison() {
-  const [inc, emp, tool] = await Promise.all([
-    db.earning.groupBy({ by: ["fiscalYear"], _sum: { amount: true } }),
+  const allTime = resolveRange({}, "all");
+  const [realized, emp, tool] = await Promise.all([
+    getRealizedEarnings(allTime), // income by realized (conversion) fiscal year
     db.employeePayment.groupBy({ by: ["fiscalYear"], _sum: { amount: true } }),
     db.bizExpense.groupBy({ by: ["fiscalYear"], _sum: { amount: true } }),
   ]);
-  const incMap = new Map(inc.map((r) => [r.fiscalYear, toNum(r._sum.amount)]));
+  const incMap = new Map<string, number>();
+  for (const r of realized)
+    incMap.set(r.fiscalYear, (incMap.get(r.fiscalYear) ?? 0) + r.realizedAmount);
   const empMap = new Map(emp.map((r) => [r.fiscalYear, toNum(r._sum.amount)]));
   const toolMap = new Map(tool.map((r) => [r.fiscalYear, toNum(r._sum.amount)]));
 

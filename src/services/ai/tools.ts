@@ -83,7 +83,7 @@ const financeReadTools: AiToolDef[] = [
   {
     name: "get_finance_summary",
     description:
-      "Business profit-and-loss summary in BDT. Income, employee costs, tool/subscription costs, net profit and margin per fiscal year, plus per-employee and per-client breakdowns, remittance split, and monthly income. Optionally restrict to an ISO date range.",
+      "Business profit-and-loss summary in BDT. Income is REALIZED-basis: foreign (EUR/USD) earnings count only once converted to BDT, booked in the conversion period at the actual rate; unconverted foreign income is excluded and reported separately as `pendingForeign` (per currency, original amount). Returns income, employee costs, tool/subscription costs, net profit and margin per fiscal year, plus per-employee and per-client breakdowns, remittance split, monthly income, and pendingForeign. Optionally restrict to an ISO date range.",
     parameters: obj({
       from: { type: "string", description: "Start date ISO yyyy-mm-dd (optional)" },
       to: { type: "string", description: "End date ISO yyyy-mm-dd (optional)" },
@@ -93,8 +93,10 @@ const financeReadTools: AiToolDef[] = [
     name: "list_earnings",
     description:
       "List client income (earnings): date, client, remittance (REM/NON_REM), amount, fiscal year. " +
-      "Each row's `amount` is the BDT-equivalent (canonical, always sum/report in BDT); `currency`, " +
-      "`originalAmount`, and `fxRate` (BDT per 1 unit) give the original foreign amount when not BDT. " +
+      "`amount` is the BDT-equivalent (indicative for unconverted foreign rows); `currency`, " +
+      "`originalAmount`, `fxRate` give the original foreign amount. Realized-basis: a foreign earning " +
+      "is `pendingConversion=true` (not yet BDT income) until converted, when `realizedAt`/`realizedAmount`/" +
+      "`realizedRate` carry the actual BDT booked. BDT earnings are realized on earn. " +
       "Filter by fiscalYear, income-source id (sourceId), a date range (period or from/to), and search " +
       "notes + the remittance type label with q (e.g. q='remittance').",
     parameters: obj({
