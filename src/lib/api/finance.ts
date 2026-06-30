@@ -67,6 +67,15 @@ export interface BizExpensePayload {
   accountId?: string;
 }
 
+export interface ConvertEarningsPayload {
+  earningIds: string[];
+  fromAccountId: string;
+  toAccountId: string;
+  date: string;
+  toAmount: number;
+  notes?: string | null;
+}
+
 export interface SubscriptionPayload {
   name: string;
   categoryId: string;
@@ -141,6 +150,14 @@ export const financeApi = {
   updateEarning: (id: string, body: Partial<EarningPayload>) =>
     apiPut<EarningRow>(`/finance/earnings/${id}`, body),
   deleteEarning: (id: string) => apiDelete(`/finance/earnings/${id}`),
+  // Realize pending foreign earnings → BDT (one cross-currency transfer for the batch).
+  convertEarnings: (body: ConvertEarningsPayload) =>
+    apiPost<{ converted: number; currency: string; toAmount: number; rate: number }>(
+      "/finance/earnings/convert",
+      body
+    ),
+  reverseConversion: (id: string) =>
+    apiPost<{ reversed: boolean }>(`/finance/earnings/${id}/reverse-conversion`, {}),
 
   // ── Employee salary payments ─────────────────────────────────────────────
   listPayments: (params?: PaymentFilters) => apiGet<PaymentRow[]>("/finance/payments", { params }),

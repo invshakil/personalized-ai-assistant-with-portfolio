@@ -21,8 +21,10 @@ import {
   Alert,
   IconButton,
   Tooltip,
+  Checkbox,
+  Divider,
 } from "@mui/material";
-import { Plus, Pencil, Trash2, Download, Search, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Download, Search, X, ArrowLeftRight, RotateCcw } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
@@ -36,6 +38,7 @@ import {
   fmt,
   fmtDate,
   fmtForeign,
+  fmtCurrency,
   currencySymbol,
   todayInput,
   currentFiscalYear,
@@ -131,6 +134,21 @@ export default function EarningsPage() {
   const [deleting, setDeleting] = useState(false);
   const [rateLoading, setRateLoading] = useState(false);
   const [rateNote, setRateNote] = useState<string | null>(null);
+  // All-time pending foreign earnings (for the convert flow + summary), independent of filters.
+  const [pendingEarnings, setPendingEarnings] = useState<EarningRow[]>([]);
+
+  // ── Convert / withdraw foreign earnings → BDT ──
+  const [convertOpen, setConvertOpen] = useState(false);
+  const [convCurrency, setConvCurrency] = useState("");
+  const [convSelected, setConvSelected] = useState<Set<string>>(new Set());
+  const [convFrom, setConvFrom] = useState("");
+  const [convTo, setConvTo] = useState("");
+  const [convDate, setConvDate] = useState(todayInput());
+  const [convToAmount, setConvToAmount] = useState("");
+  const [convSaving, setConvSaving] = useState(false);
+  const [convError, setConvError] = useState<string | null>(null);
+  const [convRateLoading, setConvRateLoading] = useState(false);
+  const [reversingId, setReversingId] = useState<string | null>(null);
 
   // Debounced search box: local input mirrors ?q, pushed to the URL after a pause.
   const [searchInput, setSearchInput] = useState(q);
@@ -167,6 +185,7 @@ export default function EarningsPage() {
     ]);
     setSources(clientsData ?? []);
     setAccounts(accountsData ?? []);
+    setPendingEarnings((allEarnings ?? []).filter((e) => e.pendingConversion));
     setAllFiscalYears(
       Array.from(new Set([currentFiscalYear(), ...(allEarnings ?? []).map((e) => e.fiscalYear)]))
         .sort()
@@ -342,6 +361,125 @@ export default function EarningsPage() {
     fyFilter !== "ALL" ? `?fiscalYear=${fyFilter}` : ""
   }`;
 
+  // ── Pending-conversion summary (all-time, original currency) ──
+  const pendingByCurrency = (() => {
+    const m = new Map<string, { original: number; count: number }>();
+    for (const e of pendingEarnings) {
+      const c = m.get(e.currency) ?? { original: 0, count: 0 };
+      c.original += e.originalAmount;
+      c.count += 1;
+      m.set(e.currency, c);
+    }
+    return [...m.entries()].map(([currency, v]) => ({ currency, ...v }));
+  })();
+  const pendingCurrencies = pendingByCurrency.map((p) => p.currency);
+
+  // Convert-drawer derived values
+  const convList = pendingEarnings.filter((e) => e.currency === convCurrency);
+  const convChosen = convList.filter((e) => convSelected.has(e.id));
+  const convTotalOriginal = convChosen.reduce((s, e) => s + e.originalAmount, 0);
+  const convIndicativeBdt = convChosen.reduce((s, e) => s + e.amount, 0); // earn-time estimate
+  const convToAmountNum = parseFloat(convToAmount);
+  const convRate =
+    convTotalOriginal > 0 && convToAmountNum > 0 ? convToAmountNum / convTotalOriginal : 0;
+  const convVariance = convToAmountNum > 0 ? convToAmountNum - convIndicativeBdt : 0;
+  const fromAccountOptions = accounts.filter((a) => a.currency === convCurrency);
+  const toAccountOptions = accounts.filter((a) => a.currency === "BDT");
+
+  // Prefill the BDT-received field from the live rate × selected foreign total.
+  const prefillConvAmount = useCallback(async (currency: string, totalOriginal: number) => {
+    if (currency === "" || totalOriginal <= 0) return;
+    setConvRateLoading(true);
+    try {
+      const res = await financeApi.getFxRate(currency);
+      if (res && res.rate > 0) {
+        setConvToAmount(String(Math.round(totalOriginal * res.rate * 100) / 100));
+      }
+    } catch {
+      /* leave blank — user enters the actual amount */
+    } finally {
+      setConvRateLoading(false);
+    }
+  }, []);
+
+  const openConvert = (currency?: string, preselectId?: string) => {
+    const cur = currency ?? pendingCurrencies[0] ?? "";
+    const list = pendingEarnings.filter((e) => e.currency === cur);
+    const sel = new Set(preselectId ? [preselectId] : list.map((e) => e.id));
+    setConvCurrency(cur);
+    setConvSelected(sel);
+    setConvFrom(accounts.find((a) => a.currency === cur)?.id ?? "");
+    setConvTo(
+      accounts.find((a) => a.currency === "BDT" && a.type === "BANK")?.id ??
+        accounts.find((a) => a.currency === "BDT")?.id ??
+        ""
+    );
+    setConvDate(todayInput());
+    setConvToAmount("");
+    setConvError(null);
+    setConvertOpen(true);
+    const total = list.filter((e) => sel.has(e.id)).reduce((s, e) => s + e.originalAmount, 0);
+    prefillConvAmount(cur, total);
+  };
+
+  const onConvCurrencyChange = (cur: string) => {
+    const list = pendingEarnings.filter((e) => e.currency === cur);
+    const sel = new Set(list.map((e) => e.id));
+    setConvCurrency(cur);
+    setConvSelected(sel);
+    setConvFrom(accounts.find((a) => a.currency === cur)?.id ?? "");
+    setConvToAmount("");
+    prefillConvAmount(
+      cur,
+      list.reduce((s, e) => s + e.originalAmount, 0)
+    );
+  };
+
+  const toggleConvSelect = (id: string) => {
+    setConvSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const doConvert = async () => {
+    setConvSaving(true);
+    setConvError(null);
+    try {
+      await financeApi.convertEarnings({
+        earningIds: [...convSelected],
+        fromAccountId: convFrom,
+        toAccountId: convTo,
+        date: convDate,
+        toAmount: parseFloat(convToAmount),
+      });
+      setConvertOpen(false);
+      load();
+      loadRefData();
+    } catch (e: unknown) {
+      setConvError(e instanceof Error ? e.message : "Conversion failed");
+    } finally {
+      setConvSaving(false);
+    }
+  };
+
+  const doReverse = async (id: string) => {
+    setReversingId(id);
+    try {
+      await financeApi.reverseConversion(id);
+      load();
+      loadRefData();
+    } catch {
+      /* surfaced on reload */
+    } finally {
+      setReversingId(null);
+    }
+  };
+
+  const convReady = convChosen.length > 0 && !!convFrom && !!convTo && parseFloat(convToAmount) > 0;
+
   return (
     <Box>
       <PageHeader title="Earnings" subtitle="Client income log" />
@@ -436,23 +574,64 @@ export default function EarningsPage() {
           >
             Download all
           </Button>
+          <Button
+            variant="outlined"
+            color="warning"
+            startIcon={<ArrowLeftRight size={16} />}
+            disabled={pendingEarnings.length === 0}
+            onClick={() => openConvert()}
+          >
+            Convert to BDT
+          </Button>
           <Button variant="contained" startIcon={<Plus size={16} />} onClick={openAdd}>
             Add Earning
           </Button>
         </Box>
       </Box>
 
-      {!loading && earnings.length > 0 && (
-        <Card sx={{ bgcolor: "background.paper", mb: 2, display: "inline-flex", px: 3, py: 1.5 }}>
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              Total Income{fyFilter !== "ALL" ? ` · ${fyFilter}` : ""} ({earnings.length})
-            </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: "info.main" }}>
-              {fmt(total)}
-            </Typography>
-          </Box>
-        </Card>
+      {!loading && (earnings.length > 0 || pendingByCurrency.length > 0) && (
+        <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
+          {earnings.length > 0 && (
+            <Card sx={{ bgcolor: "background.paper", display: "inline-flex", px: 3, py: 1.5 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Total Income{fyFilter !== "ALL" ? ` · ${fyFilter}` : ""} ({earnings.length})
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 700, color: "info.main" }}>
+                  {fmt(total)}
+                </Typography>
+              </Box>
+            </Card>
+          )}
+          {pendingByCurrency.length > 0 && (
+            <Card sx={{ bgcolor: "background.paper", display: "inline-flex", px: 3, py: 1.5 }}>
+              <Box>
+                <Typography variant="caption" color="text.secondary">
+                  Pending conversion (not yet in BDT income)
+                </Typography>
+                <Box sx={{ display: "flex", gap: 2, alignItems: "baseline" }}>
+                  {pendingByCurrency.map((p) => (
+                    <Typography
+                      key={p.currency}
+                      variant="h6"
+                      sx={{ fontWeight: 700, color: "warning.main" }}
+                    >
+                      {fmtCurrency(p.original, p.currency)}
+                      <Typography
+                        component="span"
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ ml: 0.5 }}
+                      >
+                        ({p.count})
+                      </Typography>
+                    </Typography>
+                  ))}
+                </Box>
+              </Box>
+            </Card>
+          )}
+        </Box>
       )}
 
       {loading ? (
@@ -497,20 +676,35 @@ export default function EarningsPage() {
                         variant="outlined"
                       />
                     </TableCell>
-                    <TableCell
-                      align="right"
-                      data-label="Amount"
-                      sx={{ fontWeight: 600, color: "info.main" }}
-                    >
-                      {fmt(e.amount)}
-                      {e.currency !== "BDT" && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: "block", fontWeight: 400 }}
-                        >
-                          {fmtForeign(e.currency, e.originalAmount, e.fxRate)}
-                        </Typography>
+                    <TableCell align="right" data-label="Amount" sx={{ fontWeight: 600 }}>
+                      {e.currency === "BDT" ? (
+                        <Box sx={{ color: "info.main" }}>{fmt(e.amount)}</Box>
+                      ) : e.pendingConversion ? (
+                        <Box>
+                          <Box sx={{ color: "warning.main" }}>
+                            {fmtCurrency(e.originalAmount, e.currency)}
+                          </Box>
+                          <Chip
+                            size="small"
+                            label="Pending"
+                            color="warning"
+                            variant="outlined"
+                            sx={{ height: 18, fontSize: "0.65rem", mt: 0.25 }}
+                          />
+                        </Box>
+                      ) : (
+                        <Box>
+                          <Box sx={{ color: "success.main" }}>
+                            {fmt(e.realizedAmount ?? e.amount)}
+                          </Box>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: "block", fontWeight: 400 }}
+                          >
+                            {fmtForeign(e.currency, e.originalAmount, e.realizedRate ?? e.fxRate)}
+                          </Typography>
+                        </Box>
                       )}
                     </TableCell>
                     <TableCell data-label="Fiscal Year">{e.fiscalYear}</TableCell>
@@ -521,6 +715,28 @@ export default function EarningsPage() {
                     </TableCell>
                     <TableCell data-label="Actions">
                       <Box sx={{ display: "flex" }}>
+                        {e.pendingConversion && (
+                          <Tooltip title="Convert to BDT">
+                            <IconButton
+                              size="small"
+                              color="warning"
+                              onClick={() => openConvert(e.currency, e.id)}
+                            >
+                              <ArrowLeftRight size={14} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                        {e.currency !== "BDT" && e.realizedAt && (
+                          <Tooltip title="Reverse conversion (back to pending)">
+                            <IconButton
+                              size="small"
+                              disabled={reversingId === e.id}
+                              onClick={() => doReverse(e.id)}
+                            >
+                              <RotateCcw size={14} />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                         <Tooltip title="Download receipt">
                           <IconButton
                             size="small"
@@ -672,6 +888,163 @@ export default function EarningsPage() {
           >
             {saving ? "Saving…" : editing ? "Save Changes" : "Add Earning"}
           </Button>
+        </Box>
+      </Drawer>
+
+      <Drawer
+        anchor="right"
+        open={convertOpen}
+        onClose={() => setConvertOpen(false)}
+        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 460 } } } }}
+      >
+        <Box sx={{ width: "100%", p: 3 }}>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Convert to BDT
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: "block" }}>
+            Realize foreign earnings at the actual rate. Posts one transfer (foreign account → BDT
+            account); the received BDT is booked as income on the conversion date.
+          </Typography>
+
+          {pendingCurrencies.length === 0 ? (
+            <Alert severity="info">No pending foreign earnings to convert.</Alert>
+          ) : (
+            <>
+              <SearchableSelect
+                label="Currency"
+                value={convCurrency}
+                options={pendingCurrencies.map((c) => ({ value: c, label: c }))}
+                onChange={onConvCurrencyChange}
+                sx={{ mb: 2 }}
+              />
+
+              <Typography variant="caption" color="text.secondary">
+                Earnings to convert
+              </Typography>
+              <Box
+                sx={{
+                  maxHeight: 200,
+                  overflowY: "auto",
+                  border: 1,
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  mb: 2,
+                  mt: 0.5,
+                }}
+              >
+                {convList.map((e) => (
+                  <Box
+                    key={e.id}
+                    sx={{
+                      display: "flex",
+                      alignItems: "center",
+                      px: 1,
+                      py: 0.25,
+                      borderBottom: 1,
+                      borderColor: "divider",
+                      "&:last-of-type": { borderBottom: 0 },
+                    }}
+                  >
+                    <Checkbox
+                      size="small"
+                      checked={convSelected.has(e.id)}
+                      onChange={() => toggleConvSelect(e.id)}
+                    />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="body2" noWrap>
+                        {e.sourceName} · {fmtCurrency(e.originalAmount, e.currency)}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {fmtDate(e.date)}
+                      </Typography>
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+
+              <SearchableSelect
+                label={`From account (${convCurrency})`}
+                value={convFrom}
+                options={fromAccountOptions.map((a) => ({ value: a.id, label: a.name }))}
+                onChange={setConvFrom}
+                sx={{ mb: 2 }}
+              />
+              {fromAccountOptions.length === 0 && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  No {convCurrency} account exists — create one in Money → Accounts and deposit the
+                  foreign income there first.
+                </Alert>
+              )}
+              <SearchableSelect
+                label="To account (BDT)"
+                value={convTo}
+                options={toAccountOptions.map((a) => ({ value: a.id, label: a.name }))}
+                onChange={setConvTo}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                label="Conversion date"
+                type="date"
+                size="small"
+                fullWidth
+                value={convDate}
+                onChange={(e) => setConvDate(e.target.value)}
+                sx={{ mb: 2 }}
+              />
+              <TextField
+                label="BDT received (৳)"
+                type="number"
+                size="small"
+                fullWidth
+                value={convToAmount}
+                onChange={(e) => setConvToAmount(e.target.value)}
+                helperText={
+                  convRateLoading
+                    ? "Fetching live rate…"
+                    : "Prefilled from the live rate — set the actual BDT your bank credited."
+                }
+                sx={{ mb: 1 }}
+              />
+              <Divider sx={{ my: 1 }} />
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Converting {fmtCurrency(convTotalOriginal, convCurrency || "BDT")}
+                  {convChosen.length > 1 ? ` (${convChosen.length} earnings)` : ""}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {convRate > 0
+                    ? `@ ${convRate.toLocaleString("en-US", { maximumFractionDigits: 4 })} ৳/${convCurrency}`
+                    : ""}
+                </Typography>
+              </Box>
+              {convToAmountNum > 0 && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: "block",
+                    mb: 2,
+                    color: convVariance >= 0 ? "success.main" : "error.main",
+                  }}
+                >
+                  FX variance vs entry estimate: {convVariance >= 0 ? "+" : "−"}
+                  {fmt(Math.abs(convVariance))}
+                </Typography>
+              )}
+              {convError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {convError}
+                </Alert>
+              )}
+              <Button
+                variant="contained"
+                fullWidth
+                onClick={doConvert}
+                disabled={convSaving || !convReady}
+              >
+                {convSaving ? "Converting…" : "Convert to BDT"}
+              </Button>
+            </>
+          )}
         </Box>
       </Drawer>
 

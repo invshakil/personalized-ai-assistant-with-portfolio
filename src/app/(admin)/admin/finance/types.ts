@@ -10,10 +10,15 @@ export interface EarningRow {
   sourceId: string;
   sourceName: string;
   remittance: RemittanceType;
-  amount: number; // BDT-equivalent (canonical)
+  amount: number; // BDT-equivalent (indicative for foreign until converted)
   currency: string; // original currency: BDT | USD | EUR
   originalAmount: number; // amount in `currency` (= amount for BDT)
   fxRate: number; // BDT per 1 unit of `currency`
+  // Realized basis: foreign earnings are pending until converted to BDT.
+  realizedAt: string | null; // ISO; null = pending conversion
+  realizedAmount: number | null; // actual BDT booked on conversion
+  realizedRate: number | null; // actual BDT per 1 unit at conversion
+  pendingConversion: boolean; // foreign && not yet converted
   fiscalYear: string;
   notes: string | null;
 }
@@ -141,4 +146,6 @@ export interface FinanceDashboardData {
   bySource: { sourceId: string; name: string; total: number; count: number }[];
   remittance: { rem: number; nonRem: number };
   monthlyIncome: { period: string; amount: number }[];
+  // Foreign income earned but not yet converted to BDT (excluded from income above).
+  pendingForeign: { currency: string; original: number; count: number }[];
 }
