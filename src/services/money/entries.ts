@@ -52,6 +52,8 @@ export interface GetEntriesOpts extends RangeInput {
   accountId?: string;
   direction?: MoneyEntryDirection;
   beneficiaryId?: string;
+  /** Filter to entries in a specific currency (BDT | USD | EUR). */
+  currency?: string;
   /** Case-insensitive search over the description field. */
   q?: string;
   sortBy?: EntrySortBy;
@@ -86,6 +88,7 @@ export async function getEntries(opts: GetEntriesOpts = {}): Promise<MoneyEntryR
       }),
       ...(opts.direction && { direction: opts.direction }),
       ...(opts.beneficiaryId && { beneficiaryId: opts.beneficiaryId }),
+      ...(opts.currency && { currency: opts.currency }),
       ...(opts.q && { description: { contains: opts.q, mode: "insensitive" } }),
     },
     orderBy: entryOrderBy(opts.sortBy, opts.sortDir),

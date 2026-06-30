@@ -86,6 +86,7 @@ export interface EntryFilters {
   categoryId?: string;
   accountId?: string;
   beneficiaryId?: string;
+  currency?: string;
   /** Case-insensitive description search. */
   q?: string;
   direction?: MoneyEntryDirection;

@@ -31,12 +31,13 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import { moneyApi, type EntryFilters } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import type {
-  MoneyAccountRow,
-  MoneyCategoryRow,
-  MoneyEntryRow,
-  BeneficiaryRow,
-  ObligationRow,
+import {
+  SUPPORTED_CURRENCIES,
+  type MoneyAccountRow,
+  type MoneyCategoryRow,
+  type MoneyEntryRow,
+  type BeneficiaryRow,
+  type ObligationRow,
 } from "@/types";
 import {
   fmt,
@@ -122,6 +123,7 @@ export default function EntriesPage() {
   const dirFilter = (searchParams.get("type") as DirFilter | null) ?? "ALL";
   const categoryFilter = searchParams.get("category") ?? "ALL";
   const accountFilter = searchParams.get("account") ?? "ALL";
+  const currencyFilter = searchParams.get("currency") ?? "ALL";
   const q = searchParams.get("q") ?? "";
   const sortBy = (searchParams.get("sort") as SortBy | null) ?? "date";
   const sortDir = (searchParams.get("order") as SortDir | null) ?? "desc";
@@ -189,6 +191,7 @@ export default function EntriesPage() {
         ...(dirFilter !== "ALL" && { direction: dirFilter }),
         ...(categoryFilter !== "ALL" && { categoryId: categoryFilter }),
         ...(accountFilter !== "ALL" && { accountId: accountFilter }),
+        ...(currencyFilter !== "ALL" && { currency: currencyFilter }),
         ...(q && { q }),
         sortBy,
         sortDir,
@@ -205,6 +208,7 @@ export default function EntriesPage() {
     dirFilter,
     categoryFilter,
     accountFilter,
+    currencyFilter,
     q,
     sortBy,
     sortDir,
@@ -291,7 +295,11 @@ export default function EntriesPage() {
   ];
 
   const hasActiveFilters =
-    dirFilter !== "ALL" || categoryFilter !== "ALL" || accountFilter !== "ALL" || Boolean(q);
+    dirFilter !== "ALL" ||
+    categoryFilter !== "ALL" ||
+    accountFilter !== "ALL" ||
+    currencyFilter !== "ALL" ||
+    Boolean(q);
 
   // Changing the type may invalidate the selected category — clear it if so.
   const onTypeChange = (next: DirFilter) => {
@@ -336,17 +344,23 @@ export default function EntriesPage() {
   );
   const selectedObligation = linkObligations.find((o) => o.id === form.obligationId) ?? null;
 
-  // Totals for the currently-filtered set (the list is unpaged, so this is exact).
-  const totals = useMemo(() => {
-    let income = 0;
-    let expense = 0;
-    let transfer = 0;
+  // Totals for the currently-filtered set, split BY CURRENCY (can't add $ to ৳).
+  // The list is unpaged, so these are exact.
+  const totalsByCurrency = useMemo(() => {
+    const m = new Map<string, { income: number; expense: number }>();
     for (const e of entries) {
-      if (e.direction === "CREDIT") income += e.amount;
-      else if (e.direction === "DEBIT") expense += e.amount;
-      else transfer += e.amount;
+      if (e.direction === "TRANSFER") continue; // excluded from income/expense
+      const c = m.get(e.currency) ?? { income: 0, expense: 0 };
+      if (e.direction === "CREDIT") c.income += e.amount;
+      else c.expense += e.amount;
+      m.set(e.currency, c);
     }
-    return { income, expense, transfer, net: income - expense, count: entries.length };
+    // BDT first, then others alphabetically.
+    return [...m.entries()]
+      .map(([currency, v]) => ({ currency, ...v, net: v.income - v.expense }))
+      .sort((a, b) =>
+        a.currency === "BDT" ? -1 : b.currency === "BDT" ? 1 : a.currency.localeCompare(b.currency)
+      );
   }, [entries]);
 
   const openAdd = () => {
@@ -523,6 +537,16 @@ export default function EntriesPage() {
           onChange={(v) => setParams({ account: v === "ALL" ? undefined : v })}
           sx={{ minWidth: 160 }}
         />
+        <SearchableSelect
+          label="Currency"
+          value={currencyFilter}
+          options={[
+            { value: "ALL", label: "All currencies" },
+            ...SUPPORTED_CURRENCIES.map((c) => ({ value: c, label: c })),
+          ]}
+          onChange={(v) => setParams({ currency: v === "ALL" ? undefined : v })}
+          sx={{ minWidth: 140 }}
+        />
         <TextField
           label="Search description"
           size="small"
@@ -551,7 +575,13 @@ export default function EntriesPage() {
             size="small"
             color="inherit"
             onClick={() =>
-              setParams({ type: undefined, category: undefined, account: undefined, q: undefined })
+              setParams({
+                type: undefined,
+                category: undefined,
+                account: undefined,
+                currency: undefined,
+                q: undefined,
+              })
             }
           >
             Clear
@@ -571,7 +601,7 @@ export default function EntriesPage() {
         </Box>
       </Box>
 
-      {!loading && totals.count > 0 && (
+      {!loading && entries.length > 0 && totalsByCurrency.length > 0 && (
         <Card
           sx={{
             bgcolor: "background.paper",
@@ -585,52 +615,49 @@ export default function EntriesPage() {
           }}
         >
           <Typography variant="body2" color="text.secondary">
-            {totals.count} {totals.count === 1 ? "entry" : "entries"}
+            {entries.length} {entries.length === 1 ? "entry" : "entries"}
           </Typography>
-          {totals.income > 0 && (
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                Income
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: "success.main" }}>
-                +{fmt(totals.income)}
-              </Typography>
+          {totalsByCurrency.map((t) => (
+            <Box key={t.currency} sx={{ display: "flex", gap: 3, alignItems: "center" }}>
+              {totalsByCurrency.length > 1 && (
+                <Chip size="small" label={t.currency} variant="outlined" sx={{ height: 20 }} />
+              )}
+              {t.income > 0 && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    Income
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "success.main" }}>
+                    +{fmtCurrency(t.income, t.currency)}
+                  </Typography>
+                </Box>
+              )}
+              {t.expense > 0 && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    Expense
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700, color: "error.main" }}>
+                    −{fmtCurrency(t.expense, t.currency)}
+                  </Typography>
+                </Box>
+              )}
+              {t.income > 0 && t.expense > 0 && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    Net
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: 700, color: t.net >= 0 ? "success.main" : "error.main" }}
+                  >
+                    {t.net >= 0 ? "+" : "−"}
+                    {fmtCurrency(Math.abs(t.net), t.currency)}
+                  </Typography>
+                </Box>
+              )}
             </Box>
-          )}
-          {totals.expense > 0 && (
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                Expense
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: "error.main" }}>
-                −{fmt(totals.expense)}
-              </Typography>
-            </Box>
-          )}
-          {totals.income > 0 && totals.expense > 0 && (
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                Net
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: 700, color: totals.net >= 0 ? "success.main" : "error.main" }}
-              >
-                {totals.net >= 0 ? "+" : "−"}
-                {fmt(Math.abs(totals.net))}
-              </Typography>
-            </Box>
-          )}
-          {totals.transfer > 0 && (
-            <Box>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                Transfers
-              </Typography>
-              <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary" }}>
-                {fmt(totals.transfer)}
-              </Typography>
-            </Box>
-          )}
+          ))}
         </Card>
       )}
 

@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
     categoryId: searchParams.get("categoryId") ?? undefined,
     accountId: searchParams.get("accountId") ?? undefined,
     beneficiaryId: searchParams.get("beneficiaryId") ?? undefined,
+    currency: searchParams.get("currency") ?? undefined,
     q: searchParams.get("q") ?? undefined,
     direction,
     sortBy,
