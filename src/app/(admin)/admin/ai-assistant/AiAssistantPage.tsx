@@ -1,212 +1,70 @@
 "use client";
 
-import ChatMessage from "@/components/admin/ChatMessage";
 import PageHeader from "@/components/admin/PageHeader";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
-import { aiApi } from "@/lib/api/ai";
-import type { ChatSessionSummary, ProviderConfigView } from "@/services/ai/types";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
-import {
-  addMessage,
-  addPendingActionToLast,
-  addToolToLast,
-  appendToLastContent,
-  loadSession as loadSessionAction,
-  markLastStopped,
-  newChat as newChatAction,
-  patchAction as patchActionAction,
-  popLastMessage,
-  replaceLastMessage,
-  setCurrentSessionId,
-  setStreaming,
-  setUsageOnLast,
-} from "@/store/slices/aiChatSlice";
-import {
-  Alert,
-  Avatar,
-  Box,
-  Button,
-  Card,
-  Chip,
-  ClickAwayListener,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Drawer,
-  IconButton,
-  ListItemText,
-  MenuItem,
-  MenuList,
-  Paper,
-  Popper,
-  TextField,
-  Typography,
-} from "@mui/material";
-import { Cpu, History, Mic, MicOff, Paperclip, Send, Sparkles, Square, X } from "lucide-react";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Alert, Box, Card, Drawer } from "@mui/material";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConversationList from "./ConversationList";
-import { SLASH_COMMANDS, SLASH_TYPING_RE } from "./commands";
-import type { Message, MessageAttachment, PendingActionState } from "./types";
+import { SLASH_TYPING_RE } from "./commands";
+import AttachmentPreviewBar from "./components/AttachmentPreviewBar";
+import ChatInputRow from "./components/ChatInputRow";
+import ChatMessageList from "./components/ChatMessageList";
+import DesktopBreadcrumb from "./components/DesktopBreadcrumb";
+import InputStatusBar from "./components/InputStatusBar";
+import LongThreadAlert from "./components/LongThreadAlert";
+import MicPermissionDialog from "./components/MicPermissionDialog";
+import MobileTopBar from "./components/MobileTopBar";
+import SlashCommandMenu from "./components/SlashCommandMenu";
+import { useAttachments } from "./hooks/useAttachments";
+import { useChatSession } from "./hooks/useChatSession";
+import { useChatStream } from "./hooks/useChatStream";
+import { useInputAutoGrow } from "./hooks/useInputAutoGrow";
+import { usePendingActions } from "./hooks/usePendingActions";
+import { useSidebarResize } from "./hooks/useSidebarResize";
+import { useSlashCommands } from "./hooks/useSlashCommands";
 
-// Warn once the running input-token total for a thread crosses this. Message
-// history is re-sent uncached every turn, so cost grows with thread length —
-// starting a new chat resets it to zero.
 const LONG_THREAD_TOKENS = 60_000;
 
-// The Redux store is in-memory, so a full page refresh clears the active thread.
-// We persist only the current session id here and reopen that session (messages
-// come from the DB) on reload, so a refresh restores the conversation.
-const LAST_SESSION_KEY = "ai-chat:last-session";
-
-// Persisted sidebar width — lets the user widen the conversation list when
-// titles are getting truncated.
-const SIDEBAR_WIDTH_KEY = "ai-chat:sidebar-width";
-const SIDEBAR_MIN = 200;
-const SIDEBAR_MAX = 480;
-const SIDEBAR_DEFAULT = 240;
-
-// A leading `/property`, `/finance`, `/money`, or `/solar` scopes the assistant
-// to that module's tools for the turn. We parse it client-side, send the scope
-// to the backend, and strip the command so the model never sees it.
 const SCOPE_RE = /^\/(property|finance|money|solar)\b\s*/i;
-
-function parseScope(text: string): "property" | "finance" | "money" | "solar" | "all" {
+function parseScope(text: string): string {
   const m = text.match(SCOPE_RE);
-  return m ? (m[1].toLowerCase() as "property" | "finance" | "money" | "solar") : "all";
+  return m ? m[1].toLowerCase() : "all";
 }
 
 export default function AiAssistantPage() {
-  // The chat thread lives in the Redux store so it survives navigation between
-  // admin pages (the (admin) layout doesn't remount). Transient UI state below
-  // stays local — it's either re-derived or re-fetched on mount.
-  const dispatch = useAppDispatch();
   const messages = useAppSelector((s) => s.aiChat.messages);
-  const currentSessionId = useAppSelector((s) => s.aiChat.currentSessionId);
   const isStreaming = useAppSelector((s) => s.aiChat.isStreaming);
+
   const [input, setInput] = useState("");
-  const [sessions, setSessions] = useState<ChatSessionSummary[]>([]);
-  const [sessionsLoaded, setSessionsLoaded] = useState(false);
-  const [activeProvider, setActiveProvider] = useState<ProviderConfigView | null>(null);
-  const [blocked, setBlocked] = useState(false);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [slashIndex, setSlashIndex] = useState(0);
+  const [micHelpOpen, setMicHelpOpen] = useState(false);
+  const [inputWrapEl, setInputWrapEl] = useState<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  // AbortController for the in-flight stream. Cleared after each turn so a new
-  // Stop click always aborts the *current* request, not a stale one.
-  const abortRef = useRef<AbortController | null>(null);
-  // Attachments uploaded for the *next* outgoing turn — committed to the
-  // message when Send fires, then cleared.
-  const [pendingAttachments, setPendingAttachments] = useState<MessageAttachment[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const inputTextareaRef = useRef<HTMLTextAreaElement | null>(null);
 
-  // Autogrow: our useLayoutEffect runs after MUI's (parent after child), so we take
-  // ownership of the height. Cap at 12 rows using the actual computed line-height so
-  // the limit is font-size-agnostic. Show a scrollbar only when content overflows the cap.
-  useLayoutEffect(() => {
-    const el = inputTextareaRef.current;
-    if (!el) return;
-    el.style.height = "auto";
-    const lineH = parseFloat(getComputedStyle(el).lineHeight) || 24;
-    const maxH = lineH * 12;
-    el.style.height = `${Math.min(el.scrollHeight, maxH)}px`;
-    el.style.overflow = el.scrollHeight > maxH ? "auto" : "hidden";
-  }, [input]);
+  // ── Hooks ───────────────────────────────────────────────────────────────────
+  const { sidebarWidth, beginSidebarResize } = useSidebarResize();
+  const attachments = useAttachments();
+  const slashCommands = useSlashCommands(input, setInput, isStreaming, false);
 
-  // Resizable sidebar — width persists across visits. Default applied lazily
-  // so SSR + first paint don't read localStorage.
-  const [sidebarWidth, setSidebarWidth] = useState<number>(SIDEBAR_DEFAULT);
-  useEffect(() => {
-    const saved = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
-    if (Number.isFinite(saved) && saved >= SIDEBAR_MIN && saved <= SIDEBAR_MAX) {
-      setSidebarWidth(saved);
-    }
-  }, []);
-  const beginSidebarResize = useCallback((startX: number, startW: number) => {
-    const onMove = (e: MouseEvent) => {
-      const next = Math.min(SIDEBAR_MAX, Math.max(SIDEBAR_MIN, startW + (e.clientX - startX)));
-      setSidebarWidth(next);
-    };
-    const onUp = () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      // Use the functional updater to read the latest width without a ref —
-      // React passes the current state value, so stale-closure is not a risk.
-      setSidebarWidth((latest) => {
-        try {
-          localStorage.setItem(SIDEBAR_WIDTH_KEY, String(latest));
-        } catch {
-          /* storage quota / disabled — non-fatal */
-        }
-        return latest;
-      });
-    };
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  }, []);
-  // State (not a ref) so the slash-menu Popper can anchor to it and read its
-  // width during render without tripping the refs-in-render rule.
-  const [inputWrapEl, setInputWrapEl] = useState<HTMLDivElement | null>(null);
+  const session = useChatSession({
+    onNewChat: () => setInput(""),
+  });
 
-  // Commands matching what's currently typed (the menu shows while the first
-  // token is a bare "/word" with no space yet).
-  const slashMatches = useMemo(() => {
-    const m = input.match(SLASH_TYPING_RE);
-    if (!m) return [];
-    const partial = `/${m[1].toLowerCase()}`;
-    return SLASH_COMMANDS.filter((c) => c.cmd.startsWith(partial));
-  }, [input]);
-  const slashOpen = slashMatches.length > 0 && !isStreaming && !blocked;
+  const { sendMessage, retryLastTurn, stopStreaming } = useChatStream({
+    input,
+    setInput,
+    blocked: session.blocked,
+    pendingAttachments: attachments.pendingAttachments,
+    clearPendingAttachments: attachments.clearAttachments,
+    clearUploadError: attachments.clearError,
+    refreshSessions: session.refreshSessions,
+    checkBudget: session.checkBudget,
+  });
 
-  // Running input-token total across the thread (excludes cached reads, which
-  // are cheap). Used only to nudge toward a fresh chat on long threads.
-  const threadInputTokens = useMemo(
-    () => messages.reduce((sum, m) => sum + (m.usage?.inputTokens ?? 0), 0),
-    [messages]
-  );
-  const threadIsLong = threadInputTokens >= LONG_THREAD_TOKENS;
+  const pendingActions = usePendingActions({ isStreaming, blocked: session.blocked });
+  useInputAutoGrow(inputTextareaRef, input);
 
-  const refreshSessions = useCallback(async () => {
-    try {
-      setSessions(await aiApi.listSessions());
-    } catch {
-      /* non-fatal — the chat still works without the history list */
-    } finally {
-      setSessionsLoaded(true);
-    }
-  }, []);
-
-  const checkBudget = useCallback(async () => {
-    try {
-      setBlocked((await aiApi.getUsage()).overBudget);
-    } catch {
-      /* non-fatal */
-    }
-  }, []);
-
-  useEffect(() => {
-    refreshSessions();
-    checkBudget();
-    aiApi
-      .listProviders()
-      .then((list) => setActiveProvider(list.find((p) => p.isActive && p.supported) ?? null))
-      .catch(() => {
-        /* non-fatal */
-      });
-  }, [refreshSessions, checkBudget]);
-
-  // Show the parsed scope (from the leading slash, if any) as a hint chip.
-  const activeScope = useMemo(() => parseScope(input), [input]);
-
-  // Speech-to-text into the input. Each final transcript segment is appended
-  // with a leading space so multi-utterance dictation reads naturally.
   const speech = useSpeechRecognition({
     onFinal: (text) => {
       const trimmed = text.trim();
@@ -214,367 +72,66 @@ export default function AiAssistantPage() {
       setInput((prev) => (prev ? `${prev.replace(/\s+$/, "")} ${trimmed}` : trimmed));
     },
   });
-  const [micHelpOpen, setMicHelpOpen] = useState(false);
 
-  const onMicClick = () => {
+  // ── Effects ─────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const { newChat } = session;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        newChat(); // internally guards against streaming + clears input via onNewChat
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [newChat]);
+
+  // ── Derived state ────────────────────────────────────────────────────────────
+  const activeScope = useMemo(() => parseScope(input), [input]);
+  const threadInputTokens = useMemo(
+    () => messages.reduce((sum, m) => sum + (m.usage?.inputTokens ?? 0), 0),
+    [messages]
+  );
+  const currentSessionTitle = session.currentSessionId
+    ? (session.sessions.find((s) => s.id === session.currentSessionId)?.title ?? "Conversation")
+    : "New chat";
+  const hasAttachmentBar =
+    attachments.pendingAttachments.length > 0 || attachments.uploading || !!attachments.uploadError;
+
+  // ── Handlers ─────────────────────────────────────────────────────────────────
+  const onMicClick = useCallback(() => {
     if (speech.listening) {
       speech.stop();
       return;
     }
-    // Browser remembers the denied state and won't re-prompt — show the
-    // recovery dialog instead of silently failing.
     if (speech.permissionState === "denied") {
       setMicHelpOpen(true);
       return;
     }
     speech.start();
-  };
-
-  // Pick a session to open on first mount. Runs once after the sessions list
-  // has loaded; skipped when an in-memory thread is already present (in-app
-  // navigation). Preference order:
-  //   1. The id saved in localStorage from the last visit (resume on refresh)
-  //   2. The most recent session in the list (auto-open latest on fresh visit)
-  //   3. Nothing — empty state when the user has no sessions yet
-  const rehydratedRef = useRef(false);
-  useEffect(() => {
-    if (rehydratedRef.current || !sessionsLoaded) return;
-    rehydratedRef.current = true;
-    if (currentSessionId || messages.length > 0) return;
-
-    const saved = localStorage.getItem(LAST_SESSION_KEY);
-    const savedIsValid = saved !== null && sessions.some((s) => s.id === saved);
-    const targetId = savedIsValid ? saved : (sessions[0]?.id ?? null);
-    if (!targetId) {
-      if (saved) localStorage.removeItem(LAST_SESSION_KEY);
-      return;
-    }
-    aiApi
-      .getSession(targetId)
-      .then((detail) => dispatch(loadSessionAction({ id: detail.id, messages: detail.messages })))
-      .catch(() => {
-        if (saved) localStorage.removeItem(LAST_SESSION_KEY);
-      });
-  }, [sessionsLoaded, sessions, currentSessionId, messages.length, dispatch]);
-
-  // Mirror the active session id to localStorage so the effect above can reopen
-  // it after a refresh. Cleared on New Chat (currentSessionId → null). The first
-  // run is skipped so a fresh mount (currentSessionId still null) doesn't wipe
-  // the saved id out from under the rehydrate effect.
-  const persistMountedRef = useRef(false);
-  useEffect(() => {
-    if (!persistMountedRef.current) {
-      persistMountedRef.current = true;
-      return;
-    }
-    if (currentSessionId) localStorage.setItem(LAST_SESSION_KEY, currentSessionId);
-    else localStorage.removeItem(LAST_SESSION_KEY);
-  }, [currentSessionId]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  // Cmd/Ctrl+K → new chat (skipped while streaming to avoid mid-turn loss).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-        if (isStreaming) return;
-        e.preventDefault();
-        dispatch(newChatAction());
-        setInput("");
-        setHistoryOpen(false);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [isStreaming, dispatch]);
-
-  // Keep the highlighted command in range as the filtered list narrows.
-  useEffect(() => {
-    setSlashIndex((i) => (i >= slashMatches.length ? 0 : i));
-  }, [slashMatches.length]);
-
-  const newChat = () => {
-    if (isStreaming) return;
-    dispatch(newChatAction());
-    setInput("");
-    setHistoryOpen(false);
-  };
-
-  const loadSession = async (id: string) => {
-    setHistoryOpen(false);
-    if (isStreaming || id === currentSessionId) return;
-    try {
-      const detail = await aiApi.getSession(id);
-      dispatch(loadSessionAction({ id: detail.id, messages: detail.messages }));
-    } catch {
-      /* ignore — likely deleted elsewhere */
-    }
-  };
-
-  // Insert a chosen slash command into the input (with a trailing space so the
-  // user types their question right after it) and dismiss the menu.
-  const applySlashCommand = (cmd: string) => {
-    setInput(input.replace(SLASH_TYPING_RE, `${cmd} `));
-    setSlashIndex(0);
-  };
-
-  const deleteSession = async (id: string) => {
-    try {
-      await aiApi.deleteSession(id);
-      if (id === currentSessionId) newChat();
-      await refreshSessions();
-    } catch {
-      /* ignore */
-    }
-  };
-
-  const renameSessionTitle = async (id: string, title: string) => {
-    try {
-      await aiApi.renameSession(id, title);
-      await refreshSessions();
-    } catch {
-      /* ignore — UI will revert on the next refresh */
-    }
-  };
-
-  // Core send: appends the user turn (unless re-sending after a failure), opens
-  // the SSE stream, dispatches into the store. Returns when the stream finishes
-  // OR the user aborts via Stop. `priorMessages` lets Retry rebuild the request
-  // body from the thread minus the popped failed assistant turn.
-  const runTurn = async (text: string, priorMessages: Message[]) => {
-    // Lazily create a session on the first message (best-effort).
-    let sid = currentSessionId;
-    if (!sid) {
-      try {
-        const created = await aiApi.createSession();
-        sid = created.id;
-        dispatch(setCurrentSessionId(sid));
-      } catch {
-        sid = null; // persistence unavailable — chat still works in-memory
-      }
-    }
-
-    dispatch(setStreaming(true));
-    dispatch(addMessage({ role: "assistant", content: "" }));
-    abortRef.current = new AbortController();
-
-    try {
-      const res = await fetch("/api/admin/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        signal: abortRef.current.signal,
-        // System lines are client-only approval receipts — never sent to the model.
-        // Scope is taken from the latest user message; the `/property|/finance|/money`
-        // command is stripped from every user turn so the model only sees intent.
-        body: JSON.stringify({
-          sessionId: sid,
-          scope: parseScope(text),
-          messages: priorMessages
-            .filter((m) => m.role !== "system")
-            .map(({ role, content, attachments }) => ({
-              role,
-              content: role === "user" ? content.replace(SCOPE_RE, "") : content,
-              ...(role === "user" && attachments?.length ? { attachments } : {}),
-            })),
-        }),
-      });
-
-      if (!res.ok || !res.body) {
-        let message = "Failed to get response";
-        try {
-          const j = await res.json();
-          if (j?.error) message = j.error;
-        } catch {
-          /* body wasn't JSON */
-        }
-        throw new Error(message);
-      }
-
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split("\n");
-        buffer = lines.pop() ?? "";
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const ev = JSON.parse(line) as {
-              type: string;
-              text?: string;
-              name?: string;
-              message?: string;
-              action?: {
-                id: string;
-                tool: string;
-                input: Record<string, unknown>;
-                summary: string;
-              };
-              inputTokens?: number;
-              outputTokens?: number;
-              cacheReadTokens?: number;
-              cacheCreateTokens?: number;
-              cost?: number;
-            };
-            if (ev.type === "text" && ev.text) {
-              dispatch(appendToLastContent(ev.text));
-            } else if (ev.type === "tool" && ev.name) {
-              dispatch(addToolToLast(ev.name));
-            } else if (ev.type === "pending_action" && ev.action) {
-              const action: PendingActionState = { ...ev.action, status: "pending" };
-              dispatch(addPendingActionToLast(action));
-            } else if (ev.type === "error" && ev.message) {
-              dispatch(appendToLastContent(`\n\n⚠️ ${ev.message}`));
-            } else if (ev.type === "usage") {
-              dispatch(
-                setUsageOnLast({
-                  inputTokens: ev.inputTokens ?? 0,
-                  outputTokens: ev.outputTokens ?? 0,
-                  cacheReadTokens: ev.cacheReadTokens ?? 0,
-                  cacheCreateTokens: ev.cacheCreateTokens ?? 0,
-                  cost: ev.cost ?? 0,
-                })
-              );
-            }
-          } catch {
-            /* malformed line — skip */
-          }
-        }
-      }
-    } catch (e) {
-      // User-initiated Stop — keep partial content, mark as stopped (no error).
-      if (e instanceof DOMException && e.name === "AbortError") {
-        dispatch(markLastStopped());
-      } else {
-        const message =
-          e instanceof Error ? e.message : "Sorry, something went wrong. Please try again.";
-        dispatch(replaceLastMessage({ role: "assistant", content: "", error: message }));
-      }
-    } finally {
-      abortRef.current = null;
-      dispatch(setStreaming(false));
-      refreshSessions();
-      checkBudget();
-    }
-  };
-
-  const sendMessage = async () => {
-    const text = input.trim();
-    // Allow sending with attachments and no text (e.g. just a receipt).
-    if (isStreaming || blocked) return;
-    if (!text && pendingAttachments.length === 0) return;
-    const attachments = pendingAttachments;
-    const userMsg: Message = {
-      role: "user",
-      content: text,
-      ...(attachments.length && { attachments }),
-    };
-    dispatch(addMessage(userMsg));
-    setInput("");
-    setPendingAttachments([]);
-    setUploadError(null);
-    await runTurn(text || "(image attached)", [...messages, userMsg]);
-  };
-
-  /** Drop the failed assistant turn, then re-send the last user message. */
-  const retryLastTurn = async () => {
-    if (isStreaming || blocked) return;
-    // Walk back: pop the failed assistant bubble, find the last user message,
-    // and re-run with the thread up to and including it.
-    const lastUserIndex = (() => {
-      for (let i = messages.length - 1; i >= 0; i--) {
-        if (messages[i].role === "user") return i;
-      }
-      return -1;
-    })();
-    if (lastUserIndex < 0) return;
-    dispatch(popLastMessage());
-    const prior = messages.slice(0, lastUserIndex + 1);
-    await runTurn(messages[lastUserIndex].content, prior);
-  };
-
-  const stopStreaming = () => abortRef.current?.abort();
-
-  const handleFiles = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    setUploading(true);
-    setUploadError(null);
-    const uploaded: MessageAttachment[] = [];
-    try {
-      for (const file of Array.from(files)) {
-        const res = await aiApi.uploadAttachment(file);
-        uploaded.push({ url: res.url, mimeType: res.mimeType });
-      }
-      setPendingAttachments((prev) => [...prev, ...uploaded]);
-    } catch (e) {
-      setUploadError(e instanceof Error ? e.message : "Upload failed");
-    } finally {
-      setUploading(false);
-      // Reset the input so the same file can be re-selected immediately.
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
-  };
-
-  const removePendingAttachment = (url: string) => {
-    setPendingAttachments((prev) => prev.filter((a) => a.url !== url));
-  };
-
-  const patchAction = (msgIndex: number, actionId: string, patch: Partial<PendingActionState>) =>
-    dispatch(patchActionAction({ msgIndex, actionId, patch }));
-
-  const approveAction = async (msgIndex: number, actionId: string) => {
-    const action = messages[msgIndex]?.pendingActions?.find((a) => a.id === actionId);
-    if (!action || action.status === "committing" || action.status === "done") return;
-
-    patchAction(msgIndex, actionId, { status: "committing", error: undefined });
-    try {
-      const res = await aiApi.executeAction(action.tool, action.input);
-      patchAction(msgIndex, actionId, { status: "done", resultSummary: res.summary });
-      dispatch(addMessage({ role: "system", content: res.summary }));
-    } catch (e) {
-      patchAction(msgIndex, actionId, {
-        status: "error",
-        error: e instanceof Error ? e.message : "Failed to perform the action.",
-      });
-    }
-  };
-
-  const cancelAction = (msgIndex: number, actionId: string) =>
-    patchAction(msgIndex, actionId, { status: "cancelled" });
-
-  const approveAllActions = async (msgIndex: number) => {
-    if (isStreaming || blocked) return;
-    const pending = messages[msgIndex]?.pendingActions?.filter(
-      (a) => a.status === "pending" || a.status === "error"
-    );
-    if (!pending?.length) return;
-    await Promise.all(pending.map((a) => approveAction(msgIndex, a.id)));
-  };
+  }, [speech]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
-    // While the slash menu is open, arrows/Enter/Tab drive the menu, not send.
-    if (slashOpen) {
+    if (slashCommands.open) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setSlashIndex((i) => (i + 1) % slashMatches.length);
+        slashCommands.setIndex((i) => (i + 1) % slashCommands.matches.length);
         return;
       }
       if (e.key === "ArrowUp") {
         e.preventDefault();
-        setSlashIndex((i) => (i - 1 + slashMatches.length) % slashMatches.length);
+        slashCommands.setIndex(
+          (i) => (i - 1 + slashCommands.matches.length) % slashCommands.matches.length
+        );
         return;
       }
       if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
-        applySlashCommand(slashMatches[slashIndex].cmd);
+        slashCommands.apply(slashCommands.matches[slashCommands.index].cmd);
         return;
       }
       if (e.key === "Escape") {
@@ -583,13 +140,13 @@ export default function AiAssistantPage() {
         return;
       }
     }
-    // Ctrl/Cmd+Enter sends; plain Enter inserts a newline (default textarea behaviour).
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       sendMessage();
     }
   };
 
+  // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <Box
       sx={{
@@ -604,7 +161,7 @@ export default function AiAssistantPage() {
         subtitle="Ask about your finances, property, money manager, or anything else."
       />
 
-      {blocked && (
+      {session.blocked && (
         <Alert severity="error" sx={{ mb: 2 }}>
           Monthly AI budget reached — the chat is paused. Raise or turn off the limit in{" "}
           <strong>Settings → AI</strong> to continue.
@@ -613,543 +170,113 @@ export default function AiAssistantPage() {
 
       <Card sx={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
         <ConversationList
-          sessions={sessions}
-          currentId={currentSessionId}
+          sessions={session.sessions}
+          currentId={session.currentSessionId}
           disabled={isStreaming}
-          onNew={newChat}
-          onSelect={loadSession}
-          onDelete={deleteSession}
-          onRename={renameSessionTitle}
+          onNew={session.newChat}
+          onSelect={session.loadSession}
+          onDelete={session.deleteSession}
+          onRename={session.renameSessionTitle}
           width={sidebarWidth}
           onResizeStart={beginSidebarResize}
         />
 
-        {/* Chat column */}
         <Box sx={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0 }}>
-          {/* Mobile-only bar: the desktop sidebar (history + New chat) is hidden
-              on xs, so surface it through a drawer trigger here. */}
-          <Box
-            sx={{
-              display: { xs: "flex", sm: "none" },
-              alignItems: "center",
-              gap: 1,
-              px: 1.5,
-              py: 1,
-              borderBottom: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <IconButton
-              size="small"
-              aria-label="Conversation history"
-              onClick={() => setHistoryOpen(true)}
-              sx={{ color: "text.secondary" }}
-            >
-              <History size={18} />
-            </IconButton>
-            <Typography variant="caption" color="text.secondary" noWrap sx={{ flex: 1 }}>
-              {currentSessionId
-                ? (sessions.find((s) => s.id === currentSessionId)?.title ?? "Conversation")
-                : "New chat"}
-            </Typography>
-            <Button size="small" onClick={newChat} disabled={isStreaming} sx={{ minWidth: 0 }}>
-              New
-            </Button>
-          </Box>
-
-          {/* Desktop breadcrumb: shows the active conversation title so the
-              user always knows what thread they're in (and isn't forced to
-              widen the sidebar to read it). */}
-          <Box
-            sx={{
-              display: { xs: "none", sm: "flex" },
-              alignItems: "center",
-              gap: 0.75,
-              px: 2.5,
-              py: 1.25,
-              borderBottom: "1px solid",
-              borderColor: "divider",
-              minHeight: 0,
-            }}
-          >
-            <Typography variant="caption" color="text.disabled" noWrap>
-              AI Assistant
-            </Typography>
-            <Typography variant="caption" color="text.disabled" sx={{ opacity: 0.6 }}>
-              /
-            </Typography>
-            <Typography
-              variant="body2"
-              sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}
-              noWrap
-              title={
-                currentSessionId
-                  ? (sessions.find((s) => s.id === currentSessionId)?.title ?? "Conversation")
-                  : "New chat"
-              }
-            >
-              {currentSessionId
-                ? (sessions.find((s) => s.id === currentSessionId)?.title ?? "Conversation")
-                : "New chat"}
-            </Typography>
-          </Box>
-
-          <Box
-            sx={{
-              flex: 1,
-              overflow: "auto",
-              p: 2.5,
-              display: "flex",
-              flexDirection: "column",
-              gap: 2,
-              "&::-webkit-scrollbar": { width: 4 },
-              "&::-webkit-scrollbar-thumb": { bgcolor: "rgba(231,227,252,0.1)", borderRadius: 2 },
-            }}
-          >
-            {messages.length === 0 && (
-              <Box
-                sx={{
-                  flex: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  py: 8,
-                  textAlign: "center",
-                }}
-              >
-                <Avatar
-                  sx={{
-                    width: 48,
-                    height: 48,
-                    mb: 2,
-                    bgcolor: "rgba(115,103,240,0.12)",
-                    border: "1px solid rgba(115,103,240,0.25)",
-                    borderRadius: "12px",
-                  }}
-                >
-                  <Sparkles size={22} color="#7367f0" />
-                </Avatar>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.75 }}>
-                  Ask me anything — about your properties, finances, or anything else.
-                </Typography>
-                <Typography variant="caption" color="text.disabled" sx={{ mb: 0.25 }}>
-                  Start with <strong>/property</strong>, <strong>/finance</strong>,{" "}
-                  <strong>/money</strong>, or <strong>/solar</strong> to focus the assistant on one
-                  module.
-                </Typography>
-                <Typography variant="caption" color="text.disabled">
-                  Enter for new line · Ctrl+Enter to send · ⌘K for new chat
-                </Typography>
-              </Box>
-            )}
-
-            {messages.map((msg, i) =>
-              msg.role === "system" ? (
-                <Box key={i} sx={{ display: "flex", justifyContent: "center", my: 0.5 }}>
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      color: "success.main",
-                      bgcolor: "rgba(40,199,111,0.08)",
-                      border: "1px solid rgba(40,199,111,0.25)",
-                      px: 1.5,
-                      py: 0.5,
-                      borderRadius: "999px",
-                    }}
-                  >
-                    ✓ {msg.content}
-                  </Typography>
-                </Box>
-              ) : (
-                <ChatMessage
-                  key={i}
-                  role={msg.role}
-                  content={msg.content}
-                  usage={msg.usage}
-                  tools={msg.tools}
-                  pendingActions={msg.pendingActions}
-                  actionsDisabled={isStreaming}
-                  onApproveAction={(id) => approveAction(i, id)}
-                  onCancelAction={(id) => cancelAction(i, id)}
-                  onApproveAll={() => approveAllActions(i)}
-                  isStreaming={isStreaming && i === messages.length - 1 && msg.role === "assistant"}
-                  error={msg.error}
-                  stopped={msg.stopped}
-                  onRetry={
-                    msg.error && i === messages.length - 1 && msg.role === "assistant"
-                      ? retryLastTurn
-                      : undefined
-                  }
-                  attachments={msg.attachments}
-                />
-              )
-            )}
-            <div ref={messagesEndRef} />
-          </Box>
-
-          {/* Long-thread nudge: history is re-sent uncached each turn, so a
-              fresh chat is the cheapest way to cut per-turn cost. */}
-          {threadIsLong && !blocked && (
-            <Box sx={{ px: 2, pt: 1 }}>
-              <Alert
-                severity="info"
-                variant="outlined"
-                sx={{ py: 0, "& .MuiAlert-message": { py: 0.75 } }}
-                action={
-                  <Button color="inherit" size="small" onClick={newChat} disabled={isStreaming}>
-                    New chat
-                  </Button>
-                }
-              >
-                This chat is getting long (~{Math.round(threadInputTokens / 1000)}k tokens re-sent
-                each turn). Start a new chat to lower cost.
-              </Alert>
-            </Box>
-          )}
-
-          {/* Attachment previews (image thumbnails + remove buttons) */}
-          {(pendingAttachments.length > 0 || uploading || uploadError) && (
-            <Box
-              sx={{
-                px: 2,
-                pt: 1.25,
-                borderTop: "1px solid",
-                borderColor: "divider",
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                flexWrap: "wrap",
-              }}
-            >
-              {pendingAttachments.map((att) => (
-                <Box
-                  key={att.url}
-                  sx={{
-                    position: "relative",
-                    width: 56,
-                    height: 56,
-                    borderRadius: 1,
-                    overflow: "hidden",
-                    border: "1px solid",
-                    borderColor: "divider",
-                    bgcolor: "background.default",
-                  }}
-                >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={att.url}
-                    alt="attachment preview"
-                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                  />
-                  <IconButton
-                    size="small"
-                    aria-label="Remove attachment"
-                    onClick={() => removePendingAttachment(att.url)}
-                    sx={{
-                      position: "absolute",
-                      top: 2,
-                      right: 2,
-                      width: 18,
-                      height: 18,
-                      bgcolor: "rgba(0,0,0,0.6)",
-                      color: "#fff",
-                      "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
-                    }}
-                  >
-                    <X size={10} />
-                  </IconButton>
-                </Box>
-              ))}
-              {uploading && (
-                <Typography variant="caption" color="text.secondary">
-                  Uploading…
-                </Typography>
-              )}
-              {uploadError && (
-                <Typography variant="caption" color="error.main">
-                  {uploadError}
-                </Typography>
-              )}
-            </Box>
-          )}
-
-          {/* Active scope + model hint */}
-          <Box
-            sx={{
-              px: 2,
-              pt: 1.25,
-              borderTop:
-                pendingAttachments.length > 0 || uploading || uploadError ? "none" : "1px solid",
-              borderColor: "divider",
-              display: "flex",
-              alignItems: "center",
-              gap: 0.75,
-              flexWrap: "wrap",
-            }}
-          >
-            {activeScope !== "all" && (
-              <Chip
-                label={`Scope: /${activeScope}`}
-                size="small"
-                color="primary"
-                variant="outlined"
-                sx={{ height: 22, fontSize: "0.68rem" }}
-              />
-            )}
-            {activeProvider && (
-              <Chip
-                icon={<Cpu size={12} />}
-                label={`${activeProvider.label} · ${activeProvider.defaultModel}`}
-                size="small"
-                variant="outlined"
-                sx={{
-                  height: 22,
-                  fontSize: "0.68rem",
-                  color: "text.secondary",
-                  borderColor: "divider",
-                }}
-              />
-            )}
-            {speech.listening && (
-              <Chip
-                icon={<Mic size={12} />}
-                label="Listening…"
-                size="small"
-                color="error"
-                variant="outlined"
-                sx={{ height: 22, fontSize: "0.68rem" }}
-              />
-            )}
-            {speech.error && (
-              <Typography variant="caption" color="error.main" sx={{ ml: 0.5 }}>
-                {speech.error}
-              </Typography>
-            )}
-          </Box>
-
-          {/* Input row */}
-          <Box
-            ref={setInputWrapEl}
-            sx={{
-              p: 2,
-              pt: 1.25,
-              display: "flex",
-              alignItems: "flex-end",
-              gap: 1.5,
-            }}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp,image/gif"
-              multiple
-              hidden
-              onChange={(e) => handleFiles(e.target.files)}
+          <MobileTopBar
+            title={currentSessionTitle}
+            isStreaming={isStreaming}
+            onHistoryOpen={() => session.setHistoryOpen(true)}
+            onNew={session.newChat}
+          />
+          <DesktopBreadcrumb title={currentSessionTitle} />
+          <ChatMessageList
+            messages={messages}
+            isStreaming={isStreaming}
+            messagesEndRef={messagesEndRef}
+            onApproveAction={pendingActions.approveAction}
+            onCancelAction={pendingActions.cancelAction}
+            onApproveAll={pendingActions.approveAllActions}
+            onRetry={retryLastTurn}
+          />
+          {threadInputTokens >= LONG_THREAD_TOKENS && !session.blocked && (
+            <LongThreadAlert
+              tokenCount={threadInputTokens}
+              isStreaming={isStreaming}
+              onNewChat={session.newChat}
             />
-            <IconButton
-              aria-label="Attach image"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isStreaming || blocked || uploading}
-              sx={{
-                width: 40,
-                height: 40,
-                borderRadius: 2,
-                color: "text.secondary",
-                flexShrink: 0,
-              }}
-            >
-              <Paperclip size={18} />
-            </IconButton>
-            {speech.supported && (
-              <IconButton
-                aria-label={speech.listening ? "Stop dictation" : "Dictate"}
-                onClick={onMicClick}
-                disabled={isStreaming || blocked}
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: 2,
-                  color: speech.listening ? "error.main" : "text.secondary",
-                  bgcolor: speech.listening ? "rgba(234,84,85,0.12)" : "transparent",
-                  flexShrink: 0,
-                  ...(speech.listening && {
-                    animation: "micPulse 1.4s ease-in-out infinite",
-                    "@keyframes micPulse": {
-                      "0%, 100%": { boxShadow: "0 0 0 0 rgba(234,84,85,0.5)" },
-                      "50%": { boxShadow: "0 0 0 6px rgba(234,84,85,0)" },
-                    },
-                  }),
-                }}
-              >
-                {speech.listening ? <MicOff size={18} /> : <Mic size={18} />}
-              </IconButton>
-            )}
-            <TextField
-              multiline
-              minRows={1}
-              maxRows={12}
-              fullWidth
-              size="small"
-              inputRef={inputTextareaRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder={
-                blocked ? "AI budget reached — chat paused" : "Ask a question…  (/ for commands)"
-              }
-              disabled={isStreaming || blocked}
-              sx={{
-                "& .MuiOutlinedInput-root": { borderRadius: 2 },
-                "& textarea": { overflow: "hidden" },
-              }}
-            />
-            {isStreaming ? (
-              <Button
-                variant="contained"
-                color="error"
-                onClick={stopStreaming}
-                aria-label="Stop generating"
-                sx={{ minWidth: 44, width: 44, height: 40, p: 0, borderRadius: 2, flexShrink: 0 }}
-              >
-                <Square size={16} fill="#fff" />
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={sendMessage}
-                disabled={(!input.trim() && pendingAttachments.length === 0) || blocked}
-                aria-label="Send message"
-                sx={{ minWidth: 44, width: 44, height: 40, p: 0, borderRadius: 2, flexShrink: 0 }}
-              >
-                <Send size={18} />
-              </Button>
-            )}
-          </Box>
-
-          {/* Slash-command autocomplete, anchored above the input row. */}
-          <Popper
-            open={slashOpen}
+          )}
+          <AttachmentPreviewBar
+            attachments={attachments.pendingAttachments}
+            uploading={attachments.uploading}
+            error={attachments.uploadError}
+            onRemove={attachments.removePendingAttachment}
+          />
+          <InputStatusBar
+            scope={activeScope}
+            provider={session.activeProvider}
+            speechListening={speech.listening}
+            speechError={speech.error}
+            hasTopBorder={!hasAttachmentBar}
+          />
+          <ChatInputRow
+            onWrapRef={setInputWrapEl}
+            inputRef={inputTextareaRef}
+            fileInputRef={attachments.fileInputRef}
+            value={input}
+            onChange={setInput}
+            onKeyDown={handleKeyDown}
+            onSend={sendMessage}
+            onStop={stopStreaming}
+            onAttach={() => attachments.fileInputRef.current?.click()}
+            onMic={onMicClick}
+            onFilesSelected={attachments.handleFiles}
+            isStreaming={isStreaming}
+            blocked={session.blocked}
+            uploading={attachments.uploading}
+            speechSupported={speech.supported}
+            speechListening={speech.listening}
+            hasContent={!!(input.trim() || attachments.pendingAttachments.length > 0)}
+          />
+          <SlashCommandMenu
             anchorEl={inputWrapEl}
-            placement="top-start"
-            style={{ zIndex: 1300, width: inputWrapEl?.clientWidth }}
-          >
-            <ClickAwayListener onClickAway={() => setSlashIndex(0)}>
-              <Paper
-                elevation={6}
-                sx={{
-                  mx: 2,
-                  mb: 0.5,
-                  borderRadius: 2,
-                  border: "1px solid",
-                  borderColor: "divider",
-                }}
-              >
-                <Box sx={{ px: 1.5, py: 0.75 }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Commands — focus the assistant on one module
-                  </Typography>
-                </Box>
-                <MenuList dense disablePadding sx={{ pb: 0.5 }}>
-                  {slashMatches.map((c, i) => (
-                    <MenuItem
-                      key={c.cmd}
-                      selected={i === slashIndex}
-                      onMouseEnter={() => setSlashIndex(i)}
-                      onClick={() => applySlashCommand(c.cmd)}
-                      sx={{ borderRadius: 1, mx: 0.5 }}
-                    >
-                      <ListItemText
-                        primary={c.cmd}
-                        secondary={c.desc}
-                        slotProps={{
-                          primary: { style: { fontWeight: 600, fontSize: "0.8125rem" } },
-                          secondary: { style: { fontSize: "0.75rem" } },
-                        }}
-                      />
-                    </MenuItem>
-                  ))}
-                </MenuList>
-              </Paper>
-            </ClickAwayListener>
-          </Popper>
+            open={slashCommands.open}
+            matches={slashCommands.matches}
+            selectedIndex={slashCommands.index}
+            onSelect={slashCommands.apply}
+            onHover={slashCommands.setIndex}
+            onClose={() => slashCommands.setIndex(0)}
+          />
         </Box>
       </Card>
 
-      {/* Microphone-denied recovery dialog. Browsers won't re-prompt once the
-          user has denied; this surfaces the exact steps to unblock + a Try
-          again button that re-queries the permission state. */}
-      <Dialog
+      <MicPermissionDialog
         open={micHelpOpen}
         onClose={() => setMicHelpOpen(false)}
-        slotProps={{ paper: { sx: { maxWidth: 480 } } }}
-      >
-        <DialogTitle>Microphone is blocked</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            The browser remembers a previous denial and won&apos;t prompt again. To re-enable
-            dictation:
-          </Typography>
-          <Box component="ol" sx={{ pl: 2.5, my: 0, "& li": { mb: 1.25 } }}>
-            <li>
-              <Typography variant="body2">
-                Click the <strong>lock / tune icon</strong> on the left of the address bar.
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2">
-                Find <strong>Microphone</strong> and switch it from <em>Block</em> to <em>Allow</em>{" "}
-                (or click <em>Reset permission</em>).
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2">
-                On macOS, also check{" "}
-                <strong>System Settings → Privacy &amp; Security → Microphone</strong> and make sure
-                your browser is toggled on.
-              </Typography>
-            </li>
-            <li>
-              <Typography variant="body2">
-                Return here and click <strong>Try again</strong>.
-              </Typography>
-            </li>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setMicHelpOpen(false)}>Close</Button>
-          <Button
-            variant="contained"
-            onClick={async () => {
-              await speech.refreshPermission();
-              if (speech.permissionState !== "denied") {
-                setMicHelpOpen(false);
-                speech.start();
-              }
-            }}
-          >
-            Try again
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onRetry={async () => {
+          await speech.refreshPermission();
+          if (speech.permissionState !== "denied") {
+            setMicHelpOpen(false);
+            speech.start();
+          }
+        }}
+      />
 
-      {/* Mobile conversation history drawer */}
       <Drawer
         anchor="left"
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
+        open={session.historyOpen}
+        onClose={() => session.setHistoryOpen(false)}
         sx={{ display: { xs: "block", sm: "none" } }}
         slotProps={{ paper: { sx: { bgcolor: "background.paper" } } }}
       >
         <ConversationList
           inDrawer
-          sessions={sessions}
-          currentId={currentSessionId}
+          sessions={session.sessions}
+          currentId={session.currentSessionId}
           disabled={isStreaming}
-          onNew={newChat}
-          onSelect={loadSession}
-          onDelete={deleteSession}
-          onRename={renameSessionTitle}
+          onNew={session.newChat}
+          onSelect={session.loadSession}
+          onDelete={session.deleteSession}
+          onRename={session.renameSessionTitle}
         />
       </Drawer>
     </Box>
