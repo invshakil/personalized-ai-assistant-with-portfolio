@@ -110,7 +110,7 @@ function currentRate(base: number, rateChanges: RateChange[]): number {
 }
 
 export interface GetSubscriptionsOptions {
-  categoryId?: string;
+  categoryIds?: string[];
   /** Case-insensitive free-text search over the service name. */
   q?: string;
 }
@@ -120,7 +120,7 @@ export async function getSubscriptions(opts: GetSubscriptionsOptions = {}) {
   const q = opts.q?.trim();
   const subs = await db.subscription.findMany({
     where: {
-      ...(opts.categoryId && { categoryId: opts.categoryId }),
+      ...(opts.categoryIds?.length && { categoryId: { in: opts.categoryIds } }),
       ...(q && { name: { contains: q, mode: "insensitive" } }),
     },
     orderBy: [{ endDate: "asc" }, { startDate: "desc" }],

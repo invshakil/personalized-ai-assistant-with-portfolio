@@ -42,6 +42,7 @@ import {
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
 import { financeApi, type SubscriptionFilters } from "@/lib/api/finance";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { SubscriptionRow, SubscriptionDetail, CategoryRow } from "../types";
@@ -79,7 +80,7 @@ export default function SubscriptionsPage() {
   const pathname = usePathname();
 
   // ── Filter state lives entirely in the URL (deep-linkable, restored on reload) ──
-  const categoryFilter = searchParams.get("category") ?? "ALL";
+  const categoryFilter = searchParams.get("category")?.split(",").filter(Boolean) ?? [];
   const q = searchParams.get("q") ?? "";
 
   /** Merge a patch into the URL query (undefined/"" removes the key). */
@@ -143,7 +144,7 @@ export default function SubscriptionsPage() {
     setLoading(true);
     try {
       const filters: SubscriptionFilters = {
-        ...(categoryFilter !== "ALL" && { categoryId: categoryFilter }),
+        categoryIds: categoryFilter,
         ...(q && { q }),
       };
       setSubs((await financeApi.listSubscriptions(filters)) ?? []);
@@ -329,11 +330,11 @@ export default function SubscriptionsPage() {
     }
   };
 
-  const categorySelectOptions: SelectOption[] = [
-    { value: "ALL", label: "All categories" },
-    ...categories.map((c) => ({ value: c.id, label: c.name })),
-  ];
-  const hasActiveFilters = categoryFilter !== "ALL" || Boolean(q);
+  const categorySelectOptions: SelectOption[] = categories.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
+  const hasActiveFilters = categoryFilter.length > 0 || Boolean(q);
 
   return (
     <Box>
@@ -353,11 +354,11 @@ export default function SubscriptionsPage() {
             </Typography>
           </Box>
         </Card>
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Category"
           value={categoryFilter}
           options={categorySelectOptions}
-          onChange={(v) => setParams({ category: v === "ALL" ? undefined : v })}
+          onChange={(ids) => setParams({ category: ids.length ? ids.join(",") : undefined })}
           sx={{ minWidth: 180 }}
         />
         <TextField

@@ -87,8 +87,8 @@ export interface SubscriptionPayload {
 // ── List filters (mirror the service `where` options) ─────────────────────────
 
 export interface EarningFilters {
-  fiscalYear?: string;
-  sourceId?: string;
+  fiscalYears?: string[];
+  sourceIds?: string[];
   /** Relative period token (resolved server-side) — e.g. "last_3_months". */
   period?: string;
   from?: string;
@@ -98,19 +98,19 @@ export interface EarningFilters {
 }
 
 export interface PaymentFilters {
-  fiscalYear?: string;
-  employeeId?: string;
-  /** IncomeSource id this salary is attributed to. */
-  clientId?: string;
-  type?: PaymentKind;
+  fiscalYears?: string[];
+  employeeIds?: string[];
+  /** IncomeSource ids this salary is attributed to. */
+  clientIds?: string[];
+  types?: PaymentKind[];
   period?: string;
   from?: string;
   to?: string;
 }
 
 export interface BizExpenseFilters {
-  fiscalYear?: string;
-  categoryId?: string;
+  fiscalYears?: string[];
+  categoryIds?: string[];
   period?: string;
   from?: string;
   to?: string;
@@ -119,7 +119,7 @@ export interface BizExpenseFilters {
 }
 
 export interface SubscriptionFilters {
-  categoryId?: string;
+  categoryIds?: string[];
   /** Case-insensitive search over the service name. */
   q?: string;
 }

@@ -31,6 +31,7 @@ import { Plus, Pencil, Trash2, Download } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { financeApi, type PaymentFilters } from "@/lib/api/finance";
 import { moneyApi } from "@/lib/api/money";
@@ -101,10 +102,10 @@ export default function PaymentsPage() {
   const pathname = usePathname();
 
   // ── Filter state lives entirely in the URL (deep-linkable, restored on reload) ──
-  const fyFilter = searchParams.get("fy") ?? currentFiscalYear();
-  const empFilter = searchParams.get("employee") ?? "ALL";
-  const typeFilter = (searchParams.get("type") as PaymentKind | "ALL" | null) ?? "ALL";
-  const clientFilter = searchParams.get("client") ?? "ALL";
+  const fyFilter = searchParams.get("fy")?.split(",").filter(Boolean) ?? [];
+  const empFilter = searchParams.get("employee")?.split(",").filter(Boolean) ?? [];
+  const typeFilter = (searchParams.get("type")?.split(",").filter(Boolean) ?? []) as PaymentKind[];
+  const clientFilter = searchParams.get("client")?.split(",").filter(Boolean) ?? [];
   const period = searchParams.get("period") ?? undefined;
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
@@ -149,10 +150,10 @@ export default function PaymentsPage() {
     setLoading(true);
     try {
       const filters: PaymentFilters = {
-        ...(fyFilter !== "ALL" && { fiscalYear: fyFilter }),
-        ...(empFilter !== "ALL" && { employeeId: empFilter }),
-        ...(typeFilter !== "ALL" && { type: typeFilter }),
-        ...(clientFilter !== "ALL" && { clientId: clientFilter }),
+        fiscalYears: fyFilter,
+        employeeIds: empFilter,
+        types: typeFilter,
+        clientIds: clientFilter,
         ...(hasCustomRange ? { from, to } : { period: period ?? "this_month" }),
       };
       setPayments((await financeApi.listPayments(filters)) ?? []);
@@ -187,23 +188,14 @@ export default function PaymentsPage() {
 
   const total = payments.reduce((s, p) => s + p.amount, 0);
 
-  // ── Dropdown option lists (all rendered via SearchableSelect) ──
-  const fySelectOptions: SelectOption[] = [
-    { value: "ALL", label: "All fiscal years" },
-    ...allFiscalYears.map((fy) => ({ value: fy, label: fy })),
-  ];
-  const empSelectOptions: SelectOption[] = [
-    { value: "ALL", label: "All employees" },
-    ...employees.map((emp) => ({ value: emp.id, label: emp.name })),
-  ];
-  const typeSelectOptions: SelectOption[] = [
-    { value: "ALL", label: "All types" },
-    ...KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] })),
-  ];
-  const clientSelectOptions: SelectOption[] = [
-    { value: "ALL", label: "All clients" },
-    ...clients.map((c) => ({ value: c.id, label: c.name })),
-  ];
+  // ── Dropdown option lists ──────────────────────────────────────────────────────
+  const fySelectOptions: SelectOption[] = allFiscalYears.map((fy) => ({ value: fy, label: fy }));
+  const empSelectOptions: SelectOption[] = employees.map((emp) => ({
+    value: emp.id,
+    label: emp.name,
+  }));
+  const typeSelectOptions: SelectOption[] = KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }));
+  const clientSelectOptions: SelectOption[] = clients.map((c) => ({ value: c.id, label: c.name }));
   const periodSelectOptions: SelectOption[] = [
     ...FILTER_RANGE_PRESETS.map((p) => ({ value: p, label: FILTER_RANGE_LABELS[p] })),
     ...(activePreset === "CUSTOM"
@@ -212,10 +204,10 @@ export default function PaymentsPage() {
   ];
 
   const hasActiveFilters =
-    fyFilter !== "ALL" ||
-    empFilter !== "ALL" ||
-    typeFilter !== "ALL" ||
-    clientFilter !== "ALL" ||
+    fyFilter.length > 0 ||
+    empFilter.length > 0 ||
+    typeFilter.length > 0 ||
+    clientFilter.length > 0 ||
     hasCustomRange ||
     Boolean(period);
 
@@ -357,11 +349,11 @@ export default function PaymentsPage() {
     }
   };
 
-  // Download mirrors the FY + employee filters (the PDF route supports both).
+  // Download mirrors the FY + employee filters when exactly one is selected.
   const downloadAll = () => {
     const qs = new URLSearchParams();
-    if (fyFilter !== "ALL") qs.set("fiscalYear", fyFilter);
-    if (empFilter !== "ALL") qs.set("employeeId", empFilter);
+    if (fyFilter.length === 1) qs.set("fiscalYear", fyFilter[0]);
+    if (empFilter.length === 1) qs.set("employeeId", empFilter[0]);
     window.open(`/api/admin/finance/payments/pdf?${qs.toString()}`, "_blank");
   };
 
@@ -370,32 +362,32 @@ export default function PaymentsPage() {
       <PageHeader title="Employee Salaries" subtitle="Salary & bonus payments to employees" />
 
       <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Fiscal Year"
           value={fyFilter}
           options={fySelectOptions}
-          onChange={(v) => setParams({ fy: v })}
+          onChange={(ids) => setParams({ fy: ids.length ? ids.join(",") : undefined })}
           sx={{ minWidth: 160 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Employee"
           value={empFilter}
           options={empSelectOptions}
-          onChange={(v) => setParams({ employee: v === "ALL" ? undefined : v })}
+          onChange={(ids) => setParams({ employee: ids.length ? ids.join(",") : undefined })}
           sx={{ minWidth: 180 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Type"
           value={typeFilter}
           options={typeSelectOptions}
-          onChange={(v) => setParams({ type: v === "ALL" ? undefined : v })}
+          onChange={(ids) => setParams({ type: ids.length ? ids.join(",") : undefined })}
           sx={{ minWidth: 140 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Client"
           value={clientFilter}
           options={clientSelectOptions}
-          onChange={(v) => setParams({ client: v === "ALL" ? undefined : v })}
+          onChange={(ids) => setParams({ client: ids.length ? ids.join(",") : undefined })}
           sx={{ minWidth: 180 }}
         />
         <SearchableSelect
@@ -429,7 +421,7 @@ export default function PaymentsPage() {
             color="inherit"
             onClick={() =>
               setParams({
-                fy: "ALL",
+                fy: undefined,
                 employee: undefined,
                 type: undefined,
                 client: undefined,

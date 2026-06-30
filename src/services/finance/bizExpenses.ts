@@ -6,8 +6,8 @@ import { toNum, toIso } from "./_serializers";
 import { generateSubscriptionCharges } from "./subscriptions";
 
 export interface GetBizExpensesOptions {
-  fiscalYear?: string;
-  categoryId?: string;
+  fiscalYears?: string[];
+  categoryIds?: string[];
   /** Case-insensitive free-text search over the tool/service name. */
   q?: string;
   /** Relative period token (resolved server-side) — e.g. "last_3_months". */
@@ -24,8 +24,8 @@ export async function getBizExpenses(opts: GetBizExpensesOptions = {}) {
   const q = opts.q?.trim();
   const expenses = await db.bizExpense.findMany({
     where: {
-      ...(opts.fiscalYear && { fiscalYear: opts.fiscalYear }),
-      ...(opts.categoryId && { categoryId: opts.categoryId }),
+      ...(opts.fiscalYears?.length && { fiscalYear: { in: opts.fiscalYears } }),
+      ...(opts.categoryIds?.length && { categoryId: { in: opts.categoryIds } }),
       ...(q && { name: { contains: q, mode: "insensitive" } }),
       ...dateColumnWhere(range),
     },

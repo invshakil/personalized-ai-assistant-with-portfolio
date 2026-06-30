@@ -28,6 +28,7 @@ import { Plus, Pencil, Trash2, Download, Search, X } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { financeApi, type BizExpenseFilters } from "@/lib/api/finance";
 import { moneyApi } from "@/lib/api/money";
@@ -78,8 +79,8 @@ export default function BizExpensesPage() {
   const pathname = usePathname();
 
   // ── Filter state lives entirely in the URL (deep-linkable, restored on reload) ──
-  const fyFilter = searchParams.get("fy") ?? currentFiscalYear();
-  const categoryFilter = searchParams.get("category") ?? "ALL";
+  const fyFilter = searchParams.get("fy")?.split(",").filter(Boolean) ?? [];
+  const categoryFilter = searchParams.get("category")?.split(",").filter(Boolean) ?? [];
   const period = searchParams.get("period") ?? undefined;
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
@@ -134,8 +135,8 @@ export default function BizExpensesPage() {
     setLoading(true);
     try {
       const filters: BizExpenseFilters = {
-        ...(fyFilter !== "ALL" && { fiscalYear: fyFilter }),
-        ...(categoryFilter !== "ALL" && { categoryId: categoryFilter }),
+        fiscalYears: fyFilter,
+        categoryIds: categoryFilter,
         ...(hasCustomRange ? { from, to } : { period: period ?? "this_month" }),
         ...(q && { q }),
       };
@@ -169,15 +170,12 @@ export default function BizExpensesPage() {
 
   const total = expenses.reduce((s, e) => s + e.amount, 0);
 
-  // ── Dropdown option lists (all rendered via SearchableSelect) ──
-  const fySelectOptions: SelectOption[] = [
-    { value: "ALL", label: "All fiscal years" },
-    ...allFiscalYears.map((fy) => ({ value: fy, label: fy })),
-  ];
-  const categorySelectOptions: SelectOption[] = [
-    { value: "ALL", label: "All categories" },
-    ...categories.map((c) => ({ value: c.id, label: c.name })),
-  ];
+  // ── Dropdown option lists ──────────────────────────────────────────────────────
+  const fySelectOptions: SelectOption[] = allFiscalYears.map((fy) => ({ value: fy, label: fy }));
+  const categorySelectOptions: SelectOption[] = categories.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
   const periodSelectOptions: SelectOption[] = [
     ...FILTER_RANGE_PRESETS.map((p) => ({ value: p, label: FILTER_RANGE_LABELS[p] })),
     ...(activePreset === "CUSTOM"
@@ -186,8 +184,8 @@ export default function BizExpensesPage() {
   ];
 
   const hasActiveFilters =
-    fyFilter !== "ALL" ||
-    categoryFilter !== "ALL" ||
+    fyFilter.length > 0 ||
+    categoryFilter.length > 0 ||
     hasCustomRange ||
     Boolean(period) ||
     Boolean(q);
@@ -282,8 +280,9 @@ export default function BizExpensesPage() {
   };
 
   // Download mirrors the active fiscal-year filter (the PDF route filters by FY).
+  // Use the first selected FY if exactly one is chosen; otherwise no FY param.
   const downloadHref = `/api/admin/finance/expenses/pdf${
-    fyFilter !== "ALL" ? `?fiscalYear=${fyFilter}` : ""
+    fyFilter.length === 1 ? `?fiscalYear=${fyFilter[0]}` : ""
   }`;
 
   return (
@@ -291,18 +290,18 @@ export default function BizExpensesPage() {
       <PageHeader title="Business Expenses" subtitle="Tools, subscriptions & operating costs" />
 
       <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Fiscal Year"
           value={fyFilter}
           options={fySelectOptions}
-          onChange={(v) => setParams({ fy: v })}
+          onChange={(ids) => setParams({ fy: ids.length ? ids.join(",") : undefined })}
           sx={{ minWidth: 160 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Category"
           value={categoryFilter}
           options={categorySelectOptions}
-          onChange={(v) => setParams({ category: v === "ALL" ? undefined : v })}
+          onChange={(ids) => setParams({ category: ids.length ? ids.join(",") : undefined })}
           sx={{ minWidth: 180 }}
         />
         <SearchableSelect
@@ -359,7 +358,7 @@ export default function BizExpensesPage() {
             color="inherit"
             onClick={() =>
               setParams({
-                fy: "ALL",
+                fy: undefined,
                 category: undefined,
                 period: undefined,
                 from: undefined,

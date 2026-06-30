@@ -7,14 +7,14 @@ export async function GET(req: NextRequest) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const fiscalYear = searchParams.get("fiscalYear") ?? undefined;
-  const categoryId = searchParams.get("categoryId") ?? undefined;
+  const fiscalYears = searchParams.get("fiscalYears")?.split(",").filter(Boolean);
+  const categoryIds = searchParams.get("categoryIds")?.split(",").filter(Boolean);
   const period = searchParams.get("period") ?? undefined;
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
   const q = searchParams.get("q") ?? undefined;
 
-  const data = await getBizExpenses({ fiscalYear, categoryId, period, from, to, q });
+  const data = await getBizExpenses({ fiscalYears, categoryIds, period, from, to, q });
   return Response.json({ data });
 }
 

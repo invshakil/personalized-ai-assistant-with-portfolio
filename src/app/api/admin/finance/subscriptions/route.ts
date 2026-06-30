@@ -7,10 +7,10 @@ export async function GET(req: NextRequest) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const categoryId = searchParams.get("categoryId") ?? undefined;
+  const categoryIds = searchParams.get("categoryIds")?.split(",").filter(Boolean);
   const q = searchParams.get("q") ?? undefined;
 
-  const data = await getSubscriptions({ categoryId, q });
+  const data = await getSubscriptions({ categoryIds, q });
   return Response.json({ data });
 }
 

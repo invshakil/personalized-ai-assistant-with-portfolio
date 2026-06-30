@@ -8,24 +8,24 @@ export async function GET(req: NextRequest) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const fiscalYear = searchParams.get("fiscalYear") ?? undefined;
-  const employeeId = searchParams.get("employeeId") ?? undefined;
-  const clientId = searchParams.get("clientId") ?? undefined;
+  const fiscalYears = searchParams.get("fiscalYears")?.split(",").filter(Boolean);
+  const employeeIds = searchParams.get("employeeIds")?.split(",").filter(Boolean);
+  const clientIds = searchParams.get("clientIds")?.split(",").filter(Boolean);
   const period = searchParams.get("period") ?? undefined;
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
-  const typeParam = searchParams.get("type") ?? undefined;
-  // Only accept a valid PaymentKind; ignore anything else (e.g. "ALL").
-  const type =
-    typeParam && Object.values(PaymentKind).includes(typeParam as PaymentKind)
-      ? (typeParam as PaymentKind)
-      : undefined;
+  const typesParam = searchParams.get("types");
+  const types = typesParam
+    ? (typesParam
+        .split(",")
+        .filter((t) => Object.values(PaymentKind).includes(t as PaymentKind)) as PaymentKind[])
+    : undefined;
 
   const data = await getEmployeePayments({
-    fiscalYear,
-    employeeId,
-    clientId,
-    type,
+    fiscalYears,
+    employeeIds,
+    clientIds,
+    types,
     period,
     from,
     to,

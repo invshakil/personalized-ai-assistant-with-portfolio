@@ -28,6 +28,7 @@ import { Plus, Pencil, Trash2, Download, Search, X, ArrowLeftRight, RotateCcw } 
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { financeApi, type EarningFilters } from "@/lib/api/finance";
 import { moneyApi } from "@/lib/api/money";
@@ -92,8 +93,8 @@ export default function EarningsPage() {
   const pathname = usePathname();
 
   // ── Filter state lives entirely in the URL (deep-linkable, restored on reload) ──
-  const fyFilter = searchParams.get("fy") ?? currentFiscalYear();
-  const sourceFilter = searchParams.get("source") ?? "ALL";
+  const fyFilter = searchParams.get("fy")?.split(",").filter(Boolean) ?? [];
+  const sourceFilter = searchParams.get("source")?.split(",").filter(Boolean) ?? [];
   const period = searchParams.get("period") ?? undefined;
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
@@ -166,8 +167,8 @@ export default function EarningsPage() {
     setLoading(true);
     try {
       const filters: EarningFilters = {
-        ...(fyFilter !== "ALL" && { fiscalYear: fyFilter }),
-        ...(sourceFilter !== "ALL" && { sourceId: sourceFilter }),
+        fiscalYears: fyFilter,
+        sourceIds: sourceFilter,
         ...(hasCustomRange ? { from, to } : { period: period ?? "this_month" }),
         ...(q && { q }),
       };
@@ -202,24 +203,22 @@ export default function EarningsPage() {
 
   const total = earnings.reduce((s, e) => s + e.amount, 0);
 
-  // ── Dropdown option lists (all rendered via SearchableSelect) ──
+  // ── Dropdown option lists ──────────────────────────────────────────────────────
   const periodSelectOptions: SelectOption[] = [
     ...FILTER_RANGE_PRESETS.map((p) => ({ value: p, label: FILTER_RANGE_LABELS[p] })),
     ...(activePreset === "CUSTOM"
       ? [{ value: "CUSTOM", label: "Custom range", disabled: true }]
       : []),
   ];
-  const fySelectOptions: SelectOption[] = [
-    { value: "ALL", label: "All fiscal years" },
-    ...allFiscalYears.map((fy) => ({ value: fy, label: fy })),
-  ];
-  const sourceSelectOptions: SelectOption[] = [
-    { value: "ALL", label: "All clients" },
-    ...sources.map((s) => ({ value: s.id, label: s.name })),
-  ];
+  const fySelectOptions: SelectOption[] = allFiscalYears.map((fy) => ({ value: fy, label: fy }));
+  const sourceSelectOptions: SelectOption[] = sources.map((s) => ({ value: s.id, label: s.name }));
 
   const hasActiveFilters =
-    fyFilter !== "ALL" || sourceFilter !== "ALL" || hasCustomRange || Boolean(period) || Boolean(q);
+    fyFilter.length > 0 ||
+    sourceFilter.length > 0 ||
+    hasCustomRange ||
+    Boolean(period) ||
+    Boolean(q);
 
   const onPresetChange = (preset: FilterRangePreset) =>
     setParams({
@@ -357,8 +356,9 @@ export default function EarningsPage() {
   };
 
   // Download mirrors the active fiscal-year filter (the PDF route filters by FY).
+  // Use the first selected FY if exactly one is chosen; otherwise no FY param.
   const downloadHref = `/api/admin/finance/earnings/pdf${
-    fyFilter !== "ALL" ? `?fiscalYear=${fyFilter}` : ""
+    fyFilter.length === 1 ? `?fiscalYear=${fyFilter[0]}` : ""
   }`;
 
   // ── Pending-conversion summary (all-time, original currency) ──
@@ -485,18 +485,18 @@ export default function EarningsPage() {
       <PageHeader title="Earnings" subtitle="Client income log" />
 
       <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Fiscal Year"
           value={fyFilter}
           options={fySelectOptions}
-          onChange={(v) => setParams({ fy: v })}
+          onChange={(ids) => setParams({ fy: ids.length ? ids.join(",") : undefined })}
           sx={{ minWidth: 160 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Client"
           value={sourceFilter}
           options={sourceSelectOptions}
-          onChange={(v) => setParams({ source: v === "ALL" ? undefined : v })}
+          onChange={(ids) => setParams({ source: ids.length ? ids.join(",") : undefined })}
           sx={{ minWidth: 180 }}
         />
         <SearchableSelect
@@ -553,7 +553,7 @@ export default function EarningsPage() {
             color="inherit"
             onClick={() =>
               setParams({
-                fy: "ALL",
+                fy: undefined,
                 source: undefined,
                 period: undefined,
                 from: undefined,
@@ -595,7 +595,13 @@ export default function EarningsPage() {
             <Card sx={{ bgcolor: "background.paper", display: "inline-flex", px: 3, py: 1.5 }}>
               <Box>
                 <Typography variant="caption" color="text.secondary">
-                  Total Income{fyFilter !== "ALL" ? ` · ${fyFilter}` : ""} ({earnings.length})
+                  Total Income
+                  {fyFilter.length === 1
+                    ? ` · ${fyFilter[0]}`
+                    : fyFilter.length > 1
+                      ? ` · ${fyFilter.join(", ")}`
+                      : ""}{" "}
+                  ({earnings.length})
                 </Typography>
                 <Typography variant="h6" sx={{ fontWeight: 700, color: "info.main" }}>
                   {fmt(total)}

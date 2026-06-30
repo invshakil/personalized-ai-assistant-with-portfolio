@@ -8,8 +8,8 @@ import { toNum, toIso, resolveMoney, resolveMoneyUpdate } from "./_serializers";
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export interface GetEarningsOptions {
-  fiscalYear?: string;
-  sourceId?: string;
+  fiscalYears?: string[];
+  sourceIds?: string[];
   /** Relative period token (resolved server-side) — e.g. "last_3_months". */
   period?: string;
   /** Explicit inclusive date bounds (override `period`). ISO yyyy-mm-dd. */
@@ -47,8 +47,8 @@ export async function getEarnings(opts: GetEarningsOptions = {}) {
 
   const earnings = await db.earning.findMany({
     where: {
-      ...(opts.fiscalYear && { fiscalYear: opts.fiscalYear }),
-      ...(opts.sourceId && { sourceId: opts.sourceId }),
+      ...(opts.fiscalYears?.length && { fiscalYear: { in: opts.fiscalYears } }),
+      ...(opts.sourceIds?.length && { sourceId: { in: opts.sourceIds } }),
       ...dateColumnWhere(range),
       ...(searchWhere ?? {}),
     },

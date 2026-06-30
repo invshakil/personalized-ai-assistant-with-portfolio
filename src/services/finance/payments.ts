@@ -6,12 +6,12 @@ import { recordLinkedEntry } from "@/services/money";
 import { toNum, toIso, resolveMoney, resolveMoneyUpdate } from "./_serializers";
 
 export interface GetEmployeePaymentsOptions {
-  fiscalYear?: string;
-  employeeId?: string;
-  /** Payment kind: SALARY | BONUS | ADVANCE | OTHER. */
-  type?: PaymentKind;
-  /** Filter to payments attributed to this client (IncomeSource id). */
-  clientId?: string;
+  fiscalYears?: string[];
+  employeeIds?: string[];
+  /** Payment kinds: SALARY | BONUS | ADVANCE | OTHER. */
+  types?: PaymentKind[];
+  /** Filter to payments attributed to these clients (IncomeSource ids). */
+  clientIds?: string[];
   /** Relative period token (resolved server-side) — e.g. "last_3_months". */
   period?: string;
   /** Explicit inclusive date bounds (override `period`). ISO yyyy-mm-dd. */
@@ -23,10 +23,10 @@ export async function getEmployeePayments(opts: GetEmployeePaymentsOptions = {})
   const range = resolveRange({ period: opts.period, from: opts.from, to: opts.to });
   const payments = await db.employeePayment.findMany({
     where: {
-      ...(opts.fiscalYear && { fiscalYear: opts.fiscalYear }),
-      ...(opts.employeeId && { employeeId: opts.employeeId }),
-      ...(opts.type && { type: opts.type }),
-      ...(opts.clientId && { clients: { some: { id: opts.clientId } } }),
+      ...(opts.fiscalYears?.length && { fiscalYear: { in: opts.fiscalYears } }),
+      ...(opts.employeeIds?.length && { employeeId: { in: opts.employeeIds } }),
+      ...(opts.types?.length && { type: { in: opts.types } }),
+      ...(opts.clientIds?.length && { clients: { some: { id: { in: opts.clientIds } } } }),
       ...dateColumnWhere(range),
     },
     orderBy: [{ date: "desc" }],

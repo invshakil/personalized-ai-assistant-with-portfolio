@@ -26,7 +26,10 @@ export async function GET(req: NextRequest) {
   const fiscalYear = searchParams.get("fiscalYear") ?? undefined;
   const employeeId = searchParams.get("employeeId") ?? undefined;
 
-  const rows = await getEmployeePayments({ fiscalYear, employeeId });
+  const rows = await getEmployeePayments({
+    fiscalYears: fiscalYear ? [fiscalYear] : undefined,
+    employeeIds: employeeId ? [employeeId] : undefined,
+  });
   const total = rows.reduce((sum, r) => sum + r.amount, 0);
 
   const business = await getBusinessProfile();
