@@ -18,7 +18,7 @@ type TenantFilter = "active" | "inactive" | "all";
 /** Extra server-side filters for the tenants list (unit, status, name/phone search). */
 export interface TenantListFilters {
   filter?: TenantFilter;
-  unitId?: string;
+  unitIds?: string[];
   status?: "CURRENT" | "FUTURE";
   /** Case-insensitive search on tenant name or phone. */
   q?: string;
@@ -58,8 +58,8 @@ export const propertyApi = {
   listPayments: (params?: {
     month?: number;
     year?: number;
-    tenantId?: string;
-    unitId?: string;
+    tenantIds?: string[];
+    unitIds?: string[];
     period?: string;
     from?: string;
     to?: string;
@@ -93,9 +93,9 @@ export const propertyApi = {
   listExpenses: (params?: {
     month?: number;
     year?: number;
-    payeeId?: string;
-    category?: string;
-    serviceTypeId?: string;
+    payeeIds?: string[];
+    categories?: string[];
+    serviceTypeIds?: string[];
     q?: string;
   }) => apiGet<PropertyExpense[]>("/property/expenses", { params }),
   createExpense: (body: unknown) => apiPost("/property/expenses", body),

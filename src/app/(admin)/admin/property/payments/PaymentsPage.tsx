@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
 import { propertyApi } from "@/lib/api/property";
 import { moneyApi } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
@@ -91,8 +92,8 @@ export default function PaymentsPage() {
   const monthParam = searchParams.get("month");
   const month = monthParam === "all" ? "all" : monthParam ? Number(monthParam) : now.getMonth() + 1;
   const year = searchParams.get("year") ? Number(searchParams.get("year")) : now.getFullYear();
-  const unitFilter = searchParams.get("unit") ?? "ALL";
-  const tenantFilter = searchParams.get("tenant") ?? "ALL";
+  const unitFilter = searchParams.get("unit")?.split(",").filter(Boolean) ?? [];
+  const tenantFilter = searchParams.get("tenant")?.split(",").filter(Boolean) ?? [];
   const isAllMonths = month === "all";
 
   /** Merge a patch into the URL query (undefined/"" removes the key). */
@@ -159,8 +160,8 @@ export default function PaymentsPage() {
     const f: {
       month?: number;
       year?: number;
-      unitId?: string;
-      tenantId?: string;
+      unitIds?: string[];
+      tenantIds?: string[];
       period?: string;
     } = {};
     if (isAllMonths) f.period = "all";
@@ -168,8 +169,8 @@ export default function PaymentsPage() {
       f.month = month as number;
       f.year = year;
     }
-    if (unitFilter !== "ALL") f.unitId = unitFilter;
-    if (tenantFilter !== "ALL") f.tenantId = tenantFilter;
+    if (unitFilter.length) f.unitIds = unitFilter;
+    if (tenantFilter.length) f.tenantIds = tenantFilter;
     return f;
   }, [isAllMonths, month, year, unitFilter, tenantFilter]);
 
@@ -368,12 +369,9 @@ export default function PaymentsPage() {
   const totalCollected = payments.reduce((s, p) => s + p.amountPaid + p.advanceApplied, 0);
   const totalOutstanding = payments.reduce((s, p) => s + p.balance, 0);
 
-  // ── Dropdown options (rendered via SearchableSelect) ──
+  // ── Dropdown options (rendered via MultiSearchableSelect) ──
   const unitOptions: SelectOption[] = useMemo(
-    () => [
-      { value: "ALL", label: "All units" },
-      ...units.map((u) => ({ value: u.id, label: u.unitNumber })),
-    ],
+    () => units.map((u) => ({ value: u.id, label: u.unitNumber })),
     [units]
   );
   // Tenant options come from units (current + future) so a tenant is selectable
@@ -385,15 +383,10 @@ export default function PaymentsPage() {
       if (u.futureTenant) map.set(u.futureTenant.id, u.futureTenant.name);
     }
     for (const p of payments) map.set(p.tenantId, p.tenantName);
-    return [
-      { value: "ALL", label: "All tenants" },
-      ...[...map.entries()]
-        .sort((a, b) => a[1].localeCompare(b[1]))
-        .map(([id, name]) => ({ value: id, label: name })),
-    ];
+    return [...map.entries()]
+      .sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, name]) => ({ value: id, label: name }));
   }, [units, payments]);
-  // Keep the tenant value valid if it isn't in the options list.
-  const tenantValue = tenantOptions.some((o) => o.value === tenantFilter) ? tenantFilter : "ALL";
 
   const monthOptions: SelectOption[] = [
     { value: "all", label: "All months" },
@@ -404,7 +397,7 @@ export default function PaymentsPage() {
     label: String(y),
   }));
 
-  const hasActiveFilters = unitFilter !== "ALL" || tenantFilter !== "ALL" || isAllMonths;
+  const hasActiveFilters = unitFilter.length > 0 || tenantFilter.length > 0 || isAllMonths;
 
   return (
     <Box>
@@ -427,18 +420,18 @@ export default function PaymentsPage() {
           onChange={(v) => setParams({ year: v === String(now.getFullYear()) ? undefined : v })}
           sx={{ minWidth: 110 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Unit"
           value={unitFilter}
           options={unitOptions}
-          onChange={(v) => setParams({ unit: v === "ALL" ? undefined : v })}
+          onChange={(v) => setParams({ unit: v.length ? v.join(",") : undefined })}
           sx={{ minWidth: 150 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Tenant"
-          value={tenantValue}
+          value={tenantFilter}
           options={tenantOptions}
-          onChange={(v) => setParams({ tenant: v === "ALL" ? undefined : v })}
+          onChange={(v) => setParams({ tenant: v.length ? v.join(",") : undefined })}
           sx={{ minWidth: 170 }}
         />
         {hasActiveFilters && (

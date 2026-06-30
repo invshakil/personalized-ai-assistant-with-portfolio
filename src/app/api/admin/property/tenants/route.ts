@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url);
   const filter = (searchParams.get("filter") ?? "active") as TenantFilter;
-  const unitId = searchParams.get("unitId") ?? undefined;
+  const unitIds = searchParams.get("unitIds")?.split(",").filter(Boolean);
   const statusParam = searchParams.get("status");
   const status =
     statusParam === "CURRENT" || statusParam === "FUTURE"
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
       : undefined;
   const q = searchParams.get("q") ?? undefined;
 
-  const data = await getTenants({ filter, unitId, status, q });
+  const data = await getTenants({ filter, unitIds, status, q });
   return Response.json({ data });
 }
 

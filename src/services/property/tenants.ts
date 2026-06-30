@@ -22,8 +22,8 @@ export type TenantStatusFilter = "CURRENT" | "FUTURE";
 export interface GetTenantsOptions {
   /** The existing coarse filter (active/inactive/external/all/future). */
   filter?: TenantFilter;
-  /** Restrict to tenants assigned to this unit. */
-  unitId?: string;
+  /** Restrict to tenants assigned to any of these units. */
+  unitIds?: string[];
   /** Restrict to CURRENT (active) or FUTURE (scheduled) tenants. */
   status?: TenantStatusFilter;
   /** Case-insensitive search on tenant name or phone. */
@@ -34,7 +34,7 @@ export async function getTenants(opts: TenantFilter | GetTenantsOptions = "activ
   // Back-compat: a bare string is the legacy `filter` argument.
   const {
     filter = "active",
-    unitId,
+    unitIds,
     status,
     q,
   }: GetTenantsOptions = typeof opts === "string" ? { filter: opts } : opts;
@@ -52,7 +52,7 @@ export async function getTenants(opts: TenantFilter | GetTenantsOptions = "activ
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const where: Record<string, any> = { ...base };
-  if (unitId) where.unitId = unitId;
+  if (unitIds?.length) where.unitId = { in: unitIds };
   if (status) where.tenantStatus = status;
   if (q) {
     where.OR = [

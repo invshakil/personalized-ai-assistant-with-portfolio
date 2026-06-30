@@ -6,8 +6,8 @@ import { resolveRange, monthYearWhere } from "@/services/_shared/dateRange";
 export interface GetPaymentsOptions {
   month?: number;
   year?: number;
-  tenantId?: string;
-  unitId?: string;
+  tenantIds?: string[];
+  unitIds?: string[];
   /** Relative period token (e.g. "all", "last_3_months") for cross-month views. */
   period?: string;
   /** Explicit range start (YYYY-MM-DD); overrides `period`. */
@@ -17,7 +17,7 @@ export interface GetPaymentsOptions {
 }
 
 export async function getPayments(opts: GetPaymentsOptions) {
-  const { month, year, tenantId, unitId, period, from, to } = opts;
+  const { month, year, tenantIds, unitIds, period, from, to } = opts;
   // A period/from/to range spans many months → resolve to a month+year `where`.
   // A discrete month+year still filters exactly. They are mutually exclusive in
   // the UI, but if both arrive the explicit month/year wins.
@@ -28,8 +28,8 @@ export async function getPayments(opts: GetPaymentsOptions) {
       ...rangeWhere,
       ...(month && { month }),
       ...(year && { year }),
-      ...(tenantId && { tenantId }),
-      ...(unitId && { unitId }),
+      ...(tenantIds?.length && { tenantId: { in: tenantIds } }),
+      ...(unitIds?.length && { unitId: { in: unitIds } }),
     },
     orderBy: [{ year: "desc" }, { month: "desc" }, { tenant: { name: "asc" } }],
     include: {

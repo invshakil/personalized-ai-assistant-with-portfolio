@@ -29,6 +29,7 @@ import {
 import { Plus, Pencil, Trash2, Search, X } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
 import { propertyApi } from "@/lib/api/property";
 import { moneyApi } from "@/lib/api/money";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
@@ -119,9 +120,9 @@ export default function ExpensesPage() {
   // ── Filter state lives in the URL (deep-linkable, restored on reload) ──
   const month = searchParams.get("month") ? Number(searchParams.get("month")) : now.getMonth() + 1;
   const year = searchParams.get("year") ? Number(searchParams.get("year")) : now.getFullYear();
-  const payeeFilter = searchParams.get("payee") ?? "ALL";
-  const categoryFilter = searchParams.get("category") ?? "ALL";
-  const serviceTypeFilter = searchParams.get("serviceType") ?? "ALL";
+  const payeeFilter = searchParams.get("payee")?.split(",").filter(Boolean) ?? [];
+  const categoryFilter = searchParams.get("category")?.split(",").filter(Boolean) ?? [];
+  const serviceTypeFilter = searchParams.get("serviceType")?.split(",").filter(Boolean) ?? [];
   const q = searchParams.get("q") ?? "";
 
   /** Merge a patch into the URL query (undefined/"" removes the key). */
@@ -184,9 +185,9 @@ export default function ExpensesPage() {
       const filters = {
         month,
         year,
-        ...(payeeFilter !== "ALL" && { payeeId: payeeFilter }),
-        ...(categoryFilter !== "ALL" && { category: categoryFilter }),
-        ...(serviceTypeFilter !== "ALL" && { serviceTypeId: serviceTypeFilter }),
+        ...(payeeFilter.length && { payeeIds: payeeFilter }),
+        ...(categoryFilter.length && { categories: categoryFilter }),
+        ...(serviceTypeFilter.length && { serviceTypeIds: serviceTypeFilter }),
         ...(q && { q }),
       };
       setExpenses((await propertyApi.listExpenses(filters)) ?? []);
@@ -267,33 +268,29 @@ export default function ExpensesPage() {
 
   const total = expenses.reduce((s, e) => s + e.amount, 0);
 
-  // ── Dropdown options (rendered via SearchableSelect) ──
+  // ── Dropdown options ──
   const monthOptions: SelectOption[] = MONTHS.map((m, i) => ({ value: String(i + 1), label: m }));
   const yearOptions: SelectOption[] = [2025, 2026, 2027, 2028].map((y) => ({
     value: String(y),
     label: String(y),
   }));
-  const categoryOptions: SelectOption[] = [
-    { value: "ALL", label: "All categories" },
-    ...CATEGORIES.map((c) => ({ value: c, label: CAT_LABELS[c] })),
-  ];
-  const serviceTypeOptions: SelectOption[] = [
-    { value: "ALL", label: "All service types" },
-    ...serviceTypes.map((t) => ({ value: t.id, label: t.name })),
-  ];
-  const serviceTypeValue = serviceTypeOptions.some((o) => o.value === serviceTypeFilter)
-    ? serviceTypeFilter
-    : "ALL";
-  const payeeOptions: SelectOption[] = [
-    { value: "ALL", label: "All payees" },
-    ...payees
-      .filter((p) => p.isActive)
-      .map((p) => ({ value: p.id, label: `${p.name} · ${p.role}` })),
-  ];
-  const payeeValue = payeeOptions.some((o) => o.value === payeeFilter) ? payeeFilter : "ALL";
+  const categoryOptions: SelectOption[] = CATEGORIES.map((c) => ({
+    value: c,
+    label: CAT_LABELS[c],
+  }));
+  const serviceTypeOptions: SelectOption[] = serviceTypes.map((t) => ({
+    value: t.id,
+    label: t.name,
+  }));
+  const payeeOptions: SelectOption[] = payees
+    .filter((p) => p.isActive)
+    .map((p) => ({ value: p.id, label: `${p.name} · ${p.role}` }));
 
   const hasActiveFilters =
-    payeeFilter !== "ALL" || categoryFilter !== "ALL" || serviceTypeFilter !== "ALL" || Boolean(q);
+    payeeFilter.length > 0 ||
+    categoryFilter.length > 0 ||
+    serviceTypeFilter.length > 0 ||
+    Boolean(q);
 
   return (
     <Box>
@@ -314,25 +311,25 @@ export default function ExpensesPage() {
           onChange={(v) => setParams({ year: v === String(now.getFullYear()) ? undefined : v })}
           sx={{ minWidth: 110 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Category"
           value={categoryFilter}
           options={categoryOptions}
-          onChange={(v) => setParams({ category: v === "ALL" ? undefined : v })}
+          onChange={(v) => setParams({ category: v.length ? v.join(",") : undefined })}
           sx={{ minWidth: 160 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Service Type"
-          value={serviceTypeValue}
+          value={serviceTypeFilter}
           options={serviceTypeOptions}
-          onChange={(v) => setParams({ serviceType: v === "ALL" ? undefined : v })}
+          onChange={(v) => setParams({ serviceType: v.length ? v.join(",") : undefined })}
           sx={{ minWidth: 170 }}
         />
-        <SearchableSelect
+        <MultiSearchableSelect
           label="Payee"
-          value={payeeValue}
+          value={payeeFilter}
           options={payeeOptions}
-          onChange={(v) => setParams({ payee: v === "ALL" ? undefined : v })}
+          onChange={(v) => setParams({ payee: v.length ? v.join(",") : undefined })}
           sx={{ minWidth: 170 }}
         />
         <TextField

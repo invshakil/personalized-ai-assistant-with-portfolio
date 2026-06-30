@@ -6,22 +6,22 @@ import { ExpenseCategory } from "@prisma/client";
 export interface GetExpensesOptions {
   month?: number;
   year?: number;
-  payeeId?: string;
-  category?: ExpenseCategory;
-  serviceTypeId?: string;
+  payeeIds?: string[];
+  categories?: ExpenseCategory[];
+  serviceTypeIds?: string[];
   /** Case-insensitive search on description or notes. */
   q?: string;
 }
 
 export async function getExpenses(opts: GetExpensesOptions) {
-  const { month, year, payeeId, category, serviceTypeId, q } = opts;
+  const { month, year, payeeIds, categories, serviceTypeIds, q } = opts;
   const expenses = await db.expense.findMany({
     where: {
       ...(month && { month }),
       ...(year && { year }),
-      ...(payeeId && { payeeId }),
-      ...(category && { category }),
-      ...(serviceTypeId && { serviceTypeId }),
+      ...(payeeIds?.length && { payeeId: { in: payeeIds } }),
+      ...(categories?.length && { category: { in: categories } }),
+      ...(serviceTypeIds?.length && { serviceTypeId: { in: serviceTypeIds } }),
       ...(q && {
         OR: [
           { description: { contains: q, mode: "insensitive" } },

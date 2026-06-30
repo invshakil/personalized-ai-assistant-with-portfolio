@@ -9,12 +9,12 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const month = searchParams.get("month") ? parseInt(searchParams.get("month")!) : undefined;
   const year = searchParams.get("year") ? parseInt(searchParams.get("year")!) : undefined;
-  const tenantId = searchParams.get("tenantId") ?? undefined;
-  const unitId = searchParams.get("unitId") ?? undefined;
+  const tenantIds = searchParams.get("tenantIds")?.split(",").filter(Boolean);
+  const unitIds = searchParams.get("unitIds")?.split(",").filter(Boolean);
   const period = searchParams.get("period") ?? undefined;
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
 
-  const data = await getPayments({ month, year, tenantId, unitId, period, from, to });
+  const data = await getPayments({ month, year, tenantIds, unitIds, period, from, to });
   return Response.json({ data });
 }

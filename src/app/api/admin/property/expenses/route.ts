@@ -10,16 +10,19 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const month = searchParams.get("month") ? parseInt(searchParams.get("month")!) : undefined;
   const year = searchParams.get("year") ? parseInt(searchParams.get("year")!) : undefined;
-  const payeeId = searchParams.get("payeeId") ?? undefined;
-  const serviceTypeId = searchParams.get("serviceTypeId") ?? undefined;
-  const categoryParam = searchParams.get("category");
-  const category =
-    categoryParam && Object.values(ExpenseCategory).includes(categoryParam as ExpenseCategory)
-      ? (categoryParam as ExpenseCategory)
-      : undefined;
+  const payeeIds = searchParams.get("payeeIds")?.split(",").filter(Boolean);
+  const serviceTypeIds = searchParams.get("serviceTypeIds")?.split(",").filter(Boolean);
+  const categoriesParam = searchParams.get("categories");
+  const categories = categoriesParam
+    ? (categoriesParam
+        .split(",")
+        .filter((c) =>
+          Object.values(ExpenseCategory).includes(c as ExpenseCategory)
+        ) as ExpenseCategory[])
+    : undefined;
   const q = searchParams.get("q") ?? undefined;
 
-  const data = await getExpenses({ month, year, payeeId, serviceTypeId, category, q });
+  const data = await getExpenses({ month, year, payeeIds, serviceTypeIds, categories, q });
   return Response.json({ data });
 }
 

@@ -63,7 +63,7 @@ export default function PayeeProfilePage({ id }: Props) {
     try {
       const [payeeData, expensesData] = await Promise.all([
         propertyApi.getPayee<Payee>(id),
-        propertyApi.listExpenses({ payeeId: id }),
+        propertyApi.listExpenses({ payeeIds: [id] }),
       ]);
       setPayee(payeeData);
       setExpenses(expensesData ?? []);

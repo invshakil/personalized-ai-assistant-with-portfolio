@@ -57,6 +57,7 @@ import {
 import Link from "next/link";
 import PageHeader from "@/components/admin/PageHeader";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
 import TenantDocuments from "@/components/admin/TenantDocuments";
 import { propertyApi } from "@/lib/api/property";
 import { moneyApi } from "@/lib/api/money";
@@ -143,7 +144,7 @@ export default function PropertyPage() {
   const tenantView = searchParams.get("tstatus") === "past" ? "past" : "active";
   const extView = searchParams.get("tstatus") === "past" ? "past" : "active";
   // Tenants-tab filters
-  const tenantUnitFilter = searchParams.get("tunit") ?? "ALL";
+  const tenantUnitFilter = searchParams.get("tunit")?.split(",").filter(Boolean) ?? [];
   const tenantStateFilter = searchParams.get("tstate") ?? "ALL"; // ALL | CURRENT | FUTURE
   const tenantQuery = searchParams.get("tq") ?? "";
 
@@ -719,7 +720,6 @@ export default function PropertyPage() {
   // only meaningful for tenants; external members have no unit/status.
   const tenantUnitOptions: SelectOption[] = useMemo(
     () => [
-      { value: "ALL", label: "All units" },
       { value: "UNASSIGNED", label: "Unassigned" },
       ...units.map((u) => ({ value: u.id, label: u.unitNumber })),
     ],
@@ -746,13 +746,15 @@ export default function PropertyPage() {
     (row: UnitWithTenant) => {
       const t = row.tenant;
       if (!t) return false;
-      if (tenantUnitFilter !== "ALL") {
+      if (tenantUnitFilter.length > 0) {
         const uid = tenantUnitId.get(t.id) ?? null;
-        if (tenantUnitFilter === "UNASSIGNED") {
-          if (uid) return false;
-        } else if (uid !== tenantUnitFilter) {
-          return false;
-        }
+        // Check if any of the selected values match: "UNASSIGNED" matches no-unit rows,
+        // other values are unit ids.
+        const hasUnassigned = tenantUnitFilter.includes("UNASSIGNED");
+        const unitIds = tenantUnitFilter.filter((v) => v !== "UNASSIGNED");
+        const matchesUnassigned = hasUnassigned && !uid;
+        const matchesUnit = unitIds.length > 0 && uid !== null && unitIds.includes(uid);
+        if (!matchesUnassigned && !matchesUnit) return false;
       }
       if (tenantStateFilter !== "ALL" && t.tenantStatus !== tenantStateFilter) return false;
       if (tenantQuery) {
@@ -766,7 +768,7 @@ export default function PropertyPage() {
   );
 
   const hasTenantFilters =
-    tenantUnitFilter !== "ALL" || tenantStateFilter !== "ALL" || Boolean(tenantQuery);
+    tenantUnitFilter.length > 0 || tenantStateFilter !== "ALL" || Boolean(tenantQuery);
 
   return (
     <Box>
@@ -939,12 +941,12 @@ export default function PropertyPage() {
 
               {/* Filters (apply to the Active view; Past view honours search only) */}
               <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
-                <SearchableSelect
+                <MultiSearchableSelect
                   label="Unit"
                   value={tenantUnitFilter}
                   options={tenantUnitOptions}
                   disabled={tenantView === "past"}
-                  onChange={(v) => setParams({ tunit: v === "ALL" ? undefined : v })}
+                  onChange={(v) => setParams({ tunit: v.length ? v.join(",") : undefined })}
                   sx={{ minWidth: 150 }}
                 />
                 <SearchableSelect
