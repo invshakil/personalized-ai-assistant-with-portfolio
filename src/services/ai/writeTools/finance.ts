@@ -40,6 +40,8 @@ import {
   optStrList,
   requireUpdate,
   taka,
+  cur,
+  CURRENCIES,
   field,
   nameOf,
   schema,
@@ -87,33 +89,54 @@ export const financeTools: WriteToolDef[] = [
     description:
       "Record client income (an earning). Resolve sourceId (the client) via list_clients first. " +
       "fiscalYear is derived from the date when omitted. " +
-      "Optionally pass accountName to also post the income as a CREDIT to that Money account " +
-      "(money lands in its balance and shows in the Ledger); omit it for no ledger entry.",
+      "By default the income is BDT — pass amount. To record FOREIGN income (USD/EUR), set currency and " +
+      "pass originalAmount (the amount in that currency) plus fxRate (BDT per 1 unit); the BDT-equivalent is " +
+      "derived. A foreign earning is held as PENDING and is NOT counted as BDT income until you realize it " +
+      "with convert_earnings, so report it as pending until then. " +
+      "Optionally pass accountName to also post the income as a CREDIT to that Money account (money lands in " +
+      "its balance and shows in the Ledger); for foreign income use a matching-currency account.",
     parameters: schema(
       {
         date: Str("Income date YYYY-MM-DD"),
         sourceId: Str("Client / income source id"),
         remittance: Enum(REMITTANCE, "REM (remittance) or NON_REM"),
-        amount: Num("Amount in BDT"),
+        amount: Num("Amount in BDT (for BDT income; omit for foreign and use originalAmount)"),
+        currency: Enum(CURRENCIES, "Currency: BDT (default), USD or EUR"),
+        originalAmount: Num("Amount in `currency` for foreign income, e.g. 1000 for $1,000"),
+        fxRate: Num("Indicative BDT per 1 unit of `currency` for foreign income (defaults to 1)"),
         fiscalYear: Str('Fiscal year, e.g. "2025-2026" (optional)'),
-        accountName: Str("Money account to deposit into, e.g. Cash, bKash (optional)"),
+        accountName: Str("Money account to deposit into, e.g. Cash, bKash, USD Wallet (optional)"),
         notes: Str("Notes (optional)"),
       },
-      ["date", "sourceId", "remittance", "amount"]
+      ["date", "sourceId", "remittance"]
     ),
-    parse: (i) => ({
-      date: reqDate(i.date, "date"),
-      sourceId: reqStr(i.sourceId, "sourceId"),
-      remittance: reqEnum(i.remittance, REMITTANCE, "remittance") as RemittanceType,
-      amount: reqNum(i.amount, "amount"),
-      fiscalYear: optStr(i.fiscalYear),
-      accountName: optStr(i.accountName),
-      notes: optStr(i.notes) ?? null,
-    }),
+    parse: (i) => {
+      const currency = (optEnum(i.currency, CURRENCIES, "currency") ?? "BDT") as string;
+      const amount = optNum(i.amount);
+      const originalAmount = optNum(i.originalAmount);
+      if (amount === undefined && originalAmount === undefined)
+        throw new Error('Provide "amount" (BDT) or "originalAmount" (in the foreign currency).');
+      return {
+        date: reqDate(i.date, "date"),
+        sourceId: reqStr(i.sourceId, "sourceId"),
+        remittance: reqEnum(i.remittance, REMITTANCE, "remittance") as RemittanceType,
+        amount,
+        currency,
+        originalAmount,
+        fxRate: optNum(i.fxRate),
+        fiscalYear: optStr(i.fiscalYear),
+        accountName: optStr(i.accountName),
+        notes: optStr(i.notes) ?? null,
+      };
+    },
     preview: async (a) => {
       const c = await clientById(a.sourceId);
       const acct = a.accountName ? ` → ${a.accountName}` : "";
-      return `Record ${taka(a.amount)} income from ${nameOf(c)} (${a.remittance})${acct} on ${a.date}.`;
+      const foreign = a.currency !== "BDT" && a.originalAmount !== undefined;
+      const display = foreign
+        ? `${cur(a.originalAmount as number, a.currency)} (pending conversion to BDT)`
+        : taka(a.amount ?? (a.originalAmount as number));
+      return `Record ${display} income from ${nameOf(c)} (${a.remittance})${acct} on ${a.date}.`;
     },
     commit: async (a) => {
       const accountId = a.accountName ? (await moneyAccountByName(a.accountName)).id : undefined;
@@ -122,26 +145,41 @@ export const financeTools: WriteToolDef[] = [
         sourceId: a.sourceId,
         remittance: a.remittance,
         amount: a.amount,
+        currency: a.currency,
+        originalAmount: a.originalAmount,
+        fxRate: a.fxRate,
         fiscalYear: a.fiscalYear,
         notes: a.notes,
         accountId,
       });
       const c = await clientById(a.sourceId);
       const acct = a.accountName ? ` (deposited to ${a.accountName})` : "";
-      return { summary: `Recorded ${taka(a.amount)} income from ${nameOf(c)}${acct}.`, data: e };
+      const foreign = a.currency !== "BDT" && a.originalAmount !== undefined;
+      const display = foreign ? cur(a.originalAmount as number, a.currency) : taka(e.amount);
+      const pending = foreign ? " — pending conversion to BDT (not yet counted as income)" : "";
+      return {
+        summary: `Recorded ${display} income from ${nameOf(c)}${acct}${pending}.`,
+        data: e,
+      };
     },
   }),
 
   write({
     name: "update_earning",
-    description: "Update a client income (earning) record.",
+    description:
+      "Update a client income (earning) record. To change a foreign earning's currency/amount/rate pass " +
+      "currency, originalAmount and/or fxRate (BDT-equivalent is recomputed). A foreign earning that has " +
+      "already been converted is locked — reverse_conversion it before editing its amount or currency.",
     parameters: schema(
       {
         id: Str("Earning id"),
         date: Str("Date YYYY-MM-DD (optional)"),
         sourceId: Str("Client id (optional)"),
         remittance: Enum(REMITTANCE, "Remittance type (optional)"),
-        amount: Num("Amount BDT (optional)"),
+        amount: Num("Amount BDT (optional; for BDT earnings)"),
+        currency: Enum(CURRENCIES, "Currency (optional)"),
+        originalAmount: Num("Amount in `currency` (optional, for foreign)"),
+        fxRate: Num("Indicative BDT per 1 unit of `currency` (optional)"),
         fiscalYear: Str("Fiscal year (optional)"),
         notes: Str("Notes (optional)"),
       },
@@ -154,6 +192,9 @@ export const financeTools: WriteToolDef[] = [
         sourceId: optStr(i.sourceId),
         remittance: optEnum(i.remittance, REMITTANCE, "remittance") as RemittanceType | undefined,
         amount: optNum(i.amount),
+        currency: optEnum(i.currency, CURRENCIES, "currency") as string | undefined,
+        originalAmount: optNum(i.originalAmount),
+        fxRate: optNum(i.fxRate),
         fiscalYear: optStr(i.fiscalYear),
         notes: optStr(i.notes),
       };
@@ -171,17 +212,112 @@ export const financeTools: WriteToolDef[] = [
   }),
 
   write({
+    name: "convert_earnings",
+    description:
+      "Withdraw / convert one or more PENDING foreign earnings to BDT at the ACTUAL rate, booking them as " +
+      "income in the conversion period. Posts ONE cross-currency Money transfer (foreign account → BDT " +
+      "account) for the whole batch and stamps each earning's realized BDT. " +
+      "All selected earnings must be the same non-BDT currency and not yet converted — find them with " +
+      "list_earnings (pendingConversion=true). fromAccountName must be a matching-currency account; " +
+      "toAccountName must be a BDT account. toAmount is the actual total BDT received for the batch.",
+    parameters: schema(
+      {
+        earningIds: {
+          type: "array",
+          items: { type: "string" },
+          description: "Pending foreign earning ids to convert together (same currency)",
+        },
+        fromAccountName: Str("Foreign Money account holding the balance, e.g. USD Wallet"),
+        toAccountName: Str("Destination BDT account, e.g. City Bank"),
+        date: Str("Conversion date YYYY-MM-DD (the income's booking period)"),
+        toAmount: Num("Actual total BDT received for the batch"),
+        notes: Str("Notes (optional)"),
+      },
+      ["earningIds", "fromAccountName", "toAccountName", "date", "toAmount"]
+    ),
+    parse: (i) => {
+      const earningIds = optStrList(i.earningIds) ?? [];
+      if (earningIds.length === 0) throw new Error("Select at least one earning to convert.");
+      return {
+        earningIds,
+        fromAccountName: reqStr(i.fromAccountName, "fromAccountName"),
+        toAccountName: reqStr(i.toAccountName, "toAccountName"),
+        date: reqDate(i.date, "date"),
+        toAmount: reqNum(i.toAmount, "toAmount"),
+        notes: optStr(i.notes) ?? null,
+      };
+    },
+    preview: async (a) => {
+      const from = await moneyAccountByName(a.fromAccountName);
+      await moneyAccountByName(a.toAccountName); // validate the destination exists
+      const n = a.earningIds.length;
+      return (
+        `Convert ${n} ${from.currency} earning${n > 1 ? "s" : ""} from ${a.fromAccountName} → ` +
+        `${a.toAccountName} as ${taka(a.toAmount)} on ${a.date} (booked as BDT income).`
+      );
+    },
+    commit: async (a) => {
+      const [from, to] = await Promise.all([
+        moneyAccountByName(a.fromAccountName),
+        moneyAccountByName(a.toAccountName),
+      ]);
+      const r = await convertEarnings({
+        earningIds: a.earningIds,
+        fromAccountId: from.id,
+        toAccountId: to.id,
+        date: a.date,
+        toAmount: a.toAmount,
+        notes: a.notes,
+      });
+      return {
+        summary:
+          `Converted ${r.converted} ${r.currency} earning${r.converted > 1 ? "s" : ""}: ` +
+          `${cur(r.totalOriginal, r.currency)} → ${taka(r.toAmount)} @ ${r.rate} ` +
+          `(booked as income on ${a.date}; ${a.fromAccountName} → ${a.toAccountName}).`,
+        data: r,
+      };
+    },
+  }),
+
+  write({
+    name: "reverse_conversion",
+    description:
+      "Undo a foreign-earning conversion: return every earning realized by the same conversion to PENDING " +
+      "and remove the conversion transfer from the Money ledger. Pass any one earning id from the converted " +
+      "batch (find converted earnings via list_earnings — pendingConversion=false with a realizedAt).",
+    parameters: schema({ earningId: Str("Any earning id from the converted batch") }, [
+      "earningId",
+    ]),
+    parse: (i) => ({ earningId: reqStr(i.earningId, "earningId") }),
+    preview: async (a) =>
+      `Reverse the conversion for earning ${a.earningId} — returns the whole batch to pending and removes the ledger transfer.`,
+    commit: async (a) => {
+      await reverseConversion(a.earningId);
+      return {
+        summary: `Reversed the conversion — earnings returned to pending and the conversion transfer was removed.`,
+        data: { reversed: true },
+      };
+    },
+  }),
+
+  write({
     name: "create_salary_payment",
     description:
       "Record a salary/bonus/advance payment to an employee. Resolve employeeId via list_employees " +
       "and any clientIds (clients the salary is attributed to) via list_clients. " +
-      "Optionally pass accountName to also post the payment as an expense (DEBIT) on that Money " +
-      "account (cash leaves its balance and shows in the Ledger); omit it for no ledger entry.",
+      "By default the amount is BDT — pass amount. To pay in FOREIGN currency (e.g. a USD salary), set " +
+      "currency and pass originalAmount (the amount in that currency) plus fxRate (BDT per 1 unit); the " +
+      "BDT-equivalent is derived and is what reports use. " +
+      "Optionally pass accountName to also post the payment as an expense (DEBIT) on that Money account " +
+      "(cash leaves its balance and shows in the Ledger); for a foreign salary use a matching-currency account.",
     parameters: schema(
       {
         date: Str("Payment date YYYY-MM-DD"),
         employeeId: Str("Employee id"),
-        amount: Num("Amount in BDT"),
+        amount: Num("Amount in BDT (for BDT pay; omit for foreign and use originalAmount)"),
+        currency: Enum(CURRENCIES, "Currency: BDT (default), USD or EUR"),
+        originalAmount: Num("Amount in `currency` for a foreign salary, e.g. 500 for $500"),
+        fxRate: Num("BDT per 1 unit of `currency` for a foreign salary (defaults to 1)"),
         type: Enum(PAYMENT_KINDS, "Payment kind (optional, default SALARY)"),
         clientIds: {
           type: "array",
@@ -190,26 +326,40 @@ export const financeTools: WriteToolDef[] = [
         },
         reference: Str("Reference (optional)"),
         fiscalYear: Str("Fiscal year (optional)"),
-        accountName: Str("Money account to pay from, e.g. Cash, bKash (optional)"),
+        accountName: Str("Money account to pay from, e.g. Cash, bKash, USD Wallet (optional)"),
         notes: Str("Notes (optional)"),
       },
-      ["date", "employeeId", "amount"]
+      ["date", "employeeId"]
     ),
-    parse: (i) => ({
-      date: reqDate(i.date, "date"),
-      employeeId: reqStr(i.employeeId, "employeeId"),
-      amount: reqNum(i.amount, "amount"),
-      type: optEnum(i.type, PAYMENT_KINDS, "type") as PaymentKind | undefined,
-      clientIds: optStrList(i.clientIds),
-      reference: optStr(i.reference) ?? null,
-      fiscalYear: optStr(i.fiscalYear),
-      accountName: optStr(i.accountName),
-      notes: optStr(i.notes) ?? null,
-    }),
+    parse: (i) => {
+      const currency = (optEnum(i.currency, CURRENCIES, "currency") ?? "BDT") as string;
+      const amount = optNum(i.amount);
+      const originalAmount = optNum(i.originalAmount);
+      if (amount === undefined && originalAmount === undefined)
+        throw new Error('Provide "amount" (BDT) or "originalAmount" (in the foreign currency).');
+      return {
+        date: reqDate(i.date, "date"),
+        employeeId: reqStr(i.employeeId, "employeeId"),
+        amount,
+        currency,
+        originalAmount,
+        fxRate: optNum(i.fxRate),
+        type: optEnum(i.type, PAYMENT_KINDS, "type") as PaymentKind | undefined,
+        clientIds: optStrList(i.clientIds),
+        reference: optStr(i.reference) ?? null,
+        fiscalYear: optStr(i.fiscalYear),
+        accountName: optStr(i.accountName),
+        notes: optStr(i.notes) ?? null,
+      };
+    },
     preview: async (a) => {
       const e = await employeeById(a.employeeId);
       const acct = a.accountName ? ` from ${a.accountName}` : "";
-      return `Pay ${taka(a.amount)} (${a.type ?? "SALARY"}) to ${nameOf(e)}${acct} on ${a.date}.`;
+      const foreign = a.currency !== "BDT" && a.originalAmount !== undefined;
+      const display = foreign
+        ? cur(a.originalAmount as number, a.currency)
+        : taka(a.amount ?? (a.originalAmount as number));
+      return `Pay ${display} (${a.type ?? "SALARY"}) to ${nameOf(e)}${acct} on ${a.date}.`;
     },
     commit: async (a) => {
       const accountId = a.accountName ? (await moneyAccountByName(a.accountName)).id : undefined;
@@ -217,6 +367,9 @@ export const financeTools: WriteToolDef[] = [
         date: a.date,
         employeeId: a.employeeId,
         amount: a.amount,
+        currency: a.currency,
+        originalAmount: a.originalAmount,
+        fxRate: a.fxRate,
         type: a.type,
         clientIds: a.clientIds,
         reference: a.reference,
@@ -226,8 +379,10 @@ export const financeTools: WriteToolDef[] = [
       });
       const e = await employeeById(a.employeeId);
       const acct = a.accountName ? ` (paid from ${a.accountName})` : "";
+      const foreign = a.currency !== "BDT" && a.originalAmount !== undefined;
+      const display = foreign ? cur(a.originalAmount as number, a.currency) : taka(p.amount);
       return {
-        summary: `Recorded ${taka(a.amount)} ${a.type ?? "SALARY"} to ${nameOf(e)}${acct}.`,
+        summary: `Recorded ${display} ${a.type ?? "SALARY"} to ${nameOf(e)}${acct}.`,
         data: p,
       };
     },
@@ -235,13 +390,18 @@ export const financeTools: WriteToolDef[] = [
 
   write({
     name: "update_salary_payment",
-    description: "Update an employee salary/bonus payment.",
+    description:
+      "Update an employee salary/bonus payment. To change a foreign payment's currency/amount/rate pass " +
+      "currency, originalAmount and/or fxRate (the BDT-equivalent is recomputed).",
     parameters: schema(
       {
         id: Str("Payment id"),
         date: Str("Date YYYY-MM-DD (optional)"),
         employeeId: Str("Employee id (optional)"),
-        amount: Num("Amount BDT (optional)"),
+        amount: Num("Amount BDT (optional; for BDT pay)"),
+        currency: Enum(CURRENCIES, "Currency (optional)"),
+        originalAmount: Num("Amount in `currency` (optional, for foreign)"),
+        fxRate: Num("BDT per 1 unit of `currency` (optional)"),
         type: Enum(PAYMENT_KINDS, "Payment kind (optional)"),
         clientIds: {
           type: "array",
@@ -260,6 +420,9 @@ export const financeTools: WriteToolDef[] = [
         date: optDate(i.date, "date"),
         employeeId: optStr(i.employeeId),
         amount: optNum(i.amount),
+        currency: optEnum(i.currency, CURRENCIES, "currency") as string | undefined,
+        originalAmount: optNum(i.originalAmount),
+        fxRate: optNum(i.fxRate),
         type: optEnum(i.type, PAYMENT_KINDS, "type") as PaymentKind | undefined,
         clientIds: optStrList(i.clientIds),
         reference: optStr(i.reference),
@@ -595,99 +758,6 @@ export const financeTools: WriteToolDef[] = [
     commit: async (a) => {
       const c = await createExpenseCategory(a);
       return { summary: `Created expense category ${field(c, "name")}.`, data: c };
-    },
-  }),
-
-  write({
-    name: "convert_earnings",
-    description:
-      "Realize one or more pending foreign (EUR/USD) earnings as BDT income at the ACTUAL conversion rate. " +
-      "Posts a single cross-currency Money transfer (foreign account → BDT account) for the batch, then " +
-      "stamps each earning's realized BDT (proportional to its original-amount share). The realized BDT is " +
-      "what the P&L books, attributed to the conversion date/period. " +
-      "Use list_earnings to find pending earnings (pendingConversion=true rows). " +
-      "All earningIds must share the same non-BDT currency. " +
-      "fromAccountName is the foreign-currency Money account; toAccountName is the BDT account. " +
-      "toAmount is the ACTUAL total BDT received for the whole batch.",
-    parameters: schema(
-      {
-        earningIds: {
-          type: "array",
-          items: { type: "string" },
-          description:
-            "IDs of the pending foreign earnings to realize together (all must share the same non-BDT currency)",
-        },
-        fromAccountName: Str("Foreign-currency Money account to withdraw from, e.g. USD Account"),
-        toAccountName: Str("BDT Money account to deposit into, e.g. Bank"),
-        date: Str("Conversion value-date YYYY-MM-DD (books the income in this period)"),
-        toAmount: Num("Actual total BDT received for the whole batch"),
-        notes: Str("Notes (optional)"),
-      },
-      ["earningIds", "fromAccountName", "toAccountName", "date", "toAmount"]
-    ),
-    parse: (i) => {
-      const earningIds = optStrList(i.earningIds) ?? [];
-      if (earningIds.length === 0)
-        throw new Error('"earningIds" must be a non-empty list of earning IDs.');
-      return {
-        earningIds,
-        fromAccountName: reqStr(i.fromAccountName, "fromAccountName"),
-        toAccountName: reqStr(i.toAccountName, "toAccountName"),
-        date: reqDate(i.date, "date"),
-        toAmount: reqNum(i.toAmount, "toAmount"),
-        notes: optStr(i.notes) ?? null,
-      };
-    },
-    preview: async (a) => {
-      const [from, to] = await Promise.all([
-        moneyAccountByName(a.fromAccountName),
-        moneyAccountByName(a.toAccountName),
-      ]);
-      const count = a.earningIds.length;
-      return (
-        `Convert ${count} ${(from as { currency?: string }).currency ?? "foreign"} earning${count > 1 ? "s" : ""} → ${taka(a.toAmount)} BDT on ${a.date}. ` +
-        `Transfer from ${from.name} → ${to.name}.`
-      );
-    },
-    commit: async (a) => {
-      const [from, to] = await Promise.all([
-        moneyAccountByName(a.fromAccountName),
-        moneyAccountByName(a.toAccountName),
-      ]);
-      const r = await convertEarnings({
-        earningIds: a.earningIds,
-        fromAccountId: from.id,
-        toAccountId: to.id,
-        date: a.date,
-        toAmount: a.toAmount,
-        notes: a.notes,
-      });
-      return {
-        summary: `Converted ${r.converted} ${r.currency} earning${r.converted > 1 ? "s" : ""} → ${taka(r.toAmount)} BDT (rate: ${r.rate}).`,
-        data: r,
-      };
-    },
-  }),
-
-  write({
-    name: "reverse_earnings_conversion",
-    description:
-      "Undo a foreign-earnings conversion: returns every earning in the batch back to pending " +
-      "(realizedAt cleared) and removes the conversion transfer from the Money ledger. " +
-      "Pass any earningId from the converted batch — all earnings sharing the same conversion " +
-      "transfer are reversed together. Use only when a conversion was recorded incorrectly.",
-    parameters: schema({ id: Str("Id of any earning from the converted batch to reverse") }, [
-      "id",
-    ]),
-    parse: (i) => ({ id: reqStr(i.id, "id") }),
-    preview: async ({ id }) =>
-      `Reverse conversion for earning ${id}: restore to pending and remove the conversion transfer. This cannot be undone.`,
-    commit: async ({ id }) => {
-      const r = await reverseConversion(id);
-      return {
-        summary: `Conversion reversed — earning(s) returned to pending (unconverted).`,
-        data: r,
-      };
     },
   }),
 ];
