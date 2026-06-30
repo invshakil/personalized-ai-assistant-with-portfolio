@@ -61,7 +61,8 @@ import type { AiToolDef, RunTool, ToolScope } from "./types";
 
 const obj = (properties: Record<string, unknown>) => ({ type: "object", properties });
 
-const fiscalYear = { type: "string", description: 'Fiscal year, e.g. "2025-2026" (optional)' };
+const arr = (v: unknown): string[] | undefined =>
+  Array.isArray(v) && v.length > 0 ? v.map(String) : undefined;
 
 // Shared flexible date-range params. The model passes a relative `period`
 // (resolved server-side against today) or explicit from/to dates.
@@ -97,11 +98,19 @@ const financeReadTools: AiToolDef[] = [
       "`originalAmount`, `fxRate` give the original foreign amount. Realized-basis: a foreign earning " +
       "is `pendingConversion=true` (not yet BDT income) until converted, when `realizedAt`/`realizedAmount`/" +
       "`realizedRate` carry the actual BDT booked. BDT earnings are realized on earn. " +
-      "Filter by fiscalYear, income-source id (sourceId), a date range (period or from/to), and search " +
+      "Filter by one or more fiscal years / source ids, a date range (period or from/to), and search " +
       "notes + the remittance type label with q (e.g. q='remittance').",
     parameters: obj({
-      fiscalYear,
-      sourceId: { type: "string", description: "Income source / client id (optional)" },
+      fiscalYears: {
+        type: "array",
+        items: { type: "string" },
+        description: 'Filter by one or more fiscal years, e.g. ["2025-2026"] (optional)',
+      },
+      sourceIds: {
+        type: "array",
+        items: { type: "string" },
+        description: "One or more income source / client ids (optional)",
+      },
       ...RANGE,
       q: {
         type: "string",
@@ -115,13 +124,29 @@ const financeReadTools: AiToolDef[] = [
       "List salary/bonus payments to employees: date, employee, type, attributed clients, amount, note. " +
       "Each row's `amount` is the BDT-equivalent (canonical, always sum/report in BDT); `currency`, " +
       "`originalAmount`, and `fxRate` (BDT per 1 unit) give the original foreign amount when not BDT. " +
-      "Filter by fiscalYear, employee id, payment type (SALARY/BONUS/ADVANCE/OTHER), attributed client id, " +
+      "Filter by one or more fiscal years / employee ids / payment types / client ids, " +
       "and a date range (period or from/to).",
     parameters: obj({
-      fiscalYear,
-      employeeId: { type: "string", description: "Employee id (optional)" },
-      type: { type: "string", enum: PAYMENT_KINDS, description: "Payment kind (optional)" },
-      clientId: { type: "string", description: "Attributed client / income-source id (optional)" },
+      fiscalYears: {
+        type: "array",
+        items: { type: "string" },
+        description: 'Filter by one or more fiscal years, e.g. ["2025-2026"] (optional)',
+      },
+      employeeIds: {
+        type: "array",
+        items: { type: "string" },
+        description: "One or more employee ids (optional)",
+      },
+      types: {
+        type: "array",
+        items: { type: "string", enum: PAYMENT_KINDS },
+        description: "One or more payment kinds (optional)",
+      },
+      clientIds: {
+        type: "array",
+        items: { type: "string" },
+        description: "One or more client / income-source ids (optional)",
+      },
       ...RANGE,
     }),
   },
@@ -129,10 +154,18 @@ const financeReadTools: AiToolDef[] = [
     name: "list_business_expenses",
     description:
       "List one-off and recurring business expenses (tools/subscriptions): date, name, category, recurring flag, amount. " +
-      "Filter by fiscalYear, category id, a date range (period or from/to), and search the tool/service name with q.",
+      "Filter by one or more fiscal years / category ids, a date range (period or from/to), and search the tool/service name with q.",
     parameters: obj({
-      fiscalYear,
-      categoryId: { type: "string", description: "Expense category id (optional)" },
+      fiscalYears: {
+        type: "array",
+        items: { type: "string" },
+        description: 'Filter by one or more fiscal years, e.g. ["2025-2026"] (optional)',
+      },
+      categoryIds: {
+        type: "array",
+        items: { type: "string" },
+        description: "One or more expense category ids (optional)",
+      },
       ...RANGE,
       q: {
         type: "string",
@@ -144,9 +177,13 @@ const financeReadTools: AiToolDef[] = [
     name: "list_subscriptions",
     description:
       "List recurring business subscriptions with monthly amount, status, total spent. " +
-      "Filter by category id and search the service name with q.",
+      "Filter by one or more category ids and search the service name with q.",
     parameters: obj({
-      categoryId: { type: "string", description: "Subscription category id (optional)" },
+      categoryIds: {
+        type: "array",
+        items: { type: "string" },
+        description: "One or more subscription category ids (optional)",
+      },
       q: {
         type: "string",
         description: "Case-insensitive search over the service name (optional)",
@@ -229,7 +266,7 @@ const propertyReadTools: AiToolDef[] = [
     name: "list_tenants",
     description:
       "List tenants with unit, rent, advance balance, status. Filter by coarse filter " +
-      "(active/inactive/all, default active), by unit id, by status (CURRENT=active / FUTURE=scheduled), " +
+      "(active/inactive/all, default active), by one or more unit ids, by status (CURRENT=active / FUTURE=scheduled), " +
       "and search tenant name or phone with q.",
     parameters: obj({
       filter: {
@@ -237,7 +274,11 @@ const propertyReadTools: AiToolDef[] = [
         enum: ["active", "inactive", "all"],
         description: "Coarse tenant filter (optional, default active)",
       },
-      unitId: { type: "string", description: "Restrict to this unit id (optional)" },
+      unitIds: {
+        type: "array",
+        items: { type: "string" },
+        description: "Restrict to one or more unit ids (optional)",
+      },
       status: {
         type: "string",
         enum: ["CURRENT", "FUTURE"],
@@ -253,31 +294,47 @@ const propertyReadTools: AiToolDef[] = [
     name: "list_rent_payments",
     description:
       "List rent payments: tenant, unit, due, paid, balance, status, receipt no. Filter by a single " +
-      "month + year, by unit id, by tenant id, or across months with a date range (period or from/to — " +
+      "month + year, by one or more unit ids, by one or more tenant ids, or across months with a date range (period or from/to — " +
       "e.g. period='all' for every month of a tenant).",
     parameters: obj({
       month: { type: "integer", description: "Month 1-12 (optional)" },
       year: { type: "integer", description: "Year (optional)" },
-      unitId: { type: "string", description: "Unit id (optional)" },
-      tenantId: { type: "string", description: "Tenant id (optional)" },
+      unitIds: {
+        type: "array",
+        items: { type: "string" },
+        description: "One or more unit ids (optional)",
+      },
+      tenantIds: {
+        type: "array",
+        items: { type: "string" },
+        description: "One or more tenant ids (optional)",
+      },
       ...RANGE,
     }),
   },
   {
     name: "list_property_expenses",
     description:
-      "List property expenses by category/payee. Filter by month, year, payee id, category, " +
-      "service-type id, and search description + notes with q.",
+      "List property expenses by category/payee. Filter by month, year, one or more payee ids, " +
+      "one or more categories, one or more service-type ids, and search description + notes with q.",
     parameters: obj({
       month: { type: "integer", description: "Month 1-12 (optional)" },
       year: { type: "integer", description: "Year (optional)" },
-      payeeId: { type: "string", description: "Payee id (optional)" },
-      category: {
-        type: "string",
-        enum: EXPENSE_CATEGORIES,
-        description: "Expense category (optional)",
+      payeeIds: {
+        type: "array",
+        items: { type: "string" },
+        description: "One or more payee ids (optional)",
       },
-      serviceTypeId: { type: "string", description: "Service type id (optional)" },
+      categories: {
+        type: "array",
+        items: { type: "string", enum: EXPENSE_CATEGORIES },
+        description: "One or more expense categories (optional)",
+      },
+      serviceTypeIds: {
+        type: "array",
+        items: { type: "string" },
+        description: "One or more service type ids (optional)",
+      },
       q: {
         type: "string",
         description: "Case-insensitive search over description and notes (optional)",
@@ -397,8 +454,8 @@ const moneyReadTools: AiToolDef[] = [
     name: "list_money_entries",
     description:
       "List personal ledger entries (income, expense, transfer) over a date range. " +
-      "Optionally filter by direction (CREDIT=income / DEBIT=expense / TRANSFER), by categoryName " +
-      "(e.g. 'Groceries'), by accountName (e.g. 'Cash', 'bKash' — matches entries from or into that account), " +
+      "Optionally filter by direction (CREDIT=income / DEBIT=expense / TRANSFER), by one or more categoryNames " +
+      "(e.g. ['Groceries']), by one or more accountNames (e.g. ['Cash', 'bKash'] — matches entries from or into those accounts), " +
       "and search descriptions with q. Sort with sortBy (date/amount/category) + sortDir (asc/desc), and limit the count.",
     parameters: obj({
       ...RANGE,
@@ -407,13 +464,15 @@ const moneyReadTools: AiToolDef[] = [
         enum: ["CREDIT", "DEBIT", "TRANSFER"],
         description: "Filter by entry direction (optional)",
       },
-      categoryName: {
-        type: "string",
-        description: "Filter by category name, case-insensitive (optional)",
+      categoryNames: {
+        type: "array",
+        items: { type: "string" },
+        description: "Filter by one or more category names, case-insensitive (optional)",
       },
-      accountName: {
-        type: "string",
-        description: "Filter by account name, case-insensitive (optional)",
+      accountNames: {
+        type: "array",
+        items: { type: "string" },
+        description: "Filter by one or more account names, case-insensitive (optional)",
       },
       q: { type: "string", description: "Case-insensitive search over the description (optional)" },
       sortBy: {
@@ -580,27 +639,27 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
   get_finance_summary: (i) => getFinanceDashboard({ from: str(i.from), to: str(i.to) }),
   list_earnings: (i) =>
     getEarnings({
-      fiscalYear: str(i.fiscalYear),
-      sourceId: str(i.sourceId),
+      fiscalYears: arr(i.fiscalYears),
+      sourceIds: arr(i.sourceIds),
       ...range(i),
       q: str(i.q),
     }),
   list_salary_payments: (i) =>
     getEmployeePayments({
-      fiscalYear: str(i.fiscalYear),
-      employeeId: str(i.employeeId),
-      type: str(i.type) as PaymentKind | undefined,
-      clientId: str(i.clientId),
+      fiscalYears: arr(i.fiscalYears),
+      employeeIds: arr(i.employeeIds),
+      types: arr(i.types) as PaymentKind[] | undefined,
+      clientIds: arr(i.clientIds),
       ...range(i),
     }),
   list_business_expenses: (i) =>
     getBizExpenses({
-      fiscalYear: str(i.fiscalYear),
-      categoryId: str(i.categoryId),
+      fiscalYears: arr(i.fiscalYears),
+      categoryIds: arr(i.categoryIds),
       ...range(i),
       q: str(i.q),
     }),
-  list_subscriptions: (i) => getSubscriptions({ categoryId: str(i.categoryId), q: str(i.q) }),
+  list_subscriptions: (i) => getSubscriptions({ categoryIds: arr(i.categoryIds), q: str(i.q) }),
   list_employees: () => getEmployees(),
   list_clients: () => getIncomeSources(),
   // Finance — reports
@@ -620,7 +679,7 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
   list_tenants: (i) =>
     getTenants({
       filter: (str(i.filter) as "active" | "inactive" | "all") ?? "active",
-      unitId: str(i.unitId),
+      unitIds: arr(i.unitIds),
       status: str(i.status) as "CURRENT" | "FUTURE" | undefined,
       q: str(i.q),
     }),
@@ -628,17 +687,17 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
     getPayments({
       month: num(i.month),
       year: num(i.year),
-      unitId: str(i.unitId),
-      tenantId: str(i.tenantId),
+      unitIds: arr(i.unitIds),
+      tenantIds: arr(i.tenantIds),
       ...range(i),
     }),
   list_property_expenses: (i) =>
     getExpenses({
       month: num(i.month),
       year: num(i.year),
-      payeeId: str(i.payeeId),
-      category: str(i.category) as ExpenseCategory | undefined,
-      serviceTypeId: str(i.serviceTypeId),
+      payeeIds: arr(i.payeeIds),
+      categories: arr(i.categories) as ExpenseCategory[] | undefined,
+      serviceTypeIds: arr(i.serviceTypeIds),
       q: str(i.q),
     }),
   // Property — reports
@@ -665,17 +724,17 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
   get_account_balances: () => getAccountBalances(),
   get_people_balances: () => getBeneficiaryBalances(),
   list_money_entries: async (i) => {
-    const categoryName = str(i.categoryName);
-    const accountName = str(i.accountName);
-    const [categoryId, accountId] = await Promise.all([
-      categoryName ? moneyCategoryId(categoryName) : Promise.resolve(undefined),
-      accountName ? moneyAccountId(accountName) : Promise.resolve(undefined),
+    const categoryNames = arr(i.categoryNames) ?? [];
+    const accountNames = arr(i.accountNames) ?? [];
+    const [categoryIds, accountIds] = await Promise.all([
+      Promise.all(categoryNames.map((n) => moneyCategoryId(n))),
+      Promise.all(accountNames.map((n) => moneyAccountId(n))),
     ]);
     return getMoneyEntries({
       ...range(i),
       direction: str(i.direction) as "CREDIT" | "DEBIT" | "TRANSFER" | undefined,
-      categoryId,
-      accountId,
+      categoryIds: categoryIds.filter(Boolean) as string[],
+      accountIds: accountIds.filter(Boolean) as string[],
       q: str(i.q),
       sortBy: str(i.sortBy) as "date" | "amount" | "category" | undefined,
       sortDir: str(i.sortDir) as "asc" | "desc" | undefined,
