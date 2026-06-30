@@ -41,7 +41,7 @@ import {
 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import { type SelectOption } from "@/components/admin/SearchableSelect";
 import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
 import { financeApi, type SubscriptionFilters } from "@/lib/api/finance";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
