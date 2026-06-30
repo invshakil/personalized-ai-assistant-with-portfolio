@@ -1,47 +1,48 @@
 "use client";
 
-import { Fragment, useState, useEffect, useCallback, use } from "react";
+import PageHeader from "@/components/admin/PageHeader";
+import TenantDocuments from "@/components/admin/TenantDocuments";
+import { propertyApi } from "@/lib/api/property";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
+import type { PaymentWithTenant, TenantWithUnit } from "@/types";
 import {
   Box,
+  Button,
   Card,
   CardContent,
-  Typography,
   Chip,
-  Button,
+  CircularProgress,
+  Collapse,
+  IconButton,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  CircularProgress,
-  IconButton,
-  Collapse,
-  Tooltip,
   TextField,
+  Tooltip,
+  Typography,
 } from "@mui/material";
 import {
+  AlertTriangle,
   ArrowLeft,
-  Phone,
   Calendar,
-  Home,
+  Check,
   ChevronDown,
   ChevronRight,
-  AlertTriangle,
+  FileDown,
+  Home,
+  Pencil,
+  Phone,
+  Send,
+  Trash2,
   TrendingUp,
   Wifi,
-  Trash2,
-  Pencil,
-  Check,
   X,
-  FileDown,
 } from "lucide-react";
 import Link from "next/link";
-import PageHeader from "@/components/admin/PageHeader";
-import TenantDocuments from "@/components/admin/TenantDocuments";
-import { propertyApi } from "@/lib/api/property";
-import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import type { TenantWithUnit, PaymentWithTenant } from "@/types";
+import { Fragment, use, useCallback, useEffect, useState } from "react";
 
 const STATUS_COLORS: Record<string, string> = {
   PAID: "success.main",
@@ -586,6 +587,19 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
                                   onClick={(e: React.MouseEvent) => e.stopPropagation()}
                                 >
                                   <FileDown size={14} />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Download Tenant Copy (to send)">
+                                <IconButton
+                                  size="small"
+                                  color="info"
+                                  component="a"
+                                  href={`/api/admin/property/payments/${p.id}/receipt?copy=tenant`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                                >
+                                  <Send size={14} />
                                 </IconButton>
                               </Tooltip>
                               <Tooltip title="Delete payment">

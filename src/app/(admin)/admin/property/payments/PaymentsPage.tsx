@@ -1,55 +1,56 @@
 "use client";
 
-import { Fragment, useState, useEffect, useCallback, useMemo } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
+import PageHeader from "@/components/admin/PageHeader";
+import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import { moneyApi } from "@/lib/api/money";
+import { propertyApi } from "@/lib/api/property";
+import { mobileCardTableSx } from "@/lib/mobileTableSx";
+import type {
+  MoneyAccountRow,
+  PaymentTransaction,
+  PaymentWithTenant,
+  UnitWithTenant,
+} from "@/types";
 import {
+  Alert,
   Box,
+  Button,
   Card,
   CardContent,
-  Typography,
   Chip,
-  Button,
+  CircularProgress,
+  Collapse,
+  Divider,
+  Drawer,
+  FormControl,
+  IconButton,
+  InputLabel,
+  MenuItem,
+  Select,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
-  Drawer,
   TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  CircularProgress,
-  Alert,
-  IconButton,
-  Collapse,
-  Divider,
   Tooltip,
+  Typography,
 } from "@mui/material";
 import {
+  AlertTriangle,
   ChevronDown,
   ChevronRight,
-  Plus,
-  Wallet,
-  AlertTriangle,
   Download,
-  Trash2,
+  FileDown,
   Pencil,
+  Plus,
+  Trash2,
+  Wallet,
 } from "lucide-react";
-import PageHeader from "@/components/admin/PageHeader";
-import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
-import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
-import { propertyApi } from "@/lib/api/property";
-import { moneyApi } from "@/lib/api/money";
-import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import type {
-  PaymentWithTenant,
-  PaymentTransaction,
-  UnitWithTenant,
-  MoneyAccountRow,
-} from "@/types";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 
 // Sentinel for the optional "don't add to wallet" choice in account dropdowns.
 const NO_ACCOUNT = "";
@@ -650,6 +651,18 @@ export default function PaymentsPage() {
                                 target="_blank"
                               >
                                 <Download size={15} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          {p.receiptNumber && (
+                            <Tooltip title="Download Tenant Copy">
+                              <IconButton
+                                size="small"
+                                component="a"
+                                href={`/api/admin/property/payments/${p.id}/receipt?copy=tenant`}
+                                target="_blank"
+                              >
+                                <FileDown size={15} />
                               </IconButton>
                             </Tooltip>
                           )}

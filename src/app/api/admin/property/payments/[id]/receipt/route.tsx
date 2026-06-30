@@ -1,8 +1,8 @@
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { getPropertySettings } from "@/services/property";
+import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import { NextRequest } from "next/server";
-import { Document, Page, View, Text, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 
 const MONTH_LABELS = [
   "January",
@@ -261,11 +261,12 @@ function ReceiptHalf(props: HalfProps) {
   );
 }
 
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
+  const copy = new URL(req.url).searchParams.get("copy"); // "tenant" | null (full)
 
   const [payment, settings] = await Promise.all([
     db.payment.findUnique({
@@ -331,20 +332,26 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     <Document>
       <Page size="A4" style={s.page}>
         <ReceiptHalf {...halfProps} label="TENANT COPY" />
-        <View style={s.cut}>
-          <Text style={s.cutText}>
-            - - - - - - - - - - - - - - cut here - - - - - - - - - - - - - -
-          </Text>
-        </View>
-        <ReceiptHalf {...halfProps} label="OWNER COPY" />
+        {copy !== "tenant" && (
+          <>
+            <View style={s.cut}>
+              <Text style={s.cutText}>
+                - - - - - - - - - - - - - - cut here - - - - - - - - - - - - - -
+              </Text>
+            </View>
+            <ReceiptHalf {...halfProps} label="OWNER COPY" />
+          </>
+        )}
       </Page>
     </Document>
   );
 
+  const filename = copy === "tenant" ? `${receiptNumber}-tenant.pdf` : `${receiptNumber}.pdf`;
+
   return new Response(buffer as unknown as BodyInit, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${receiptNumber}.pdf"`,
+      "Content-Disposition": `attachment; filename="${filename}"`,
     },
   });
 }
