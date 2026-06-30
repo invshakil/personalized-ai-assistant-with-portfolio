@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   Box,
@@ -120,9 +120,15 @@ export default function ExpensesPage() {
   // ── Filter state lives in the URL (deep-linkable, restored on reload) ──
   const month = searchParams.get("month") ? Number(searchParams.get("month")) : now.getMonth() + 1;
   const year = searchParams.get("year") ? Number(searchParams.get("year")) : now.getFullYear();
-  const payeeFilter = searchParams.get("payee")?.split(",").filter(Boolean) ?? [];
-  const categoryFilter = searchParams.get("category")?.split(",").filter(Boolean) ?? [];
-  const serviceTypeFilter = searchParams.get("serviceType")?.split(",").filter(Boolean) ?? [];
+  const payeeParam = searchParams.get("payee") ?? "";
+  const payeeFilter = useMemo(() => payeeParam.split(",").filter(Boolean), [payeeParam]);
+  const categoryParam = searchParams.get("category") ?? "";
+  const categoryFilter = useMemo(() => categoryParam.split(",").filter(Boolean), [categoryParam]);
+  const serviceTypeParam = searchParams.get("serviceType") ?? "";
+  const serviceTypeFilter = useMemo(
+    () => serviceTypeParam.split(",").filter(Boolean),
+    [serviceTypeParam]
+  );
   const q = searchParams.get("q") ?? "";
 
   /** Merge a patch into the URL query (undefined/"" removes the key). */

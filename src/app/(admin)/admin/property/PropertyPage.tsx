@@ -144,7 +144,11 @@ export default function PropertyPage() {
   const tenantView = searchParams.get("tstatus") === "past" ? "past" : "active";
   const extView = searchParams.get("tstatus") === "past" ? "past" : "active";
   // Tenants-tab filters
-  const tenantUnitFilter = searchParams.get("tunit")?.split(",").filter(Boolean) ?? [];
+  const tenantUnitParam = searchParams.get("tunit") ?? "";
+  const tenantUnitFilter = useMemo(
+    () => tenantUnitParam.split(",").filter(Boolean),
+    [tenantUnitParam]
+  );
   const tenantStateFilter = searchParams.get("tstate") ?? "ALL"; // ALL | CURRENT | FUTURE
   const tenantQuery = searchParams.get("tq") ?? "";
 

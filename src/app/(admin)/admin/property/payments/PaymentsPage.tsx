@@ -92,8 +92,10 @@ export default function PaymentsPage() {
   const monthParam = searchParams.get("month");
   const month = monthParam === "all" ? "all" : monthParam ? Number(monthParam) : now.getMonth() + 1;
   const year = searchParams.get("year") ? Number(searchParams.get("year")) : now.getFullYear();
-  const unitFilter = searchParams.get("unit")?.split(",").filter(Boolean) ?? [];
-  const tenantFilter = searchParams.get("tenant")?.split(",").filter(Boolean) ?? [];
+  const unitParam = searchParams.get("unit") ?? "";
+  const unitFilter = useMemo(() => unitParam.split(",").filter(Boolean), [unitParam]);
+  const tenantParam = searchParams.get("tenant") ?? "";
+  const tenantFilter = useMemo(() => tenantParam.split(",").filter(Boolean), [tenantParam]);
   const isAllMonths = month === "all";
 
   /** Merge a patch into the URL query (undefined/"" removes the key). */
