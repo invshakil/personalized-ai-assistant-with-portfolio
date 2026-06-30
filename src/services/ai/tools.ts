@@ -17,6 +17,7 @@ import {
   getSubscriptionSpendReport,
   getRemittanceReport,
   getFiscalYearComparison,
+  getPendingForeignIncome,
 } from "@/services/finance";
 import {
   getDashboardStats,
@@ -242,6 +243,14 @@ const financeReadTools: AiToolDef[] = [
     name: "get_fiscal_year_comparison",
     description:
       "Fiscal-year-over-year comparison: income, net profit, margin, and year-over-year growth percentages for every fiscal year.",
+    parameters: obj({}),
+  },
+  {
+    name: "get_pending_foreign_income",
+    description:
+      "List pending (not yet converted to BDT) foreign earnings, grouped by currency. " +
+      "Returns count and total original amount per currency. " +
+      "Use before convert_earnings to see what foreign income is awaiting realization.",
     parameters: obj({}),
   },
 ];
@@ -670,6 +679,7 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
   get_subscription_spend: () => getSubscriptionSpendReport(),
   get_remittance_report: (i) => getRemittanceReport(range(i)),
   get_fiscal_year_comparison: () => getFiscalYearComparison(),
+  get_pending_foreign_income: () => getPendingForeignIncome(),
   // Property — lists & dashboard
   get_property_dashboard: (i) => {
     const now = new Date();

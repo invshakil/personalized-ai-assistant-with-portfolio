@@ -4,6 +4,8 @@
 import {
   createEarning,
   updateEarning,
+  convertEarnings,
+  reverseConversion,
   createEmployeePayment,
   updateEmployeePayment,
   createBizExpense,
@@ -593,6 +595,99 @@ export const financeTools: WriteToolDef[] = [
     commit: async (a) => {
       const c = await createExpenseCategory(a);
       return { summary: `Created expense category ${field(c, "name")}.`, data: c };
+    },
+  }),
+
+  write({
+    name: "convert_earnings",
+    description:
+      "Realize one or more pending foreign (EUR/USD) earnings as BDT income at the ACTUAL conversion rate. " +
+      "Posts a single cross-currency Money transfer (foreign account → BDT account) for the batch, then " +
+      "stamps each earning's realized BDT (proportional to its original-amount share). The realized BDT is " +
+      "what the P&L books, attributed to the conversion date/period. " +
+      "Use list_earnings to find pending earnings (pendingConversion=true rows). " +
+      "All earningIds must share the same non-BDT currency. " +
+      "fromAccountName is the foreign-currency Money account; toAccountName is the BDT account. " +
+      "toAmount is the ACTUAL total BDT received for the whole batch.",
+    parameters: schema(
+      {
+        earningIds: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "IDs of the pending foreign earnings to realize together (all must share the same non-BDT currency)",
+        },
+        fromAccountName: Str("Foreign-currency Money account to withdraw from, e.g. USD Account"),
+        toAccountName: Str("BDT Money account to deposit into, e.g. Bank"),
+        date: Str("Conversion value-date YYYY-MM-DD (books the income in this period)"),
+        toAmount: Num("Actual total BDT received for the whole batch"),
+        notes: Str("Notes (optional)"),
+      },
+      ["earningIds", "fromAccountName", "toAccountName", "date", "toAmount"]
+    ),
+    parse: (i) => {
+      const earningIds = optStrList(i.earningIds) ?? [];
+      if (earningIds.length === 0)
+        throw new Error('"earningIds" must be a non-empty list of earning IDs.');
+      return {
+        earningIds,
+        fromAccountName: reqStr(i.fromAccountName, "fromAccountName"),
+        toAccountName: reqStr(i.toAccountName, "toAccountName"),
+        date: reqDate(i.date, "date"),
+        toAmount: reqNum(i.toAmount, "toAmount"),
+        notes: optStr(i.notes) ?? null,
+      };
+    },
+    preview: async (a) => {
+      const [from, to] = await Promise.all([
+        moneyAccountByName(a.fromAccountName),
+        moneyAccountByName(a.toAccountName),
+      ]);
+      const count = a.earningIds.length;
+      return (
+        `Convert ${count} ${(from as { currency?: string }).currency ?? "foreign"} earning${count > 1 ? "s" : ""} → ${taka(a.toAmount)} BDT on ${a.date}. ` +
+        `Transfer from ${from.name} → ${to.name}.`
+      );
+    },
+    commit: async (a) => {
+      const [from, to] = await Promise.all([
+        moneyAccountByName(a.fromAccountName),
+        moneyAccountByName(a.toAccountName),
+      ]);
+      const r = await convertEarnings({
+        earningIds: a.earningIds,
+        fromAccountId: from.id,
+        toAccountId: to.id,
+        date: a.date,
+        toAmount: a.toAmount,
+        notes: a.notes,
+      });
+      return {
+        summary: `Converted ${r.converted} ${r.currency} earning${r.converted > 1 ? "s" : ""} → ${taka(r.toAmount)} BDT (rate: ${r.rate}).`,
+        data: r,
+      };
+    },
+  }),
+
+  write({
+    name: "reverse_earnings_conversion",
+    description:
+      "Undo a foreign-earnings conversion: returns every earning in the batch back to pending " +
+      "(realizedAt cleared) and removes the conversion transfer from the Money ledger. " +
+      "Pass any earningId from the converted batch — all earnings sharing the same conversion " +
+      "transfer are reversed together. Use only when a conversion was recorded incorrectly.",
+    parameters: schema({ id: Str("Id of any earning from the converted batch to reverse") }, [
+      "id",
+    ]),
+    parse: (i) => ({ id: reqStr(i.id, "id") }),
+    preview: async ({ id }) =>
+      `Reverse conversion for earning ${id}: restore to pending and remove the conversion transfer. This cannot be undone.`,
+    commit: async ({ id }) => {
+      const r = await reverseConversion(id);
+      return {
+        summary: `Conversion reversed — earning(s) returned to pending (unconverted).`,
+        data: r,
+      };
     },
   }),
 ];
