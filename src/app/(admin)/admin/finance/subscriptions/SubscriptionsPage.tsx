@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Box,
@@ -80,7 +80,8 @@ export default function SubscriptionsPage() {
   const pathname = usePathname();
 
   // ── Filter state lives entirely in the URL (deep-linkable, restored on reload) ──
-  const categoryFilter = searchParams.get("category")?.split(",").filter(Boolean) ?? [];
+  const categoryParam = searchParams.get("category") ?? "";
+  const categoryFilter = useMemo(() => categoryParam.split(",").filter(Boolean), [categoryParam]);
   const q = searchParams.get("q") ?? "";
 
   /** Merge a patch into the URL query (undefined/"" removes the key). */

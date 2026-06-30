@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import {
   Box,
@@ -102,10 +102,17 @@ export default function PaymentsPage() {
   const pathname = usePathname();
 
   // ── Filter state lives entirely in the URL (deep-linkable, restored on reload) ──
-  const fyFilter = searchParams.get("fy")?.split(",").filter(Boolean) ?? [];
-  const empFilter = searchParams.get("employee")?.split(",").filter(Boolean) ?? [];
-  const typeFilter = (searchParams.get("type")?.split(",").filter(Boolean) ?? []) as PaymentKind[];
-  const clientFilter = searchParams.get("client")?.split(",").filter(Boolean) ?? [];
+  const fyParam = searchParams.get("fy") ?? "";
+  const fyFilter = useMemo(() => fyParam.split(",").filter(Boolean), [fyParam]);
+  const empParam = searchParams.get("employee") ?? "";
+  const empFilter = useMemo(() => empParam.split(",").filter(Boolean), [empParam]);
+  const typeParam = searchParams.get("type") ?? "";
+  const typeFilter = useMemo(
+    () => typeParam.split(",").filter(Boolean) as PaymentKind[],
+    [typeParam]
+  );
+  const clientParam = searchParams.get("client") ?? "";
+  const clientFilter = useMemo(() => clientParam.split(",").filter(Boolean), [clientParam]);
   const period = searchParams.get("period") ?? undefined;
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
