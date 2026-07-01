@@ -19,6 +19,9 @@ import {
   TableRow,
   Button,
   Chip,
+  Select,
+  MenuItem,
+  FormControl,
 } from "@mui/material";
 import { Sun, Leaf, BatteryCharging, Wallet } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
@@ -26,18 +29,43 @@ import { solarApi } from "@/lib/api/solar";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { SolarReport, SolarOverview, SolarWeather, SolarMonthRow } from "@/types";
 
-type RangePreset = "1M" | "3M" | "6M" | "12M" | "ALL";
+type RangePreset = "1M" | "3M" | "6M" | "12M" | "ALL" | "MONTH";
 
-const RANGE_MONTHS: Record<Exclude<RangePreset, "ALL">, number> = {
+const RANGE_MONTHS: Record<"1M" | "3M" | "6M" | "12M", number> = {
   "1M": 1,
   "3M": 3,
   "6M": 6,
   "12M": 12,
 };
 
-/** Server-side from/to bounds for a preset (from = 1st of the first month). */
-function rangeBounds(preset: RangePreset): { from?: string; to?: string } {
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+/**
+ * Server-side from/to bounds for a preset (from = 1st of the first month).
+ * "MONTH" filters to a single calendar month/year picked by the user.
+ */
+function rangeBounds(
+  preset: RangePreset,
+  pick: { month: number; year: number }
+): { from?: string; to?: string } {
   if (preset === "ALL") return {};
+  if (preset === "MONTH") {
+    const m = String(pick.month).padStart(2, "0");
+    return { from: `${pick.year}-${m}-01`, to: `${pick.year}-${m}-28` };
+  }
   const months = RANGE_MONTHS[preset];
   const now = new Date();
   const from = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
@@ -183,6 +211,9 @@ export default function SolarReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<RangePreset>("12M");
+  const now = new Date();
+  const [pickMonth, setPickMonth] = useState(now.getMonth() + 1);
+  const [pickYear, setPickYear] = useState(now.getFullYear());
 
   // Overview (lifetime + payback) and weather load once — they don't depend on
   // the visible range.
@@ -209,11 +240,11 @@ export default function SolarReportsPage() {
     setLoading(true);
     setError(null);
     solarApi
-      .report(rangeBounds(range))
+      .report(rangeBounds(range, { month: pickMonth, year: pickYear }))
       .then(setReport)
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load solar reports"))
       .finally(() => setLoading(false));
-  }, [range]);
+  }, [range, pickMonth, pickYear]);
 
   const money = (v: number) =>
     `${overview?.currency === "BDT" ? "৳" : ""}${Math.round(v).toLocaleString("en-US")}`;
@@ -279,6 +310,12 @@ export default function SolarReportsPage() {
   const sourceTotal = totals.fromSolarDirectKwh + totals.fromBatteryKwh + totals.fromGridKwh;
   const pctOf = (v: number) => (sourceTotal > 0 ? (v / sourceTotal) * 100 : 0);
 
+  const installYear = pb.installDate
+    ? new Date(pb.installDate).getUTCFullYear()
+    : now.getFullYear();
+  const yearOptions = [];
+  for (let y = now.getFullYear(); y >= installYear; y--) yearOptions.push(y);
+
   return (
     <Box>
       <Box
@@ -291,19 +328,51 @@ export default function SolarReportsPage() {
         }}
       >
         {header}
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={range}
-          onChange={(_, v) => v && setRange(v)}
-          sx={{ mb: { xs: 2, md: 3 } }}
+        <Box
+          sx={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: 2,
+            alignItems: "center",
+            mb: { xs: 2, md: 3 },
+          }}
         >
-          <ToggleButton value="1M">1M</ToggleButton>
-          <ToggleButton value="3M">3M</ToggleButton>
-          <ToggleButton value="6M">6M</ToggleButton>
-          <ToggleButton value="12M">12M</ToggleButton>
-          <ToggleButton value="ALL">All</ToggleButton>
-        </ToggleButtonGroup>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={range}
+            onChange={(_, v) => v && setRange(v)}
+          >
+            <ToggleButton value="1M">1M</ToggleButton>
+            <ToggleButton value="3M">3M</ToggleButton>
+            <ToggleButton value="6M">6M</ToggleButton>
+            <ToggleButton value="12M">12M</ToggleButton>
+            <ToggleButton value="ALL">All</ToggleButton>
+            <ToggleButton value="MONTH">Month</ToggleButton>
+          </ToggleButtonGroup>
+          {range === "MONTH" && (
+            <Box sx={{ display: "flex", gap: 1.5 }}>
+              <FormControl size="small" sx={{ minWidth: 140 }}>
+                <Select value={pickMonth} onChange={(e) => setPickMonth(Number(e.target.value))}>
+                  {MONTH_NAMES.map((m, i) => (
+                    <MenuItem key={i + 1} value={i + 1}>
+                      {m}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl size="small" sx={{ minWidth: 100 }}>
+                <Select value={pickYear} onChange={(e) => setPickYear(Number(e.target.value))}>
+                  {yearOptions.map((y) => (
+                    <MenuItem key={y} value={y}>
+                      {y}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          )}
+        </Box>
       </Box>
 
       {/* Payback hero */}
