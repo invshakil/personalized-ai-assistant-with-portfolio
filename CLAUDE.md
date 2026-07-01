@@ -48,6 +48,80 @@ Two distinct surfaces:
 - **Server components by default** — only add `"use client"` when you actually need interactivity or browser APIs
 - Keep components **small and single-purpose** — if a component exceeds ~150 lines, split it
 
+### Component structure & decomposition
+
+Every feature page follows the **orchestrator + hooks + components** pattern. A page file wires logic to UI — it contains neither. If a page file exceeds ~300 lines, it must be split before the PR lands.
+
+**Size thresholds (hard limits):**
+
+| File type                                        | Limit     | Action when exceeded        |
+| ------------------------------------------------ | --------- | --------------------------- |
+| Page / orchestrator (`*Page.tsx`)                | 300 lines | Extract a hook or component |
+| Custom hook (`use*.ts`)                          | 200 lines | Split by responsibility     |
+| Presentational component                         | 100 lines | Split into smaller pieces   |
+| Shared admin component (`src/components/admin/`) | 150 lines | Split                       |
+
+**Co-location for complex feature pages:**
+
+When a page has meaningful logic or more than ~3 sub-components, create `hooks/` and `components/` subdirectories co-located with the page. Do **not** dump feature-specific hooks or components into the global `src/hooks/` or `src/components/admin/` — those are for genuinely shared pieces used across multiple features.
+
+```
+src/app/(admin)/admin/<feature>/
+  page.tsx                    ← Next.js entry — thin; just exports the Page component
+  <Feature>Page.tsx           ← orchestrator: wires hooks → components, ≤ 300 lines
+  types.ts                    ← feature-local types (only if not shared via src/types/)
+  hooks/
+    use<Domain>.ts            ← one hook per responsibility (session, stream, filters…)
+  components/
+    <SubComponent>.tsx        ← pure or near-pure UI; props only, no Redux/API access
+```
+
+**What belongs where:**
+
+| Layer                    | Contains                                                  | Must NOT contain                                                       |
+| ------------------------ | --------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `hooks/use*.ts`          | state, effects, API calls, derived values, event handlers | JSX, MUI imports                                                       |
+| `components/*.tsx`       | JSX + sx styles; receives data/callbacks as props         | `useState` for business state, `useEffect`, API calls, Redux selectors |
+| Orchestrator `*Page.tsx` | hook invocations + JSX wiring only                        | inline `fetch`, `db.*`, business logic blocks                          |
+
+**The orchestrator pattern:**
+
+```tsx
+export default function FeaturePage() {
+  // 1. Redux selectors — read-only
+  const items = useAppSelector((s) => s.feature.items);
+
+  // 2. Local UI state only (open/close dialogs, input values)
+  const [search, setSearch] = useState("");
+
+  // 3. Domain hooks — each owns one concern
+  const session = useFeatureSession();
+  const filters = useFeatureFilters(search);
+  const { save, remove } = useFeatureMutations({ refresh: session.refresh });
+
+  // 4. Derived display values (useMemo only — no effects here)
+  const filtered = useMemo(() => items.filter(filters.fn), [items, filters.fn]);
+
+  // 5. JSX — named components only; no inline logic blocks
+  return (
+    <Box>
+      <FeatureToolbar onSearch={setSearch} onNew={session.openNew} />
+      <FeatureTable rows={filtered} onDelete={remove} />
+    </Box>
+  );
+}
+```
+
+**Canonical reference** — `src/app/(admin)/admin/ai-assistant/`: 7 hooks + 11 components, orchestrator 276 lines.
+
+**DO NOTs (decomposition-specific):**
+
+- **Do not** write or commit a page/feature file that exceeds 300 lines — split first
+- **Do not** put `useEffect`, `useState`, or API calls inside a presentational component
+- **Do not** import Redux selectors inside `components/` files — pass data as props
+- **Do not** combine multiple unrelated responsibilities in one hook (e.g. session + streaming + file uploads)
+- **Do not** put feature-specific hooks in `src/hooks/` or feature-specific components in `src/components/admin/` — co-locate them next to the feature page
+
 ### Styling rules by surface
 
 **Portfolio** (`src/app/(portfolio)/`, `src/components/portfolio/`, `src/components/shared/`):
