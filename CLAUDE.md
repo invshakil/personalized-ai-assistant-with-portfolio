@@ -122,6 +122,61 @@ export default function FeaturePage() {
 - **Do not** combine multiple unrelated responsibilities in one hook (e.g. session + streaming + file uploads)
 - **Do not** put feature-specific hooks in `src/hooks/` or feature-specific components in `src/components/admin/` — co-locate them next to the feature page
 
+### Redux state management
+
+Redux holds **transient client state that must outlive a single page mount** — state that must survive admin-page navigation without a server round-trip. Do not put server-fetched list data, form values, or UI-only open/close flags in Redux.
+
+**Redux vs local state — decision table:**
+
+| State type                                      | Where it lives                                    |
+| ----------------------------------------------- | ------------------------------------------------- |
+| Chat thread, streaming flag, current session id | Redux — must survive navigation                   |
+| Dialog open/close, search input, selected tab   | `useState` in the orchestrator                    |
+| Derived display values (filtered list, totals)  | `useMemo` in the orchestrator or hook             |
+| Server-fetched list/detail data                 | `useState` inside the domain hook that fetches it |
+
+**Store layout:**
+
+```
+src/store/
+  store.ts           ← makeStore() — configureStore; add new reducers here
+  hooks.ts           ← useAppSelector / useAppDispatch — always use these, never bare react-redux hooks
+  StoreProvider.tsx  ← mounted in AdminShell; one store per layout mount (survives navigation)
+  slices/
+    <domain>Slice.ts ← one slice per feature domain
+```
+
+**Slice convention:**
+
+- One file per feature domain: `src/store/slices/<domain>Slice.ts`
+- Export the reducer as `<domain>Reducer`; register it under its key in `store.ts`
+- Export all actions as named exports from the slice file — import them by name in hooks
+- Keep the slice state minimal: only what must persist across navigation. If it can live in a hook's `useState`, it should.
+
+**Which layer reads / which layer dispatches:**
+
+| Layer                    | Reads Redux?                       | Dispatches?                               |
+| ------------------------ | ---------------------------------- | ----------------------------------------- |
+| `components/*.tsx`       | No — receives data as props        | No                                        |
+| Orchestrator `*Page.tsx` | Yes — `useAppSelector` (read-only) | No                                        |
+| `hooks/use*.ts`          | Yes — `useAppSelector`             | Yes — `useAppDispatch` + dispatch actions |
+
+**The dispatch rule:** hooks are the only layer that dispatches. The orchestrator may read Redux state to pass down as props (`const isStreaming = useAppSelector(s => s.aiChat.isStreaming)`), but it never calls `dispatch(...)` directly. If you find yourself dispatching in a page file or a component, move that call into a hook.
+
+**Adding a new slice:**
+
+1. Create `src/store/slices/<domain>Slice.ts` using `createSlice`
+2. Register it: add `<domain>: <domain>Reducer` to `makeStore`'s reducer map in `store.ts`
+3. `RootState` is inferred automatically — no extra type declarations needed
+
+**DO NOTs (Redux-specific):**
+
+- **Do not** call `useAppSelector` or `useAppDispatch` inside `components/` files
+- **Do not** dispatch actions directly in an orchestrator page — put dispatch calls in a hook
+- **Do not** store server-fetched data (API responses, DB rows) in Redux — keep it in hook-local `useState`
+- **Do not** create a new Redux store instance anywhere — `StoreProvider` already mounts one in `AdminShell`
+- **Do not** import bare `useSelector` / `useDispatch` from `react-redux` — always use the typed wrappers from `@/store/hooks`
+
 ### Styling rules by surface
 
 **Portfolio** (`src/app/(portfolio)/`, `src/components/portfolio/`, `src/components/shared/`):
