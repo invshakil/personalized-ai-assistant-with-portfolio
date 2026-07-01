@@ -83,6 +83,17 @@ const s = StyleSheet.create({
     color: "#888",
   },
   copyBadge: { fontSize: 7, color: "#999", marginBottom: 4, fontFamily: "Helvetica-Bold" },
+  advanceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    backgroundColor: "#f0eaf8",
+    paddingHorizontal: 5,
+    paddingVertical: 3,
+    borderRadius: 3,
+    marginTop: 2,
+    marginBottom: 2,
+  },
+  advanceLabel: { fontFamily: "Helvetica-Bold", fontSize: 8, color: "#6b4d8f" },
   paidWatermark: {
     position: "absolute",
     top: 110,
@@ -127,6 +138,8 @@ interface HalfProps {
   transactions: TxRow[];
   baseRent: number;
   services: ServiceRow[];
+  advanceBalance: number | null;
+  advanceSettled: boolean;
 }
 
 function ReceiptHalf(props: HalfProps) {
@@ -152,6 +165,8 @@ function ReceiptHalf(props: HalfProps) {
     transactions,
     baseRent,
     services,
+    advanceBalance,
+    advanceSettled,
   } = props;
   const statusColor = status === "PAID" ? "#28c76f" : status === "PARTIAL" ? "#ff9f43" : "#ea5455";
 
@@ -196,6 +211,12 @@ function ReceiptHalf(props: HalfProps) {
         <Text style={s.label}>Unit</Text>
         <Text style={s.value}>{unitNumber}</Text>
       </View>
+      {advanceBalance !== null && (
+        <View style={s.row}>
+          <Text style={s.label}>Advance Balance {advanceSettled ? "(Settled)" : "(Held)"}</Text>
+          <Text style={s.value}>{fmt(advanceBalance)}</Text>
+        </View>
+      )}
 
       <View style={s.divider} />
 
@@ -233,9 +254,9 @@ function ReceiptHalf(props: HalfProps) {
         <Text>{fmt(amountPaid + advanceApplied)}</Text>
       </View>
       {advanceApplied > 0 && (
-        <View style={s.lineItem}>
-          <Text style={s.label}> (incl. advance applied)</Text>
-          <Text style={s.label}>{fmt(advanceApplied)}</Text>
+        <View style={s.advanceRow}>
+          <Text style={s.advanceLabel}>Paid via Advance</Text>
+          <Text style={s.advanceLabel}>{fmt(advanceApplied)}</Text>
         </View>
       )}
       <View style={s.lineItem}>
@@ -276,6 +297,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
           select: {
             name: true,
             tenantCode: true,
+            advanceAmount: true,
+            advanceSettled: true,
             services: { where: { isActive: true }, include: { service: true } },
           },
         },
@@ -326,6 +349,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     transactions,
     baseRent,
     services,
+    advanceBalance:
+      payment.tenant.advanceAmount !== null ? Number(payment.tenant.advanceAmount) : null,
+    advanceSettled: payment.tenant.advanceSettled,
   };
 
   const buffer = await renderToBuffer(
