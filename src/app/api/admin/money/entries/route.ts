@@ -77,6 +77,7 @@ export async function POST(req: NextRequest) {
       obligationId: body.obligationId ?? null,
       description: body.description ?? null,
       notes: body.notes ?? null,
+      method: body.method ?? null,
     });
     return Response.json({ data }, { status: 201 });
   } catch (e) {

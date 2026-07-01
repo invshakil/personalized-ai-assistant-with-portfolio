@@ -64,6 +64,7 @@ async function beneficiaryByName(name: string) {
 }
 
 const DIRECTIONS = ["CREDIT", "DEBIT"] as const;
+const METHODS = ["CASH", "BANK_TRANSFER", "MOBILE_BANKING", "CHEQUE", "OTHER"] as const;
 const PAYMENT_DIRS = ["DEBIT", "CREDIT"] as const;
 const ACCOUNT_TYPES = ["CASH", "BANK", "MOBILE_WALLET", "CREDIT_CARD", "OTHER"] as const;
 const OBLIGATION_DIRS = ["OWED_BY_ME", "OWED_TO_ME"] as const;
@@ -78,11 +79,13 @@ export const moneyTools: WriteToolDef[] = [
     name: "create_money_entry",
     description:
       "Add a personal income (CREDIT) or expense (DEBIT) ledger entry. " +
-      "direction=CREDIT for money coming in, DEBIT for money going out. " +
+      "direction=CREDIT for money coming in, DEBIT for money going out — this is also how you record a " +
+      "deposit/top-up into an account (e.g. cash you received, a bank deposit, money someone sent you). " +
       "categoryName is free-text — it will be created if it doesn't exist (INCOME for CREDIT, EXPENSE for DEBIT). " +
       "accountName must match an existing account (use get_account_balances to list them); the amount is " +
       "in that account's currency (e.g. a USD account → amount is USD; BDT/no account → BDT). " +
-      "To move money between accounts (e.g. cash withdrawal) use record_money_transfer instead.",
+      "method (CREDIT only) records how the money arrived: CASH, BANK_TRANSFER, MOBILE_BANKING, CHEQUE, OTHER. " +
+      "To move money between two of your own accounts (e.g. cash withdrawal) use record_money_transfer instead.",
     parameters: schema(
       {
         direction: Enum(DIRECTIONS, "CREDIT (income) or DEBIT (expense)"),
@@ -90,6 +93,7 @@ export const moneyTools: WriteToolDef[] = [
         date: Str("Date YYYY-MM-DD"),
         categoryName: Str("Category name (created if needed, e.g. Groceries, Salary)"),
         accountName: Str("Account name, e.g. Cash, bKash (optional)"),
+        method: Enum(METHODS, "How a CREDIT arrived (optional; CREDIT only)"),
         description: Str("Short description (optional)"),
         notes: Str("Notes (optional)"),
       },
@@ -101,6 +105,7 @@ export const moneyTools: WriteToolDef[] = [
       date: reqDate(i.date, "date"),
       categoryName: reqStr(i.categoryName, "categoryName"),
       accountName: optStr(i.accountName),
+      method: optEnum(i.method, METHODS, "method"),
       description: optStr(i.description) ?? null,
       notes: optStr(i.notes) ?? null,
     }),
@@ -121,6 +126,7 @@ export const moneyTools: WriteToolDef[] = [
         amount: a.amount,
         categoryId,
         accountId: account?.id ?? null,
+        method: a.direction === "CREDIT" ? a.method : null,
         description: a.description,
         notes: a.notes,
       });
@@ -145,6 +151,7 @@ export const moneyTools: WriteToolDef[] = [
         date: Str("New date YYYY-MM-DD (optional)"),
         categoryName: Str("New category name (optional)"),
         accountName: Str("New account name (optional — pass empty string to clear)"),
+        method: Enum(METHODS, "New source — how a CREDIT arrived (optional; CREDIT only)"),
         description: Str("New description (optional)"),
         notes: Str("New notes (optional)"),
       },
@@ -159,6 +166,7 @@ export const moneyTools: WriteToolDef[] = [
         categoryName: optStr(i.categoryName),
         accountName: optStr(i.accountName),
         clearAccount: i.accountName === "",
+        method: optEnum(i.method, METHODS, "method"),
         description: optStr(i.description),
         notes: optStr(i.notes),
       };
@@ -169,6 +177,7 @@ export const moneyTools: WriteToolDef[] = [
         patch.categoryName === undefined &&
         patch.accountName === undefined &&
         !patch.clearAccount &&
+        patch.method === undefined &&
         patch.description === undefined &&
         patch.notes === undefined
       ) {
@@ -208,6 +217,7 @@ export const moneyTools: WriteToolDef[] = [
         date: patch.date,
         categoryId,
         accountId,
+        method: patch.method,
         description: patch.description,
         notes: patch.notes,
       });

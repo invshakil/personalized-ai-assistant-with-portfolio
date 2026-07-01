@@ -703,6 +703,14 @@ enum MoneyEntrySource {
   IMPORTED
 }
 
+enum MoneyEntryMethod {
+  CASH
+  BANK_TRANSFER
+  MOBILE_BANKING
+  CHEQUE
+  OTHER
+}
+
 model MoneyAccount {
   id             String           @id @default(cuid())
   name           String
@@ -788,6 +796,7 @@ model MoneyEntry {
   obligationId      String? // set when this entry pays against a loan/recurring obligation
   description       String?
   notes             String?
+  method            MoneyEntryMethod? // how a CREDIT arrived (cash/bank/mobile banking/etc.); null for DEBIT/TRANSFER or unspecified
   source            MoneyEntrySource       @default(MANUAL)
   importBatch       MoneyImportBatch?      @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
   importBatchId     String?

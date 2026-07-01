@@ -11,6 +11,7 @@ export type ObligationType = "RECURRING" | "LOAN";
 export type ObligationDirection = "OWED_TO_ME" | "OWED_BY_ME";
 export type ObligationStatus = "ACTIVE" | "CLOSED" | "CANCELLED";
 export type MoneyEntrySource = "MANUAL" | "IMPORTED";
+export type MoneyEntryMethod = "CASH" | "BANK_TRANSFER" | "MOBILE_BANKING" | "CHEQUE" | "OTHER";
 
 // ─── Accounts ────────────────────────────────────────────────────────────────
 
@@ -61,6 +62,7 @@ export interface MoneyEntryRow {
   obligationId: string | null;
   description: string | null;
   notes: string | null;
+  method: MoneyEntryMethod | null; // how a CREDIT arrived (cash/bank transfer/etc.); null for DEBIT/TRANSFER or unspecified
   source: MoneyEntrySource;
 }
 

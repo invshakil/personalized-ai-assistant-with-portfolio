@@ -15,7 +15,7 @@ export {
 } from "@/app/(admin)/admin/finance/format";
 
 import { fmtCurrency } from "@/app/(admin)/admin/finance/format";
-import type { MoneyAccountType, MoneyEntryDirection } from "@/types";
+import type { MoneyAccountType, MoneyEntryDirection, MoneyEntryMethod } from "@/types";
 
 /** Signed currency: green for in, red-ish handled by caller. e.g. +৳5,000 / −৳1,200 */
 export function fmtSigned(n: number): string {
@@ -41,6 +41,14 @@ export const DIRECTION_LABEL: Record<MoneyEntryDirection, string> = {
   CREDIT: "Income",
   DEBIT: "Expense",
   TRANSFER: "Transfer",
+};
+
+export const METHOD_LABEL: Record<MoneyEntryMethod, string> = {
+  CASH: "Cash",
+  BANK_TRANSFER: "Bank Transfer",
+  MOBILE_BANKING: "Mobile Banking",
+  CHEQUE: "Cheque",
+  OTHER: "Other",
 };
 
 // ─── Calendar-month range presets ─────────────────────────────────────────────

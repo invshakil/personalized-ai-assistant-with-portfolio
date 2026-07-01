@@ -8,7 +8,7 @@ import { MoneyEntryDirection, MoneyEntrySource, Prisma } from "@prisma/client";
 import { resolveRange, dateColumnWhere, type RangeInput } from "@/services/_shared/dateRange";
 import { getFxRateToBdt } from "@/services/_shared/fx";
 import { toNum, toIso } from "./_serializers";
-import type { MoneyEntryRow } from "@/types";
+import type { MoneyEntryRow, MoneyEntryMethod } from "@/types";
 
 const ENTRY_INCLUDE = {
   category: { select: { name: true, kind: true } },
@@ -40,6 +40,7 @@ function serializeEntry(e: EntryWithRelations): MoneyEntryRow {
     obligationId: e.obligationId,
     description: e.description,
     notes: e.notes,
+    method: e.method,
     source: e.source,
   };
 }
@@ -122,6 +123,13 @@ async function assertCategoryMatchesDirection(
   }
 }
 
+/** method only makes sense on a CREDIT (money in / deposit) entry. */
+function assertMethodAllowed(method: MoneyEntryMethod | null | undefined, direction: string) {
+  if (method && direction !== "CREDIT") {
+    throw new Error("method can only be set on a CREDIT (income/deposit) entry");
+  }
+}
+
 /** The currency an account holds (BDT when no account / not found). */
 async function accountCurrency(accountId: string | null | undefined): Promise<string> {
   if (!accountId) return "BDT";
@@ -154,6 +162,8 @@ export interface CreateEntryInput {
   obligationId?: string | null;
   description?: string | null;
   notes?: string | null;
+  /** How a CREDIT arrived (cash/bank transfer/etc.); CREDIT-only. */
+  method?: MoneyEntryMethod | null;
   source?: MoneyEntrySource;
   /**
    * Currency of this entry. Defaults to the account's currency; only the
@@ -167,6 +177,7 @@ export interface CreateEntryInput {
 export async function createEntry(input: CreateEntryInput): Promise<MoneyEntryRow> {
   if (input.amount == null || input.amount <= 0) throw new Error("amount must be greater than 0");
   await assertCategoryMatchesDirection(input.categoryId, input.direction);
+  assertMethodAllowed(input.method, input.direction);
 
   const acctCurrency = await accountCurrency(input.accountId);
   const currency = (input.currency ?? acctCurrency).toUpperCase();
@@ -188,6 +199,7 @@ export async function createEntry(input: CreateEntryInput): Promise<MoneyEntryRo
       obligationId: input.obligationId ?? null,
       description: input.description ?? null,
       notes: input.notes ?? null,
+      method: input.method ?? null,
       source: input.source ?? MoneyEntrySource.MANUAL,
     },
     include: ENTRY_INCLUDE,
@@ -205,6 +217,8 @@ export interface UpdateEntryInput {
   obligationId?: string | null;
   description?: string | null;
   notes?: string | null;
+  /** How a CREDIT arrived (cash/bank transfer/etc.); CREDIT-only. */
+  method?: MoneyEntryMethod | null;
 }
 
 export async function updateEntry(id: string, input: UpdateEntryInput): Promise<MoneyEntryRow> {
@@ -223,6 +237,7 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
   if ((input.direction || input.categoryId) && nextCategoryId) {
     await assertCategoryMatchesDirection(nextCategoryId, nextDirection);
   }
+  if (input.method) assertMethodAllowed(input.method, nextDirection);
 
   const e = await db.moneyEntry.update({
     where: { id },
@@ -236,6 +251,7 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
       ...(input.obligationId !== undefined && { obligationId: input.obligationId }),
       ...(input.description !== undefined && { description: input.description }),
       ...(input.notes !== undefined && { notes: input.notes }),
+      ...(input.method !== undefined && { method: input.method }),
     },
     include: ENTRY_INCLUDE,
   });

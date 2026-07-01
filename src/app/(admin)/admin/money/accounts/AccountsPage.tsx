@@ -28,7 +28,7 @@ import {
   IconButton,
   Tooltip,
 } from "@mui/material";
-import { Plus, Pencil, Trash2, ChevronRight, ChevronDown } from "lucide-react";
+import { Plus, Pencil, Trash2, ChevronRight, ChevronDown, PiggyBank } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { moneyApi } from "@/lib/api/money";
@@ -345,6 +345,15 @@ export default function AccountsPage() {
                       </TableCell>
                       <TableCell data-label="Actions">
                         <Box sx={{ display: "flex" }} onClick={(e) => e.stopPropagation()}>
+                          <Tooltip title="Deposit">
+                            <IconButton
+                              size="small"
+                              component={NextLink}
+                              href={`/admin/money/entries?deposit=${a.id}`}
+                            >
+                              <PiggyBank size={14} />
+                            </IconButton>
+                          </Tooltip>
                           <Tooltip title="Edit">
                             <IconButton size="small" onClick={() => openEdit(a)}>
                               <Pencil size={14} />

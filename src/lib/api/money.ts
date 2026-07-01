@@ -8,6 +8,7 @@ import type {
   MoneyCategoryKind,
   MoneyEntryRow,
   MoneyEntryDirection,
+  MoneyEntryMethod,
   BeneficiaryRow,
   BeneficiaryDetail,
   ObligationRow,
@@ -44,6 +45,8 @@ export interface EntryPayload {
   obligationId?: string | null;
   description?: string | null;
   notes?: string | null;
+  /** How a CREDIT arrived (cash/bank transfer/etc.); CREDIT-only. */
+  method?: MoneyEntryMethod | null;
 }
 
 export interface TransferPayload {

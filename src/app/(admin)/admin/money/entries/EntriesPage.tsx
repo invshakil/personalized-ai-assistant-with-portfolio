@@ -37,6 +37,7 @@ import {
   type MoneyAccountRow,
   type MoneyCategoryRow,
   type MoneyEntryRow,
+  type MoneyEntryMethod,
   type BeneficiaryRow,
   type ObligationRow,
 } from "@/types";
@@ -47,6 +48,7 @@ import {
   fmtDate,
   todayInput,
   DIRECTION_LABEL,
+  METHOD_LABEL,
   MONEY_RANGE_LABELS,
   MONEY_RANGE_PERIOD,
   type MoneyRange,
@@ -73,6 +75,8 @@ type EntryForm = {
   notes: string;
   beneficiaryId: string;
   obligationId: string;
+  /** How a CREDIT arrived (cash/bank transfer/etc.) — CREDIT-only. */
+  method: MoneyEntryMethod | "";
 };
 
 type TransferForm = {
@@ -95,6 +99,7 @@ const BLANK_ENTRY: EntryForm = {
   notes: "",
   beneficiaryId: "",
   obligationId: "",
+  method: "",
 };
 
 // Entry direction → which side of an obligation it can settle.
@@ -389,6 +394,7 @@ export default function EntriesPage() {
       notes: e.notes ?? "",
       beneficiaryId: e.beneficiaryId ?? "",
       obligationId: e.obligationId ?? "",
+      method: e.method ?? "",
     });
     setError(null);
     setDrawerOpen(true);
@@ -406,7 +412,27 @@ export default function EntriesPage() {
           : "",
       // A due is direction-specific; clear it so it can't mismatch the new type.
       obligationId: "",
+      // Method only applies to CREDIT (deposit) entries.
+      method: direction === "CREDIT" ? f.method : "",
     }));
+
+  // Deep link from the Accounts page: "?deposit=<accountId>" opens this drawer
+  // pre-filled to a CREDIT entry for that account (a quick "top up" action).
+  useEffect(() => {
+    const depositAccountId = searchParams.get("deposit");
+    if (!depositAccountId || accounts.length === 0) return;
+    setEditing(null);
+    setForm({
+      ...BLANK_ENTRY,
+      direction: "CREDIT",
+      accountId: depositAccountId,
+      date: todayInput(),
+    });
+    setError(null);
+    setDrawerOpen(true);
+    setParams({ deposit: undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accounts]);
 
   const save = async () => {
     setSaving(true);
@@ -423,6 +449,7 @@ export default function EntriesPage() {
         beneficiaryId: form.beneficiaryId || null,
         // Only keep the due link when a person is selected and it still matches.
         obligationId: form.beneficiaryId ? form.obligationId || null : null,
+        method: form.direction === "CREDIT" ? form.method || null : null,
       };
       if (editing) await moneyApi.updateEntry(editing, body);
       else await moneyApi.createEntry(body);
@@ -742,6 +769,15 @@ export default function EntriesPage() {
                           {e.beneficiaryName}
                         </Typography>
                       ) : null}
+                      {e.method ? (
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: "block" }}
+                        >
+                          {METHOD_LABEL[e.method]}
+                        </Typography>
+                      ) : null}
                     </TableCell>
                     <TableCell data-label="Account">
                       {e.direction === "TRANSFER" ? "—" : accountName(e.accountId)}
@@ -849,6 +885,21 @@ export default function EntriesPage() {
             onChange={(v) => setForm((f) => ({ ...f, accountId: v }))}
             sx={{ mb: 2 }}
           />
+          {form.direction === "CREDIT" && (
+            <SearchableSelect
+              label="Source (how it arrived)"
+              value={form.method}
+              options={[
+                { value: "", label: "— unspecified —" },
+                ...(Object.keys(METHOD_LABEL) as MoneyEntryMethod[]).map((m) => ({
+                  value: m,
+                  label: METHOD_LABEL[m],
+                })),
+              ]}
+              onChange={(v) => setForm((f) => ({ ...f, method: v as MoneyEntryMethod | "" }))}
+              sx={{ mb: 2 }}
+            />
+          )}
           <TextField
             label="Description"
             size="small"
