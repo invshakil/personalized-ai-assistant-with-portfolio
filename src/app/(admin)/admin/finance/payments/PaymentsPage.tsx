@@ -1,761 +1,111 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import {
-  Box,
-  Card,
-  Typography,
-  Button,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Chip,
-  Drawer,
-  TextField,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  CircularProgress,
-  Alert,
-  IconButton,
-  Tooltip,
-  OutlinedInput,
-  Stack,
-} from "@mui/material";
-import { Plus, Pencil, Trash2, Download } from "lucide-react";
+import { Box, CircularProgress } from "@mui/material";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
-import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
-import { fiscalYearOf } from "@/lib/fiscalYear";
-import { financeApi, type PaymentFilters } from "@/lib/api/finance";
-import { moneyApi } from "@/lib/api/money";
-import { mobileCardTableSx } from "@/lib/mobileTableSx";
-import { SUPPORTED_CURRENCIES, type MoneyAccountRow } from "@/types";
-import type { PaymentRow, EmployeeRow, SourceRow, PaymentKind } from "../types";
-import {
-  fmt,
-  fmtDate,
-  fmtForeign,
-  currencySymbol,
-  todayInput,
-  currentFiscalYear,
-  FILTER_RANGE_PRESETS,
-  FILTER_RANGE_LABELS,
-  FILTER_RANGE_TOKEN,
-  TOKEN_TO_FILTER_RANGE,
-  type FilterRangePreset,
-} from "../format";
-
-const KINDS: PaymentKind[] = ["SALARY", "BONUS", "ADVANCE", "OTHER"];
-const KIND_LABEL: Record<PaymentKind, string> = {
-  SALARY: "Salary",
-  BONUS: "Bonus",
-  ADVANCE: "Advance",
-  OTHER: "Other",
-};
-
-// Sentinel for "don't post a ledger entry" in the optional account dropdown.
-const NO_ACCOUNT = "";
-
-type PaymentForm = {
-  date: string;
-  employeeId: string;
-  type: PaymentKind;
-  reference: string;
-  clientIds: string[];
-  /** Amount in the chosen currency (= BDT amount when currency is BDT). */
-  amount: string;
-  currency: string;
-  /** BDT per 1 unit of `currency`; "1" for BDT. */
-  fxRate: string;
-  fiscalYear: string;
-  notes: string;
-  /** Optional Money account to post a linked DEBIT to (opt-in; create only). */
-  accountId: string;
-};
-
-const BLANK: PaymentForm = {
-  date: todayInput(),
-  employeeId: "",
-  type: "SALARY",
-  reference: "",
-  clientIds: [],
-  amount: "",
-  currency: "BDT",
-  fxRate: "1",
-  fiscalYear: fiscalYearOf(new Date()),
-  notes: "",
-  accountId: NO_ACCOUNT,
-};
-
-const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES.map((c) => ({ value: c, label: c }));
+import type { SelectOption } from "@/components/admin/SearchableSelect";
+import { usePaymentFilters } from "./hooks/usePaymentFilters";
+import { usePaymentData } from "./hooks/usePaymentData";
+import { usePaymentDrawer } from "./hooks/usePaymentDrawer";
+import { usePaymentActions } from "./hooks/usePaymentActions";
+import PaymentFiltersBar from "./components/PaymentFilters";
+import PaymentSummaryCard from "./components/PaymentSummaryCard";
+import PaymentTable from "./components/PaymentTable";
+import PaymentDrawer from "./components/PaymentDrawer";
+import { NO_ACCOUNT } from "./types";
 
 export default function PaymentsPage() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
+  const filters = usePaymentFilters();
+  const data = usePaymentData(filters.buildApiFilters);
+  const drawer = usePaymentDrawer(data.employees, data.accounts, data.reload);
+  const actions = usePaymentActions(data.reload);
 
-  // ── Filter state lives entirely in the URL (deep-linkable, restored on reload) ──
-  const fyParam = searchParams.get("fy") ?? "";
-  const fyFilter = useMemo(() => fyParam.split(",").filter(Boolean), [fyParam]);
-  const empParam = searchParams.get("employee") ?? "";
-  const empFilter = useMemo(() => empParam.split(",").filter(Boolean), [empParam]);
-  const typeParam = searchParams.get("type") ?? "";
-  const typeFilter = useMemo(
-    () => typeParam.split(",").filter(Boolean) as PaymentKind[],
-    [typeParam]
-  );
-  const clientParam = searchParams.get("client") ?? "";
-  const clientFilter = useMemo(() => clientParam.split(",").filter(Boolean), [clientParam]);
-  const period = searchParams.get("period") ?? undefined;
-  const from = searchParams.get("from") ?? undefined;
-  const to = searchParams.get("to") ?? undefined;
-
-  const hasCustomRange = Boolean(from || to);
-  const activePreset: FilterRangePreset | "CUSTOM" = hasCustomRange
-    ? "CUSTOM"
-    : (period && TOKEN_TO_FILTER_RANGE[period]) || "M1";
-
-  /** Merge a patch into the URL query (undefined/"" removes the key). */
-  const setParams = useCallback(
-    (patch: Record<string, string | undefined>) => {
-      const next = new URLSearchParams(searchParams.toString());
-      for (const [k, v] of Object.entries(patch)) {
-        if (v === undefined || v === "") next.delete(k);
-        else next.set(k, v);
-      }
-      const query = next.toString();
-      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
-    },
-    [searchParams, pathname, router]
-  );
-
-  const [payments, setPayments] = useState<PaymentRow[]>([]);
-  const [employees, setEmployees] = useState<EmployeeRow[]>([]);
-  const [clients, setClients] = useState<SourceRow[]>([]);
-  const [accounts, setAccounts] = useState<MoneyAccountRow[]>([]);
-  // Full fiscal-year set for the dropdown — derived from an unfiltered list.
-  const [allFiscalYears, setAllFiscalYears] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [form, setForm] = useState<PaymentForm>(BLANK);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [rateLoading, setRateLoading] = useState(false);
-  const [rateNote, setRateNote] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const filters: PaymentFilters = {
-        fiscalYears: fyFilter,
-        employeeIds: empFilter,
-        types: typeFilter,
-        clientIds: clientFilter,
-        ...(hasCustomRange ? { from, to } : { period: period ?? "this_month" }),
-      };
-      setPayments((await financeApi.listPayments(filters)) ?? []);
-    } finally {
-      setLoading(false);
-    }
-  }, [fyFilter, empFilter, typeFilter, clientFilter, hasCustomRange, from, to, period]);
-
-  const loadRefData = useCallback(async () => {
-    const [employeesData, clientsData, accountsData, allPayments] = await Promise.all([
-      financeApi.listEmployees(),
-      financeApi.listClients(),
-      moneyApi.listAccounts(),
-      financeApi.listPayments(),
-    ]);
-    setEmployees(employeesData ?? []);
-    setClients(clientsData ?? []);
-    setAccounts(accountsData ?? []);
-    setAllFiscalYears(
-      Array.from(new Set([currentFiscalYear(), ...(allPayments ?? []).map((p) => p.fiscalYear)]))
-        .sort()
-        .reverse()
-    );
-  }, []);
-
-  useEffect(() => {
-    loadRefData();
-  }, [loadRefData]);
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const total = payments.reduce((s, p) => s + p.amount, 0);
-
-  // ── Dropdown option lists ──────────────────────────────────────────────────────
-  const fySelectOptions: SelectOption[] = allFiscalYears.map((fy) => ({ value: fy, label: fy }));
-  const empSelectOptions: SelectOption[] = employees.map((emp) => ({
+  const fySelectOptions: SelectOption[] = data.allFiscalYears.map((fy) => ({
+    value: fy,
+    label: fy,
+  }));
+  const empSelectOptions: SelectOption[] = data.employees.map((emp) => ({
     value: emp.id,
     label: emp.name,
   }));
-  const typeSelectOptions: SelectOption[] = KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }));
-  const clientSelectOptions: SelectOption[] = clients.map((c) => ({ value: c.id, label: c.name }));
-  const periodSelectOptions: SelectOption[] = [
-    ...FILTER_RANGE_PRESETS.map((p) => ({ value: p, label: FILTER_RANGE_LABELS[p] })),
-    ...(activePreset === "CUSTOM"
-      ? [{ value: "CUSTOM", label: "Custom range", disabled: true }]
-      : []),
-  ];
-
-  const hasActiveFilters =
-    fyFilter.length > 0 ||
-    empFilter.length > 0 ||
-    typeFilter.length > 0 ||
-    clientFilter.length > 0 ||
-    hasCustomRange ||
-    Boolean(period);
-
-  const onPresetChange = (preset: FilterRangePreset) =>
-    setParams({
-      period: FILTER_RANGE_TOKEN[preset],
-      from: undefined,
-      to: undefined,
-    });
-
-  // Optional account dropdown (post a linked DEBIT). "— none —" = no ledger entry.
+  const clientSelectOptions: SelectOption[] = data.clients.map((c) => ({
+    value: c.id,
+    label: c.name,
+  }));
   const accountSelectOptions: SelectOption[] = [
     { value: NO_ACCOUNT, label: "— none —" },
-    ...accounts.map((a) => ({ value: a.id, label: a.name })),
+    ...data.accounts.map((a) => ({ value: a.id, label: a.name })),
   ];
-  const defaultAccountId = () => accounts.find((a) => a.type === "BANK")?.id ?? NO_ACCOUNT;
-
-  const openAdd = () => {
-    setEditing(null);
-    setForm({
-      ...BLANK,
-      date: todayInput(),
-      fiscalYear: fiscalYearOf(new Date()),
-      employeeId: employees[0]?.id ?? "",
-      accountId: defaultAccountId(),
-    });
-    setError(null);
-    setDrawerOpen(true);
-  };
-
-  const openEdit = (p: PaymentRow) => {
-    setEditing(p.id);
-    setForm({
-      date: p.date ? p.date.split("T")[0] : todayInput(),
-      employeeId: p.employeeId,
-      type: p.type,
-      reference: p.reference ?? "",
-      clientIds: p.clients.map((c) => c.id),
-      amount: String(p.originalAmount),
-      currency: p.currency,
-      fxRate: String(p.fxRate),
-      fiscalYear: p.fiscalYear,
-      notes: p.notes ?? "",
-      accountId: NO_ACCOUNT,
-    });
-    setRateNote(null);
-    setError(null);
-    setDrawerOpen(true);
-  };
-
-  const onDateChange = (date: string) =>
-    setForm((f) => ({
-      ...f,
-      date,
-      fiscalYear: date ? fiscalYearOf(new Date(date)) : f.fiscalYear,
-    }));
-
-  // Fetch the live BDT rate for a currency and prefill the editable field.
-  const fetchRate = useCallback(async (currency: string) => {
-    setRateLoading(true);
-    setRateNote(null);
-    try {
-      const res = await financeApi.getFxRate(currency);
-      if (res && res.rate > 0) {
-        setForm((f) => ({ ...f, fxRate: String(res.rate) }));
-        setRateNote(
-          res.source === "live" || res.source === "cache"
-            ? `Live rate ৳${res.rate} / ${currency}${res.asOf ? ` (as of ${fmtDate(res.asOf)})` : ""}`
-            : null
-        );
-      } else {
-        setRateNote("Couldn't fetch a rate — enter it manually.");
-      }
-    } catch {
-      setRateNote("Couldn't fetch a rate — enter it manually.");
-    } finally {
-      setRateLoading(false);
-    }
-  }, []);
-
-  const onCurrencyChange = (currency: string) => {
-    if (currency === "BDT") {
-      setForm((f) => ({ ...f, currency, fxRate: "1" }));
-      setRateNote(null);
-      return;
-    }
-    setForm((f) => ({ ...f, currency }));
-    fetchRate(currency);
-  };
-
-  const previewBdt = (() => {
-    const amt = parseFloat(form.amount);
-    const rate = parseFloat(form.fxRate);
-    if (!Number.isFinite(amt) || !Number.isFinite(rate)) return null;
-    return amt * rate;
-  })();
-  const rateMissing = form.currency !== "BDT" && !(parseFloat(form.fxRate) > 0);
-
-  const save = async () => {
-    setSaving(true);
-    setError(null);
-    try {
-      const isBdt = form.currency === "BDT";
-      const body = {
-        date: form.date,
-        employeeId: form.employeeId,
-        type: form.type,
-        reference: form.reference || null,
-        clientIds: form.clientIds,
-        currency: form.currency,
-        originalAmount: parseFloat(form.amount),
-        fxRate: isBdt ? 1 : parseFloat(form.fxRate),
-        fiscalYear: form.fiscalYear,
-        notes: form.notes || null,
-      };
-      if (editing) await financeApi.updatePayment(editing, body);
-      // accountId is create-only (opt-in link; no back-sync on edit).
-      else await financeApi.createPayment({ ...body, accountId: form.accountId || undefined });
-      setDrawerOpen(false);
-      load();
-      loadRefData();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const confirmDelete = async () => {
-    if (!pendingDelete) return;
-    setDeleting(true);
-    try {
-      await financeApi.deletePayment(pendingDelete);
-      setPendingDelete(null);
-      load();
-      loadRefData();
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // Download mirrors the FY + employee filters when exactly one is selected.
-  const downloadAll = () => {
-    const qs = new URLSearchParams();
-    if (fyFilter.length === 1) qs.set("fiscalYear", fyFilter[0]);
-    if (empFilter.length === 1) qs.set("employeeId", empFilter[0]);
-    window.open(`/api/admin/finance/payments/pdf?${qs.toString()}`, "_blank");
-  };
 
   return (
     <Box>
       <PageHeader title="Employee Salaries" subtitle="Salary & bonus payments to employees" />
 
-      <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
-        <MultiSearchableSelect
-          label="Fiscal Year"
-          value={fyFilter}
-          options={fySelectOptions}
-          onChange={(ids) => setParams({ fy: ids.length ? ids.join(",") : undefined })}
-          sx={{ minWidth: 160 }}
-        />
-        <MultiSearchableSelect
-          label="Employee"
-          value={empFilter}
-          options={empSelectOptions}
-          onChange={(ids) => setParams({ employee: ids.length ? ids.join(",") : undefined })}
-          sx={{ minWidth: 180 }}
-        />
-        <MultiSearchableSelect
-          label="Type"
-          value={typeFilter}
-          options={typeSelectOptions}
-          onChange={(ids) => setParams({ type: ids.length ? ids.join(",") : undefined })}
-          sx={{ minWidth: 140 }}
-        />
-        <MultiSearchableSelect
-          label="Client"
-          value={clientFilter}
-          options={clientSelectOptions}
-          onChange={(ids) => setParams({ client: ids.length ? ids.join(",") : undefined })}
-          sx={{ minWidth: 180 }}
-        />
-        <SearchableSelect
-          label="Period"
-          value={activePreset}
-          options={periodSelectOptions}
-          onChange={(v) => onPresetChange(v as FilterRangePreset)}
-          sx={{ minWidth: 170 }}
-        />
-        <TextField
-          label="From"
-          type="date"
-          size="small"
-          value={from ?? ""}
-          onChange={(e) => setParams({ from: e.target.value || undefined, period: undefined })}
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{ minWidth: 150 }}
-        />
-        <TextField
-          label="To"
-          type="date"
-          size="small"
-          value={to ?? ""}
-          onChange={(e) => setParams({ to: e.target.value || undefined, period: undefined })}
-          slotProps={{ inputLabel: { shrink: true } }}
-          sx={{ minWidth: 150 }}
-        />
-        {hasActiveFilters && (
-          <Button
-            size="small"
-            color="inherit"
-            onClick={() =>
-              setParams({
-                fy: undefined,
-                employee: undefined,
-                type: undefined,
-                client: undefined,
-                period: undefined,
-                from: undefined,
-                to: undefined,
-              })
-            }
-          >
-            Clear
-          </Button>
-        )}
-        <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
-          <Button
-            variant="outlined"
-            startIcon={<Download size={16} />}
-            disabled={payments.length === 0}
-            onClick={downloadAll}
-          >
-            Download all
-          </Button>
-          <Button variant="contained" startIcon={<Plus size={16} />} onClick={openAdd}>
-            Add Payment
-          </Button>
-        </Box>
-      </Box>
+      <PaymentFiltersBar
+        fyFilter={filters.fyFilter}
+        empFilter={filters.empFilter}
+        typeFilter={filters.typeFilter}
+        clientFilter={filters.clientFilter}
+        from={filters.from}
+        to={filters.to}
+        activePreset={filters.activePreset}
+        hasActiveFilters={filters.hasActiveFilters}
+        fySelectOptions={fySelectOptions}
+        empSelectOptions={empSelectOptions}
+        clientSelectOptions={clientSelectOptions}
+        setParams={filters.setParams}
+        onPresetChange={filters.onPresetChange}
+        hasPayments={data.payments.length > 0}
+        onDownloadAll={() => actions.downloadAll(filters.fyFilter, filters.empFilter)}
+        onAdd={drawer.openAdd}
+      />
 
-      {!loading && payments.length > 0 && (
-        <Card sx={{ bgcolor: "background.paper", mb: 2, display: "inline-flex", px: 3, py: 1.5 }}>
-          <Box>
-            <Typography variant="caption" color="text.secondary">
-              Total Paid ({payments.length})
-            </Typography>
-            <Typography variant="h6" sx={{ fontWeight: 700, color: "warning.main" }}>
-              {fmt(total)}
-            </Typography>
-          </Box>
-        </Card>
+      {!data.loading && data.payments.length > 0 && (
+        <PaymentSummaryCard count={data.payments.length} total={data.total} />
       )}
 
-      {loading ? (
+      {data.loading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
           <CircularProgress />
         </Box>
       ) : (
-        <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
-          <Table size="small" sx={mobileCardTableSx}>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Employee</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Type</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Clients</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 700 }}>
-                  Amount
-                </TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Fiscal Year</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {payments.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} sx={{ textAlign: "center", py: 4 }}>
-                    <Typography color="text.secondary">
-                      {hasActiveFilters ? "No payments match these filters" : "No payments yet"}
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                payments.map((p) => (
-                  <TableRow key={p.id} hover>
-                    <TableCell data-label="Date">{fmtDate(p.date)}</TableCell>
-                    <TableCell data-label="Employee">{p.employeeName}</TableCell>
-                    <TableCell data-label="Type">
-                      <Chip
-                        size="small"
-                        label={KIND_LABEL[p.type]}
-                        color={
-                          p.type === "SALARY"
-                            ? "primary"
-                            : p.type === "BONUS"
-                              ? "success"
-                              : "default"
-                        }
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell data-label="Clients">
-                      {p.clients.length > 0 ? (
-                        <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", gap: 0.5 }}>
-                          {p.clients.map((c) => (
-                            <Chip key={c.id} size="small" label={c.name} variant="outlined" />
-                          ))}
-                        </Stack>
-                      ) : (
-                        <Typography variant="caption" color="text.secondary">
-                          —
-                        </Typography>
-                      )}
-                      {p.reference && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: "block", mt: p.clients.length ? 0.5 : 0 }}
-                        >
-                          {p.reference}
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell
-                      align="right"
-                      data-label="Amount"
-                      sx={{ fontWeight: 600, color: "warning.main" }}
-                    >
-                      {fmt(p.amount)}
-                      {p.currency !== "BDT" && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: "block", fontWeight: 400 }}
-                        >
-                          {fmtForeign(p.currency, p.originalAmount, p.fxRate)}
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell data-label="Fiscal Year">{p.fiscalYear}</TableCell>
-                    <TableCell data-label="Actions">
-                      <Box sx={{ display: "flex" }}>
-                        <Tooltip title="Download salary receipt">
-                          <IconButton
-                            size="small"
-                            onClick={() =>
-                              window.open(`/api/admin/finance/payments/${p.id}/receipt`, "_blank")
-                            }
-                          >
-                            <Download size={14} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Edit">
-                          <IconButton size="small" onClick={() => openEdit(p)}>
-                            <Pencil size={14} />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={() => setPendingDelete(p.id)}
-                          >
-                            <Trash2 size={14} />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        <PaymentTable
+          payments={data.payments}
+          hasActiveFilters={filters.hasActiveFilters}
+          onEdit={drawer.openEdit}
+          onDelete={actions.requestDelete}
+          onDownloadReceipt={actions.downloadReceipt}
+        />
       )}
 
-      <Drawer
-        anchor="right"
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 420 } } } }}
-      >
-        <Box sx={{ width: "100%", p: 3 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-            {editing ? "Edit Payment" : "Add Payment"}
-          </Typography>
-          <TextField
-            label="Date"
-            type="date"
-            size="small"
-            fullWidth
-            value={form.date}
-            onChange={(e) => onDateChange(e.target.value)}
-            sx={{ mb: 2 }}
-          />
-          <SearchableSelect
-            label="Employee"
-            value={form.employeeId}
-            options={employees.map((emp) => ({ value: emp.id, label: emp.name }))}
-            onChange={(v) => setForm((f) => ({ ...f, employeeId: v }))}
-            sx={{ mb: 2 }}
-          />
-          <SearchableSelect
-            label="Type"
-            value={form.type}
-            options={KINDS.map((k) => ({ value: k, label: KIND_LABEL[k] }))}
-            onChange={(v) => setForm((f) => ({ ...f, type: v as PaymentKind }))}
-            sx={{ mb: 2 }}
-          />
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel>Client(s)</InputLabel>
-            <Select
-              multiple
-              label="Client(s)"
-              value={form.clientIds}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  clientIds:
-                    typeof e.target.value === "string" ? e.target.value.split(",") : e.target.value,
-                }))
-              }
-              input={<OutlinedInput label="Client(s)" />}
-              renderValue={(selected) => (
-                <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", gap: 0.5 }}>
-                  {(selected as string[]).map((id) => {
-                    const c = clients.find((x) => x.id === id);
-                    return <Chip key={id} size="small" label={c?.name ?? id} />;
-                  })}
-                </Stack>
-              )}
-            >
-              {clients.map((c) => (
-                <MenuItem key={c.id} value={c.id}>
-                  {c.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-          <TextField
-            label="Note (optional)"
-            size="small"
-            fullWidth
-            value={form.reference}
-            onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))}
-            placeholder="e.g. wedding bonus"
-            sx={{ mb: 2 }}
-          />
-          <SearchableSelect
-            label="Currency"
-            value={form.currency}
-            options={CURRENCY_OPTIONS}
-            onChange={onCurrencyChange}
-            sx={{ mb: 2 }}
-          />
-          <TextField
-            label={`Amount (${currencySymbol(form.currency)})`}
-            type="number"
-            size="small"
-            fullWidth
-            value={form.amount}
-            onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-            sx={{ mb: 2 }}
-          />
-          {form.currency !== "BDT" && (
-            <>
-              <TextField
-                label={`FX rate (৳ per 1 ${form.currency})`}
-                type="number"
-                size="small"
-                fullWidth
-                value={form.fxRate}
-                onChange={(e) => setForm((f) => ({ ...f, fxRate: e.target.value }))}
-                helperText={
-                  rateLoading
-                    ? "Fetching live rate…"
-                    : (rateNote ?? "Editable — use your bank's actual rate.")
-                }
-                sx={{ mb: 1 }}
-              />
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
-                {previewBdt != null
-                  ? `= ${fmt(previewBdt)} (stored as BDT)`
-                  : "Enter amount and rate to see the BDT value."}
-              </Typography>
-            </>
-          )}
-          <TextField
-            label="Fiscal Year"
-            size="small"
-            fullWidth
-            value={form.fiscalYear}
-            onChange={(e) => setForm((f) => ({ ...f, fiscalYear: e.target.value }))}
-            helperText="Auto-set from the date (July–June); override if needed."
-            sx={{ mb: 2 }}
-          />
-          {!editing && (
-            <SearchableSelect
-              label="Pay from account (optional)"
-              value={form.accountId}
-              options={accountSelectOptions}
-              onChange={(v) => setForm((f) => ({ ...f, accountId: v }))}
-              clearable
-              sx={{ mb: 2 }}
-            />
-          )}
-          <TextField
-            label="Notes"
-            size="small"
-            fullWidth
-            multiline
-            rows={2}
-            value={form.notes}
-            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            sx={{ mb: 2 }}
-          />
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-          <Button
-            variant="contained"
-            fullWidth
-            onClick={save}
-            disabled={saving || !form.employeeId || !form.amount || rateMissing}
-          >
-            {saving ? "Saving…" : editing ? "Save Changes" : "Add Payment"}
-          </Button>
-        </Box>
-      </Drawer>
+      <PaymentDrawer
+        open={drawer.drawerOpen}
+        editing={!!drawer.editing}
+        form={drawer.form}
+        setForm={drawer.setForm}
+        employees={data.employees}
+        clients={data.clients}
+        accountSelectOptions={accountSelectOptions}
+        rateLoading={drawer.rateLoading}
+        rateNote={drawer.rateNote}
+        previewBdt={drawer.previewBdt}
+        rateMissing={drawer.rateMissing}
+        saving={drawer.saving}
+        error={drawer.error}
+        onDateChange={drawer.onDateChange}
+        onCurrencyChange={drawer.onCurrencyChange}
+        onSave={drawer.save}
+        onClose={drawer.closeDrawer}
+      />
 
       <ConfirmDialog
-        open={!!pendingDelete}
-        title="Delete payment"
-        message="This permanently removes this salary payment record. This cannot be undone."
-        confirmLabel="Delete"
-        loading={deleting}
-        onConfirm={confirmDelete}
-        onClose={() => setPendingDelete(null)}
+        open={!!actions.confirm.dialog}
+        title={actions.confirm.dialog?.title ?? ""}
+        message={actions.confirm.dialog?.message ?? ""}
+        confirmLabel={actions.confirm.dialog?.confirmLabel}
+        loading={actions.confirm.loading}
+        onConfirm={actions.confirm.runConfirm}
+        onClose={actions.confirm.closeConfirm}
       />
     </Box>
   );
