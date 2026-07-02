@@ -1,4 +1,5 @@
 import { Chip, TableCell, TableRow, Typography } from "@mui/material";
+import EntityLink from "@/components/admin/EntityLink";
 import type { EarningRow } from "../../types";
 import { fmtDate } from "../../format";
 import { REMITTANCE_LABEL } from "../types";
@@ -25,7 +26,9 @@ export default function EarningTableRow({
   return (
     <TableRow hover>
       <TableCell data-label="Date">{fmtDate(e.date)}</TableCell>
-      <TableCell data-label="Client">{e.sourceName}</TableCell>
+      <TableCell data-label="Client">
+        <EntityLink href={`/admin/finance/clients/${e.sourceId}`}>{e.sourceName}</EntityLink>
+      </TableCell>
       <TableCell data-label="Type">
         <Chip
           size="small"

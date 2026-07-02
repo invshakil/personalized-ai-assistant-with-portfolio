@@ -1,3 +1,4 @@
+import EntityLink from "@/components/admin/EntityLink";
 import type { SourceRow } from "../../types";
 import SettingsListCard from "./SettingsListCard";
 
@@ -16,7 +17,9 @@ export default function SourcesCard({ sources, onAdd, onEdit, onDelete }: Props)
       onAdd={onAdd}
       onEdit={onEdit}
       onDelete={onDelete}
-      renderPrimary={(s) => s.name}
+      renderPrimary={(s) => (
+        <EntityLink href={`/admin/finance/clients/${s.id}`}>{s.name}</EntityLink>
+      )}
       renderSecondary={(s) => `${s.earningCount} earnings`}
     />
   );

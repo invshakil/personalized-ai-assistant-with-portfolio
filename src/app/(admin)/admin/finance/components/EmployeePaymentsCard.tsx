@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
+import EntityLink from "@/components/admin/EntityLink";
 import type { FinanceDashboardData } from "../types";
 import { fmt } from "../format";
 
@@ -45,7 +46,9 @@ export default function EmployeePaymentsCard({
               {byEmployee.map((e) => (
                 <TableRow key={e.employeeId} hover>
                   <TableCell data-label="Employee" sx={{ fontWeight: 600 }}>
-                    {e.name}
+                    <EntityLink href={`/admin/finance/employees/${e.employeeId}`}>
+                      {e.name}
+                    </EntityLink>
                   </TableCell>
                   {fiscalYears.map((fy) => (
                     <TableCell key={fy} align="right" data-label={fy}>

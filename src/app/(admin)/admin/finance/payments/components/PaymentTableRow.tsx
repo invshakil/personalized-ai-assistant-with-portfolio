@@ -9,6 +9,8 @@ import {
   Typography,
 } from "@mui/material";
 import { Pencil, Trash2, Download } from "lucide-react";
+import Link from "next/link";
+import EntityLink from "@/components/admin/EntityLink";
 import type { PaymentRow } from "../../types";
 import { fmt, fmtDate, fmtForeign } from "../../format";
 import { KIND_LABEL } from "../types";
@@ -29,7 +31,9 @@ export default function PaymentTableRow({
   return (
     <TableRow hover>
       <TableCell data-label="Date">{fmtDate(p.date)}</TableCell>
-      <TableCell data-label="Employee">{p.employeeName}</TableCell>
+      <TableCell data-label="Employee">
+        <EntityLink href={`/admin/finance/employees/${p.employeeId}`}>{p.employeeName}</EntityLink>
+      </TableCell>
       <TableCell data-label="Type">
         <Chip
           size="small"
@@ -42,7 +46,15 @@ export default function PaymentTableRow({
         {p.clients.length > 0 ? (
           <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap", gap: 0.5 }}>
             {p.clients.map((c) => (
-              <Chip key={c.id} size="small" label={c.name} variant="outlined" />
+              <Chip
+                key={c.id}
+                size="small"
+                label={c.name}
+                variant="outlined"
+                clickable
+                component={Link}
+                href={`/admin/finance/clients/${c.id}`}
+              />
             ))}
           </Stack>
         ) : (

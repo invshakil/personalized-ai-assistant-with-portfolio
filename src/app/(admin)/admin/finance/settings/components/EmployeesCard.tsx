@@ -1,4 +1,5 @@
 import { Box, Chip } from "@mui/material";
+import EntityLink from "@/components/admin/EntityLink";
 import { fmt } from "../../format";
 import type { EmployeeRow } from "../../types";
 import SettingsListCard from "./SettingsListCard";
@@ -20,7 +21,9 @@ export default function EmployeesCard({ employees, onAdd, onEdit, onDelete }: Pr
       onDelete={onDelete}
       renderPrimary={(emp) => (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {emp.name}
+          <EntityLink href={`/admin/finance/employees/${emp.id}`} inline>
+            {emp.name}
+          </EntityLink>
           {!emp.isActive && (
             <Chip size="small" label="Inactive" variant="outlined" color="default" />
           )}
