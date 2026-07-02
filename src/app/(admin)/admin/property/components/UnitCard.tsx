@@ -1,4 +1,5 @@
 import { Box, Card, CardContent, Chip, Typography } from "@mui/material";
+import EntityLink from "@/components/admin/EntityLink";
 import type { UnitWithTenant } from "@/types";
 import { fmt } from "../types";
 import StatusChip from "./StatusChip";
@@ -36,9 +37,13 @@ export default function UnitCard({ unit, onClick }: UnitCardProps) {
         <Box sx={{ mt: 1.5 }}>
           {unit.tenant ? (
             <>
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              <EntityLink
+                href={`/admin/property/tenants/${unit.tenant.id}`}
+                stopPropagation
+                sx={{ fontWeight: 600 }}
+              >
                 {unit.tenant.name}
-              </Typography>
+              </EntityLink>
               <Typography variant="caption" color="text.secondary">
                 {unit.tenant.tenantCode} · {fmt(unit.monthlyRent)}/mo
               </Typography>

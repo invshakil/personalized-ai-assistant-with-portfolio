@@ -1,4 +1,5 @@
 import { Box, Chip, TableCell, TableRow, Typography } from "@mui/material";
+import EntityLink from "@/components/admin/EntityLink";
 import type { UnitWithTenant } from "@/types";
 import { fmt } from "../types";
 import TenantStatusCell from "./TenantStatusCell";
@@ -29,9 +30,9 @@ export default function TenantTableRow({
         <Chip label={t.tenantCode ?? "—"} size="small" variant="outlined" />
       </TableCell>
       <TableCell data-label="Name">
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        <EntityLink href={`/admin/property/tenants/${t.id}`} sx={{ fontWeight: 600 }}>
           {t.name}
-        </Typography>
+        </EntityLink>
         {t.phone && (
           <Typography variant="caption" color="text.secondary">
             {t.phone}
@@ -40,7 +41,11 @@ export default function TenantTableRow({
       </TableCell>
       {showUnit && (
         <TableCell data-label="Unit">
-          <Typography variant="body2">{row.unitNumber}</Typography>
+          {row.id.startsWith("unassigned-") ? (
+            <Typography variant="body2">{row.unitNumber}</Typography>
+          ) : (
+            <EntityLink href={`/admin/property/units/${row.id}`}>{row.unitNumber}</EntityLink>
+          )}
           <Typography variant="caption" color="text.secondary">
             {row.floor}
           </Typography>

@@ -1,5 +1,6 @@
 import { Box, Card, CardContent, Chip, Typography } from "@mui/material";
 import { AlertTriangle } from "lucide-react";
+import EntityLink from "@/components/admin/EntityLink";
 import type { PropertyDashboardStats } from "@/types";
 import { fmt } from "../format";
 
@@ -24,7 +25,9 @@ export default function OutstandingDuesCard({ topDue }: OutstandingDuesCardProps
             <Box key={d.tenantId} sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  {d.tenantName}
+                  <EntityLink href={`/admin/property/tenants/${d.tenantId}`} inline>
+                    {d.tenantName}
+                  </EntityLink>
                   {d.unitNumber ? ` · ${d.unitNumber}` : ""}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">

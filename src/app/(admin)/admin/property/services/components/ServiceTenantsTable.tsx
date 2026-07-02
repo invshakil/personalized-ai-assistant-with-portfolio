@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import { PowerOff } from "lucide-react";
+import EntityLink from "@/components/admin/EntityLink";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { ServiceEntry } from "../types";
 import { fmt } from "../types";
@@ -46,9 +47,9 @@ export default function ServiceTenantsTable({
           {tenants.map((t) => (
             <TableRow key={t.id}>
               <TableCell data-label="Tenant">
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                <EntityLink href={`/admin/property/tenants/${t.tenantId}`} sx={{ fontWeight: 600 }}>
                   {t.tenantName}
-                </Typography>
+                </EntityLink>
                 <Typography variant="caption" color="text.secondary">
                   {t.tenantCode}
                 </Typography>

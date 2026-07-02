@@ -1,5 +1,6 @@
 import { Box, Card, CardContent, Chip, Typography } from "@mui/material";
 import { LogIn, LogOut } from "lucide-react";
+import EntityLink from "@/components/admin/EntityLink";
 import type { PropertyDashboardStats } from "@/types";
 
 interface TenantMovementsCardProps {
@@ -35,7 +36,9 @@ export default function TenantMovementsCard({ movements }: TenantMovementsCardPr
                   {isIn ? <LogIn size={16} /> : <LogOut size={16} />}
                 </Box>
                 <Typography variant="body2" sx={{ fontWeight: 600, flex: 1, minWidth: 0 }}>
-                  {mv.tenantName}
+                  <EntityLink href={`/admin/property/tenants/${mv.tenantId}`} inline>
+                    {mv.tenantName}
+                  </EntityLink>
                   {mv.unitNumber ? ` · ${mv.unitNumber}` : ""}
                 </Typography>
                 {isIn && mv.isNew && (

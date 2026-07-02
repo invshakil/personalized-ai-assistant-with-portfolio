@@ -1,6 +1,7 @@
 import { Box, Button, Card, CardContent, Typography } from "@mui/material";
 import { Calendar, DollarSign, ExternalLink, Phone, Plus, UserCheck, UserX } from "lucide-react";
 import Link from "next/link";
+import EntityLink from "@/components/admin/EntityLink";
 import type { TenantHistory } from "../types";
 import { fmt } from "../types";
 
@@ -37,9 +38,13 @@ export default function CurrentTenantCard({
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
               <UserCheck size={18} color="var(--mui-palette-success-main)" />
               <Box>
-                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                <EntityLink
+                  href={`/admin/property/tenants/${currentTenant.id}`}
+                  variant="subtitle2"
+                  sx={{ fontWeight: 700 }}
+                >
                   {currentTenant.name}
-                </Typography>
+                </EntityLink>
                 <Typography variant="caption" color="text.secondary">
                   {currentTenant.tenantCode}
                 </Typography>

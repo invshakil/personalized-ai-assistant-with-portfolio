@@ -1,6 +1,7 @@
 import { Box, Button, Chip, TableCell, TableRow, Typography } from "@mui/material";
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
+import EntityLink from "@/components/admin/EntityLink";
 import type { TenantHistory } from "../types";
 import { fmt } from "../types";
 
@@ -23,9 +24,9 @@ export default function TenancyHistoryRow({ tenant: t }: TenancyHistoryRowProps)
         <Chip label={t.tenantCode ?? "—"} size="small" variant="outlined" />
       </TableCell>
       <TableCell data-label="Name">
-        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+        <EntityLink href={`/admin/property/tenants/${t.id}`} sx={{ fontWeight: 600 }}>
           {t.name}
-        </Typography>
+        </EntityLink>
       </TableCell>
       <TableCell data-label="Phone">
         <Typography variant="body2" color="text.secondary">

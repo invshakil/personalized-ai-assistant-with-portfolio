@@ -1,6 +1,7 @@
 import { Fragment } from "react";
 import { Chip, Collapse, IconButton, TableCell, TableRow, Typography } from "@mui/material";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import EntityLink from "@/components/admin/EntityLink";
 import type { PaymentTransaction, PaymentWithTenant } from "@/types";
 import { MONTHS, STATUS_COLORS, fmt, type EditPaymentState } from "../types";
 import PaymentRowActionButtons from "./PaymentRowActionButtons";
@@ -40,16 +41,20 @@ export default function PaymentRow({
           </IconButton>
         </TableCell>
         <TableCell data-label="Tenant">
-          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+          <EntityLink href={`/admin/property/tenants/${p.tenantId}`} sx={{ fontWeight: 600 }}>
             {p.tenantName}
-          </Typography>
+          </EntityLink>
           <Typography variant="caption" color="text.secondary">
             {p.tenantCode}
             {isAllMonths ? ` · ${MONTHS[p.month - 1]} ${p.year}` : ""}
           </Typography>
         </TableCell>
         <TableCell data-label="Unit">
-          <Typography variant="body2">{p.unitNumber ?? "—"}</Typography>
+          {p.unitId ? (
+            <EntityLink href={`/admin/property/units/${p.unitId}`}>{p.unitNumber}</EntityLink>
+          ) : (
+            <Typography variant="body2">—</Typography>
+          )}
         </TableCell>
         <TableCell data-label="Rent Due">{fmt(p.rentDue)}</TableCell>
         <TableCell data-label="Cash Paid">{fmt(p.amountPaid)}</TableCell>

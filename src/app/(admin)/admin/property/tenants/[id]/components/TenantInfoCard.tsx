@@ -1,5 +1,6 @@
 import { Box, Card, CardContent, Chip, Typography } from "@mui/material";
 import { Calendar, Home, Phone } from "lucide-react";
+import EntityLink from "@/components/admin/EntityLink";
 import type { TenantWithUnit } from "@/types";
 
 interface TenantInfoCardProps {
@@ -24,7 +25,10 @@ export default function TenantInfoCard({ tenant }: TenantInfoCardProps) {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Home size={15} />
               <Typography variant="body2">
-                {tenant.unit.unitNumber} · {tenant.unit.floor}
+                <EntityLink href={`/admin/property/units/${tenant.unit.id}`} inline>
+                  {tenant.unit.unitNumber}
+                </EntityLink>{" "}
+                · {tenant.unit.floor}
               </Typography>
             </Box>
           )}
