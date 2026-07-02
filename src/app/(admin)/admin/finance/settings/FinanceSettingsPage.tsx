@@ -1,172 +1,41 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Drawer,
-  TextField,
-  FormControlLabel,
-  Switch,
-  Chip,
-  List,
-  ListItem,
-  ListItemText,
-  IconButton,
-  Tooltip,
-  CircularProgress,
-  Alert,
-  Snackbar,
-} from "@mui/material";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Box, CircularProgress, Alert, Snackbar } from "@mui/material";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
-import { financeApi } from "@/lib/api/finance";
-import type { EmployeeRow, SourceRow, CategoryRow, BusinessProfile } from "../types";
-
-const BLANK_BUSINESS: BusinessProfile = {
-  name: "",
-  tagline: "",
-  address: "",
-  phone: "",
-  email: "",
-};
-import { fmt } from "../format";
-
-type Kind = "employee" | "source" | "category";
-
-const deleteFns: Record<Kind, (id: string) => Promise<unknown>> = {
-  employee: financeApi.deleteEmployee,
-  source: financeApi.deleteClient,
-  category: financeApi.deleteCategory,
-};
-const TITLE: Record<Kind, string> = {
-  employee: "Employees",
-  source: "Clients",
-  category: "Expense Categories",
-};
-
-type DrawerState = {
-  kind: Kind;
-  editingId: string | null;
-  name: string;
-  phone: string;
-  notes: string;
-  isActive: boolean;
-};
+import { useConfirmDialog } from "@/hooks/useConfirmDialog";
+import { useBusinessProfile } from "./hooks/useBusinessProfile";
+import { useEmployeesSection } from "./hooks/useEmployeesSection";
+import { useSourcesSection } from "./hooks/useSourcesSection";
+import { useCategoriesSection } from "./hooks/useCategoriesSection";
+import { useSettingsDrawer } from "./hooks/useSettingsDrawer";
+import BusinessProfileCard from "./components/BusinessProfileCard";
+import EmployeesCard from "./components/EmployeesCard";
+import SourcesCard from "./components/SourcesCard";
+import CategoriesCard from "./components/CategoriesCard";
+import SettingsDrawer from "./components/SettingsDrawer";
 
 export default function FinanceSettingsPage() {
-  const [employees, setEmployees] = useState<EmployeeRow[]>([]);
-  const [sources, setSources] = useState<SourceRow[]>([]);
-  const [categories, setCategories] = useState<CategoryRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [drawer, setDrawer] = useState<DrawerState | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<{ kind: Kind; id: string } | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [business, setBusiness] = useState<BusinessProfile>(BLANK_BUSINESS);
-  const [bizSaving, setBizSaving] = useState(false);
-  const [bizSaved, setBizSaved] = useState(false);
+  const confirm = useConfirmDialog();
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [e, s, c, b] = await Promise.all([
-        financeApi.listEmployees(),
-        financeApi.listClients(),
-        financeApi.listCategories(),
-        financeApi.getBusinessProfile(),
-      ]);
-      setEmployees(e ?? []);
-      setSources(s ?? []);
-      setCategories(c ?? []);
-      if (b) setBusiness(b);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const businessProfile = useBusinessProfile(setToast);
+  const employeesSection = useEmployeesSection(confirm.openConfirm, setToast);
+  const sourcesSection = useSourcesSection(confirm.openConfirm, setToast);
+  const categoriesSection = useCategoriesSection(confirm.openConfirm, setToast);
 
-  const saveBusiness = async () => {
-    setBizSaving(true);
-    setBizSaved(false);
-    try {
-      const saved = await financeApi.updateBusinessProfile(business);
-      setBusiness(saved);
-      setBizSaved(true);
-      setTimeout(() => setBizSaved(false), 3000);
-    } catch (e) {
-      setToast(e instanceof Error ? e.message : "Failed to save business profile");
-    } finally {
-      setBizSaving(false);
-    }
-  };
+  const drawer = useSettingsDrawer({
+    employee: employeesSection.reload,
+    source: sourcesSection.reload,
+    category: categoriesSection.reload,
+  });
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const openAdd = (kind: Kind) => {
-    setError(null);
-    setDrawer({ kind, editingId: null, name: "", phone: "", notes: "", isActive: true });
-  };
-  const openEdit = (kind: Kind, item: EmployeeRow | SourceRow | CategoryRow) => {
-    setError(null);
-    setDrawer({
-      kind,
-      editingId: item.id,
-      name: item.name,
-      phone: "phone" in item ? (item.phone ?? "") : "",
-      notes: "notes" in item ? (item.notes ?? "") : "",
-      isActive: "isActive" in item ? item.isActive : true,
-    });
-  };
-
-  const save = async () => {
-    if (!drawer) return;
-    setSaving(true);
-    setError(null);
-    try {
-      const { kind, editingId, name, phone, notes, isActive } = drawer;
-      if (kind === "employee") {
-        const payload = { name, phone: phone || null, notes: notes || null, isActive };
-        if (editingId) await financeApi.updateEmployee(editingId, payload);
-        else await financeApi.createEmployee(payload);
-      } else if (kind === "source") {
-        const payload = { name, notes: notes || null };
-        if (editingId) await financeApi.updateClient(editingId, payload);
-        else await financeApi.createClient(payload);
-      } else {
-        if (editingId) await financeApi.updateCategory(editingId, { name });
-        else await financeApi.createCategory({ name });
-      }
-      setDrawer(null);
-      load();
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Something went wrong");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const confirmDelete = async () => {
-    if (!pendingDelete) return;
-    const { kind, id } = pendingDelete;
-    setDeleting(true);
-    try {
-      await deleteFns[kind](id);
-      load();
-    } catch (e: unknown) {
-      setToast(e instanceof Error ? e.message : "Cannot delete — it is still referenced.");
-    } finally {
-      setDeleting(false);
-      setPendingDelete(null);
-    }
-  };
+  const loading =
+    businessProfile.loading ||
+    employeesSection.loading ||
+    sourcesSection.loading ||
+    categoriesSection.loading;
 
   if (loading) {
     return (
@@ -189,289 +58,55 @@ export default function FinanceSettingsPage() {
         subtitle="Manage employees, clients & categories"
       />
 
-      {/* Business profile — printed on all receipts, statements & reports */}
-      <Card sx={{ bgcolor: "background.paper", mb: 3 }}>
-        <CardContent>
-          <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1 }}>
-              Business Profile
-            </Typography>
-            {bizSaved && <Chip size="small" color="success" label="Saved" />}
-          </Box>
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
-            Shown as the letterhead on every receipt, statement and report PDF.
-          </Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-            <TextField
-              label="Company / name"
-              size="small"
-              value={business.name}
-              onChange={(e) => setBusiness((b) => ({ ...b, name: e.target.value }))}
-            />
-            <TextField
-              label="Tagline"
-              size="small"
-              value={business.tagline}
-              onChange={(e) => setBusiness((b) => ({ ...b, tagline: e.target.value }))}
-            />
-            <TextField
-              label="Address"
-              size="small"
-              value={business.address}
-              onChange={(e) => setBusiness((b) => ({ ...b, address: e.target.value }))}
-            />
-            <TextField
-              label="Phone"
-              size="small"
-              value={business.phone}
-              onChange={(e) => setBusiness((b) => ({ ...b, phone: e.target.value }))}
-            />
-            <TextField
-              label="Email"
-              size="small"
-              value={business.email}
-              onChange={(e) => setBusiness((b) => ({ ...b, email: e.target.value }))}
-            />
-          </Box>
-          <Box sx={{ mt: 2 }}>
-            <Button
-              variant="contained"
-              onClick={saveBusiness}
-              disabled={bizSaving || !business.name.trim()}
-            >
-              {bizSaving ? "Saving…" : "Save Business Profile"}
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
+      <BusinessProfileCard
+        business={businessProfile.business}
+        onChange={businessProfile.setBusiness}
+        saving={businessProfile.bizSaving}
+        saved={businessProfile.bizSaved}
+        onSave={businessProfile.saveBusiness}
+      />
 
       <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr 1fr" }, gap: 3 }}>
-        {/* Employees */}
-        <Card sx={{ bgcolor: "background.paper" }}>
-          <CardContent>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 1.5 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1 }}>
-                {TITLE.employee}
-              </Typography>
-              <Button
-                size="small"
-                startIcon={<Plus size={14} />}
-                onClick={() => openAdd("employee")}
-              >
-                Add
-              </Button>
-            </Box>
-            <List dense disablePadding>
-              {employees.map((emp) => (
-                <ListItem
-                  key={emp.id}
-                  disableGutters
-                  secondaryAction={
-                    <Box>
-                      <Tooltip title="Edit">
-                        <IconButton size="small" onClick={() => openEdit("employee", emp)}>
-                          <Pencil size={13} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => setPendingDelete({ kind: "employee", id: emp.id })}
-                        >
-                          <Trash2 size={13} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  }
-                >
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        {emp.name}
-                        {!emp.isActive && (
-                          <Chip size="small" label="Inactive" variant="outlined" color="default" />
-                        )}
-                      </Box>
-                    }
-                    secondary={`${emp.phone ? emp.phone + " · " : ""}${emp.paymentCount} payments · ${fmt(emp.totalPaid)}`}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </CardContent>
-        </Card>
+        <EmployeesCard
+          employees={employeesSection.employees}
+          onAdd={() => drawer.openAdd("employee")}
+          onEdit={(item) => drawer.openEdit("employee", item)}
+          onDelete={employeesSection.deleteEmployee}
+        />
 
-        {/* Clients */}
-        <Card sx={{ bgcolor: "background.paper" }}>
-          <CardContent>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 1.5 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1 }}>
-                {TITLE.source}
-              </Typography>
-              <Button size="small" startIcon={<Plus size={14} />} onClick={() => openAdd("source")}>
-                Add
-              </Button>
-            </Box>
-            <List dense disablePadding>
-              {sources.map((s) => (
-                <ListItem
-                  key={s.id}
-                  disableGutters
-                  secondaryAction={
-                    <Box>
-                      <Tooltip title="Edit">
-                        <IconButton size="small" onClick={() => openEdit("source", s)}>
-                          <Pencil size={13} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => setPendingDelete({ kind: "source", id: s.id })}
-                        >
-                          <Trash2 size={13} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  }
-                >
-                  <ListItemText primary={s.name} secondary={`${s.earningCount} earnings`} />
-                </ListItem>
-              ))}
-            </List>
-          </CardContent>
-        </Card>
+        <SourcesCard
+          sources={sourcesSection.sources}
+          onAdd={() => drawer.openAdd("source")}
+          onEdit={(item) => drawer.openEdit("source", item)}
+          onDelete={sourcesSection.deleteSource}
+        />
 
-        {/* Expense categories */}
-        <Card sx={{ bgcolor: "background.paper" }}>
-          <CardContent>
-            <Box sx={{ display: "flex", alignItems: "center", mb: 1.5 }}>
-              <Typography variant="subtitle1" sx={{ fontWeight: 700, flex: 1 }}>
-                {TITLE.category}
-              </Typography>
-              <Button
-                size="small"
-                startIcon={<Plus size={14} />}
-                onClick={() => openAdd("category")}
-              >
-                Add
-              </Button>
-            </Box>
-            <List dense disablePadding>
-              {categories.map((c) => (
-                <ListItem
-                  key={c.id}
-                  disableGutters
-                  secondaryAction={
-                    <Box>
-                      <Tooltip title="Edit">
-                        <IconButton size="small" onClick={() => openEdit("category", c)}>
-                          <Pencil size={13} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => setPendingDelete({ kind: "category", id: c.id })}
-                        >
-                          <Trash2 size={13} />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  }
-                >
-                  <ListItemText primary={c.name} secondary={`${c.expenseCount} expenses`} />
-                </ListItem>
-              ))}
-            </List>
-          </CardContent>
-        </Card>
+        <CategoriesCard
+          categories={categoriesSection.categories}
+          onAdd={() => drawer.openAdd("category")}
+          onEdit={(item) => drawer.openEdit("category", item)}
+          onDelete={categoriesSection.deleteCategory}
+        />
       </Box>
 
-      <Drawer
-        anchor="right"
-        open={!!drawer}
-        onClose={() => setDrawer(null)}
-        slotProps={{ paper: { sx: { width: { xs: "100%", sm: 380 } } } }}
-      >
-        {drawer && (
-          <Box sx={{ width: "100%", p: 3 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-              {drawer.editingId ? "Edit" : "Add"} {TITLE[drawer.kind].replace(/s$/, "")}
-            </Typography>
-            <TextField
-              label="Name"
-              size="small"
-              fullWidth
-              value={drawer.name}
-              onChange={(e) => setDrawer((d) => (d ? { ...d, name: e.target.value } : d))}
-              sx={{ mb: 2 }}
-            />
-            {drawer.kind === "employee" && (
-              <TextField
-                label="Phone"
-                size="small"
-                fullWidth
-                value={drawer.phone}
-                onChange={(e) => setDrawer((d) => (d ? { ...d, phone: e.target.value } : d))}
-                placeholder="e.g. +880 1XXX XXXXXX"
-                sx={{ mb: 2 }}
-              />
-            )}
-            {(drawer.kind === "employee" || drawer.kind === "source") && (
-              <TextField
-                label="Notes"
-                size="small"
-                fullWidth
-                multiline
-                rows={2}
-                value={drawer.notes}
-                onChange={(e) => setDrawer((d) => (d ? { ...d, notes: e.target.value } : d))}
-                sx={{ mb: 2 }}
-              />
-            )}
-            {drawer.kind === "employee" && (
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={drawer.isActive}
-                    onChange={(e) =>
-                      setDrawer((d) => (d ? { ...d, isActive: e.target.checked } : d))
-                    }
-                  />
-                }
-                label="Active"
-                sx={{ mb: 1, display: "block" }}
-              />
-            )}
-            {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {error}
-              </Alert>
-            )}
-            <Button
-              variant="contained"
-              fullWidth
-              onClick={save}
-              disabled={saving || !drawer.name.trim()}
-            >
-              {saving ? "Saving…" : drawer.editingId ? "Save Changes" : "Add"}
-            </Button>
-          </Box>
-        )}
-      </Drawer>
+      <SettingsDrawer
+        drawer={drawer.drawer}
+        onChange={drawer.setDrawer}
+        onClose={drawer.closeDrawer}
+        saving={drawer.saving}
+        error={drawer.error}
+        onSave={drawer.save}
+      />
 
       <ConfirmDialog
-        open={!!pendingDelete}
-        title={`Delete ${pendingDelete?.kind ?? ""}`}
-        message="This is only possible if nothing references it yet. This cannot be undone."
-        confirmLabel="Delete"
-        loading={deleting}
-        onConfirm={confirmDelete}
-        onClose={() => setPendingDelete(null)}
+        open={!!confirm.dialog}
+        title={confirm.dialog?.title ?? ""}
+        message={confirm.dialog?.message ?? ""}
+        confirmLabel={confirm.dialog?.confirmLabel}
+        confirmColor={confirm.dialog?.confirmColor}
+        loading={confirm.loading}
+        onConfirm={confirm.runConfirm}
+        onClose={confirm.closeConfirm}
       />
 
       <Snackbar
