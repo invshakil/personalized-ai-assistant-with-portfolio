@@ -81,6 +81,7 @@ export default function BizExpensesPage() {
           hasActiveFilters={filters.hasActiveFilters}
           onEdit={form.openEdit}
           onDelete={del.requestDelete}
+          onCategoryClick={(categoryId) => filters.setParams({ category: categoryId })}
         />
       )}
 

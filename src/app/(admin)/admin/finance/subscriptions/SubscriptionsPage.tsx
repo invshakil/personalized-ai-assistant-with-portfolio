@@ -80,6 +80,7 @@ export default function SubscriptionsPage() {
         onStop={actions.askStop}
         onResume={actions.resume}
         onDelete={actions.askDelete}
+        onCategoryClick={(categoryId) => filters.setParams({ category: categoryId })}
       />
 
       <SubscriptionFormDrawer

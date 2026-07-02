@@ -10,6 +10,7 @@ interface SubscriptionTableRowProps {
   onStop: (sub: SubscriptionRow) => void;
   onResume: (id: string) => void;
   onDelete: (id: string) => void;
+  onCategoryClick: (categoryId: string) => void;
 }
 
 export default function SubscriptionTableRow({
@@ -19,6 +20,7 @@ export default function SubscriptionTableRow({
   onStop,
   onResume,
   onDelete,
+  onCategoryClick,
 }: SubscriptionTableRowProps) {
   return (
     <TableRow hover>
@@ -26,7 +28,13 @@ export default function SubscriptionTableRow({
         {sub.name}
       </TableCell>
       <TableCell data-label="Category">
-        <Chip size="small" label={sub.categoryName} variant="outlined" />
+        <Chip
+          size="small"
+          label={sub.categoryName}
+          variant="outlined"
+          clickable
+          onClick={() => onCategoryClick(sub.categoryId)}
+        />
       </TableCell>
       <TableCell align="right" data-label="Monthly">
         {fmt(sub.currentMonthlyAmount)}

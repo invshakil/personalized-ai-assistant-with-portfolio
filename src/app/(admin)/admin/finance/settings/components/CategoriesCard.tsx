@@ -1,3 +1,4 @@
+import EntityLink from "@/components/admin/EntityLink";
 import type { CategoryRow } from "../../types";
 import SettingsListCard from "./SettingsListCard";
 
@@ -16,7 +17,9 @@ export default function CategoriesCard({ categories, onAdd, onEdit, onDelete }: 
       onAdd={onAdd}
       onEdit={onEdit}
       onDelete={onDelete}
-      renderPrimary={(c) => c.name}
+      renderPrimary={(c) => (
+        <EntityLink href={`/admin/finance/expenses?category=${c.id}`}>{c.name}</EntityLink>
+      )}
       renderSecondary={(c) => `${c.expenseCount} expenses`}
     />
   );

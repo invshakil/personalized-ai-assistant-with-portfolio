@@ -23,6 +23,7 @@ interface SubscriptionTableProps {
   onStop: (sub: SubscriptionRow) => void;
   onResume: (id: string) => void;
   onDelete: (id: string) => void;
+  onCategoryClick: (categoryId: string) => void;
 }
 
 export default function SubscriptionTable({
@@ -34,6 +35,7 @@ export default function SubscriptionTable({
   onStop,
   onResume,
   onDelete,
+  onCategoryClick,
 }: SubscriptionTableProps) {
   if (loading) {
     return (
@@ -82,6 +84,7 @@ export default function SubscriptionTable({
                 onStop={onStop}
                 onResume={onResume}
                 onDelete={onDelete}
+                onCategoryClick={onCategoryClick}
               />
             ))
           )}

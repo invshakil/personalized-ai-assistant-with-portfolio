@@ -7,9 +7,15 @@ interface ExpenseRowProps {
   expense: BizExpenseRow;
   onEdit: (e: BizExpenseRow) => void;
   onDelete: (id: string) => void;
+  onCategoryClick: (categoryId: string) => void;
 }
 
-export default function ExpenseRow({ expense: e, onEdit, onDelete }: ExpenseRowProps) {
+export default function ExpenseRow({
+  expense: e,
+  onEdit,
+  onDelete,
+  onCategoryClick,
+}: ExpenseRowProps) {
   return (
     <TableRow hover>
       <TableCell data-label="Date">{fmtDate(e.date)}</TableCell>
@@ -17,7 +23,13 @@ export default function ExpenseRow({ expense: e, onEdit, onDelete }: ExpenseRowP
         {e.name}
       </TableCell>
       <TableCell data-label="Category">
-        <Chip size="small" label={e.categoryName} variant="outlined" />
+        <Chip
+          size="small"
+          label={e.categoryName}
+          variant="outlined"
+          clickable
+          onClick={() => onCategoryClick(e.categoryId)}
+        />
       </TableCell>
       <TableCell data-label="Recurring">
         {e.subscriptionId ? (

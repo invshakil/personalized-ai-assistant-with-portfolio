@@ -17,6 +17,7 @@ interface ExpenseTableProps {
   hasActiveFilters: boolean;
   onEdit: (e: BizExpenseRow) => void;
   onDelete: (id: string) => void;
+  onCategoryClick: (categoryId: string) => void;
 }
 
 export default function ExpenseTable({
@@ -24,6 +25,7 @@ export default function ExpenseTable({
   hasActiveFilters,
   onEdit,
   onDelete,
+  onCategoryClick,
 }: ExpenseTableProps) {
   return (
     <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
@@ -52,7 +54,13 @@ export default function ExpenseTable({
             </TableRow>
           ) : (
             expenses.map((e) => (
-              <ExpenseRow key={e.id} expense={e} onEdit={onEdit} onDelete={onDelete} />
+              <ExpenseRow
+                key={e.id}
+                expense={e}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onCategoryClick={onCategoryClick}
+              />
             ))
           )}
         </TableBody>
