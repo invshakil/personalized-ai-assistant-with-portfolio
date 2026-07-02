@@ -1,6 +1,8 @@
 "use client";
 
+import type { ReactNode } from "react";
 import {
+  Box,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -9,7 +11,7 @@ import {
   Button,
 } from "@mui/material";
 
-type ConfirmColor = "error" | "primary" | "warning";
+type ConfirmColor = "error" | "primary" | "warning" | "success";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -19,6 +21,8 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   confirmColor?: ConfirmColor;
   loading?: boolean;
+  /** Optional icon shown in a colored circular avatar beside the title. */
+  icon?: ReactNode;
   onConfirm: () => void;
   onClose: () => void;
 }
@@ -35,12 +39,37 @@ export default function ConfirmDialog({
   cancelLabel = "Cancel",
   confirmColor = "error",
   loading = false,
+  icon,
   onConfirm,
   onClose,
 }: ConfirmDialogProps) {
   return (
     <Dialog open={open} onClose={loading ? undefined : onClose} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700 }}>{title}</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 700, ...(icon && { pb: 1 }) }}>
+        {icon ? (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: "50%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                bgcolor: `${confirmColor}.main`,
+                flexShrink: 0,
+              }}
+            >
+              {icon}
+            </Box>
+            <Box component="span" sx={{ fontSize: "1rem" }}>
+              {title}
+            </Box>
+          </Box>
+        ) : (
+          title
+        )}
+      </DialogTitle>
       <DialogContent>
         <DialogContentText sx={{ color: "text.secondary" }}>{message}</DialogContentText>
       </DialogContent>
