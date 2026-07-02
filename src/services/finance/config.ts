@@ -25,6 +25,27 @@ export async function getEmployees() {
   }));
 }
 
+export async function getEmployee(id: string) {
+  const employee = await db.employee.findUnique({
+    where: { id },
+    include: { _count: { select: { payments: true } } },
+  });
+  if (!employee) return null;
+  const total = await db.employeePayment.aggregate({
+    where: { employeeId: id },
+    _sum: { amount: true },
+  });
+  return {
+    id: employee.id,
+    name: employee.name,
+    phone: employee.phone,
+    isActive: employee.isActive,
+    notes: employee.notes,
+    paymentCount: employee._count.payments,
+    totalPaid: toNum(total._sum.amount),
+  };
+}
+
 export async function createEmployee(input: {
   name: string;
   phone?: string | null;
@@ -81,6 +102,20 @@ export async function getIncomeSources() {
     notes: s.notes,
     earningCount: s._count.earnings,
   }));
+}
+
+export async function getIncomeSource(id: string) {
+  const source = await db.incomeSource.findUnique({
+    where: { id },
+    include: { _count: { select: { earnings: true } } },
+  });
+  if (!source) return null;
+  return {
+    id: source.id,
+    name: source.name,
+    notes: source.notes,
+    earningCount: source._count.earnings,
+  };
 }
 
 export async function createIncomeSource(input: { name: string; notes?: string | null }) {

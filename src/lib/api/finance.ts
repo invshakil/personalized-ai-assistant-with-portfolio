@@ -200,6 +200,7 @@ export const financeApi = {
 
   // ── Config: employees / clients (sources) / categories ───────────────────
   listEmployees: () => apiGet<EmployeeRow[]>("/finance/employees"),
+  getEmployee: (id: string) => apiGet<EmployeeRow>(`/finance/employees/${id}`),
   createEmployee: (body: {
     name: string;
     phone?: string | null;
@@ -213,6 +214,7 @@ export const financeApi = {
   deleteEmployee: (id: string) => apiDelete(`/finance/employees/${id}`),
 
   listClients: () => apiGet<SourceRow[]>("/finance/sources"),
+  getSource: (id: string) => apiGet<SourceRow>(`/finance/sources/${id}`),
   createClient: (body: { name: string; notes?: string | null }) =>
     apiPost<SourceRow>("/finance/sources", body),
   updateClient: (id: string, body: { name?: string; notes?: string | null }) =>
