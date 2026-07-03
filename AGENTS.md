@@ -35,4 +35,4 @@ Run this checklist **before** adding any code to a page or component file:
 
 **The rule in one sentence:** page files wire hooks to components — they contain neither logic nor markup blocks. Only hooks read and write Redux.
 
-See `CLAUDE.md → Coding standards → Component structure & decomposition` and `→ Redux state management` for thresholds, directory layout, the orchestrator pattern, the dispatch rule, and the canonical reference implementation.
+See `CODING_CONVENTION.md → Component structure & decomposition` and `→ Redux state management` for thresholds, directory layout, the orchestrator pattern, the dispatch rule, and the canonical reference implementation.
