@@ -48,6 +48,14 @@ jobs:
   # so build and migrate run there with zero secrets in GitHub
   # beyond the SSH key itself.
   # Only runs on push to main (never on PRs).
+  #
+  # The deploy user has no sudo, so swap can't be provisioned here.
+  # One-time manual setup (run once as root on the droplet):
+  #   fallocate -l 2G /swapfile
+  #   chmod 600 /swapfile
+  #   mkswap /swapfile
+  #   swapon /swapfile
+  #   echo '/swapfile none swap sw 0 0' >> /etc/fstab
   # ─────────────────────────────────────────────────────────────
   deploy:
     name: Deploy to DigitalOcean
@@ -82,18 +90,12 @@ jobs:
             done
             [ "$pulled" = true ] || { echo "git pull failed after 3 attempts"; exit 1; }
 
-            echo "==> Ensuring swap space exists"
+            echo "==> Checking swap space"
             if swapon --show | grep -q .; then
-              echo "Swap already active, skipping"
-            elif sudo -n true 2>/dev/null; then
-              sudo fallocate -l 2G /swapfile
-              sudo chmod 600 /swapfile
-              sudo mkswap /swapfile
-              sudo swapon /swapfile
-              grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
-              echo "Swapfile created and enabled"
+              echo "Swap is active"
             else
-              echo "WARNING: no passwordless sudo available — skipping swap setup. Builds may OOM without swap; set one up manually on the droplet."
+              echo "WARNING: no swap configured, and the deploy user has no sudo to set it up."
+              echo "Set up swap once as root — see deploy.yml comments for the exact commands."
             fi
 
             echo "==> Installing dependencies"
