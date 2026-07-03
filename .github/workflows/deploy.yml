@@ -70,7 +70,17 @@ jobs:
             cd ${{ secrets.DEPLOY_PATH }}
 
             echo "==> Pulling latest code"
-            git pull origin main
+            git config --global http.version HTTP/1.1
+            pulled=false
+            for i in 1 2 3; do
+              if git pull origin main; then
+                pulled=true
+                break
+              fi
+              echo "git pull failed (attempt $i/3), retrying in 5s..."
+              sleep 5
+            done
+            [ "$pulled" = true ] || { echo "git pull failed after 3 attempts"; exit 1; }
 
             echo "==> Installing dependencies"
             NODE_OPTIONS="--max-old-space-size=512" npm ci
