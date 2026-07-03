@@ -8,6 +8,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { usePeopleData } from "./hooks/usePeopleData";
 import { usePersonDrawer } from "./hooks/usePersonDrawer";
 import { usePersonDetail } from "./hooks/usePersonDetail";
+import { usePersonDeepLink } from "./hooks/usePersonDeepLink";
 import PeopleSummaryBar from "./components/PeopleSummaryBar";
 import PeopleTable from "./components/PeopleTable";
 import PersonDrawer from "./components/PersonDrawer";
@@ -20,6 +21,7 @@ export default function PeoplePage() {
   const people = usePeopleData(confirm.openConfirm, setToast);
   const personDrawer = usePersonDrawer(people.reload);
   const detail = usePersonDetail(people.accounts, people.reload);
+  usePersonDeepLink(detail.openDetail);
 
   return (
     <Box>

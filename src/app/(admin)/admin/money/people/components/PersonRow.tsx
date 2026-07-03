@@ -1,4 +1,4 @@
-import { Box, Chip, IconButton, TableCell, TableRow, Tooltip } from "@mui/material";
+import { Box, Chip, IconButton, TableCell, TableRow, Tooltip, Typography } from "@mui/material";
 import { Pencil, Trash2, Eye } from "lucide-react";
 import { fmt } from "../../format";
 import type { BeneficiaryRow } from "@/types";
@@ -14,7 +14,18 @@ export default function PersonRow({ person: b, onView, onEdit, onDelete }: Props
   return (
     <TableRow hover>
       <TableCell data-label="Name" sx={{ fontWeight: 600 }}>
-        {b.name}
+        <Typography
+          component="span"
+          variant="body2"
+          onClick={() => onView(b.id)}
+          sx={{
+            fontWeight: 600,
+            cursor: "pointer",
+            "&:hover": { color: "primary.main", textDecoration: "underline" },
+          }}
+        >
+          {b.name}
+        </Typography>
         {!b.isActive && <Chip size="small" label="Inactive" sx={{ ml: 1 }} variant="outlined" />}
       </TableCell>
       <TableCell data-label="Relationship">{b.relationship ?? "—"}</TableCell>
