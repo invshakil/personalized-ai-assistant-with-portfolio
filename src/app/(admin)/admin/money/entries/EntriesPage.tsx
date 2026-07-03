@@ -46,6 +46,10 @@ export default function EntriesPage() {
     return data.categories;
   }, [data.categories, filters.dirFilter]);
 
+  const handleTypeChange = (next: DirFilter) => filters.onTypeChange(next, data.categories);
+  const handleCategoryClick = (categoryId: string) => filters.setParams({ category: categoryId });
+  const handleAccountClick = (accountId: string) => filters.setParams({ account: accountId });
+
   const periodSelectOptions: SelectOption[] = [
     ...(Object.keys(MONEY_RANGE_LABELS) as MoneyRange[]).map((r) => ({
       value: r,
@@ -90,7 +94,7 @@ export default function EntriesPage() {
         hasActiveFilters={filters.hasActiveFilters}
         setParams={filters.setParams}
         onPresetChange={filters.onPresetChange}
-        onTypeChange={(next: DirFilter) => filters.onTypeChange(next, data.categories)}
+        onTypeChange={handleTypeChange}
         onSearchInputChange={filters.setSearchInput}
         onClearFilters={filters.clearFilters}
         onOpenTransfer={transferDrawer.openTransfer}
@@ -116,6 +120,9 @@ export default function EntriesPage() {
           onToggleSort={filters.toggleSort}
           onEdit={entryDrawer.openEdit}
           onDelete={actions.requestDelete}
+          onTypeClick={handleTypeChange}
+          onCategoryClick={handleCategoryClick}
+          onAccountClick={handleAccountClick}
         />
       )}
 

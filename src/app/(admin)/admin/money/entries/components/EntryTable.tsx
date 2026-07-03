@@ -23,6 +23,9 @@ interface EntryTableProps {
   onToggleSort: (col: SortBy) => void;
   onEdit: (e: MoneyEntryRow) => void;
   onDelete: (id: string) => void;
+  onTypeClick: (direction: MoneyEntryRow["direction"]) => void;
+  onCategoryClick: (categoryId: string) => void;
+  onAccountClick: (accountId: string) => void;
 }
 
 export default function EntryTable({
@@ -35,6 +38,9 @@ export default function EntryTable({
   onToggleSort,
   onEdit,
   onDelete,
+  onTypeClick,
+  onCategoryClick,
+  onAccountClick,
 }: EntryTableProps) {
   return (
     <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
@@ -59,6 +65,9 @@ export default function EntryTable({
                 accountName={accountName}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                onTypeClick={onTypeClick}
+                onCategoryClick={onCategoryClick}
+                onAccountClick={onAccountClick}
               />
             ))
           )}

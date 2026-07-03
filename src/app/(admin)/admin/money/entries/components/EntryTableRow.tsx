@@ -1,7 +1,8 @@
 import { Chip, TableCell, TableRow, Typography } from "@mui/material";
 import type { MoneyEntryRow } from "@/types";
-import { fmtDate, DIRECTION_LABEL, METHOD_LABEL } from "../../format";
+import { fmtDate, DIRECTION_LABEL } from "../../format";
 import EntryAmountCell, { amountColor } from "./EntryAmountCell";
+import EntryCategoryCell from "./EntryCategoryCell";
 import EntryRowActions from "./EntryRowActions";
 
 interface EntryTableRowProps {
@@ -9,6 +10,9 @@ interface EntryTableRowProps {
   accountName: (id: string | null) => string;
   onEdit: (e: MoneyEntryRow) => void;
   onDelete: (id: string) => void;
+  onTypeClick: (direction: MoneyEntryRow["direction"]) => void;
+  onCategoryClick: (categoryId: string) => void;
+  onAccountClick: (accountId: string) => void;
 }
 
 const DIR_COLOR: Record<MoneyEntryRow["direction"], "success" | "warning" | "info"> = {
@@ -22,6 +26,9 @@ export default function EntryTableRow({
   accountName,
   onEdit,
   onDelete,
+  onTypeClick,
+  onCategoryClick,
+  onAccountClick,
 }: EntryTableRowProps) {
   return (
     <TableRow hover>
@@ -32,25 +39,25 @@ export default function EntryTableRow({
           label={DIRECTION_LABEL[e.direction]}
           color={DIR_COLOR[e.direction]}
           variant="outlined"
+          clickable
+          onClick={() => onTypeClick(e.direction)}
         />
       </TableCell>
       <TableCell data-label="Category">
-        {e.direction === "TRANSFER"
-          ? `${accountName(e.accountId)} → ${accountName(e.transferAccountId)}`
-          : (e.categoryName ?? "—")}
-        {e.beneficiaryName ? (
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-            {e.beneficiaryName}
-          </Typography>
-        ) : null}
-        {e.method ? (
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-            {METHOD_LABEL[e.method]}
-          </Typography>
-        ) : null}
+        <EntryCategoryCell entry={e} accountName={accountName} onCategoryClick={onCategoryClick} />
       </TableCell>
       <TableCell data-label="Account">
-        {e.direction === "TRANSFER" ? "—" : accountName(e.accountId)}
+        {e.direction === "TRANSFER" || !e.accountId ? (
+          "—"
+        ) : (
+          <Chip
+            size="small"
+            label={accountName(e.accountId)}
+            variant="outlined"
+            clickable
+            onClick={() => onAccountClick(e.accountId!)}
+          />
+        )}
       </TableCell>
       <TableCell
         align="right"
