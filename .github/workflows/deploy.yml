@@ -82,6 +82,20 @@ jobs:
             done
             [ "$pulled" = true ] || { echo "git pull failed after 3 attempts"; exit 1; }
 
+            echo "==> Ensuring swap space exists"
+            if swapon --show | grep -q .; then
+              echo "Swap already active, skipping"
+            elif sudo -n true 2>/dev/null; then
+              sudo fallocate -l 2G /swapfile
+              sudo chmod 600 /swapfile
+              sudo mkswap /swapfile
+              sudo swapon /swapfile
+              grep -q '/swapfile' /etc/fstab || echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+              echo "Swapfile created and enabled"
+            else
+              echo "WARNING: no passwordless sudo available — skipping swap setup. Builds may OOM without swap; set one up manually on the droplet."
+            fi
+
             echo "==> Installing dependencies"
             NODE_OPTIONS="--max-old-space-size=512" npm ci
 
@@ -95,7 +109,7 @@ jobs:
             npm run seed
 
             echo "==> Building for production"
-            NODE_OPTIONS="--max-old-space-size=512" npm run build
+            NODE_OPTIONS="--max-old-space-size=1536" npm run build
 
             echo "==> Restarting application"
             pm2 restart sshakil --update-env || pm2 start npm --name "sshakil" -- start
