@@ -1,10 +1,11 @@
 import { Fragment } from "react";
-import NextLink from "next/link";
-import { Box, Chip, Collapse, IconButton, TableCell, TableRow, Tooltip } from "@mui/material";
-import { ChevronDown, ChevronRight, Pencil, PiggyBank, Trash2 } from "lucide-react";
+import { Box, Chip, Collapse, TableCell, TableRow } from "@mui/material";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import EntityLink from "@/components/admin/EntityLink";
 import type { MoneyAccountRow, MoneyEntryRow } from "@/types";
 import { fmtCurrency, ACCOUNT_TYPE_LABEL } from "../../format";
 import AccountTransactionsPanel from "./AccountTransactionsPanel";
+import AccountRowActions from "./AccountRowActions";
 
 const balanceColor = (a: MoneyAccountRow) => {
   if (a.type === "CREDIT_CARD") return a.balance < 0 ? "error.main" : "success.main";
@@ -37,7 +38,13 @@ export default function AccountRow({
         <TableCell data-label="Name" sx={{ fontWeight: 600 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-            {a.name}
+            <EntityLink
+              href={`/admin/money/entries?account=${a.id}&period=all`}
+              inline
+              stopPropagation
+            >
+              {a.name}
+            </EntityLink>
           </Box>
         </TableCell>
         <TableCell data-label="Type">
@@ -70,27 +77,7 @@ export default function AccountRow({
           />
         </TableCell>
         <TableCell data-label="Actions">
-          <Box sx={{ display: "flex" }} onClick={(e) => e.stopPropagation()}>
-            <Tooltip title="Deposit">
-              <IconButton
-                size="small"
-                component={NextLink}
-                href={`/admin/money/entries?deposit=${a.id}`}
-              >
-                <PiggyBank size={14} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Edit">
-              <IconButton size="small" onClick={() => onEdit(a)}>
-                <Pencil size={14} />
-              </IconButton>
-            </Tooltip>
-            <Tooltip title="Delete">
-              <IconButton size="small" color="error" onClick={() => onDelete(a)}>
-                <Trash2 size={14} />
-              </IconButton>
-            </Tooltip>
-          </Box>
+          <AccountRowActions account={a} onEdit={onEdit} onDelete={onDelete} />
         </TableCell>
       </TableRow>
       <TableRow>
