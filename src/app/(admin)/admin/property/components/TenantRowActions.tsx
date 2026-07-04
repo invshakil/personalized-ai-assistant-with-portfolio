@@ -1,7 +1,9 @@
 import { IconButton, Tooltip } from "@mui/material";
-import { ExternalLink, MapPin, Pencil, UserPlus, UserX } from "lucide-react";
+import { ArrowLeftRight, ExternalLink, MapPin, Pencil, UserPlus, UserX } from "lucide-react";
 import Link from "next/link";
 import type { UnitWithTenant } from "@/types";
+
+type TenantServices = NonNullable<UnitWithTenant["tenant"]>["services"];
 
 interface TenantRowActionsProps {
   row: UnitWithTenant;
@@ -9,6 +11,12 @@ interface TenantRowActionsProps {
   onDeactivate: (id: string, name: string) => void;
   onActivate: (id: string, name: string) => void;
   onAssignUnit?: (tenantId: string, tenantName: string, moveInDate: string) => void;
+  onMoveTenant?: (
+    tenantId: string,
+    tenantName: string,
+    currentUnitId: string,
+    services: TenantServices
+  ) => void;
 }
 
 export default function TenantRowActions({
@@ -17,8 +25,10 @@ export default function TenantRowActions({
   onDeactivate,
   onActivate,
   onAssignUnit,
+  onMoveTenant,
 }: TenantRowActionsProps) {
   const t = row.tenant!;
+  const isAssignedCurrentTenant = !row.id.startsWith("unassigned-") && t.tenantStatus === "CURRENT";
 
   return (
     <>
@@ -40,6 +50,17 @@ export default function TenantRowActions({
             onClick={() => onAssignUnit(t.id, t.name, t.moveInDate)}
           >
             <MapPin size={15} />
+          </IconButton>
+        </Tooltip>
+      )}
+      {onMoveTenant && t.isActive && isAssignedCurrentTenant && (
+        <Tooltip title="Move to another unit">
+          <IconButton
+            size="small"
+            color="info"
+            onClick={() => onMoveTenant(t.id, t.name, row.id, t.services)}
+          >
+            <ArrowLeftRight size={15} />
           </IconButton>
         </Tooltip>
       )}

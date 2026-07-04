@@ -14,6 +14,8 @@ import type { UnitWithTenant } from "@/types";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import TenantTableRow from "./TenantTableRow";
 
+type TenantServices = NonNullable<UnitWithTenant["tenant"]>["services"];
+
 interface TenantTableProps {
   tenants: UnitWithTenant[];
   showUnit: boolean;
@@ -21,6 +23,12 @@ interface TenantTableProps {
   onDeactivate: (id: string, name: string) => void;
   onActivate: (id: string, name: string) => void;
   onAssignUnit?: (tenantId: string, tenantName: string, moveInDate: string) => void;
+  onMoveTenant?: (
+    tenantId: string,
+    tenantName: string,
+    currentUnitId: string,
+    services: TenantServices
+  ) => void;
 }
 
 export default function TenantTable({
@@ -30,6 +38,7 @@ export default function TenantTable({
   onDeactivate,
   onActivate,
   onAssignUnit,
+  onMoveTenant,
 }: TenantTableProps) {
   if (tenants.length === 0) {
     return (
@@ -69,6 +78,7 @@ export default function TenantTable({
               onDeactivate={onDeactivate}
               onActivate={onActivate}
               onAssignUnit={onAssignUnit}
+              onMoveTenant={onMoveTenant}
             />
           ))}
         </TableBody>

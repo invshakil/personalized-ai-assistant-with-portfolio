@@ -5,6 +5,8 @@ import TenantViewToggle from "./TenantViewToggle";
 import TenantFilters from "./TenantFilters";
 import TenantTable from "./TenantTable";
 
+type TenantServices = NonNullable<UnitWithTenant["tenant"]>["services"];
+
 interface TenantsTabContentProps {
   view: "active" | "past";
   onViewChange: (v: "active" | "past") => void;
@@ -23,6 +25,12 @@ interface TenantsTabContentProps {
   onDeactivate: (id: string, name: string) => void;
   onActivate: (id: string, name: string) => void;
   onAssignUnit?: (tenantId: string, tenantName: string, moveInDate: string) => void;
+  onMoveTenant?: (
+    tenantId: string,
+    tenantName: string,
+    currentUnitId: string,
+    services: TenantServices
+  ) => void;
 }
 
 export default function TenantsTabContent({
@@ -43,6 +51,7 @@ export default function TenantsTabContent({
   onDeactivate,
   onActivate,
   onAssignUnit,
+  onMoveTenant,
 }: TenantsTabContentProps) {
   return (
     <>
@@ -69,6 +78,7 @@ export default function TenantsTabContent({
           onDeactivate={onDeactivate}
           onActivate={onActivate}
           onAssignUnit={onAssignUnit}
+          onMoveTenant={onMoveTenant}
         />
       ) : inactiveLoading ? (
         <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>

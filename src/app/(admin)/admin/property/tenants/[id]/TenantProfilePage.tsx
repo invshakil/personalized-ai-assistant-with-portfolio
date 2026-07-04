@@ -2,7 +2,7 @@
 
 import { use } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowLeftRight } from "lucide-react";
 import { Box, Button, Card, CardContent, CircularProgress, Typography } from "@mui/material";
 import PageHeader from "@/components/admin/PageHeader";
 import TenantDocuments from "@/components/admin/TenantDocuments";
@@ -14,12 +14,22 @@ import AdvanceRentCard from "./components/AdvanceRentCard";
 import ActiveServicesSection from "./components/ActiveServicesSection";
 import PendingRentChangesSection from "./components/PendingRentChangesSection";
 import PaymentHistoryTable from "./components/PaymentHistoryTable";
+import { useServiceCatalog } from "../../hooks/useServiceCatalog";
+import { useUnitsData } from "../../hooks/useUnitsData";
+import { useMoveTenantDialog } from "../../hooks/useMoveTenantDialog";
+import MoveTenantDialog from "../../components/MoveTenantDialog";
 
 export default function TenantProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { tenant, loading, reload } = useTenantDetail(id);
   const paymentHistory = usePaymentHistory(reload);
   const rentChangeEdit = useRentChangeEdit(reload);
+  const serviceCatalog = useServiceCatalog();
+  const unitsData = useUnitsData();
+  const moveTenant = useMoveTenantDialog(unitsData.units, async () => {
+    await reload();
+    await unitsData.reload();
+  });
 
   if (loading) {
     return (
@@ -34,6 +44,7 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
   }
 
   const pendingChanges = tenant.rentChanges.filter((rc) => !rc.appliedAt);
+  const canMove = tenant.isActive && tenant.tenantStatus === "CURRENT" && !!tenant.unit;
 
   return (
     <Box>
@@ -49,10 +60,29 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
         </Button>
       </Box>
 
-      <PageHeader
-        title={tenant.name}
-        subtitle={`${tenant.tenantCode ?? ""} · ${tenant.unit?.unitNumber ?? "External Member"}`}
-      />
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <PageHeader
+          title={tenant.name}
+          subtitle={`${tenant.tenantCode ?? ""} · ${tenant.unit?.unitNumber ?? "External Member"}`}
+        />
+        {canMove && (
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<ArrowLeftRight size={14} />}
+            onClick={() =>
+              moveTenant.openMoveTenantDialog(
+                tenant.id,
+                tenant.name,
+                tenant.unit!.id,
+                tenant.services.filter((s) => s.isActive)
+              )
+            }
+          >
+            Move to another unit
+          </Button>
+        )}
+      </Box>
 
       <Box
         sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" }, gap: 3, mb: 3 }}
@@ -116,6 +146,27 @@ export default function TenantProfilePage({ params }: { params: Promise<{ id: st
           />
         </CardContent>
       </Card>
+
+      <MoveTenantDialog
+        dialog={moveTenant.moveTenantDialog}
+        onClose={moveTenant.closeMoveTenantDialog}
+        units={unitsData.units}
+        serviceCatalog={serviceCatalog}
+        targetUnitId={moveTenant.moveTargetUnitId}
+        onSelectUnit={moveTenant.selectMoveTargetUnit}
+        rent={moveTenant.moveRent}
+        onRentChange={moveTenant.setMoveRent}
+        moveDate={moveTenant.moveDate}
+        onMoveDateChange={moveTenant.setMoveDate}
+        endServiceIds={moveTenant.moveEndServiceIds}
+        onToggleEndService={moveTenant.toggleMoveEndService}
+        addSvcId={moveTenant.moveAddSvcId}
+        onAddSvcIdChange={moveTenant.setMoveAddSvcId}
+        addSvcFee={moveTenant.moveAddSvcFee}
+        onAddSvcFeeChange={moveTenant.setMoveAddSvcFee}
+        saving={moveTenant.moveSaving}
+        onMove={moveTenant.doMoveTenant}
+      />
     </Box>
   );
 }

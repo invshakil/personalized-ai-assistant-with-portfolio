@@ -5,6 +5,8 @@ import { fmt } from "../types";
 import TenantStatusCell from "./TenantStatusCell";
 import TenantRowActions from "./TenantRowActions";
 
+type TenantServices = NonNullable<UnitWithTenant["tenant"]>["services"];
+
 interface TenantTableRowProps {
   row: UnitWithTenant;
   showUnit: boolean;
@@ -12,6 +14,12 @@ interface TenantTableRowProps {
   onDeactivate: (id: string, name: string) => void;
   onActivate: (id: string, name: string) => void;
   onAssignUnit?: (tenantId: string, tenantName: string, moveInDate: string) => void;
+  onMoveTenant?: (
+    tenantId: string,
+    tenantName: string,
+    currentUnitId: string,
+    services: TenantServices
+  ) => void;
 }
 
 export default function TenantTableRow({
@@ -21,6 +29,7 @@ export default function TenantTableRow({
   onDeactivate,
   onActivate,
   onAssignUnit,
+  onMoveTenant,
 }: TenantTableRowProps) {
   const t = row.tenant!;
 
@@ -114,6 +123,7 @@ export default function TenantTableRow({
           onDeactivate={onDeactivate}
           onActivate={onActivate}
           onAssignUnit={onAssignUnit}
+          onMoveTenant={onMoveTenant}
         />
       </TableCell>
     </TableRow>

@@ -16,6 +16,7 @@ import { useRentChangeForm } from "./hooks/useRentChangeForm";
 import { useTenantServices } from "./hooks/useTenantServices";
 import { useAddTenantForm } from "./hooks/useAddTenantForm";
 import { useAssignUnitDialog } from "./hooks/useAssignUnitDialog";
+import { useMoveTenantDialog } from "./hooks/useMoveTenantDialog";
 import { useTenantActivation } from "./hooks/useTenantActivation";
 import StatsRow from "./components/StatsRow";
 import PropertyTabsHeader from "./components/PropertyTabsHeader";
@@ -25,6 +26,7 @@ import ExternalTabContent from "./components/ExternalTabContent";
 import TenantEditDrawer from "./components/TenantEditDrawer";
 import AddTenantDrawer from "./components/AddTenantDrawer";
 import AssignUnitDialog from "./components/AssignUnitDialog";
+import MoveTenantDialog from "./components/MoveTenantDialog";
 import PropertyConfirmDialog from "./components/PropertyConfirmDialog";
 
 export default function PropertyPage() {
@@ -55,6 +57,7 @@ export default function PropertyPage() {
   );
   const addTenantForm = useAddTenantForm(unitsData.units, accounts, unitsData.reload);
   const assignUnit = useAssignUnitDialog(unitsData.units, unitsData.reload);
+  const moveTenant = useMoveTenantDialog(unitsData.units, unitsData.reload);
   const activation = useTenantActivation(
     confirm.openConfirm,
     unitsData.reload,
@@ -133,6 +136,9 @@ export default function PropertyPage() {
               onActivate={activation.activateTenant}
               onAssignUnit={(id, name, moveInDate) =>
                 assignUnit.openAssignUnitDialog(id, name, moveInDate)
+              }
+              onMoveTenant={(id, name, currentUnitId, services) =>
+                moveTenant.openMoveTenantDialog(id, name, currentUnitId, services)
               }
             />
           )}
@@ -214,6 +220,27 @@ export default function PropertyPage() {
         onAssignOutgoingMoveOutChange={assignUnit.setAssignOutgoingMoveOut}
         saving={assignUnit.assignSaving}
         onAssign={assignUnit.doAssignUnit}
+      />
+
+      <MoveTenantDialog
+        dialog={moveTenant.moveTenantDialog}
+        onClose={moveTenant.closeMoveTenantDialog}
+        units={unitsData.units}
+        serviceCatalog={serviceCatalog}
+        targetUnitId={moveTenant.moveTargetUnitId}
+        onSelectUnit={moveTenant.selectMoveTargetUnit}
+        rent={moveTenant.moveRent}
+        onRentChange={moveTenant.setMoveRent}
+        moveDate={moveTenant.moveDate}
+        onMoveDateChange={moveTenant.setMoveDate}
+        endServiceIds={moveTenant.moveEndServiceIds}
+        onToggleEndService={moveTenant.toggleMoveEndService}
+        addSvcId={moveTenant.moveAddSvcId}
+        onAddSvcIdChange={moveTenant.setMoveAddSvcId}
+        addSvcFee={moveTenant.moveAddSvcFee}
+        onAddSvcFeeChange={moveTenant.setMoveAddSvcFee}
+        saving={moveTenant.moveSaving}
+        onMove={moveTenant.doMoveTenant}
       />
 
       <PropertyConfirmDialog
