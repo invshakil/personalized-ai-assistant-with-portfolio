@@ -11,6 +11,7 @@ import type {
   PropertyServiceType,
   PropertySettings,
   PropertyDashboardStats,
+  MoveTenantInput,
 } from "@/types";
 
 type TenantFilter = "active" | "inactive" | "all";
@@ -45,6 +46,7 @@ export const propertyApi = {
     apiPost(`/property/tenants/${id}/deactivate`, body),
   addRentChange: (id: string, body: unknown) =>
     apiPost(`/property/tenants/${id}/rent-change`, body),
+  moveTenant: (id: string, body: MoveTenantInput) => apiPost(`/property/tenants/${id}/move`, body),
   autoDeactivateExpired: () => apiPost("/property/tenants/auto-deactivate-expired"),
 
   // ── Tenant documents ───────────────────────────────────────────────────
