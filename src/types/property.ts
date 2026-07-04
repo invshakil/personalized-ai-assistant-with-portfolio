@@ -84,6 +84,21 @@ export interface AddOnService {
   isActive: boolean;
 }
 
+/** Payload for moving a tenant to a different unit, with optional rent/service changes. */
+export interface MoveTenantInput {
+  newUnitId: string;
+  moveDate?: string;
+  newRent?: number;
+  reason?: string | null;
+  endServiceIds?: string[];
+  newServices?: {
+    serviceId: string;
+    monthlyFee: number;
+    startDate?: string;
+    notes?: string | null;
+  }[];
+}
+
 export interface RentChange {
   id: string;
   tenantId: string;

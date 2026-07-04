@@ -572,6 +572,131 @@ export async function settleMoveOut(id: string, moveOutDate: string, settlements
   return { success: true, remainingAdvanceRefundable: remainingAdvance };
 }
 
+export interface MoveTenantInput {
+  newUnitId: string;
+  /** Effective date of the move. Defaults to today. */
+  moveDate?: string;
+  /** Optional new rent for the destination unit (overrides its current monthlyRent). */
+  newRent?: number;
+  /** Optional note appended to the auto-generated rent-change reason. */
+  reason?: string | null;
+  /** TenantService ids to end as part of the move. */
+  endServiceIds?: string[];
+  newServices?: {
+    serviceId: string;
+    monthlyFee: number;
+    startDate?: string;
+    notes?: string | null;
+  }[];
+}
+
+export async function moveTenant(tenantId: string, input: MoveTenantInput) {
+  const tenant = await db.tenant.findUnique({
+    where: { id: tenantId },
+    include: { unit: { select: { id: true, unitNumber: true, monthlyRent: true } } },
+  });
+  if (!tenant) throw new Error("Tenant not found");
+  if (!tenant.isActive || tenant.tenantStatus !== "CURRENT" || !tenant.unit) {
+    throw new Error(
+      "Only current, active tenants with an assigned unit can be moved. Use Assign Unit for tenants without a unit."
+    );
+  }
+  if (input.newUnitId === tenant.unitId) {
+    throw new Error("Tenant is already in this unit.");
+  }
+
+  const newUnit = await db.unit.findUnique({ where: { id: input.newUnitId } });
+  if (!newUnit) throw new Error("Destination unit not found");
+
+  const destinationOccupant = await db.tenant.findFirst({
+    where: { unitId: input.newUnitId, tenantStatus: "CURRENT", isActive: true },
+    select: { name: true },
+  });
+  if (destinationOccupant) {
+    throw new Error(
+      `Unit ${newUnit.unitNumber} is currently occupied by ${destinationOccupant.name}. Free it first.`
+    );
+  }
+
+  const oldUnit = tenant.unit;
+  const moveDate = input.moveDate ? new Date(input.moveDate) : new Date();
+  const finalRent = input.newRent ?? toNum(newUnit.monthlyRent);
+
+  const result = await db.$transaction(async (tx) => {
+    // Old unit: promote a queued future tenant whose move-in date has passed,
+    // otherwise free the unit (mirrors deactivateTenant's promotion logic).
+    const futureTenant = await tx.tenant.findFirst({
+      where: { unitId: oldUnit.id, tenantStatus: "FUTURE", isActive: true, id: { not: tenantId } },
+      select: { id: true, moveInDate: true },
+    });
+    const shouldPromote = !!futureTenant && futureTenant.moveInDate <= moveDate;
+    if (shouldPromote && futureTenant) {
+      await tx.tenant.update({ where: { id: futureTenant.id }, data: { tenantStatus: "CURRENT" } });
+    } else {
+      await tx.unit.update({ where: { id: oldUnit.id }, data: { isOccupied: false } });
+    }
+
+    await tx.tenant.update({ where: { id: tenantId }, data: { unitId: input.newUnitId } });
+
+    await tx.unit.update({
+      where: { id: input.newUnitId },
+      data: { isOccupied: true, ...(input.newRent != null && { monthlyRent: input.newRent }) },
+    });
+
+    const baseReason = `Moved: Unit ${oldUnit.unitNumber} → Unit ${newUnit.unitNumber}`;
+    await tx.rentChange.create({
+      data: {
+        tenantId,
+        effectiveDate: moveDate,
+        previousRent: toNum(oldUnit.monthlyRent),
+        newRent: finalRent,
+        reason: input.reason ? `${baseReason} — ${input.reason}` : baseReason,
+        appliedAt: moveDate,
+      },
+    });
+
+    if (input.endServiceIds?.length) {
+      await tx.tenantService.updateMany({
+        where: { id: { in: input.endServiceIds }, tenantId },
+        data: { isActive: false, endDate: moveDate },
+      });
+    }
+
+    for (const svc of input.newServices ?? []) {
+      const existing = await tx.tenantService.findUnique({
+        where: { tenantId_serviceId: { tenantId, serviceId: svc.serviceId } },
+      });
+      if (existing) {
+        await tx.tenantService.update({
+          where: { tenantId_serviceId: { tenantId, serviceId: svc.serviceId } },
+          data: {
+            monthlyFee: svc.monthlyFee,
+            startDate: svc.startDate ? new Date(svc.startDate) : moveDate,
+            endDate: null,
+            isActive: true,
+            notes: svc.notes ?? null,
+          },
+        });
+      } else {
+        await tx.tenantService.create({
+          data: {
+            tenantId,
+            serviceId: svc.serviceId,
+            monthlyFee: svc.monthlyFee,
+            startDate: svc.startDate ? new Date(svc.startDate) : moveDate,
+            isActive: true,
+            notes: svc.notes ?? null,
+          },
+        });
+      }
+    }
+
+    return { promotedFutureTenantId: shouldPromote ? (futureTenant?.id ?? null) : null };
+  });
+
+  return { ...result, tenant: await getTenant(tenantId) };
+}
+
 export async function autoDeactivateExpired() {
   const now = new Date();
   const expired = await db.tenant.findMany({
