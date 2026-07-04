@@ -4,6 +4,7 @@
 import {
   createTenant,
   updateTenant,
+  moveTenant,
   createUnit,
   updateUnit,
   addTransaction,
@@ -43,6 +44,7 @@ import {
   optDate,
   reqEnum,
   optEnum,
+  optStrList,
   requireUpdate,
   taka,
   ym,
@@ -334,6 +336,102 @@ export const propertyTools: WriteToolDef[] = [
       return {
         summary: `Updated tenant ${field(t, "name")} (${field(t, "tenantCode")}).`,
         data: t,
+      };
+    },
+  }),
+
+  write({
+    name: "move_tenant",
+    description:
+      "Move a current, active tenant out of their unit and into a different, vacant unit — " +
+      "optionally changing their rent and ending/adding add-on service subscriptions in the same " +
+      "step. The destination unit must be vacant (no current tenant); free it first otherwise. " +
+      "Resolve the tenant id via list_tenants and the destination unit id via list_units first.",
+    parameters: schema(
+      {
+        tenantId: Str("Tenant id (must be a current, active tenant with an assigned unit)"),
+        newUnitId: Str("Destination unit id (must be vacant)"),
+        moveDate: Str("Effective date of the move, YYYY-MM-DD (optional; defaults to today)"),
+        newRent: Num(
+          "New monthly rent for the destination unit in BDT (optional; defaults to the unit's current rent)"
+        ),
+        reason: Str("Optional note describing why the tenant is moving"),
+        endServices: {
+          type: "array",
+          description: 'Add-on services (by id or name) to end as part of the move, e.g. ["WiFi"].',
+          items: { type: "string" },
+        },
+        newServices: {
+          type: "array",
+          description:
+            'New add-on services to attach in the destination unit, e.g. [{"service":"Parking","monthlyFee":500}]. ' +
+            "startDate defaults to moveDate.",
+          items: {
+            type: "object",
+            properties: {
+              service: Str("Add-on service id or name"),
+              monthlyFee: Num("Monthly fee in BDT"),
+              startDate: Str("Start date YYYY-MM-DD (optional; defaults to moveDate)"),
+            },
+            required: ["service", "monthlyFee"],
+          },
+        },
+      },
+      ["tenantId", "newUnitId"]
+    ),
+    parse: (i) => ({
+      tenantId: reqStr(i.tenantId, "tenantId"),
+      newUnitId: reqStr(i.newUnitId, "newUnitId"),
+      moveDate: optDate(i.moveDate, "moveDate"),
+      newRent: optNum(i.newRent),
+      reason: optStr(i.reason) ?? null,
+      endServiceRefs: optStrList(i.endServices) ?? [],
+      newServices: parseServiceList(i.newServices),
+    }),
+    preview: async (a) => {
+      const t = await tenantById(a.tenantId);
+      const newUnit = await unitById(a.newUnitId);
+      const rentNote = a.newRent != null ? `, rent → ${taka(a.newRent)}` : "";
+      const endNote = a.endServiceRefs.length ? `, ending ${a.endServiceRefs.join(", ")}` : "";
+      const addNote = a.newServices.length ? `, adding ${a.newServices.length} service(s)` : "";
+      return (
+        `Move tenant ${field(t, "name")} (${field(t, "tenantCode")}) to Unit ` +
+        `${field(newUnit, "unitNumber")}${rentNote}${endNote}${addNote}.`
+      );
+    },
+    commit: async (a) => {
+      const t = (await tenantById(a.tenantId)) as {
+        name?: string;
+        tenantCode?: string;
+        services?: { id: string; serviceId: string; serviceName: string; isActive: boolean }[];
+      };
+      const activeServices = (t.services ?? []).filter((s) => s.isActive);
+      const endServiceIds = a.endServiceRefs.map((ref) => {
+        const norm = ref.trim().toLowerCase();
+        const match = activeServices.find(
+          (s) => s.id === ref || s.serviceId === ref || s.serviceName.toLowerCase() === norm
+        );
+        if (!match) throw new Error(`Tenant has no active service matching "${ref}".`);
+        return match.id;
+      });
+      const newServices = await Promise.all(
+        a.newServices.map(async (svc) => {
+          const s = await resolveServiceRef(svc.serviceRef);
+          return { serviceId: s.id, monthlyFee: svc.monthlyFee, startDate: svc.startDate };
+        })
+      );
+      const newUnit = await unitById(a.newUnitId);
+      const result = await moveTenant(a.tenantId, {
+        newUnitId: a.newUnitId,
+        moveDate: a.moveDate,
+        newRent: a.newRent,
+        reason: a.reason,
+        endServiceIds,
+        newServices,
+      });
+      return {
+        summary: `Moved tenant ${field(t, "name")} (${field(t, "tenantCode")}) to Unit ${field(newUnit, "unitNumber")}.`,
+        data: result,
       };
     },
   }),
