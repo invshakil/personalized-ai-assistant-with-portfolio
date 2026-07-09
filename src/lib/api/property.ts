@@ -12,6 +12,7 @@ import type {
   PropertySettings,
   PropertyDashboardStats,
   MoveTenantInput,
+  OneOffCharge,
 } from "@/types";
 
 type TenantFilter = "active" | "inactive" | "all";
@@ -76,6 +77,23 @@ export const propertyApi = {
   updatePaymentTransaction: (txId: string, body: unknown) =>
     apiPut(`/property/payments/transactions/${txId}`, body),
   deletePaymentTransaction: (txId: string) => apiDelete(`/property/payments/transactions/${txId}`),
+
+  // ── One-off charges ────────────────────────────────────────────────────
+  listOneOffCharges: (params?: { tenantId?: string; month?: number; year?: number }) =>
+    apiGet<OneOffCharge[]>("/property/one-off-charges", { params }),
+  createOneOffCharge: (body: {
+    tenantId: string;
+    label: string;
+    amount: number;
+    month: number;
+    year: number;
+    notes?: string | null;
+  }) => apiPost<OneOffCharge>("/property/one-off-charges", body),
+  updateOneOffCharge: (
+    id: string,
+    body: { label?: string; amount?: number; notes?: string | null }
+  ) => apiPut<OneOffCharge>(`/property/one-off-charges/${id}`, body),
+  deleteOneOffCharge: (id: string) => apiDelete(`/property/one-off-charges/${id}`),
 
   // ── Rent changes ─────────────────────────────────────────────────────────
   updateRentChange: (rcId: string, body: unknown) => apiPut(`/property/rent-changes/${rcId}`, body),

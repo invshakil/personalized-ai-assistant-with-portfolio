@@ -24,6 +24,7 @@ import {
   getUnits,
   getTenants,
   getPayments,
+  getOneOffCharges,
   getExpenses,
   getPropertyFinancials,
   getPropertyExpenseBreakdown,
@@ -319,6 +320,18 @@ const propertyReadTools: AiToolDef[] = [
         description: "One or more tenant ids (optional)",
       },
       ...RANGE,
+    }),
+  },
+  {
+    name: "list_one_off_charges",
+    description:
+      "List one-off (non-recurring) charges billed to tenants for a specific month — e.g. maintenance " +
+      "fees, repair costs. Filter by tenant id, month, and/or year. Unlike add-on services these do NOT " +
+      "recur; each charge is added on top of base rent + recurring services in that one month's bill.",
+    parameters: obj({
+      tenantId: { type: "string", description: "Tenant id (optional)" },
+      month: { type: "integer", description: "Month 1-12 (optional)" },
+      year: { type: "integer", description: "Year (optional)" },
     }),
   },
   {
@@ -701,6 +714,8 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
       tenantIds: arr(i.tenantIds),
       ...range(i),
     }),
+  list_one_off_charges: (i) =>
+    getOneOffCharges({ tenantId: str(i.tenantId), month: num(i.month), year: num(i.year) }),
   list_property_expenses: (i) =>
     getExpenses({
       month: num(i.month),

@@ -15,6 +15,7 @@ import { usePaymentDrawer } from "./hooks/usePaymentDrawer";
 import { useEditPayment } from "./hooks/useEditPayment";
 import { useEditTransaction } from "./hooks/useEditTransaction";
 import { usePaymentActions } from "./hooks/usePaymentActions";
+import { useOneOffCharges } from "./hooks/useOneOffCharges";
 import PaymentFilters from "./components/PaymentFilters";
 import PaymentSummaryStrip from "./components/PaymentSummaryStrip";
 import OverdueAlert from "./components/OverdueAlert";
@@ -22,6 +23,7 @@ import PaymentTable from "./components/PaymentTable";
 import EditPaymentDrawer from "./components/EditPaymentDrawer";
 import EditTransactionDrawer from "./components/EditTransactionDrawer";
 import PaymentDrawer from "./components/PaymentDrawer";
+import ChargesDrawer from "./components/ChargesDrawer";
 
 export default function PaymentsPage() {
   const filters = usePaymentFilters();
@@ -39,6 +41,7 @@ export default function PaymentsPage() {
   const paymentDrawer = usePaymentDrawer(accounts, data.reload);
   const editPayment = useEditPayment(data.reload);
   const editTransaction = useEditTransaction(data.reload);
+  const charges = useOneOffCharges(data.reload);
   const actions = usePaymentActions(data.reload);
 
   return (
@@ -97,6 +100,7 @@ export default function PaymentsPage() {
           onEdit={editPayment.openEditPayment}
           onRecordPayment={(p) => paymentDrawer.openPayDrawer(p, "pay")}
           onApplyAdvance={(p) => paymentDrawer.openPayDrawer(p, "advance")}
+          onManageCharges={charges.open}
           onDelete={actions.deletePayment}
           onEditTx={editTransaction.openEditTx}
           onDeleteTx={actions.deleteTransaction}
@@ -146,6 +150,22 @@ export default function PaymentsPage() {
         txLoading={paymentDrawer.txLoading}
         txError={paymentDrawer.txError}
         onSubmit={paymentDrawer.submitTransaction}
+      />
+
+      <ChargesDrawer
+        target={charges.target}
+        charges={charges.charges}
+        label={charges.label}
+        onLabelChange={charges.setLabel}
+        amount={charges.amount}
+        onAmountChange={charges.setAmount}
+        notes={charges.notes}
+        onNotesChange={charges.setNotes}
+        loading={charges.loading}
+        error={charges.error}
+        onAdd={charges.addCharge}
+        onRemove={charges.removeCharge}
+        onClose={charges.close}
       />
     </Box>
   );

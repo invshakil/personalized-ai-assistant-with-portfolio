@@ -10,6 +10,7 @@ import {
   addTransaction,
   updatePayment,
   generatePayments,
+  createOneOffCharge,
   createExpense,
   updateExpense,
   createRentChange,
@@ -624,6 +625,58 @@ export const propertyTools: WriteToolDef[] = [
       return {
         summary: `Generated rent rows for ${ym(a.month, a.year)}${created ? ` (${created} created)` : ""}.`,
         data: res,
+      };
+    },
+  }),
+
+  write({
+    name: "add_one_off_charge",
+    description:
+      "Bill a one-time, non-recurring charge to a tenant for a specific month — e.g. a maintenance fee, " +
+      "a repair cost. The charge is added on top of that month's base rent and recurring add-on services. " +
+      "If the month's rent row has already been generated, its total due updates immediately; otherwise the " +
+      "charge is folded in when payments are generated. Unlike an add-on service (which recurs every month), " +
+      "this applies to exactly one billing period. Resolve the tenant by id, tenant code, or exact name.",
+    parameters: schema(
+      {
+        tenant: Str("Tenant id, tenant code (e.g. T01), or exact name"),
+        label: Str('What the charge is for, e.g. "Maintenance fee"'),
+        amount: Num("Charge amount in BDT"),
+        month: Int("Billing month 1-12"),
+        year: Int("Billing year, e.g. 2026"),
+        notes: Str("Optional note"),
+      },
+      ["tenant", "label", "amount", "month", "year"]
+    ),
+    parse: (i) => {
+      const month = reqNum(i.month, "month");
+      if (month < 1 || month > 12) throw new Error("month must be between 1 and 12.");
+      return {
+        tenantRef: reqStr(i.tenant, "tenant"),
+        label: reqStr(i.label, "label"),
+        amount: reqNum(i.amount, "amount"),
+        month,
+        year: reqNum(i.year, "year"),
+        notes: optStr(i.notes) ?? null,
+      };
+    },
+    preview: async (a) => {
+      const t = await resolveTenantRef(a.tenantRef);
+      return `Add one-off charge "${a.label}" ${taka(a.amount)} to ${t.name} (${t.tenantCode}) for ${ym(a.month, a.year)}.`;
+    },
+    commit: async (a) => {
+      const t = await resolveTenantRef(a.tenantRef);
+      const charge = await createOneOffCharge({
+        tenantId: t.id,
+        label: a.label,
+        amount: a.amount,
+        month: a.month,
+        year: a.year,
+        notes: a.notes,
+      });
+      return {
+        summary: `Added ${taka(a.amount)} "${a.label}" one-off charge to ${t.name} for ${ym(a.month, a.year)}.`,
+        data: charge,
       };
     },
   }),

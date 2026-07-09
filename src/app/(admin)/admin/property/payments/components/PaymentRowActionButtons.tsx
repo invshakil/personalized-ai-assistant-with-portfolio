@@ -1,5 +1,5 @@
 import { Box, IconButton, Tooltip } from "@mui/material";
-import { Download, FileDown, Pencil, Plus, Trash2, Wallet } from "lucide-react";
+import { Download, FileDown, Pencil, Plus, ReceiptText, Trash2, Wallet } from "lucide-react";
 import type { PaymentWithTenant } from "@/types";
 import type { EditPaymentState } from "../types";
 
@@ -8,6 +8,7 @@ interface PaymentRowActionButtonsProps {
   onEdit: (state: EditPaymentState) => void;
   onRecordPayment: (payment: PaymentWithTenant) => void;
   onApplyAdvance: (payment: PaymentWithTenant) => void;
+  onManageCharges: (payment: PaymentWithTenant) => void;
   onDelete: (id: string, tenantName: string) => void;
 }
 
@@ -16,6 +17,7 @@ export default function PaymentRowActionButtons({
   onEdit,
   onRecordPayment,
   onApplyAdvance,
+  onManageCharges,
   onDelete,
 }: PaymentRowActionButtonsProps) {
   return (
@@ -42,6 +44,11 @@ export default function PaymentRowActionButtons({
           </IconButton>
         </Tooltip>
       )}
+      <Tooltip title="One-off charges (maintenance, repairs…)">
+        <IconButton size="small" onClick={() => onManageCharges(p)}>
+          <ReceiptText size={15} />
+        </IconButton>
+      </Tooltip>
       {p.advanceBalance > 0 && p.balance > 0 && (
         <Tooltip title="Apply Advance">
           <IconButton size="small" onClick={() => onApplyAdvance(p)}>

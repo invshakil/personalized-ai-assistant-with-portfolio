@@ -50,6 +50,26 @@ export async function getPayments(opts: GetPaymentsOptions) {
     },
   });
 
+  // One-off charges are linked to a payment only by (tenantId, month, year).
+  // Fetch every charge for the tenants in this result set once, then map each
+  // charge to its billing period rather than issuing a query per row.
+  const chargeTenantIds = [...new Set(payments.map((p) => p.tenantId))];
+  const charges = chargeTenantIds.length
+    ? await db.oneOffCharge.findMany({ where: { tenantId: { in: chargeTenantIds } } })
+    : [];
+  const chargeKey = (tenantId: string, month: number, year: number) =>
+    `${tenantId}:${month}:${year}`;
+  const chargesByPeriod = new Map<
+    string,
+    { id: string; label: string; amount: number; notes: string | null }[]
+  >();
+  for (const c of charges) {
+    const key = chargeKey(c.tenantId, c.month, c.year);
+    const list = chargesByPeriod.get(key) ?? [];
+    list.push({ id: c.id, label: c.label, amount: toNum(c.amount), notes: c.notes });
+    chargesByPeriod.set(key, list);
+  }
+
   return payments.map((p) => ({
     id: p.id,
     tenantId: p.tenantId,
@@ -60,6 +80,7 @@ export async function getPayments(opts: GetPaymentsOptions) {
       name: s.service.name,
       monthlyFee: toNum(s.monthlyFee),
     })),
+    oneOffCharges: chargesByPeriod.get(chargeKey(p.tenantId, p.month, p.year)) ?? [],
     unitId: p.unitId,
     unitNumber: p.unit?.unitNumber ?? null,
     month: p.month,
@@ -97,8 +118,19 @@ export async function getPayment(id: string) {
 
   if (!payment) return null;
 
+  const charges = await db.oneOffCharge.findMany({
+    where: { tenantId: payment.tenantId, month: payment.month, year: payment.year },
+    orderBy: { createdAt: "asc" },
+  });
+
   return {
     ...payment,
+    oneOffCharges: charges.map((c) => ({
+      id: c.id,
+      label: c.label,
+      amount: toNum(c.amount),
+      notes: c.notes,
+    })),
     rentDue: toNum(payment.rentDue),
     amountPaid: toNum(payment.amountPaid),
     advanceApplied: toNum(payment.advanceApplied),

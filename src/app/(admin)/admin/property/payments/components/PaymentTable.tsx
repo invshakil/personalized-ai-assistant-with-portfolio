@@ -21,6 +21,7 @@ interface PaymentTableProps {
   onEdit: (state: EditPaymentState) => void;
   onRecordPayment: (payment: PaymentWithTenant) => void;
   onApplyAdvance: (payment: PaymentWithTenant) => void;
+  onManageCharges: (payment: PaymentWithTenant) => void;
   onDelete: (id: string, tenantName: string) => void;
   onEditTx: (tx: PaymentTransaction) => void;
   onDeleteTx: (txId: string, isAdvance: boolean) => void;
@@ -34,6 +35,7 @@ export default function PaymentTable({
   onEdit,
   onRecordPayment,
   onApplyAdvance,
+  onManageCharges,
   onDelete,
   onEditTx,
   onDeleteTx,
@@ -72,6 +74,7 @@ export default function PaymentTable({
                 onEdit={onEdit}
                 onRecordPayment={onRecordPayment}
                 onApplyAdvance={onApplyAdvance}
+                onManageCharges={onManageCharges}
                 onDelete={onDelete}
                 onEditTx={onEditTx}
                 onDeleteTx={onDeleteTx}

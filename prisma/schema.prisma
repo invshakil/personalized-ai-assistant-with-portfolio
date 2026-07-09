@@ -272,6 +272,7 @@ model Tenant {
   payments       Payment[]
   services       TenantService[]
   rentChanges    RentChange[]
+  oneOffCharges  OneOffCharge[]
   documents      TenantDocument[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
@@ -351,6 +352,27 @@ model TenantService {
   updatedAt  DateTime     @updatedAt
 
   @@unique([tenantId, serviceId])
+}
+
+// A one-time, ad-hoc charge billed to a tenant for a specific month/year
+// (e.g. a maintenance fee, a repair cost). Unlike TenantService fees these do
+// NOT recur — each charge applies to exactly one billing period. Payment
+// generation adds the month's charges into that period's rentDue, and the
+// charge service keeps an already-generated bill in step when a charge is
+// added/edited/removed. Linked to a Payment only by (tenantId, month, year).
+model OneOffCharge {
+  id        String   @id @default(cuid())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  label     String // e.g. "Maintenance fee", "Plumbing repair"
+  amount    Decimal  @db.Decimal(10, 2)
+  month     Int // 1–12 — the billing month this charge applies to
+  year      Int
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, month, year])
 }
 
 model RentChange {
