@@ -6,37 +6,39 @@ export function useMoneyInsights(data: MoneyDashboardData | null) {
   return useMemo(() => {
     if (!data) return null;
 
-    // ── Blend venture take-home into income (user-chosen behaviour) ──────
-    // Property & Financial Tracker net is real earned income tracked in
-    // those modules; the personal ledger has no income credits yet, so we
-    // surface it here rather than show a misleading ৳0. The service's
-    // ledger-truth totals are left untouched — blending lives in this view.
+    // ── Income & savings are LEDGER TRUTH (no double-count) ──────────────
+    // Only money actually recorded as a ledger credit counts as income.
+    // Venture take-home (Property + Financial Tracker net) is surfaced as
+    // read-only context on its own card and is NOT added here: when that
+    // take-home lands in an account you post it to the ledger (via the
+    // module's "link to account" action), where it becomes a credit and is
+    // counted once — right here. Adding venture on top would count every
+    // linked earning twice (once as the ledger credit, once as venture net).
     const recordedIncome = data.totals.income;
     const ventureProperty = data.venture.reduce((s, v) => s + v.propertyNet, 0);
     const ventureBusiness = data.venture.reduce((s, v) => s + v.businessNet, 0);
     const ventureTotal = ventureProperty + ventureBusiness;
-    const income = recordedIncome + ventureTotal;
+    const income = recordedIncome;
     const expense = data.totals.expense;
     const savings = income - expense;
     const savingsRate = income ? savings / income : 0;
 
-    // Merge ledger months + venture months into one blended trend series.
-    const byPeriod = new Map<string, { income: number; expense: number; venture: number }>();
+    // Ledger-only monthly trend (income = recorded credits, savings = income − expense).
+    const byPeriod = new Map<string, { income: number; expense: number }>();
     const ensure = (p: string) =>
-      byPeriod.get(p) ?? byPeriod.set(p, { income: 0, expense: 0, venture: 0 }).get(p)!;
+      byPeriod.get(p) ?? byPeriod.set(p, { income: 0, expense: 0 }).get(p)!;
     for (const s of data.savings) {
       const r = ensure(s.period);
       r.income += s.income;
       r.expense += s.expense;
     }
-    for (const v of data.venture) ensure(v.period).venture += v.propertyNet + v.businessNet;
     const trend: TrendPoint[] = Array.from(byPeriod.entries())
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([period, r]) => ({
         period,
-        income: r.income + r.venture,
+        income: r.income,
         expense: r.expense,
-        savings: r.income + r.venture - r.expense,
+        savings: r.income - r.expense,
       }));
 
     // Spend insights.

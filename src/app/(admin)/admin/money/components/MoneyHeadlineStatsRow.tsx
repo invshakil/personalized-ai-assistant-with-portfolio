@@ -8,7 +8,7 @@ interface MoneyHeadlineStatsRowProps {
 }
 
 export default function MoneyHeadlineStatsRow({ insights }: MoneyHeadlineStatsRowProps) {
-  const { income, recordedIncome, ventureTotal, expense, savings, savingsRate } = insights;
+  const { income, ventureTotal, expense, savings, savingsRate } = insights;
 
   return (
     <Box sx={{ display: "flex", gap: 2, mb: 2, flexWrap: "wrap" }}>
@@ -16,7 +16,11 @@ export default function MoneyHeadlineStatsRow({ insights }: MoneyHeadlineStatsRo
         label="Income"
         value={fmt(income)}
         color="success.main"
-        sub={`recorded ${fmt(recordedIncome)} · venture ${fmt(ventureTotal)}`}
+        sub={
+          ventureTotal > 0
+            ? `recorded in ledger · ${fmt(ventureTotal)} venture (context, see below)`
+            : "recorded in ledger"
+        }
       />
       <StatCard label="Expenses" value={fmt(expense)} color="error.main" />
       <StatCard

@@ -7,7 +7,7 @@ const CAT_COLORS = ["#7367f0", "#00cfe8", "#28c76f", "#ff9f43", "#ea5455", "#9c8
 
 export interface TrendPoint {
   period: string; // YYYY-MM
-  income: number; // blended (ledger credits + venture net)
+  income: number; // ledger credits only (venture net is context, not summed in)
   expense: number;
   savings: number;
 }

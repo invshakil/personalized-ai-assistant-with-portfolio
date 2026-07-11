@@ -24,7 +24,7 @@ export default function VentureIncomeCard({ insights }: VentureIncomeCardProps) 
           <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
             Venture income
           </Typography>
-          <MuiTooltip title="Take-home from Property & Financial Tracker for this period. Now blended into the Income figure above. Record it as a ledger credit when the money lands in an account to keep balances accurate.">
+          <MuiTooltip title="Take-home from Property & Financial Tracker for this period. Shown for context — NOT added to the Income above (that would double-count). When this money lands in an account, post it to the ledger via the module's 'link to account' action; it then counts once, as a normal ledger credit.">
             <Info size={14} />
           </MuiTooltip>
         </Box>
@@ -74,11 +74,11 @@ export default function VentureIncomeCard({ insights }: VentureIncomeCardProps) 
           </>
         )}
 
-        {recordedIncome > 0 && (
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
-            {fmt(recordedIncome)} already recorded as ledger income this period.
-          </Typography>
-        )}
+        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 2 }}>
+          Not included in Income above — the ledger counts this only once it&apos;s posted to an
+          account.
+          {recordedIncome > 0 && ` ${fmt(recordedIncome)} recorded as ledger income this period.`}
+        </Typography>
       </CardContent>
     </Card>
   );
