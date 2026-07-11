@@ -33,6 +33,8 @@ export type TransferForm = {
   amount: string;
   /** Destination amount (destination currency) for a cross-currency transfer. */
   toAmount: string;
+  /** Fee charged by the source account (source currency) — booked as an expense. */
+  fee: string;
   description: string;
 };
 
@@ -61,5 +63,6 @@ export const BLANK_TRANSFER: TransferForm = {
   toAccountId: "",
   amount: "",
   toAmount: "",
+  fee: "",
   description: "",
 };

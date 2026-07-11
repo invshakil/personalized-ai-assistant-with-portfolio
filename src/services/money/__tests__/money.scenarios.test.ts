@@ -129,6 +129,68 @@ test("transfer refuses identical source and destination", async () => {
   );
 });
 
+test("transfer with a fee debits the source amount+fee and books the fee as an expense", async () => {
+  const aBefore = await getAccountBalance(accA);
+  const bBefore = await getAccountBalance(accB);
+  const transfer = await recordTransfer({
+    fromAccountId: accA,
+    toAccountId: accB,
+    amount: 10000,
+    fee: 100,
+    date: "2024-02-06",
+  });
+  // Source loses amount + fee; destination still receives the full amount.
+  assert.equal(await getAccountBalance(accA), aBefore - 10100);
+  assert.equal(await getAccountBalance(accB), bBefore + 10000);
+
+  // The fee is a real EXPENSE DEBIT on the source, linked back to the transfer.
+  const fee = await db.moneyEntry.findFirst({
+    where: { feeForTransferId: transfer.id },
+    include: { category: true },
+  });
+  assert.ok(fee, "a fee entry was created");
+  assert.equal(fee!.direction, "DEBIT");
+  assert.equal(Number(fee!.amount), 100);
+  assert.equal(fee!.accountId, accA);
+  assert.equal(fee!.category?.name, "Transfer Fee");
+  assert.equal(fee!.category?.kind, "EXPENSE");
+});
+
+test("deleting a transfer cascades its fee entry away", async () => {
+  const aBefore = await getAccountBalance(accA);
+  const transfer = await recordTransfer({
+    fromAccountId: accA,
+    toAccountId: accB,
+    amount: 5000,
+    fee: 250,
+    date: "2024-02-07",
+  });
+  assert.equal(await getAccountBalance(accA), aBefore - 5250);
+  const fee = await db.moneyEntry.findFirstOrThrow({ where: { feeForTransferId: transfer.id } });
+
+  await db.moneyEntry.delete({ where: { id: transfer.id } });
+  // FK cascade removes the fee and the source balance is fully restored.
+  assert.equal(await db.moneyEntry.findUnique({ where: { id: fee.id } }), null);
+  assert.equal(await getAccountBalance(accA), aBefore);
+});
+
+test("AI record_money_transfer passes a fee through as a linked expense", async () => {
+  const tool = moneyTools.find((t) => t.name === "record_money_transfer")!;
+  const aBefore = await getAccountBalance(accA);
+  const res = await tool.commit({
+    fromAccountName: `${TAG} Wallet A`,
+    toAccountName: `${TAG} Wallet B`,
+    amount: 2000,
+    fee: 50,
+    date: "2024-02-08",
+  });
+  assert.equal(await getAccountBalance(accA), aBefore - 2050);
+  assert.match(res.summary, /fee booked as expense/);
+  const entry = res.data as { id: string };
+  const fee = await db.moneyEntry.findFirstOrThrow({ where: { feeForTransferId: entry.id } });
+  assert.equal(Number(fee.amount), 50);
+});
+
 // ─── People & Loans (the new linking flow) ──────────────────────────────────--
 
 test("a payment linked to a due reduces its outstanding balance", async () => {

@@ -258,6 +258,7 @@ export const moneyTools: WriteToolDef[] = [
       "Recorded as a TRANSFER — excluded from income/expense totals and savings. " +
       "Source account balance goes down by amount (source currency), destination goes up by toAmount (destination currency). " +
       "For a CROSS-CURRENCY transfer (the two accounts hold different currencies, e.g. a USD→BDT exchange) you MUST pass toAmount = the amount that arrives in the destination currency. " +
+      "If the source charges a fee (e.g. a mobile-wallet cash-out fee), pass fee = the fee amount in the source currency: it is booked as a separate EXPENSE on the source, so the source loses amount + fee while the destination still receives the full amount. " +
       "Account names must match existing accounts (use get_account_balances to list them).",
     parameters: schema(
       {
@@ -266,6 +267,9 @@ export const moneyTools: WriteToolDef[] = [
         amount: Num("Amount leaving the source, in the source account's currency"),
         toAmount: Num(
           "Amount arriving at the destination, in the destination currency — required only for cross-currency transfers"
+        ),
+        fee: Num(
+          "Fee the source charges for the transfer, in the source currency (optional) — booked as a separate expense on the source account"
         ),
         date: Str("Date YYYY-MM-DD"),
         description: Str("Description (optional)"),
@@ -278,6 +282,7 @@ export const moneyTools: WriteToolDef[] = [
       toAccountName: reqStr(i.toAccountName, "toAccountName"),
       amount: reqNum(i.amount, "amount"),
       toAmount: optNum(i.toAmount),
+      fee: optNum(i.fee),
       date: reqDate(i.date, "date"),
       description: optStr(i.description) ?? null,
       notes: optStr(i.notes) ?? null,
@@ -291,7 +296,11 @@ export const moneyTools: WriteToolDef[] = [
         from.currency !== to.currency && a.toAmount != null
           ? ` → ${cur(a.toAmount, to.currency)}`
           : "";
-      return `Transfer ${cur(a.amount, from.currency)} from ${from.name} → ${to.name}${dest} on ${a.date}.`;
+      const feeNote =
+        a.fee != null && a.fee > 0
+          ? ` (+ ${cur(a.fee, from.currency)} fee as expense; source debited ${cur(a.amount + a.fee, from.currency)})`
+          : "";
+      return `Transfer ${cur(a.amount, from.currency)} from ${from.name} → ${to.name}${dest} on ${a.date}${feeNote}.`;
     },
     commit: async (a) => {
       const [from, to] = await Promise.all([
@@ -306,13 +315,16 @@ export const moneyTools: WriteToolDef[] = [
         description: a.description,
         notes: a.notes,
         ...(a.toAmount != null && { toAmount: a.toAmount }),
+        ...(a.fee != null && { fee: a.fee }),
       });
       const dest =
         from.currency !== to.currency && entry.toAmount != null
           ? ` → ${cur(entry.toAmount, to.currency)} (@ ${entry.fxRate})`
           : "";
+      const feeNote =
+        a.fee != null && a.fee > 0 ? ` (+ ${cur(a.fee, from.currency)} fee booked as expense)` : "";
       return {
-        summary: `Transferred ${cur(a.amount, from.currency)} from ${from.name} → ${to.name}${dest}.`,
+        summary: `Transferred ${cur(a.amount, from.currency)} from ${from.name} → ${to.name}${dest}${feeNote}.`,
         data: entry,
       };
     },

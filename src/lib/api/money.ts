@@ -58,6 +58,8 @@ export interface TransferPayload {
   notes?: string | null;
   /** Destination amount (destination currency) — required for a cross-currency transfer. */
   toAmount?: number;
+  /** Fee charged by the source (source currency) — booked as a separate expense. */
+  fee?: number;
 }
 
 export interface ObligationPayload {

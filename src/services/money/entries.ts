@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { MoneyEntryDirection, MoneyEntrySource, Prisma } from "@prisma/client";
 import { resolveRange, dateColumnWhere, type RangeInput } from "@/services/_shared/dateRange";
 import { getFxRateToBdt } from "@/services/_shared/fx";
+import { ensureCategory } from "./categories";
 import { toNum, toIso } from "./_serializers";
 import type { MoneyEntryRow, MoneyEntryMethod } from "@/types";
 
@@ -278,6 +279,13 @@ export interface RecordTransferInput {
    * for a cross-currency transfer; ignored (set = amount) for same-currency.
    */
   toAmount?: number;
+  /**
+   * Fee the source charges to move the money (e.g. a mobile-wallet cash-out
+   * charge), in the SOURCE account's currency. Booked as a separate EXPENSE
+   * DEBIT on the source account and linked to this transfer, so the source is
+   * debited `amount + fee` while the destination still receives `toAmount`.
+   */
+  fee?: number;
 }
 
 /**
@@ -287,12 +295,18 @@ export interface RecordTransferInput {
  * currency); the destination gains `toAmount` (destination currency). For a
  * same-currency transfer toAmount == amount and fxRate = 1; for a cross-currency
  * transfer the caller supplies toAmount and fxRate = toAmount / amount is stored.
+ *
+ * When `fee` > 0 the source is charged an extra EXPENSE DEBIT (in the source
+ * currency) linked to the transfer; the transfer + fee are written atomically
+ * and deleting the transfer cascades the fee away.
  */
 export async function recordTransfer(input: RecordTransferInput): Promise<MoneyEntryRow> {
   if (input.amount == null || input.amount <= 0) throw new Error("amount must be greater than 0");
   if (input.fromAccountId === input.toAccountId) {
     throw new Error("Transfer source and destination must be different accounts");
   }
+  const fee = input.fee ?? 0;
+  if (fee < 0) throw new Error("fee cannot be negative");
 
   const [from, to] = await Promise.all([
     db.moneyAccount.findUnique({ where: { id: input.fromAccountId }, select: { currency: true } }),
@@ -313,22 +327,47 @@ export async function recordTransfer(input: RecordTransferInput): Promise<MoneyE
     fxRate = Math.round((toAmount / input.amount) * 1e6) / 1e6;
   }
 
-  const e = await db.moneyEntry.create({
-    data: {
-      date: new Date(input.date),
-      direction: MoneyEntryDirection.TRANSFER,
-      amount: input.amount,
-      currency: from.currency,
-      toAmount,
-      fxRate,
-      categoryId: null,
-      accountId: input.fromAccountId,
-      transferAccountId: input.toAccountId,
-      description: input.description ?? null,
-      notes: input.notes ?? null,
-      source: MoneyEntrySource.MANUAL,
-    },
-    include: ENTRY_INCLUDE,
+  // Resolve the fee category before the transaction (find-or-create needs the
+  // shared client); harmless if the transaction below rolls back.
+  const feeCategoryId = fee > 0 ? await ensureCategory("Transfer Fee", "EXPENSE") : null;
+
+  const e = await db.$transaction(async (tx) => {
+    const transfer = await tx.moneyEntry.create({
+      data: {
+        date: new Date(input.date),
+        direction: MoneyEntryDirection.TRANSFER,
+        amount: input.amount,
+        currency: from.currency,
+        toAmount,
+        fxRate,
+        categoryId: null,
+        accountId: input.fromAccountId,
+        transferAccountId: input.toAccountId,
+        description: input.description ?? null,
+        notes: input.notes ?? null,
+        source: MoneyEntrySource.MANUAL,
+      },
+      include: ENTRY_INCLUDE,
+    });
+
+    if (fee > 0 && feeCategoryId) {
+      await tx.moneyEntry.create({
+        data: {
+          date: new Date(input.date),
+          direction: MoneyEntryDirection.DEBIT,
+          amount: fee,
+          currency: from.currency,
+          categoryId: feeCategoryId,
+          accountId: input.fromAccountId,
+          feeForTransferId: transfer.id,
+          description: input.description ? `Transfer fee — ${input.description}` : "Transfer fee",
+          source: MoneyEntrySource.MANUAL,
+        },
+      });
+    }
+
+    return transfer;
   });
+
   return serializeEntry(e);
 }

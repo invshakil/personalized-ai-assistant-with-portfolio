@@ -27,6 +27,7 @@ export function useTransferDrawer(onSuccess: () => Promise<void> | void) {
         date: transfer.date,
         description: transfer.description || null,
         ...(transfer.toAmount !== "" && { toAmount: parseFloat(transfer.toAmount) }),
+        ...(transfer.fee !== "" && { fee: parseFloat(transfer.fee) }),
       });
       setTransferOpen(false);
       await onSuccess();
