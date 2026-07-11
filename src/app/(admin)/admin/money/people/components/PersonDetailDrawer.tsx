@@ -45,6 +45,14 @@ interface Props {
   onCancelAddDue: () => void;
   onAddDueAmountChange: (value: string) => void;
   onAddToDue: (o: ObligationRow) => void;
+  editObId: string | null;
+  editAmount: string;
+  editSaving: boolean;
+  onStartEdit: (o: ObligationRow) => void;
+  onCancelEdit: () => void;
+  onEditAmountChange: (value: string) => void;
+  onSaveObligation: (o: ObligationRow) => void;
+  onDeleteObligation: (o: ObligationRow) => void;
   detailError: string | null;
   onClose: () => void;
 }

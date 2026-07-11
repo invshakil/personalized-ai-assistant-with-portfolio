@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { moneyApi } from "@/lib/api/money";
-import { todayInput } from "../../format";
+import { fmt, todayInput } from "../../format";
 import type {
   BeneficiaryDetail,
   MoneyAccountRow,
@@ -41,8 +41,19 @@ const BLANK_PAYMENT: PaymentForm = {
   direction: "DEBIT",
 };
 
+type OpenConfirm = (
+  title: string,
+  message: string,
+  onConfirm: () => Promise<void>,
+  opts?: { confirmLabel?: string; confirmColor?: "error" | "warning" | "success" | "primary" }
+) => void;
+
 /** Owns the person detail drawer: obligations, payments, and the "add to due" flow. */
-export function usePersonDetail(accounts: MoneyAccountRow[], onChanged: () => void) {
+export function usePersonDetail(
+  accounts: MoneyAccountRow[],
+  onChanged: () => void,
+  openConfirm: OpenConfirm
+) {
   const [detail, setDetail] = useState<BeneficiaryDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
@@ -58,6 +69,11 @@ export function usePersonDetail(accounts: MoneyAccountRow[], onChanged: () => vo
   const [addDueAmount, setAddDueAmount] = useState("");
   const [addDueSaving, setAddDueSaving] = useState(false);
 
+  // Inline edit of an obligation's amount (fix a wrong figure) + delete.
+  const [editObId, setEditObId] = useState<string | null>(null);
+  const [editAmount, setEditAmount] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+
   async function openDetail(id: string) {
     setDetailLoading(true);
     setDetailError(null);
@@ -65,6 +81,8 @@ export function usePersonDetail(accounts: MoneyAccountRow[], onChanged: () => vo
     setPayForm({ ...BLANK_PAYMENT, date: todayInput(), accountId: accounts[0]?.id ?? "" });
     setAddDueId(null);
     setAddDueAmount("");
+    setEditObId(null);
+    setEditAmount("");
     try {
       setDetail(await moneyApi.getBeneficiary(id));
     } finally {
@@ -155,6 +173,62 @@ export function usePersonDetail(accounts: MoneyAccountRow[], onChanged: () => vo
     setAddDueAmount("");
   }
 
+  // Correct a wrong figure: overwrite the obligation's amount (its principal).
+  // For a loan the outstanding balance recomputes from the new principal.
+  function startEditObligation(o: ObligationRow) {
+    setEditObId(o.id);
+    setEditAmount(String(o.amount));
+    setAddDueId(null);
+    setDetailError(null);
+  }
+
+  function cancelEditObligation() {
+    setEditObId(null);
+    setEditAmount("");
+  }
+
+  async function saveObligation(o: ObligationRow) {
+    if (!detail) return;
+    const amount = parseFloat(editAmount);
+    if (!amount || amount <= 0) {
+      setDetailError("Amount must be greater than zero");
+      return;
+    }
+    setEditSaving(true);
+    setDetailError(null);
+    try {
+      await moneyApi.updateObligation(detail.id, o.id, { amount });
+      setEditObId(null);
+      setEditAmount("");
+      await refreshDetail();
+    } catch (e: unknown) {
+      setDetailError(e instanceof Error ? e.message : "Something went wrong");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  // Delete an obligation. Payment history is kept — the FK is SET NULL, so tagged
+  // ledger entries simply lose their obligation link rather than being removed.
+  function deleteObligation(o: ObligationRow) {
+    if (!detail) return;
+    const benId = detail.id;
+    const kind = o.type === "LOAN" ? "loan" : "recurring obligation";
+    openConfirm(
+      "Delete obligation",
+      `Delete this ${kind} of ${fmt(o.amount)}? Payment history is kept but will no longer be linked to it. This cannot be undone.`,
+      async () => {
+        try {
+          await moneyApi.deleteObligation(benId, o.id);
+          await refreshDetail();
+        } catch (e: unknown) {
+          setDetailError(e instanceof Error ? e.message : "Failed to delete");
+        }
+      },
+      { confirmLabel: "Delete", confirmColor: "error" }
+    );
+  }
+
   return {
     detail,
     detailLoading,
@@ -176,5 +250,13 @@ export function usePersonDetail(accounts: MoneyAccountRow[], onChanged: () => vo
     addToDue,
     startAddDue,
     cancelAddDue,
+    editObId,
+    editAmount,
+    setEditAmount,
+    editSaving,
+    startEditObligation,
+    cancelEditObligation,
+    saveObligation,
+    deleteObligation,
   };
 }

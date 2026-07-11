@@ -25,6 +25,14 @@ interface Props {
   onCancelAddDue: () => void;
   onAddDueAmountChange: (value: string) => void;
   onAddToDue: (o: ObligationRow) => void;
+  editObId: string | null;
+  editAmount: string;
+  editSaving: boolean;
+  onStartEdit: (o: ObligationRow) => void;
+  onCancelEdit: () => void;
+  onEditAmountChange: (value: string) => void;
+  onSaveObligation: (o: ObligationRow) => void;
+  onDeleteObligation: (o: ObligationRow) => void;
 }
 
 export default function PersonObligationsSection({
@@ -40,6 +48,14 @@ export default function PersonObligationsSection({
   onCancelAddDue,
   onAddDueAmountChange,
   onAddToDue,
+  editObId,
+  editAmount,
+  editSaving,
+  onStartEdit,
+  onCancelEdit,
+  onEditAmountChange,
+  onSaveObligation,
+  onDeleteObligation,
 }: Props) {
   return (
     <>
@@ -55,6 +71,14 @@ export default function PersonObligationsSection({
         onCancelAddDue={onCancelAddDue}
         onAddDueAmountChange={onAddDueAmountChange}
         onAddToDue={onAddToDue}
+        editObId={editObId}
+        editAmount={editAmount}
+        editSaving={editSaving}
+        onStartEdit={onStartEdit}
+        onCancelEdit={onCancelEdit}
+        onEditAmountChange={onEditAmountChange}
+        onSaveObligation={onSaveObligation}
+        onDeleteObligation={onDeleteObligation}
       />
       <AddObligationForm
         form={obForm}

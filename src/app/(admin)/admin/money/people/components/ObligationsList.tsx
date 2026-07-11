@@ -11,6 +11,14 @@ interface Props {
   onCancelAddDue: () => void;
   onAddDueAmountChange: (value: string) => void;
   onAddToDue: (o: ObligationRow) => void;
+  editObId: string | null;
+  editAmount: string;
+  editSaving: boolean;
+  onStartEdit: (o: ObligationRow) => void;
+  onCancelEdit: () => void;
+  onEditAmountChange: (value: string) => void;
+  onSaveObligation: (o: ObligationRow) => void;
+  onDeleteObligation: (o: ObligationRow) => void;
 }
 
 export default function ObligationsList({
@@ -22,6 +30,14 @@ export default function ObligationsList({
   onCancelAddDue,
   onAddDueAmountChange,
   onAddToDue,
+  editObId,
+  editAmount,
+  editSaving,
+  onStartEdit,
+  onCancelEdit,
+  onEditAmountChange,
+  onSaveObligation,
+  onDeleteObligation,
 }: Props) {
   if (obligations.length === 0) {
     return (
@@ -44,6 +60,14 @@ export default function ObligationsList({
           onCancelAddDue={onCancelAddDue}
           onAddDueAmountChange={onAddDueAmountChange}
           onAddToDue={onAddToDue}
+          isEditing={editObId === o.id}
+          editAmount={editAmount}
+          editSaving={editSaving}
+          onStartEdit={onStartEdit}
+          onCancelEdit={onCancelEdit}
+          onEditAmountChange={onEditAmountChange}
+          onSaveObligation={onSaveObligation}
+          onDeleteObligation={onDeleteObligation}
         />
       ))}
     </>

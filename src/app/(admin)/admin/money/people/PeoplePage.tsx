@@ -20,7 +20,7 @@ export default function PeoplePage() {
 
   const people = usePeopleData(confirm.openConfirm, setToast);
   const personDrawer = usePersonDrawer(people.reload);
-  const detail = usePersonDetail(people.accounts, people.reload);
+  const detail = usePersonDetail(people.accounts, people.reload, confirm.openConfirm);
   usePersonDeepLink(detail.openDetail);
 
   return (
@@ -72,6 +72,14 @@ export default function PeoplePage() {
         onCancelAddDue={detail.cancelAddDue}
         onAddDueAmountChange={detail.setAddDueAmount}
         onAddToDue={detail.addToDue}
+        editObId={detail.editObId}
+        editAmount={detail.editAmount}
+        editSaving={detail.editSaving}
+        onStartEdit={detail.startEditObligation}
+        onCancelEdit={detail.cancelEditObligation}
+        onEditAmountChange={detail.setEditAmount}
+        onSaveObligation={detail.saveObligation}
+        onDeleteObligation={detail.deleteObligation}
         detailError={detail.detailError}
         onClose={detail.closeDetail}
       />

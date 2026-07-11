@@ -45,6 +45,14 @@ interface Props {
   onCancelAddDue: () => void;
   onAddDueAmountChange: (value: string) => void;
   onAddToDue: (o: ObligationRow) => void;
+  editObId: string | null;
+  editAmount: string;
+  editSaving: boolean;
+  onStartEdit: (o: ObligationRow) => void;
+  onCancelEdit: () => void;
+  onEditAmountChange: (value: string) => void;
+  onSaveObligation: (o: ObligationRow) => void;
+  onDeleteObligation: (o: ObligationRow) => void;
   detailError: string | null;
   onClose: () => void;
 }
@@ -63,6 +71,14 @@ export default function PersonDetailContent({ detail, accounts, onClose, ...rest
     onCancelAddDue: rest.onCancelAddDue,
     onAddDueAmountChange: rest.onAddDueAmountChange,
     onAddToDue: rest.onAddToDue,
+    editObId: rest.editObId,
+    editAmount: rest.editAmount,
+    editSaving: rest.editSaving,
+    onStartEdit: rest.onStartEdit,
+    onCancelEdit: rest.onCancelEdit,
+    onEditAmountChange: rest.onEditAmountChange,
+    onSaveObligation: rest.onSaveObligation,
+    onDeleteObligation: rest.onDeleteObligation,
   };
   const paymentSectionProps = {
     accounts,
