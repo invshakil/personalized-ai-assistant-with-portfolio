@@ -9,9 +9,9 @@ export async function POST(req: NextRequest) {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { earningIds, fromAccountId, toAccountId, date, toAmount, notes } = body;
-  if (!Array.isArray(earningIds) || earningIds.length === 0) {
-    return Response.json({ error: "earningIds is required" }, { status: 400 });
+  const { currency, amount, fromAccountId, toAccountId, date, toAmount, notes } = body;
+  if (!currency || amount == null) {
+    return Response.json({ error: "currency and amount are required" }, { status: 400 });
   }
   if (!fromAccountId || !toAccountId || !date || toAmount == null) {
     return Response.json(
@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
 
   try {
     const data = await convertEarnings({
-      earningIds,
+      currency,
+      amount: Number(amount),
       fromAccountId,
       toAccountId,
       date,

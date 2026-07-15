@@ -214,46 +214,40 @@ export const financeTools: WriteToolDef[] = [
   write({
     name: "convert_earnings",
     description:
-      "Withdraw / convert one or more PENDING foreign earnings to BDT at the ACTUAL rate, booking them as " +
-      "income in the conversion period. Posts ONE cross-currency Money transfer (foreign account → BDT " +
-      "account) for the whole batch and stamps each earning's realized BDT. " +
-      "All selected earnings must be the same non-BDT currency and not yet converted — find them with " +
-      "list_earnings (pendingConversion=true). fromAccountName must be a matching-currency account; " +
-      "toAccountName must be a BDT account. toAmount is the actual total BDT received for the batch.",
+      "Convert PENDING foreign income to BDT at the ACTUAL rate, booking it as income in the " +
+      "conversion period. Give an amount in the foreign currency — it's consumed oldest-first " +
+      "across pending earnings in that currency, splitting the boundary earning if the amount " +
+      "doesn't land exactly on one. Posts ONE cross-currency Money transfer (foreign account → " +
+      "BDT account). Use list_earnings (pendingConversion=true) to see how much pending income is " +
+      "available first. fromAccountName must be a matching-currency account with enough balance; " +
+      "toAccountName must be a BDT account. toAmount is the actual total BDT received.",
     parameters: schema(
       {
-        earningIds: {
-          type: "array",
-          items: { type: "string" },
-          description: "Pending foreign earning ids to convert together (same currency)",
-        },
-        fromAccountName: Str("Foreign Money account holding the balance, e.g. USD Wallet"),
+        currency: Str("Foreign currency to convert, e.g. EUR or USD"),
+        amount: Num("Amount in `currency` to convert (oldest pending earnings consumed first)"),
+        fromAccountName: Str("Foreign Money account holding the balance, e.g. Wise"),
         toAccountName: Str("Destination BDT account, e.g. City Bank"),
         date: Str("Conversion date YYYY-MM-DD (the income's booking period)"),
-        toAmount: Num("Actual total BDT received for the batch"),
+        toAmount: Num("Actual total BDT received"),
         notes: Str("Notes (optional)"),
       },
-      ["earningIds", "fromAccountName", "toAccountName", "date", "toAmount"]
+      ["currency", "amount", "fromAccountName", "toAccountName", "date", "toAmount"]
     ),
-    parse: (i) => {
-      const earningIds = optStrList(i.earningIds) ?? [];
-      if (earningIds.length === 0) throw new Error("Select at least one earning to convert.");
-      return {
-        earningIds,
-        fromAccountName: reqStr(i.fromAccountName, "fromAccountName"),
-        toAccountName: reqStr(i.toAccountName, "toAccountName"),
-        date: reqDate(i.date, "date"),
-        toAmount: reqNum(i.toAmount, "toAmount"),
-        notes: optStr(i.notes) ?? null,
-      };
-    },
+    parse: (i) => ({
+      currency: reqStr(i.currency, "currency").toUpperCase(),
+      amount: reqNum(i.amount, "amount"),
+      fromAccountName: reqStr(i.fromAccountName, "fromAccountName"),
+      toAccountName: reqStr(i.toAccountName, "toAccountName"),
+      date: reqDate(i.date, "date"),
+      toAmount: reqNum(i.toAmount, "toAmount"),
+      notes: optStr(i.notes) ?? null,
+    }),
     preview: async (a) => {
-      const from = await moneyAccountByName(a.fromAccountName);
+      await moneyAccountByName(a.fromAccountName);
       await moneyAccountByName(a.toAccountName); // validate the destination exists
-      const n = a.earningIds.length;
       return (
-        `Convert ${n} ${from.currency} earning${n > 1 ? "s" : ""} from ${a.fromAccountName} → ` +
-        `${a.toAccountName} as ${taka(a.toAmount)} on ${a.date} (booked as BDT income).`
+        `Convert ${cur(a.amount, a.currency)} from ${a.fromAccountName} → ${a.toAccountName} as ` +
+        `${taka(a.toAmount)} on ${a.date} (booked as BDT income).`
       );
     },
     commit: async (a) => {
@@ -262,7 +256,8 @@ export const financeTools: WriteToolDef[] = [
         moneyAccountByName(a.toAccountName),
       ]);
       const r = await convertEarnings({
-        earningIds: a.earningIds,
+        currency: a.currency,
+        amount: a.amount,
         fromAccountId: from.id,
         toAccountId: to.id,
         date: a.date,
@@ -271,9 +266,8 @@ export const financeTools: WriteToolDef[] = [
       });
       return {
         summary:
-          `Converted ${r.converted} ${r.currency} earning${r.converted > 1 ? "s" : ""}: ` +
-          `${cur(r.totalOriginal, r.currency)} → ${taka(r.toAmount)} @ ${r.rate} ` +
-          `(booked as income on ${a.date}; ${a.fromAccountName} → ${a.toAccountName}).`,
+          `Converted ${cur(r.totalOriginal, r.currency)} (${r.converted} earning${r.converted > 1 ? "s" : ""} touched): ` +
+          `→ ${taka(r.toAmount)} @ ${r.rate} (booked as income on ${a.date}; ${a.fromAccountName} → ${a.toAccountName}).`,
         data: r,
       };
     },

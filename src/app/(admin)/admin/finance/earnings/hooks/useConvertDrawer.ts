@@ -11,7 +11,7 @@ export function useConvertDrawer(
 ) {
   const [convertOpen, setConvertOpen] = useState(false);
   const [convCurrency, setConvCurrency] = useState("");
-  const [convSelected, setConvSelected] = useState<Set<string>>(new Set());
+  const [convAmount, setConvAmount] = useState("");
   const [convFrom, setConvFrom] = useState("");
   const [convTo, setConvTo] = useState("");
   const [convDate, setConvDate] = useState(todayInput());
@@ -31,34 +31,33 @@ export function useConvertDrawer(
     return [...m.entries()].map(([currency, v]) => ({ currency, ...v }));
   })();
   const pendingCurrencies = pendingByCurrency.map((p) => p.currency);
+  const pendingTotalForCurrency =
+    pendingByCurrency.find((p) => p.currency === convCurrency)?.original ?? 0;
 
-  const convList = pendingEarnings.filter((e) => e.currency === convCurrency);
-  const convChosen = convList.filter((e) => convSelected.has(e.id));
-  const convTotalOriginal = convChosen.reduce((s, e) => s + e.originalAmount, 0);
-  const convIndicativeBdt = convChosen.reduce((s, e) => s + e.amount, 0); // earn-time estimate
+  const convAmountNum = parseFloat(convAmount) || 0;
   const convToAmountNum = parseFloat(convToAmount);
-  const convRate =
-    convTotalOriginal > 0 && convToAmountNum > 0 ? convToAmountNum / convTotalOriginal : 0;
-  const convVariance = convToAmountNum > 0 ? convToAmountNum - convIndicativeBdt : 0;
+  const convRate = convAmountNum > 0 && convToAmountNum > 0 ? convToAmountNum / convAmountNum : 0;
   const fromAccountOptions = accounts.filter((a) => a.currency === convCurrency);
   const toAccountOptions = accounts.filter((a) => a.currency === "BDT");
   const fromAccountBalance = accounts.find((a) => a.id === convFrom)?.balance ?? 0;
-  const exceedsBalance = convTotalOriginal > fromAccountBalance + 0.01;
+  const exceedsBalance = convAmountNum > fromAccountBalance + 0.01;
+  const exceedsPending = convAmountNum > pendingTotalForCurrency + 0.01;
   const convReady =
-    convChosen.length > 0 &&
+    convAmountNum > 0 &&
     !!convFrom &&
     !!convTo &&
-    parseFloat(convToAmount) > 0 &&
-    !exceedsBalance;
+    convToAmountNum > 0 &&
+    !exceedsBalance &&
+    !exceedsPending;
 
-  // Prefill the BDT-received field from the live rate × selected foreign total.
-  const prefillConvAmount = useCallback(async (currency: string, totalOriginal: number) => {
-    if (currency === "" || totalOriginal <= 0) return;
+  // Prefill the BDT-received field from the live rate × the amount to convert.
+  const prefillConvAmount = useCallback(async (currency: string, amount: number) => {
+    if (currency === "" || amount <= 0) return;
     setConvRateLoading(true);
     try {
       const res = await financeApi.getFxRate(currency);
       if (res && res.rate > 0) {
-        setConvToAmount(String(Math.round(totalOriginal * res.rate * 100) / 100));
+        setConvToAmount(String(Math.round(amount * res.rate * 100) / 100));
       }
     } catch {
       /* leave blank — user enters the actual amount */
@@ -67,12 +66,15 @@ export function useConvertDrawer(
     }
   }, []);
 
-  const openConvert = (currency?: string, preselectId?: string) => {
+  // `presetEarningId` (from a row's "Convert" action) seeds the amount field
+  // with that earning's original amount — still just a starting suggestion,
+  // not a locked selection.
+  const openConvert = (currency?: string, presetEarningId?: string) => {
     const cur = currency ?? pendingCurrencies[0] ?? "";
-    const list = pendingEarnings.filter((e) => e.currency === cur);
-    const sel = new Set(preselectId ? [preselectId] : list.map((e) => e.id));
+    const preset = presetEarningId
+      ? pendingEarnings.find((e) => e.id === presetEarningId)?.originalAmount
+      : undefined;
     setConvCurrency(cur);
-    setConvSelected(sel);
     setConvFrom(accounts.find((a) => a.currency === cur)?.id ?? "");
     setConvTo(
       accounts.find((a) => a.currency === "BDT" && a.type === "BANK")?.id ??
@@ -80,33 +82,22 @@ export function useConvertDrawer(
         ""
     );
     setConvDate(todayInput());
+    setConvAmount(preset ? String(preset) : "");
     setConvToAmount("");
     setConvError(null);
     setConvertOpen(true);
-    const total = list.filter((e) => sel.has(e.id)).reduce((s, e) => s + e.originalAmount, 0);
-    prefillConvAmount(cur, total);
+    if (preset) prefillConvAmount(cur, preset);
   };
 
   const onConvCurrencyChange = (cur: string) => {
-    const list = pendingEarnings.filter((e) => e.currency === cur);
-    const sel = new Set(list.map((e) => e.id));
     setConvCurrency(cur);
-    setConvSelected(sel);
     setConvFrom(accounts.find((a) => a.currency === cur)?.id ?? "");
+    setConvAmount("");
     setConvToAmount("");
-    prefillConvAmount(
-      cur,
-      list.reduce((s, e) => s + e.originalAmount, 0)
-    );
   };
 
-  const toggleConvSelect = (id: string) => {
-    setConvSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  const onConvAmountBlur = () => {
+    prefillConvAmount(convCurrency, convAmountNum);
   };
 
   const doConvert = async () => {
@@ -114,11 +105,12 @@ export function useConvertDrawer(
     setConvError(null);
     try {
       await financeApi.convertEarnings({
-        earningIds: [...convSelected],
+        currency: convCurrency,
+        amount: convAmountNum,
         fromAccountId: convFrom,
         toAccountId: convTo,
         date: convDate,
-        toAmount: parseFloat(convToAmount),
+        toAmount: convToAmountNum,
       });
       setConvertOpen(false);
       await onSuccess();
@@ -133,7 +125,9 @@ export function useConvertDrawer(
     convertOpen,
     closeConvert: () => setConvertOpen(false),
     convCurrency,
-    convSelected,
+    convAmount,
+    setConvAmount,
+    onConvAmountBlur,
     convFrom,
     setConvFrom,
     convTo,
@@ -147,20 +141,18 @@ export function useConvertDrawer(
     convRateLoading,
     pendingByCurrency,
     pendingCurrencies,
-    convList,
-    convChosen,
-    convTotalOriginal,
+    pendingTotalForCurrency,
+    convAmountNum,
     convRate,
-    convVariance,
     convToAmountNum,
     fromAccountOptions,
     toAccountOptions,
     fromAccountBalance,
     exceedsBalance,
+    exceedsPending,
     convReady,
     openConvert,
     onConvCurrencyChange,
-    toggleConvSelect,
     doConvert,
   };
 }

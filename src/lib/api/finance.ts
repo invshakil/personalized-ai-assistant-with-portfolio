@@ -68,7 +68,8 @@ export interface BizExpensePayload {
 }
 
 export interface ConvertEarningsPayload {
-  earningIds: string[];
+  currency: string;
+  amount: number;
   fromAccountId: string;
   toAccountId: string;
   date: string;

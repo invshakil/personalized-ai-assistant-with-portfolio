@@ -1,6 +1,5 @@
 import { Box, Drawer, Typography } from "@mui/material";
 import type { MoneyAccountRow } from "@/types";
-import type { EarningRow } from "../../types";
 import ConvertDrawerBody from "./ConvertDrawerBody";
 
 interface ConvertDrawerProps {
@@ -9,9 +8,9 @@ interface ConvertDrawerProps {
   pendingCurrencies: string[];
   convCurrency: string;
   onConvCurrencyChange: (cur: string) => void;
-  convList: EarningRow[];
-  convSelected: Set<string>;
-  onToggleSelect: (id: string) => void;
+  convAmount: string;
+  onConvAmountChange: (v: string) => void;
+  onConvAmountBlur: () => void;
   convFrom: string;
   onConvFromChange: (v: string) => void;
   convTo: string;
@@ -25,11 +24,11 @@ interface ConvertDrawerProps {
   toAccountOptions: MoneyAccountRow[];
   fromAccountBalance: number;
   exceedsBalance: boolean;
-  convTotalOriginal: number;
-  convChosenCount: number;
+  pendingTotalForCurrency: number;
+  exceedsPending: boolean;
+  convAmountNum: number;
   convRate: number;
   convToAmountNum: number;
-  convVariance: number;
   convError: string | null;
   convSaving: boolean;
   convReady: boolean;
@@ -51,8 +50,8 @@ export default function ConvertDrawer(props: ConvertDrawerProps) {
           Convert to BDT
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: "block" }}>
-          Realize foreign earnings at the actual rate. Posts one transfer (foreign account → BDT
-          account); the received BDT is booked as income on the conversion date.
+          Realize pending foreign income at the actual rate. Posts one transfer (foreign account →
+          BDT account); the received BDT is booked as income on the conversion date.
         </Typography>
 
         <ConvertDrawerBody {...bodyProps} />

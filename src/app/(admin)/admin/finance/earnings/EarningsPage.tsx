@@ -135,9 +135,9 @@ export default function EarningsPage() {
         pendingCurrencies={convertDrawer.pendingCurrencies}
         convCurrency={convertDrawer.convCurrency}
         onConvCurrencyChange={convertDrawer.onConvCurrencyChange}
-        convList={convertDrawer.convList}
-        convSelected={convertDrawer.convSelected}
-        onToggleSelect={convertDrawer.toggleConvSelect}
+        convAmount={convertDrawer.convAmount}
+        onConvAmountChange={convertDrawer.setConvAmount}
+        onConvAmountBlur={convertDrawer.onConvAmountBlur}
         convFrom={convertDrawer.convFrom}
         onConvFromChange={convertDrawer.setConvFrom}
         convTo={convertDrawer.convTo}
@@ -151,11 +151,11 @@ export default function EarningsPage() {
         toAccountOptions={convertDrawer.toAccountOptions}
         fromAccountBalance={convertDrawer.fromAccountBalance}
         exceedsBalance={convertDrawer.exceedsBalance}
-        convTotalOriginal={convertDrawer.convTotalOriginal}
-        convChosenCount={convertDrawer.convChosen.length}
+        pendingTotalForCurrency={convertDrawer.pendingTotalForCurrency}
+        exceedsPending={convertDrawer.exceedsPending}
+        convAmountNum={convertDrawer.convAmountNum}
         convRate={convertDrawer.convRate}
         convToAmountNum={convertDrawer.convToAmountNum}
-        convVariance={convertDrawer.convVariance}
         convError={convertDrawer.convError}
         convSaving={convertDrawer.convSaving}
         convReady={convertDrawer.convReady}

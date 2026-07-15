@@ -223,9 +223,16 @@ export async function deleteEarning(id: string) {
 // ─── Withdraw / Convert foreign earnings to BDT (realized basis) ───────────────
 
 export interface ConvertEarningsInput {
-  /** Pending foreign earnings to realize together. Must share one non-BDT currency. */
-  earningIds: string[];
-  /** Foreign Money account holding the balance (currency must match the earnings). */
+  /** Foreign currency to convert (e.g. EUR, USD). */
+  currency: string;
+  /**
+   * Amount in `currency` to convert. Consumed oldest-first across PENDING
+   * earnings in this currency; if it doesn't land on an earning boundary, the
+   * straddling earning is split into a realized portion (this earning, shrunk
+   * to the consumed share) and a new pending row for the remainder.
+   */
+  amount: number;
+  /** Foreign Money account holding the balance (currency must match). */
   fromAccountId: string;
   /** Destination BDT Money account. */
   toAccountId: string;
@@ -237,28 +244,18 @@ export interface ConvertEarningsInput {
 }
 
 /**
- * Realize one or more pending foreign earnings to BDT at the ACTUAL rate. Posts a
- * single cross-currency Money transfer (foreign account → BDT account) for the
- * batch, then stamps each earning's realized BDT (split by its original-amount
- * share, with rounding reconciled so the parts sum to the received total). The
- * realized BDT is what the P&L books, in the conversion period.
+ * Realize pending foreign income to BDT at the ACTUAL rate. Posts a single
+ * cross-currency Money transfer (foreign account → BDT account) for the given
+ * amount, then stamps realized BDT across as many oldest-first pending
+ * earnings as it takes to cover that amount (splitting the boundary earning
+ * if needed), with rounding reconciled so the parts sum to the received
+ * total. The realized BDT is what the P&L books, in the conversion period.
  */
 export async function convertEarnings(input: ConvertEarningsInput) {
-  if (!input.earningIds?.length) throw new Error("Select at least one earning to convert");
+  const currency = input.currency;
+  if (!currency || currency === "BDT") throw new Error("Select a foreign currency to convert");
+  if (!(input.amount > 0)) throw new Error("Amount to convert must be greater than 0");
   if (!(input.toAmount > 0)) throw new Error("Converted BDT amount must be greater than 0");
-
-  const earnings = await db.earning.findMany({
-    where: { id: { in: input.earningIds } },
-    select: { id: true, currency: true, originalAmount: true, amount: true, realizedAt: true },
-  });
-  if (earnings.length !== input.earningIds.length) throw new Error("Some earnings were not found");
-
-  const currency = earnings[0].currency;
-  if (currency === "BDT") throw new Error("BDT earnings are already realized");
-  for (const e of earnings) {
-    if (e.currency !== currency) throw new Error("All selected earnings must be the same currency");
-    if (e.realizedAt) throw new Error("One or more selected earnings are already converted");
-  }
 
   const [from, to] = await Promise.all([
     db.moneyAccount.findUnique({ where: { id: input.fromAccountId }, select: { currency: true } }),
@@ -268,69 +265,137 @@ export async function convertEarnings(input: ConvertEarningsInput) {
   if (from.currency !== currency) throw new Error(`From account must be a ${currency} account`);
   if (to.currency !== "BDT") throw new Error("To account must be a BDT account");
 
-  const origOf = (e: { originalAmount: Prisma.Decimal | null; amount: Prisma.Decimal }) =>
-    e.originalAmount == null ? toNum(e.amount) : toNum(e.originalAmount);
-  const totalOriginal = earnings.reduce((s, e) => s + origOf(e), 0);
-  if (!(totalOriginal > 0)) throw new Error("Selected earnings have no foreign amount to convert");
-
   // The account may have been drawn down since these earnings were credited
   // (e.g. a payment posted directly against it) — don't transfer out more than
   // what's actually there.
   const availableBalance = await getAccountBalance(input.fromAccountId);
-  if (totalOriginal > availableBalance + 0.01) {
+  if (input.amount > availableBalance + 0.01) {
     throw new Error(
-      `Selected earnings total ${currency} ${totalOriginal.toFixed(2)} exceeds this account's ` +
-        `actual balance of ${currency} ${availableBalance.toFixed(2)} — some of it may already be ` +
-        `spent (e.g. another payment or transfer). Deselect some earnings.`
+      `Amount ${currency} ${input.amount.toFixed(2)} exceeds this account's actual balance of ` +
+        `${currency} ${availableBalance.toFixed(2)}.`
     );
   }
 
-  const effectiveRate = Math.round((input.toAmount / totalOriginal) * 1e6) / 1e6;
+  const pending = await db.earning.findMany({
+    where: { currency, realizedAt: null },
+    orderBy: [{ date: "asc" }],
+    select: {
+      id: true,
+      date: true,
+      sourceId: true,
+      remittance: true,
+      originalAmount: true,
+      amount: true,
+      fxRate: true,
+      fiscalYear: true,
+      notes: true,
+    },
+  });
+
+  const origOf = (e: { originalAmount: Prisma.Decimal | null; amount: Prisma.Decimal }) =>
+    e.originalAmount == null ? toNum(e.amount) : toNum(e.originalAmount);
+  const totalPending = pending.reduce((s, e) => s + origOf(e), 0);
+  if (input.amount > totalPending + 0.01) {
+    throw new Error(
+      `Amount exceeds total pending ${currency} income of ${currency} ${totalPending.toFixed(2)}.`
+    );
+  }
+
+  const effectiveRate = Math.round((input.toAmount / input.amount) * 1e6) / 1e6;
+
+  // Walk pending earnings oldest-first, consuming until the requested amount
+  // is covered; the earning straddling the boundary (if any) is split.
+  const allocations: { id: string; orig: number }[] = [];
+  let remaining = round2(input.amount);
+  let splitInfo: { earning: (typeof pending)[number]; consumed: number; leftover: number } | null =
+    null;
+  for (const e of pending) {
+    if (remaining <= 0.005) break;
+    const orig = origOf(e);
+    if (orig <= remaining + 0.005) {
+      allocations.push({ id: e.id, orig });
+      remaining = round2(remaining - orig);
+    } else {
+      splitInfo = { earning: e, consumed: remaining, leftover: round2(orig - remaining) };
+      allocations.push({ id: e.id, orig: remaining });
+      remaining = 0;
+    }
+  }
 
   // One transfer drains the foreign account and credits BDT at the actual rate.
   const transfer = await recordTransfer({
     fromAccountId: input.fromAccountId,
     toAccountId: input.toAccountId,
-    amount: round2(totalOriginal),
+    amount: round2(input.amount),
     toAmount: round2(input.toAmount),
     date: input.date,
-    description: `Convert ${currency}→BDT (${earnings.length} earning${earnings.length > 1 ? "s" : ""})`,
+    description: `Convert ${currency}→BDT (${allocations.length} earning${allocations.length > 1 ? "s" : ""})`,
     notes: input.notes ?? null,
   });
 
-  // Split realized BDT per earning by its share; reconcile the rounding remainder
-  // onto the largest earning so the parts sum exactly to the received total.
-  const allocations = earnings.map((e) => ({
-    id: e.id,
-    orig: origOf(e),
-    realized: round2(origOf(e) * effectiveRate),
+  // Split realized BDT per allocation; reconcile the rounding remainder onto
+  // the largest allocation so the parts sum exactly to the received total.
+  const realized = allocations.map((a) => ({
+    ...a,
+    realizedAmount: round2(a.orig * effectiveRate),
   }));
-  const allocated = round2(allocations.reduce((s, a) => s + a.realized, 0));
-  const remainder = round2(input.toAmount - allocated);
+  const allocatedTotal = round2(realized.reduce((s, a) => s + a.realizedAmount, 0));
+  const remainder = round2(input.toAmount - allocatedTotal);
   if (remainder !== 0) {
-    const biggest = allocations.reduce((mi, a, i, arr) => (a.orig > arr[mi].orig ? i : mi), 0);
-    allocations[biggest].realized = round2(allocations[biggest].realized + remainder);
+    const biggest = realized.reduce((mi, a, i, arr) => (a.orig > arr[mi].orig ? i : mi), 0);
+    realized[biggest].realizedAmount = round2(realized[biggest].realizedAmount + remainder);
   }
 
   const realizedAt = new Date(input.date);
-  await db.$transaction(
-    allocations.map((a) =>
-      db.earning.update({
+  const ops = realized.map((a) => {
+    if (splitInfo && a.id === splitInfo.earning.id) {
+      // This earning's face value shrinks to just the consumed (realized) share.
+      return db.earning.update({
         where: { id: a.id },
         data: {
+          originalAmount: splitInfo.consumed,
+          amount: round2(splitInfo.consumed * toNum(splitInfo.earning.fxRate)),
           realizedAt,
-          realizedAmount: a.realized,
+          realizedAmount: a.realizedAmount,
           realizedRate: effectiveRate,
           transferEntryId: transfer.id,
         },
+      });
+    }
+    return db.earning.update({
+      where: { id: a.id },
+      data: {
+        realizedAt,
+        realizedAmount: a.realizedAmount,
+        realizedRate: effectiveRate,
+        transferEntryId: transfer.id,
+      },
+    });
+  });
+  if (splitInfo) {
+    const e = splitInfo.earning;
+    ops.push(
+      db.earning.create({
+        data: {
+          date: e.date,
+          sourceId: e.sourceId,
+          remittance: e.remittance,
+          currency,
+          originalAmount: splitInfo.leftover,
+          amount: round2(splitInfo.leftover * toNum(e.fxRate)),
+          fxRate: e.fxRate,
+          fiscalYear: e.fiscalYear,
+          notes: e.notes,
+        },
       })
-    )
-  );
+    );
+  }
+  await db.$transaction(ops);
 
   return {
     converted: allocations.length,
     currency,
-    totalOriginal: round2(totalOriginal),
+    totalOriginal: round2(input.amount),
     toAmount: round2(input.toAmount),
     rate: effectiveRate,
     transferEntryId: transfer.id,
@@ -340,7 +405,9 @@ export async function convertEarnings(input: ConvertEarningsInput) {
 /**
  * Undo a conversion: return every earning realized by the same transfer to
  * pending and remove the conversion entry from the ledger. Pass any earning id
- * from the batch.
+ * from the batch. If the conversion split an earning, its shrunk (realized)
+ * row reverts to pending alongside the separate leftover row created at split
+ * time — the two aren't merged back into one row.
  */
 export async function reverseConversion(earningId: string) {
   const e = await db.earning.findUnique({

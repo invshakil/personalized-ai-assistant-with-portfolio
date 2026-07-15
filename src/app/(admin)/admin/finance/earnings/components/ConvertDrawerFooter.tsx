@@ -2,12 +2,10 @@ import { Alert, Button } from "@mui/material";
 import ConvertDrawerSummary from "./ConvertDrawerSummary";
 
 interface ConvertDrawerFooterProps {
-  convTotalOriginal: number;
   convCurrency: string;
-  convChosenCount: number;
+  convAmountNum: number;
   convRate: number;
   convToAmountNum: number;
-  convVariance: number;
   convError: string | null;
   convSaving: boolean;
   convReady: boolean;
@@ -15,12 +13,10 @@ interface ConvertDrawerFooterProps {
 }
 
 export default function ConvertDrawerFooter({
-  convTotalOriginal,
   convCurrency,
-  convChosenCount,
+  convAmountNum,
   convRate,
   convToAmountNum,
-  convVariance,
   convError,
   convSaving,
   convReady,
@@ -29,12 +25,10 @@ export default function ConvertDrawerFooter({
   return (
     <>
       <ConvertDrawerSummary
-        convTotalOriginal={convTotalOriginal}
         convCurrency={convCurrency}
-        chosenCount={convChosenCount}
+        convAmountNum={convAmountNum}
         convRate={convRate}
         convToAmountNum={convToAmountNum}
-        convVariance={convVariance}
       />
 
       {convError && (

@@ -1,8 +1,6 @@
 import { Alert } from "@mui/material";
 import SearchableSelect from "@/components/admin/SearchableSelect";
 import type { MoneyAccountRow } from "@/types";
-import type { EarningRow } from "../../types";
-import ConvertEarningList from "./ConvertEarningList";
 import ConvertDrawerFields from "./ConvertDrawerFields";
 import ConvertDrawerFooter from "./ConvertDrawerFooter";
 
@@ -10,9 +8,9 @@ interface ConvertDrawerBodyProps {
   pendingCurrencies: string[];
   convCurrency: string;
   onConvCurrencyChange: (cur: string) => void;
-  convList: EarningRow[];
-  convSelected: Set<string>;
-  onToggleSelect: (id: string) => void;
+  convAmount: string;
+  onConvAmountChange: (v: string) => void;
+  onConvAmountBlur: () => void;
   convFrom: string;
   onConvFromChange: (v: string) => void;
   convTo: string;
@@ -26,11 +24,11 @@ interface ConvertDrawerBodyProps {
   toAccountOptions: MoneyAccountRow[];
   fromAccountBalance: number;
   exceedsBalance: boolean;
-  convTotalOriginal: number;
-  convChosenCount: number;
+  pendingTotalForCurrency: number;
+  exceedsPending: boolean;
+  convAmountNum: number;
   convRate: number;
   convToAmountNum: number;
-  convVariance: number;
   convError: string | null;
   convSaving: boolean;
   convReady: boolean;
@@ -41,9 +39,9 @@ export default function ConvertDrawerBody({
   pendingCurrencies,
   convCurrency,
   onConvCurrencyChange,
-  convList,
-  convSelected,
-  onToggleSelect,
+  convAmount,
+  onConvAmountChange,
+  onConvAmountBlur,
   convFrom,
   onConvFromChange,
   convTo,
@@ -57,6 +55,8 @@ export default function ConvertDrawerBody({
   toAccountOptions,
   fromAccountBalance,
   exceedsBalance,
+  pendingTotalForCurrency,
+  exceedsPending,
   ...footerProps
 }: ConvertDrawerBodyProps) {
   if (pendingCurrencies.length === 0) {
@@ -73,10 +73,11 @@ export default function ConvertDrawerBody({
         sx={{ mb: 2 }}
       />
 
-      <ConvertEarningList earnings={convList} selected={convSelected} onToggle={onToggleSelect} />
-
       <ConvertDrawerFields
         convCurrency={convCurrency}
+        convAmount={convAmount}
+        onConvAmountChange={onConvAmountChange}
+        onConvAmountBlur={onConvAmountBlur}
         convFrom={convFrom}
         onConvFromChange={onConvFromChange}
         convTo={convTo}
@@ -90,6 +91,8 @@ export default function ConvertDrawerBody({
         toAccountOptions={toAccountOptions}
         fromAccountBalance={fromAccountBalance}
         exceedsBalance={exceedsBalance}
+        pendingTotalForCurrency={pendingTotalForCurrency}
+        exceedsPending={exceedsPending}
       />
 
       <ConvertDrawerFooter convCurrency={convCurrency} {...footerProps} />

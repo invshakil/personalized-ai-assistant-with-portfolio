@@ -1,46 +1,34 @@
 import { Box, Divider, Typography } from "@mui/material";
-import { fmt, fmtCurrency } from "../../format";
+import { fmtCurrency } from "../../format";
 
 interface ConvertDrawerSummaryProps {
-  convTotalOriginal: number;
   convCurrency: string;
-  chosenCount: number;
+  convAmountNum: number;
   convRate: number;
   convToAmountNum: number;
-  convVariance: number;
 }
 
 export default function ConvertDrawerSummary({
-  convTotalOriginal,
   convCurrency,
-  chosenCount,
+  convAmountNum,
   convRate,
   convToAmountNum,
-  convVariance,
 }: ConvertDrawerSummaryProps) {
+  if (convAmountNum <= 0) return null;
+
   return (
     <>
       <Divider sx={{ my: 1 }} />
-      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+      <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
         <Typography variant="caption" color="text.secondary">
-          Converting {fmtCurrency(convTotalOriginal, convCurrency || "BDT")}
-          {chosenCount > 1 ? ` (${chosenCount} earnings)` : ""}
+          Converting {fmtCurrency(convAmountNum, convCurrency || "BDT")}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {convRate > 0
+          {convRate > 0 && convToAmountNum > 0
             ? `@ ${convRate.toLocaleString("en-US", { maximumFractionDigits: 4 })} ৳/${convCurrency}`
             : ""}
         </Typography>
       </Box>
-      {convToAmountNum > 0 && (
-        <Typography
-          variant="caption"
-          sx={{ display: "block", mb: 2, color: convVariance >= 0 ? "success.main" : "error.main" }}
-        >
-          FX variance vs entry estimate: {convVariance >= 0 ? "+" : "−"}
-          {fmt(Math.abs(convVariance))}
-        </Typography>
-      )}
     </>
   );
 }
