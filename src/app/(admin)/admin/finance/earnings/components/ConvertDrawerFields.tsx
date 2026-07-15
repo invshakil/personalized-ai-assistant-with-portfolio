@@ -1,6 +1,7 @@
-import { Alert, TextField } from "@mui/material";
+import { Alert, TextField, Typography } from "@mui/material";
 import SearchableSelect from "@/components/admin/SearchableSelect";
 import type { MoneyAccountRow } from "@/types";
+import { fmtCurrency } from "../../format";
 
 interface ConvertDrawerFieldsProps {
   convCurrency: string;
@@ -15,6 +16,8 @@ interface ConvertDrawerFieldsProps {
   convRateLoading: boolean;
   fromAccountOptions: MoneyAccountRow[];
   toAccountOptions: MoneyAccountRow[];
+  fromAccountBalance: number;
+  exceedsBalance: boolean;
 }
 
 export default function ConvertDrawerFields({
@@ -30,6 +33,8 @@ export default function ConvertDrawerFields({
   convRateLoading,
   fromAccountOptions,
   toAccountOptions,
+  fromAccountBalance,
+  exceedsBalance,
 }: ConvertDrawerFieldsProps) {
   return (
     <>
@@ -44,6 +49,17 @@ export default function ConvertDrawerFields({
         <Alert severity="warning" sx={{ mb: 2 }}>
           No {convCurrency} account exists — create one in Money → Accounts and deposit the foreign
           income there first.
+        </Alert>
+      )}
+      {convFrom && (
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: "block" }}>
+          Available balance: {fmtCurrency(fromAccountBalance, convCurrency)}
+        </Typography>
+      )}
+      {exceedsBalance && (
+        <Alert severity="warning" sx={{ mb: 2 }}>
+          Selected earnings total more than this account&apos;s actual balance — some of it may
+          already be spent elsewhere. Deselect some earnings.
         </Alert>
       )}
       <SearchableSelect

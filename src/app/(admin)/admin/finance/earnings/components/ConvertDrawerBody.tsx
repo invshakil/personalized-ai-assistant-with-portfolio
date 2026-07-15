@@ -24,6 +24,8 @@ interface ConvertDrawerBodyProps {
   convRateLoading: boolean;
   fromAccountOptions: MoneyAccountRow[];
   toAccountOptions: MoneyAccountRow[];
+  fromAccountBalance: number;
+  exceedsBalance: boolean;
   convTotalOriginal: number;
   convChosenCount: number;
   convRate: number;
@@ -53,6 +55,8 @@ export default function ConvertDrawerBody({
   convRateLoading,
   fromAccountOptions,
   toAccountOptions,
+  fromAccountBalance,
+  exceedsBalance,
   ...footerProps
 }: ConvertDrawerBodyProps) {
   if (pendingCurrencies.length === 0) {
@@ -84,6 +88,8 @@ export default function ConvertDrawerBody({
         convRateLoading={convRateLoading}
         fromAccountOptions={fromAccountOptions}
         toAccountOptions={toAccountOptions}
+        fromAccountBalance={fromAccountBalance}
+        exceedsBalance={exceedsBalance}
       />
 
       <ConvertDrawerFooter convCurrency={convCurrency} {...footerProps} />

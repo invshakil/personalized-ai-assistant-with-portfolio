@@ -42,7 +42,14 @@ export function useConvertDrawer(
   const convVariance = convToAmountNum > 0 ? convToAmountNum - convIndicativeBdt : 0;
   const fromAccountOptions = accounts.filter((a) => a.currency === convCurrency);
   const toAccountOptions = accounts.filter((a) => a.currency === "BDT");
-  const convReady = convChosen.length > 0 && !!convFrom && !!convTo && parseFloat(convToAmount) > 0;
+  const fromAccountBalance = accounts.find((a) => a.id === convFrom)?.balance ?? 0;
+  const exceedsBalance = convTotalOriginal > fromAccountBalance + 0.01;
+  const convReady =
+    convChosen.length > 0 &&
+    !!convFrom &&
+    !!convTo &&
+    parseFloat(convToAmount) > 0 &&
+    !exceedsBalance;
 
   // Prefill the BDT-received field from the live rate × selected foreign total.
   const prefillConvAmount = useCallback(async (currency: string, totalOriginal: number) => {
@@ -148,6 +155,8 @@ export function useConvertDrawer(
     convToAmountNum,
     fromAccountOptions,
     toAccountOptions,
+    fromAccountBalance,
+    exceedsBalance,
     convReady,
     openConvert,
     onConvCurrencyChange,

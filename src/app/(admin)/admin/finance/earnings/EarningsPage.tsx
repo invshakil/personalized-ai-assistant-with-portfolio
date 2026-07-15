@@ -149,6 +149,8 @@ export default function EarningsPage() {
         convRateLoading={convertDrawer.convRateLoading}
         fromAccountOptions={convertDrawer.fromAccountOptions}
         toAccountOptions={convertDrawer.toAccountOptions}
+        fromAccountBalance={convertDrawer.fromAccountBalance}
+        exceedsBalance={convertDrawer.exceedsBalance}
         convTotalOriginal={convertDrawer.convTotalOriginal}
         convChosenCount={convertDrawer.convChosen.length}
         convRate={convertDrawer.convRate}

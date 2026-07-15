@@ -23,6 +23,8 @@ interface ConvertDrawerProps {
   convRateLoading: boolean;
   fromAccountOptions: MoneyAccountRow[];
   toAccountOptions: MoneyAccountRow[];
+  fromAccountBalance: number;
+  exceedsBalance: boolean;
   convTotalOriginal: number;
   convChosenCount: number;
   convRate: number;
