@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { Prisma, RemittanceType } from "@prisma/client";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { resolveRange, dateColumnWhere } from "@/services/_shared/dateRange";
-import { recordLinkedEntry, recordTransfer } from "@/services/money";
+import { getAccountBalance, recordLinkedEntry, recordTransfer } from "@/services/money";
 import { toNum, toIso, resolveMoney, resolveMoneyUpdate } from "./_serializers";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -272,6 +272,19 @@ export async function convertEarnings(input: ConvertEarningsInput) {
     e.originalAmount == null ? toNum(e.amount) : toNum(e.originalAmount);
   const totalOriginal = earnings.reduce((s, e) => s + origOf(e), 0);
   if (!(totalOriginal > 0)) throw new Error("Selected earnings have no foreign amount to convert");
+
+  // The account may have been drawn down since these earnings were credited
+  // (e.g. a payment posted directly against it) — don't transfer out more than
+  // what's actually there.
+  const availableBalance = await getAccountBalance(input.fromAccountId);
+  if (totalOriginal > availableBalance + 0.01) {
+    throw new Error(
+      `Selected earnings total ${currency} ${totalOriginal.toFixed(2)} exceeds this account's ` +
+        `actual balance of ${currency} ${availableBalance.toFixed(2)} — some of it may already be ` +
+        `spent (e.g. another payment or transfer). Deselect some earnings.`
+    );
+  }
+
   const effectiveRate = Math.round((input.toAmount / totalOriginal) * 1e6) / 1e6;
 
   // One transfer drains the foreign account and credits BDT at the actual rate.
