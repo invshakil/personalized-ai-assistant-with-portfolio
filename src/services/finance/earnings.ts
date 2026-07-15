@@ -2,7 +2,12 @@ import { db } from "@/lib/db";
 import { Prisma, RemittanceType } from "@prisma/client";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { resolveRange, dateColumnWhere } from "@/services/_shared/dateRange";
-import { getAccountBalance, recordLinkedEntry, recordTransfer } from "@/services/money";
+import {
+  getAccountBalance,
+  listAccountsWithBalances,
+  recordLinkedEntry,
+  recordTransfer,
+} from "@/services/money";
 import { toNum, toIso, resolveMoney, resolveMoneyUpdate } from "./_serializers";
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -429,19 +434,30 @@ export async function reverseConversion(earningId: string) {
   return { reversed: true };
 }
 
-/** Pending (unconverted) foreign income, grouped by currency, in ORIGINAL currency. */
+/**
+ * Pending (unconverted) foreign income, grouped by currency, in ORIGINAL
+ * currency — alongside the real ledger balance still held in that currency's
+ * account(s), since income already spent elsewhere (e.g. a payment posted
+ * directly against the account) is no longer actually convertible.
+ */
 export async function getPendingForeignIncome() {
-  const rows = await db.earning.groupBy({
-    by: ["currency"],
-    where: { realizedAt: null, currency: { not: "BDT" } },
-    _sum: { originalAmount: true },
-    _count: true,
-  });
+  const [rows, accounts] = await Promise.all([
+    db.earning.groupBy({
+      by: ["currency"],
+      where: { realizedAt: null, currency: { not: "BDT" } },
+      _sum: { originalAmount: true },
+      _count: true,
+    }),
+    listAccountsWithBalances(),
+  ]);
   return rows
     .map((r) => ({
       currency: r.currency,
       original: toNum(r._sum.originalAmount),
       count: r._count,
+      availableBalance: accounts
+        .filter((a) => a.currency === r.currency)
+        .reduce((s, a) => s + a.balance, 0),
     }))
     .filter((r) => r.original > 0)
     .sort((a, b) => a.currency.localeCompare(b.currency));

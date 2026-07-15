@@ -250,8 +250,11 @@ const financeReadTools: AiToolDef[] = [
     name: "get_pending_foreign_income",
     description:
       "List pending (not yet converted to BDT) foreign earnings, grouped by currency. " +
-      "Returns count and total original amount per currency. " +
-      "Use before convert_earnings to see what foreign income is awaiting realization.",
+      "Returns count and total original amount per currency, plus availableBalance — the " +
+      "real ledger balance still held in that currency's account(s), which can be lower than " +
+      "the pending total if some of it was already spent elsewhere (e.g. a salary payment). " +
+      "convert_earnings' amount is capped by availableBalance, not the pending total — use " +
+      "this before convert_earnings to see what's actually convertible.",
     parameters: obj({}),
   },
 ];

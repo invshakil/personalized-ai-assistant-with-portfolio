@@ -5,6 +5,7 @@ interface PendingByCurrency {
   currency: string;
   original: number;
   count: number;
+  availableBalance: number;
 }
 
 interface EarningSummaryProps {
@@ -48,23 +49,26 @@ export default function EarningSummary({
             <Typography variant="caption" color="text.secondary">
               Pending conversion (not yet in BDT income)
             </Typography>
-            <Box sx={{ display: "flex", gap: 2, alignItems: "baseline" }}>
+            <Box sx={{ display: "flex", gap: 2, alignItems: "flex-end" }}>
               {pendingByCurrency.map((p) => (
-                <Typography
-                  key={p.currency}
-                  variant="h6"
-                  sx={{ fontWeight: 700, color: "warning.main" }}
-                >
-                  {fmtCurrency(p.original, p.currency)}
-                  <Typography
-                    component="span"
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ ml: 0.5 }}
-                  >
-                    ({p.count})
+                <Box key={p.currency}>
+                  <Typography variant="h6" sx={{ fontWeight: 700, color: "warning.main" }}>
+                    {fmtCurrency(p.original, p.currency)}
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ ml: 0.5 }}
+                    >
+                      ({p.count})
+                    </Typography>
                   </Typography>
-                </Typography>
+                  {p.availableBalance < p.original - 0.01 && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                      only {fmtCurrency(p.availableBalance, p.currency)} actually available
+                    </Typography>
+                  )}
+                </Box>
               ))}
             </Box>
           </Box>

@@ -28,7 +28,17 @@ export function useConvertDrawer(
       c.count += 1;
       m.set(e.currency, c);
     }
-    return [...m.entries()].map(([currency, v]) => ({ currency, ...v }));
+    // A pending earning's income may have already been partly spent (e.g. an
+    // employee payment posted directly against the same account) — surface
+    // the real ledger balance alongside the unrealized-income total so the
+    // two don't get conflated as "cash on hand."
+    return [...m.entries()].map(([currency, v]) => ({
+      currency,
+      ...v,
+      availableBalance: accounts
+        .filter((a) => a.currency === currency)
+        .reduce((s, a) => s + a.balance, 0),
+    }));
   })();
   const pendingCurrencies = pendingByCurrency.map((p) => p.currency);
   const pendingTotalForCurrency =
