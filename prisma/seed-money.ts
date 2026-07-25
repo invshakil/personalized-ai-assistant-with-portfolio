@@ -36,6 +36,7 @@ const EXPENSE = [
   "Household",
   "Entertainment",
   "Family Expense",
+  "Travel", // all Trip Expense Manager spend rolls up under this one ledger category
   "Payments to People",
 ];
 const INCOME = ["Salary", "Gift", "Other Income", "Repayments from People"];

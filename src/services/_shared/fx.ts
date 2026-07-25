@@ -12,15 +12,23 @@
 // recent cached rate, or { rate: 0, source: "fallback" } so the caller can ask the
 // user to type the rate manually.
 import { db } from "@/lib/db";
-import { SUPPORTED_CURRENCIES, type FxRateResult } from "@/types";
+import {
+  CURRENCY_SYMBOL,
+  SUPPORTED_CURRENCIES,
+  type CurrencyOption,
+  type FxRateResult,
+} from "@/types";
 
 const API_BASE = "https://open.er-api.com/v6/latest";
 const FETCH_TIMEOUT_MS = 4000;
 // Reuse a cached rate this fresh before re-fetching (the feed updates ~daily).
 const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
 
+// A currency code is any 3-letter ISO 4217 code; the feed itself is the real
+// validator (an unknown code just yields no rate → fallback 0). We no longer
+// gate on a hardcoded allow-list — currencies are dynamic (see below).
 export function isSupportedCurrency(c: string): boolean {
-  return (SUPPORTED_CURRENCIES as readonly string[]).includes(c);
+  return /^[A-Z]{3}$/.test(c);
 }
 
 interface LiveRate {
@@ -84,6 +92,7 @@ export async function getFxRateToBdt(currency: string): Promise<FxRateResult> {
   const code = currency?.toUpperCase?.() ?? "";
   if (code === "BDT") return { currency: "BDT", rate: 1, asOf: null, source: "fallback" };
   if (!isSupportedCurrency(code)) {
+    // Not a well-formed 3-letter code — don't bother the feed.
     return { currency: code, rate: 0, asOf: null, source: "fallback" };
   }
 
@@ -134,4 +143,115 @@ export async function getLatestRatesToBdt(
     if (r.rate > 0) out.set(code, { rate: r.rate, asOf: r.asOf });
   }
   return out;
+}
+
+// ─── Dynamic currency list ─────────────────────────────────────────────────────
+// The set of selectable currencies is not hardcoded — it comes from the FX feed
+// (the keys of its rate table). Cached in-module for 12h; a built-in fallback
+// keeps currency pickers working if the feed is briefly unreachable.
+
+/** Sensible offline fallback if the feed can't be reached on a cold start. */
+const FALLBACK_CODES = [
+  "BDT",
+  "USD",
+  "EUR",
+  "GBP",
+  "MYR",
+  "SGD",
+  "AED",
+  "SAR",
+  "INR",
+  "THB",
+  "JPY",
+  "CNY",
+  "AUD",
+  "CAD",
+  "CHF",
+  "HKD",
+  "IDR",
+  "PHP",
+  "PKR",
+  "LKR",
+  "NPR",
+  "QAR",
+];
+
+let codeCache: { codes: string[]; at: number } | null = null;
+
+/** All currency codes the app can record, fetched from the FX feed (BDT first). */
+export async function getSupportedCurrencyCodes(): Promise<string[]> {
+  if (codeCache && Date.now() - codeCache.at < CACHE_TTL_MS) return codeCache.codes;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${API_BASE}/BDT`, { signal: controller.signal });
+    if (res.ok) {
+      const json = (await res.json()) as { result?: string; rates?: Record<string, number> };
+      if (json.result === "success" && json.rates) {
+        const codes = Object.keys(json.rates).filter((c) => /^[A-Z]{3}$/.test(c));
+        if (codes.length) {
+          if (!codes.includes("BDT")) codes.unshift("BDT");
+          codeCache = { codes, at: Date.now() };
+          return codes;
+        }
+      }
+    }
+  } catch {
+    // network/timeout/bad JSON — fall through to stale cache or the fallback list
+  } finally {
+    clearTimeout(timer);
+  }
+  return codeCache?.codes ?? FALLBACK_CODES;
+}
+
+/** Display symbol for a currency: fast-path map, else Intl, else the code. */
+export function getCurrencySymbolFor(code: string): string {
+  if (CURRENCY_SYMBOL[code]) return CURRENCY_SYMBOL[code];
+  try {
+    const parts = new Intl.NumberFormat("en", { style: "currency", currency: code }).formatToParts(
+      0
+    );
+    return parts.find((p) => p.type === "currency")?.value ?? code;
+  } catch {
+    return code;
+  }
+}
+
+/**
+ * The selectable currencies with human names + symbols for the searchable
+ * dropdown. Quick-pick currencies (BDT/USD/EUR/MYR) are surfaced first, the rest
+ * alphabetically. Names/symbols come from Intl — no static table to maintain.
+ */
+export async function getCurrencyOptions(): Promise<CurrencyOption[]> {
+  const codes = await getSupportedCurrencyCodes();
+  let displayNames: Intl.DisplayNames | null = null;
+  try {
+    displayNames = new Intl.DisplayNames(["en"], { type: "currency" });
+  } catch {
+    displayNames = null;
+  }
+
+  const quick = SUPPORTED_CURRENCIES as readonly string[];
+  const sorted = [...new Set(codes)].sort((a, b) => {
+    const qa = quick.indexOf(a);
+    const qb = quick.indexOf(b);
+    if (qa !== -1 || qb !== -1) {
+      if (qa === -1) return 1;
+      if (qb === -1) return -1;
+      return qa - qb;
+    }
+    return a.localeCompare(b);
+  });
+
+  return sorted.map((code) => {
+    let name = code;
+    try {
+      name = displayNames?.of(code) ?? code;
+    } catch {
+      name = code;
+    }
+    const symbol = getCurrencySymbolFor(code);
+    return { code, name, symbol, label: name && name !== code ? `${code} — ${name}` : code };
+  });
 }

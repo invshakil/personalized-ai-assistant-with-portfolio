@@ -1,13 +1,11 @@
 import { TextField } from "@mui/material";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
-import { SUPPORTED_CURRENCIES } from "@/types";
+import CurrencySelect from "@/components/admin/CurrencySelect";
 import type { RemittanceType, SourceRow } from "../../types";
 import { currencySymbol } from "../../format";
 import type { EarningForm } from "../types";
 import EarningFxRateField from "./EarningFxRateField";
 import EarningDrawerTailFields from "./EarningDrawerTailFields";
-
-const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES.map((c) => ({ value: c, label: c }));
 
 interface EarningDrawerFieldsProps {
   editing: string | null;
@@ -62,13 +60,7 @@ export default function EarningDrawerFields({
         onChange={(v) => setForm((f) => ({ ...f, remittance: v as RemittanceType }))}
         sx={{ mb: 2 }}
       />
-      <SearchableSelect
-        label="Currency"
-        value={form.currency}
-        options={CURRENCY_OPTIONS}
-        onChange={onCurrencyChange}
-        sx={{ mb: 2 }}
-      />
+      <CurrencySelect value={form.currency} onChange={onCurrencyChange} sx={{ mb: 2 }} />
       <TextField
         label={`Amount (${currencySymbol(form.currency)})`}
         type="number"

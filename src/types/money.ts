@@ -1,6 +1,7 @@
 // Money Manager (personal finance) — shared types. Re-exported through @/types.
 // These are the JSON-safe DTO shapes returned by src/services/money/* and
 // consumed by the client API, AI tools, and admin UI. Mirrors src/types/property.ts.
+import type { TripCategory } from "./trip";
 
 // ─── Enums (string-literal unions mirroring the Prisma enums) ────────────────
 
@@ -55,6 +56,7 @@ export interface MoneyEntryRow {
   categoryKind: MoneyCategoryKind | null;
   accountId: string | null;
   accountName: string | null;
+  accountType: MoneyAccountType | null; // for the trip settlement split (cash/bank vs card)
   transferAccountId: string | null;
   transferAccountName: string | null;
   beneficiaryId: string | null;
@@ -64,6 +66,8 @@ export interface MoneyEntryRow {
   notes: string | null;
   method: MoneyEntryMethod | null; // how a CREDIT arrived (cash/bank transfer/etc.); null for DEBIT/TRANSFER or unspecified
   source: MoneyEntrySource;
+  tripId: string | null; // set when this entry belongs to a trip
+  tripCategory: TripCategory | null; // budget bucket for a trip-tagged expense
 }
 
 // ─── People you pay (beneficiaries + obligations) ──────────────────────────────

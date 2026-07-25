@@ -1,5 +1,4 @@
 import { fiscalYearOf } from "@/lib/fiscalYear";
-import { SUPPORTED_CURRENCIES } from "@/types";
 import { todayInput } from "../format";
 import type { PaymentKind } from "../types";
 
@@ -44,5 +43,3 @@ export const BLANK: PaymentForm = {
   notes: "",
   accountId: NO_ACCOUNT,
 };
-
-export const CURRENCY_OPTIONS = SUPPORTED_CURRENCIES.map((c) => ({ value: c, label: c }));

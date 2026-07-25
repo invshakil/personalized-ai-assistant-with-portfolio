@@ -4,7 +4,7 @@
 // beneficiaryId (and obligationId for loan repayments). Account balances and
 // the savings number are derived from these rows — see accounts.ts / dashboard.ts.
 import { db } from "@/lib/db";
-import { MoneyEntryDirection, MoneyEntrySource, Prisma } from "@prisma/client";
+import { MoneyEntryDirection, MoneyEntrySource, Prisma, type TripCategory } from "@prisma/client";
 import { resolveRange, dateColumnWhere, type RangeInput } from "@/services/_shared/dateRange";
 import { getFxRateToBdt } from "@/services/_shared/fx";
 import { ensureCategory } from "./categories";
@@ -13,7 +13,7 @@ import type { MoneyEntryRow, MoneyEntryMethod } from "@/types";
 
 const ENTRY_INCLUDE = {
   category: { select: { name: true, kind: true } },
-  account: { select: { name: true } },
+  account: { select: { name: true, type: true } },
   transferAccount: { select: { name: true } },
   beneficiary: { select: { name: true } },
 } satisfies Prisma.MoneyEntryInclude;
@@ -34,6 +34,7 @@ function serializeEntry(e: EntryWithRelations): MoneyEntryRow {
     categoryKind: e.category?.kind ?? null,
     accountId: e.accountId,
     accountName: e.account?.name ?? null,
+    accountType: e.account?.type ?? null,
     transferAccountId: e.transferAccountId,
     transferAccountName: e.transferAccount?.name ?? null,
     beneficiaryId: e.beneficiaryId,
@@ -43,6 +44,8 @@ function serializeEntry(e: EntryWithRelations): MoneyEntryRow {
     notes: e.notes,
     method: e.method,
     source: e.source,
+    tripId: e.tripId,
+    tripCategory: e.tripCategory,
   };
 }
 
@@ -54,7 +57,9 @@ export interface GetEntriesOpts extends RangeInput {
   accountIds?: string[];
   direction?: MoneyEntryDirection;
   beneficiaryId?: string;
-  /** Filter to entries in a specific currency (BDT | USD | EUR). */
+  /** Filter to entries belonging to a specific trip. */
+  tripId?: string;
+  /** Filter to entries in a specific currency (BDT | USD | EUR | …). */
   currencies?: string[];
   /** Case-insensitive search over the description field. */
   q?: string;
@@ -93,6 +98,7 @@ export async function getEntries(opts: GetEntriesOpts = {}): Promise<MoneyEntryR
       }),
       ...(opts.direction && { direction: opts.direction }),
       ...(opts.beneficiaryId && { beneficiaryId: opts.beneficiaryId }),
+      ...(opts.tripId && { tripId: opts.tripId }),
       ...(opts.currencies?.length && { currency: { in: opts.currencies } }),
       ...(opts.q && { description: { contains: opts.q, mode: "insensitive" } }),
     },
@@ -173,10 +179,15 @@ export interface CreateEntryInput {
   currency?: string;
   /** Override the captured BDT rate (else live/cached, else 1). */
   fxRate?: number;
+  /** Tag this entry to a trip (Trip Expense Manager). */
+  tripId?: string | null;
+  /** Trip budget bucket for a trip-tagged expense. */
+  tripCategory?: TripCategory | null;
 }
 
 export async function createEntry(input: CreateEntryInput): Promise<MoneyEntryRow> {
-  if (input.amount == null || input.amount <= 0) throw new Error("amount must be greater than 0");
+  if (!Number.isFinite(input.amount) || input.amount <= 0)
+    throw new Error("amount must be a finite number greater than 0");
   await assertCategoryMatchesDirection(input.categoryId, input.direction);
   assertMethodAllowed(input.method, input.direction);
 
@@ -202,6 +213,8 @@ export async function createEntry(input: CreateEntryInput): Promise<MoneyEntryRo
       notes: input.notes ?? null,
       method: input.method ?? null,
       source: input.source ?? MoneyEntrySource.MANUAL,
+      tripId: input.tripId ?? null,
+      tripCategory: input.tripCategory ?? null,
     },
     include: ENTRY_INCLUDE,
   });
@@ -220,6 +233,10 @@ export interface UpdateEntryInput {
   notes?: string | null;
   /** How a CREDIT arrived (cash/bank transfer/etc.); CREDIT-only. */
   method?: MoneyEntryMethod | null;
+  /** Re-tag to a trip (or null to untag). */
+  tripId?: string | null;
+  /** Change the trip budget bucket. */
+  tripCategory?: TripCategory | null;
 }
 
 export async function updateEntry(id: string, input: UpdateEntryInput): Promise<MoneyEntryRow> {
@@ -231,7 +248,8 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
   if (current.direction === "TRANSFER") {
     throw new Error("Transfers cannot be edited as ledger entries; delete and re-create.");
   }
-  if (input.amount != null && input.amount <= 0) throw new Error("amount must be greater than 0");
+  if (input.amount != null && (!Number.isFinite(input.amount) || input.amount <= 0))
+    throw new Error("amount must be a finite number greater than 0");
 
   const nextDirection = input.direction ?? (current.direction as "CREDIT" | "DEBIT");
   const nextCategoryId = input.categoryId ?? current.categoryId;
@@ -253,6 +271,8 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
       ...(input.description !== undefined && { description: input.description }),
       ...(input.notes !== undefined && { notes: input.notes }),
       ...(input.method !== undefined && { method: input.method }),
+      ...(input.tripId !== undefined && { tripId: input.tripId }),
+      ...(input.tripCategory !== undefined && { tripCategory: input.tripCategory }),
     },
     include: ENTRY_INCLUDE,
   });
@@ -286,6 +306,8 @@ export interface RecordTransferInput {
    * debited `amount + fee` while the destination still receives `toAmount`.
    */
   fee?: number;
+  /** Tag this transfer to a trip (e.g. a BDT→local trip-wallet conversion). */
+  tripId?: string | null;
 }
 
 /**
@@ -301,12 +323,14 @@ export interface RecordTransferInput {
  * and deleting the transfer cascades the fee away.
  */
 export async function recordTransfer(input: RecordTransferInput): Promise<MoneyEntryRow> {
-  if (input.amount == null || input.amount <= 0) throw new Error("amount must be greater than 0");
+  if (!Number.isFinite(input.amount) || input.amount <= 0)
+    throw new Error("amount must be a finite number greater than 0");
   if (input.fromAccountId === input.toAccountId) {
     throw new Error("Transfer source and destination must be different accounts");
   }
   const fee = input.fee ?? 0;
-  if (fee < 0) throw new Error("fee cannot be negative");
+  if (!Number.isFinite(fee) || fee < 0)
+    throw new Error("fee must be a finite, non-negative number");
 
   const [from, to] = await Promise.all([
     db.moneyAccount.findUnique({ where: { id: input.fromAccountId }, select: { currency: true } }),
@@ -318,9 +342,9 @@ export async function recordTransfer(input: RecordTransferInput): Promise<MoneyE
   let toAmount = input.amount;
   let fxRate = 1;
   if (crossCurrency) {
-    if (input.toAmount == null || !(input.toAmount > 0)) {
+    if (input.toAmount == null || !Number.isFinite(input.toAmount) || input.toAmount <= 0) {
       throw new Error(
-        `Cross-currency transfer (${from.currency} → ${to.currency}) requires the destination amount`
+        `Cross-currency transfer (${from.currency} → ${to.currency}) requires a positive destination amount`
       );
     }
     toAmount = input.toAmount;
@@ -346,6 +370,7 @@ export async function recordTransfer(input: RecordTransferInput): Promise<MoneyE
         description: input.description ?? null,
         notes: input.notes ?? null,
         source: MoneyEntrySource.MANUAL,
+        tripId: input.tripId ?? null,
       },
       include: ENTRY_INCLUDE,
     });

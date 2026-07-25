@@ -1,8 +1,9 @@
 import { TextField, Typography } from "@mui/material";
 import SearchableSelect from "@/components/admin/SearchableSelect";
 import type { SelectOption } from "@/components/admin/SearchableSelect";
+import CurrencySelect from "@/components/admin/CurrencySelect";
 import { fmt, currencySymbol } from "../../format";
-import { CURRENCY_OPTIONS, type PaymentForm } from "../types";
+import { type PaymentForm } from "../types";
 
 interface PaymentDrawerAmountFieldsProps {
   form: PaymentForm;
@@ -27,13 +28,7 @@ export default function PaymentDrawerAmountFields({
 }: PaymentDrawerAmountFieldsProps) {
   return (
     <>
-      <SearchableSelect
-        label="Currency"
-        value={form.currency}
-        options={CURRENCY_OPTIONS}
-        onChange={onCurrencyChange}
-        sx={{ mb: 2 }}
-      />
+      <CurrencySelect value={form.currency} onChange={onCurrencyChange} sx={{ mb: 2 }} />
       <TextField
         label={`Amount (${currencySymbol(form.currency)})`}
         type="number"

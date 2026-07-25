@@ -1,6 +1,6 @@
 import MultiSearchableSelect from "@/components/admin/MultiSearchableSelect";
+import CurrencyMultiSelect from "@/components/admin/CurrencyMultiSelect";
 import type { SelectOption } from "@/components/admin/SearchableSelect";
-import { SUPPORTED_CURRENCIES } from "@/types";
 import type { DirFilter } from "../types";
 
 interface EntryMultiFiltersProps {
@@ -39,10 +39,8 @@ export default function EntryMultiFilters({
         onChange={(ids) => setParams({ account: ids.length ? ids.join(",") : undefined })}
         sx={{ minWidth: 160 }}
       />
-      <MultiSearchableSelect
-        label="Currency"
+      <CurrencyMultiSelect
         value={currencyFilter}
-        options={SUPPORTED_CURRENCIES.map((c) => ({ value: c, label: c }))}
         onChange={(ids) => setParams({ currency: ids.length ? ids.join(",") : undefined })}
         sx={{ minWidth: 140 }}
       />
