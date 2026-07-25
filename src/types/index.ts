@@ -24,3 +24,4 @@ export * from "./portfolio";
 export * from "./booking";
 export * from "./solar";
 export * from "./fx";
+export * from "./trip";

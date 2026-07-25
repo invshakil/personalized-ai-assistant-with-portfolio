@@ -1,5 +1,6 @@
 import { FormControl, InputLabel, MenuItem, Select, Typography } from "@mui/material";
-import { SUPPORTED_CURRENCIES, type MoneyAccountType } from "@/types";
+import CurrencySelect from "@/components/admin/CurrencySelect";
+import type { MoneyAccountType } from "@/types";
 import { ACCOUNT_TYPE_LABEL } from "../../format";
 import type { AccountForm } from "../hooks/useAccountForm";
 
@@ -29,20 +30,12 @@ export default function AccountTypeCurrencyFields({ form, editingHasEntries, onC
           ))}
         </Select>
       </FormControl>
-      <FormControl fullWidth size="small" sx={{ mb: 2 }} disabled={editingHasEntries}>
-        <InputLabel>Currency</InputLabel>
-        <Select
-          label="Currency"
-          value={form.currency}
-          onChange={(e) => onChange((f) => ({ ...f, currency: e.target.value }))}
-        >
-          {SUPPORTED_CURRENCIES.map((c) => (
-            <MenuItem key={c} value={c}>
-              {c}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <CurrencySelect
+        value={form.currency}
+        onChange={(v) => onChange((f) => ({ ...f, currency: v }))}
+        disabled={editingHasEntries}
+        sx={{ mb: editingHasEntries ? 0.5 : 2 }}
+      />
       {editingHasEntries && (
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 2 }}>
           Currency is locked because this account already has ledger entries.

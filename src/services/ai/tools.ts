@@ -55,6 +55,7 @@ import {
   getSolarWeather,
   listTariffs as listElectricityTariffs,
 } from "@/services/solar";
+import { getTrips, getTripReport } from "@/services/trips";
 import { PERIOD_TOKENS } from "@/services/_shared/dateRange";
 import { PaymentKind, ExpenseCategory } from "@prisma/client";
 import { writeToolDefs, isWriteTool, previewWrite } from "./writeTools";
@@ -561,6 +562,30 @@ const solarReadTools: AiToolDef[] = [
   },
 ];
 
+const tripsReadTools: AiToolDef[] = [
+  // ── Trip Expense Manager ──
+  {
+    name: "list_trips",
+    description:
+      "List trips (Trip Expense Manager) with derived totals: name, destination, local currency, " +
+      "dates, status (PLANNING/ACTIVE/CLOSED), total planned budget (BDT), total actual spent (BDT), " +
+      "and the trip id. Use the id with get_trip_report for the full breakdown.",
+    parameters: obj({}),
+  },
+  {
+    name: "get_trip_report",
+    description:
+      "Full report for one trip: planned-vs-actual per category (Flights, Accommodation, Food, Local " +
+      "transport, Activities, Shopping, Visa/insurance, Misc); the settlement split — out-of-pocket " +
+      "(cash/bank, immediate) vs credit-card (deferred to the card bill), in BDT; spending by currency; " +
+      "per-day spend; and the foreign trip-wallet summary (funded/spent/leftover). Amounts are " +
+      "BDT-canonical (converted at each expense's stored rate). Pass the tripId from list_trips.",
+    parameters: obj({
+      tripId: { type: "string", description: "The trip id (from list_trips)" },
+    }),
+  },
+];
+
 const sharedReadTools: AiToolDef[] = [
   // ── Cross-domain ──
   {
@@ -576,6 +601,7 @@ const READ_TOOLS: AiToolDef[] = [
   ...financeReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "finance" })),
   ...propertyReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "property" })),
   ...moneyReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "money" })),
+  ...tripsReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "money" })),
   ...solarReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "solar" })),
   ...sharedReadTools.map((t): AiToolDef => ({ ...t, kind: "read", domain: "shared" })),
 ];
@@ -687,6 +713,13 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
   list_subscriptions: (i) => getSubscriptions({ categoryIds: arr(i.categoryIds), q: str(i.q) }),
   list_employees: () => getEmployees(),
   list_clients: () => getIncomeSources(),
+  // Trips (Trip Expense Manager)
+  list_trips: () => getTrips(),
+  get_trip_report: (i) => {
+    const id = str(i.tripId);
+    if (!id) throw new Error("tripId is required (get it from list_trips)");
+    return getTripReport(id);
+  },
   // Finance — reports
   get_monthly_pnl: (i) => getMonthlyPnl(range(i)),
   get_client_profitability: (i) => getClientProfitability(range(i)),

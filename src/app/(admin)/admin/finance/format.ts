@@ -8,12 +8,20 @@ export function fmt(n: number): string {
   return `৳${Math.round(n).toLocaleString("en-IN")}`;
 }
 
-/** Display symbol per currency. */
-export const CURRENCY_SYMBOL: Record<string, string> = { BDT: "৳", USD: "$", EUR: "€" };
+/** Fast-path display symbols; any other (dynamic) currency resolves via Intl. */
+export const CURRENCY_SYMBOL: Record<string, string> = { BDT: "৳", USD: "$", EUR: "€", MYR: "RM" };
 
-/** Symbol for a currency code (falls back to the code itself). */
+/** Symbol for a currency code: fast-path map, else Intl, else the code itself. */
 export function currencySymbol(code: string): string {
-  return CURRENCY_SYMBOL[code] ?? code;
+  if (CURRENCY_SYMBOL[code]) return CURRENCY_SYMBOL[code];
+  try {
+    const parts = new Intl.NumberFormat("en", { style: "currency", currency: code }).formatToParts(
+      0
+    );
+    return parts.find((p) => p.type === "currency")?.value ?? code;
+  } catch {
+    return code;
+  }
 }
 
 /** Amount in its own currency: $1,000.00 / €500.00 / ৳12,000 (integer BDT, 2dp foreign). */

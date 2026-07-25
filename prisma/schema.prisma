@@ -733,6 +733,23 @@ enum MoneyEntryMethod {
   OTHER
 }
 
+enum TripStatus {
+  PLANNING
+  ACTIVE
+  CLOSED
+}
+
+enum TripCategory {
+  FLIGHTS
+  ACCOMMODATION
+  FOOD
+  LOCAL_TRANSPORT
+  ACTIVITIES
+  SHOPPING
+  VISA_INSURANCE
+  MISC
+}
+
 model MoneyAccount {
   id             String           @id @default(cuid())
   name           String
@@ -744,6 +761,7 @@ model MoneyAccount {
   notes          String?
   entries        MoneyEntry[]     @relation("EntryAccount")
   transfersIn    MoneyEntry[]     @relation("EntryTransferAccount")
+  tripsAsWallet  Trip[]           @relation("TripWallet")
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   // balance = openingBalance + Σ(CREDIT) − Σ(DEBIT, TRANSFER-out) + Σ(TRANSFER-in) — computed in service.
@@ -827,6 +845,11 @@ model MoneyEntry {
   source            MoneyEntrySource       @default(MANUAL)
   importBatch       MoneyImportBatch?      @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
   importBatchId     String?
+  // Trip Expense Manager: a trip-tagged entry. DEBITs carry a tripCategory (budget
+  // bucket); a BDT→local wallet conversion is a tripId-tagged TRANSFER (no category).
+  trip              Trip?                  @relation(fields: [tripId], references: [id], onDelete: SetNull)
+  tripId            String?
+  tripCategory      TripCategory?
   // Earnings realized by this (cross-currency TRANSFER) entry — see Earning.transfer.
   realizedEarnings  Earning[]              @relation("EarningRealization")
   createdAt         DateTime               @default(now())
@@ -840,6 +863,7 @@ model MoneyEntry {
   @@index([obligationId])
   @@index([feeForTransferId])
   @@index([importBatchId])
+  @@index([tripId])
 }
 
 model MoneyImportBatch {
@@ -866,6 +890,51 @@ model FxRate {
 
   @@unique([base, quote, asOf])
   @@index([base, quote, fetchedAt])
+}
+
+// ─── Trip Expense Manager ─────────────────────────────────────────────────────
+// A trip is a tag over the money ledger: every trip expense is a normal MoneyEntry
+// with tripId set (+ tripCategory = budget bucket). Credit-card vs cash/bank
+// behaviour falls out of which account the entry hits. A cross-currency BDT→local
+// "trip wallet" conversion is a TRANSFER tagged with tripId (NOT an expense).
+// Reports aggregate the tagged entries; balances stay derived from MoneyEntry.
+model Trip {
+  id                   String        @id @default(cuid())
+  name                 String
+  destination          String
+  homeCurrency         String        @default("BDT") // canonical reporting currency
+  localCurrency        String        @default("BDT") // destination currency, e.g. "MYR"
+  startDate            DateTime
+  endDate              DateTime?
+  status               TripStatus    @default(PLANNING)
+  // Optional foreign "trip wallet" MoneyAccount (currency = localCurrency), funded
+  // by converting from a home account; local cash spend debits it.
+  localWalletAccount   MoneyAccount? @relation("TripWallet", fields: [localWalletAccountId], references: [id], onDelete: SetNull)
+  localWalletAccountId String?
+  notes                String?
+  // Public share: when isPublic, /trips/<publicSlug> renders an aggregate-safe summary.
+  publicSlug           String?       @unique
+  isPublic             Boolean       @default(false)
+  publicIntro          String? // author's tips / summary shown on the shared page
+  budgets              TripBudget[]
+  entries              MoneyEntry[]
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  @@index([status])
+}
+
+model TripBudget {
+  id            String       @id @default(cuid())
+  trip          Trip         @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  tripId        String
+  category      TripCategory
+  plannedAmount Decimal      @db.Decimal(12, 2) // BDT-canonical planned budget for this category
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@unique([tripId, category])
+  @@index([tripId])
 }
 
 // ─── Public consultation bookings ─────────────────────────────────────────────
