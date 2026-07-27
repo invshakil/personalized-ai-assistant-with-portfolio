@@ -45,17 +45,18 @@ function serializeBudget(b: TripWith["budgets"][number]): TripBudgetRow {
   };
 }
 
-/** Total actual spend (BDT, via each row's stored rate) + expense count for a trip. */
+/** Total group cost (BDT, all payers) + expense count for a trip. Reads the split
+ *  ledger (TripExpense) — the source of truth — not the money ledger, so it counts
+ *  friend-paid and credit-card expenses too. */
 async function actualsFor(
   tripId: string
 ): Promise<{ totalActualBdt: number; expenseCount: number }> {
-  const rows = await db.moneyEntry.findMany({
-    where: { tripId, direction: "DEBIT" },
-    select: { amount: true, fxRate: true },
+  const agg = await db.tripExpense.aggregate({
+    where: { tripId },
+    _sum: { amountBdt: true },
+    _count: true,
   });
-  let total = 0;
-  for (const r of rows) total += toNum(r.amount) * (r.fxRate == null ? 1 : toNum(r.fxRate));
-  return { totalActualBdt: money2(total), expenseCount: rows.length };
+  return { totalActualBdt: money2(toNum(agg._sum.amountBdt)), expenseCount: agg._count };
 }
 
 function serializeTrip(
@@ -89,18 +90,17 @@ function serializeTrip(
 export async function getTrips(): Promise<TripRow[]> {
   const trips = await db.trip.findMany({ orderBy: [{ startDate: "desc" }], include: TRIP_INCLUDE });
   if (!trips.length) return [];
-  // One query for all trip-tagged DEBITs, bucketed in memory — no per-trip N+1.
-  const debits = await db.moneyEntry.findMany({
-    where: { direction: "DEBIT", tripId: { in: trips.map((t) => t.id) } },
-    select: { tripId: true, amount: true, fxRate: true },
+  // One query for all trips' split-ledger expenses, bucketed in memory — no N+1.
+  const rows = await db.tripExpense.findMany({
+    where: { tripId: { in: trips.map((t) => t.id) } },
+    select: { tripId: true, amountBdt: true },
   });
   const actuals = new Map<string, { totalActualBdt: number; expenseCount: number }>();
-  for (const d of debits) {
-    if (!d.tripId) continue;
-    const acc = actuals.get(d.tripId) ?? { totalActualBdt: 0, expenseCount: 0 };
-    acc.totalActualBdt += toNum(d.amount) * (d.fxRate == null ? 1 : toNum(d.fxRate));
+  for (const r of rows) {
+    const acc = actuals.get(r.tripId) ?? { totalActualBdt: 0, expenseCount: 0 };
+    acc.totalActualBdt += toNum(r.amountBdt);
     acc.expenseCount += 1;
-    actuals.set(d.tripId, acc);
+    actuals.set(r.tripId, acc);
   }
   return trips.map((t) => {
     const a = actuals.get(t.id) ?? { totalActualBdt: 0, expenseCount: 0 };
@@ -140,20 +140,26 @@ export async function createTrip(input: CreateTripInput): Promise<TripRow> {
   const localCurrency = normalizeCurrency(input.localCurrency, "localCurrency");
   const homeCurrency = normalizeCurrency(input.homeCurrency || "BDT", "homeCurrency");
   await assertWalletCurrency(input.localWalletAccountId, localCurrency);
-  const t = await db.trip.create({
-    data: {
-      name: input.name.trim(),
-      destination: input.destination.trim(),
-      localCurrency,
-      homeCurrency,
-      startDate,
-      endDate,
-      status: input.status ?? TripStatus.PLANNING,
-      localWalletAccountId: input.localWalletAccountId || null,
-      notes: input.notes ?? null,
-      publicIntro: input.publicIntro ?? null,
-    },
-    include: TRIP_INCLUDE,
+  // Create the trip and its "self" participant ("Me") atomically — every trip has
+  // exactly one, and the group-split math anchors on it.
+  const t = await db.$transaction(async (tx) => {
+    const trip = await tx.trip.create({
+      data: {
+        name: input.name.trim(),
+        destination: input.destination.trim(),
+        localCurrency,
+        homeCurrency,
+        startDate,
+        endDate,
+        status: input.status ?? TripStatus.PLANNING,
+        localWalletAccountId: input.localWalletAccountId || null,
+        notes: input.notes ?? null,
+        publicIntro: input.publicIntro ?? null,
+      },
+      include: TRIP_INCLUDE,
+    });
+    await tx.tripParticipant.create({ data: { tripId: trip.id, name: "Me", isSelf: true } });
+    return trip;
   });
   return serializeTrip(t, { totalActualBdt: 0, expenseCount: 0 });
 }
