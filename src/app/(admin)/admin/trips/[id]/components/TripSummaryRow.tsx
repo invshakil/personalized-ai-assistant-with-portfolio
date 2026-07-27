@@ -35,27 +35,28 @@ function Tile({
 }
 
 export default function TripSummaryRow({ report }: Props) {
-  const { settlement, wallet, totalPlannedBdt, totalActualBdt } = report;
+  const { personalCashFlow, wallet, totalPlannedBdt, totalActualBdt, paidByMeBdt } = report;
   const remaining = totalPlannedBdt - totalActualBdt;
 
   return (
     <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, mb: 3 }}>
       <Tile label="Planned" value={fmt(totalPlannedBdt)} />
       <Tile
-        label="Spent"
+        label="Group cost"
         value={fmt(totalActualBdt)}
-        hint={remaining >= 0 ? `${fmt(remaining)} left` : `${fmt(-remaining)} over`}
+        hint={remaining >= 0 ? `${fmt(remaining)} under budget` : `${fmt(-remaining)} over`}
         color={remaining < 0 ? "error.main" : undefined}
       />
+      <Tile label="Paid by me" value={fmt(paidByMeBdt)} hint="what I fronted" />
       <Tile
         label="Out of pocket"
-        value={fmt(settlement.outOfPocketBdt)}
-        hint="cash / bank — hits leisure now"
+        value={fmt(personalCashFlow.outOfPocketBdt)}
+        hint="my cash / bank — hits leisure now"
       />
       <Tile
         label="On credit card"
-        value={fmt(settlement.creditCardBdt)}
-        hint="deferred to the card bill"
+        value={fmt(personalCashFlow.creditCardBdt)}
+        hint="deferred — not in money ledger"
         color="warning.main"
       />
       {wallet && (

@@ -9,17 +9,41 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { Add, Delete, Edit } from "@mui/icons-material";
-import { TRIP_CATEGORY_LABEL, type MoneyEntryRow, type TripCategory } from "@/types";
+import { TRIP_CATEGORY_LABEL, type TripExpenseRow } from "@/types";
 import { fmt, fmtCurrency, fmtDate } from "../../format";
 
 interface Props {
-  expenses: MoneyEntryRow[];
+  expenses: TripExpenseRow[];
   onAdd: () => void;
-  onEdit: (r: MoneyEntryRow) => void;
-  onDelete: (r: MoneyEntryRow) => void;
+  onEdit: (r: TripExpenseRow) => void;
+  onDelete: (r: TripExpenseRow) => void;
+}
+
+function PaidVia({ e }: { e: TripExpenseRow }) {
+  if (!e.payerIsSelf) {
+    return (
+      <Chip size="small" label="Friend paid" color="info" variant="outlined" sx={{ height: 20 }} />
+    );
+  }
+  const card = e.accountType === "CREDIT_CARD";
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flexWrap: "wrap" }}>
+      <Typography variant="body2" sx={{ whiteSpace: "nowrap" }}>
+        {e.accountName || "—"}
+      </Typography>
+      <Chip
+        size="small"
+        label={card ? "Card · deferred" : "Cash/bank"}
+        color={card ? "warning" : "default"}
+        variant="outlined"
+        sx={{ height: 20, fontSize: 10 }}
+      />
+    </Box>
+  );
 }
 
 export default function TripExpensesTable({ expenses, onAdd, onEdit, onDelete }: Props) {
@@ -45,31 +69,42 @@ export default function TripExpensesTable({ expenses, onAdd, onEdit, onDelete }:
                 <TableCell>Date</TableCell>
                 <TableCell>Category</TableCell>
                 <TableCell>Description</TableCell>
-                <TableCell>Paid from</TableCell>
+                <TableCell>Paid by</TableCell>
+                <TableCell>Via</TableCell>
+                <TableCell align="center">Split</TableCell>
                 <TableCell align="right">Amount</TableCell>
                 <TableCell align="right">Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
               {expenses.map((e) => {
-                const card = e.accountType === "CREDIT_CARD";
                 const foreign = e.currency !== "BDT";
+                const n = e.shares.length;
+                const splitLabel = n <= 1 ? "Solo" : `${n} ways`;
+                const splitTip = e.shares
+                  .map((s) => `${s.participantName}: ${fmtCurrency(s.amount, e.currency)}`)
+                  .join("\n");
                 return (
                   <TableRow key={e.id} hover>
                     <TableCell sx={{ whiteSpace: "nowrap" }}>{fmtDate(e.date)}</TableCell>
-                    <TableCell>
-                      {TRIP_CATEGORY_LABEL[(e.tripCategory ?? "MISC") as TripCategory]}
-                    </TableCell>
+                    <TableCell>{TRIP_CATEGORY_LABEL[e.category]}</TableCell>
                     <TableCell>{e.description || "—"}</TableCell>
                     <TableCell sx={{ whiteSpace: "nowrap" }}>
-                      {e.accountName || "—"}
-                      <Chip
-                        size="small"
-                        label={card ? "Card" : "Cash/bank"}
-                        color={card ? "warning" : "default"}
-                        variant="outlined"
-                        sx={{ ml: 0.5, height: 18, fontSize: 10 }}
-                      />
+                      {e.payerName}
+                      {e.payerIsSelf ? " (me)" : ""}
+                    </TableCell>
+                    <TableCell>
+                      <PaidVia e={e} />
+                    </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title={<Box sx={{ whiteSpace: "pre-line" }}>{splitTip}</Box>}>
+                        <Chip
+                          size="small"
+                          label={splitLabel}
+                          variant="outlined"
+                          sx={{ height: 20 }}
+                        />
+                      </Tooltip>
                     </TableCell>
                     <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -77,7 +112,7 @@ export default function TripExpensesTable({ expenses, onAdd, onEdit, onDelete }:
                       </Typography>
                       {foreign && (
                         <Typography variant="caption" sx={{ color: "text.secondary" }}>
-                          ≈ {fmt(e.amount * (e.fxRate ?? 1))}
+                          ≈ {fmt(e.amountBdt)}
                         </Typography>
                       )}
                     </TableCell>

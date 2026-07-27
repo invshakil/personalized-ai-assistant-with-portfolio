@@ -43,6 +43,8 @@ export const TRIP_STATUS_LABEL: Record<TripStatus, string> = {
   CLOSED: "Closed",
 };
 
+export type TripSplitMode = "EQUAL" | "EXACT";
+
 // ─── Rows ─────────────────────────────────────────────────────────────────────
 
 export interface TripBudgetRow {
@@ -72,6 +74,63 @@ export interface TripRow {
   totalPlannedBdt: number;
   totalActualBdt: number;
   expenseCount: number;
+}
+
+// ─── Group split rows (participants, expenses, settlements) ───────────────────
+
+export interface TripParticipantRow {
+  id: string;
+  tripId: string;
+  name: string;
+  isSelf: boolean;
+  beneficiaryId: string | null;
+  beneficiaryName: string | null;
+  isActive: boolean;
+  note: string | null;
+}
+
+export interface TripExpenseShareRow {
+  participantId: string;
+  participantName: string;
+  amount: number; // in the expense currency
+  amountBdt: number;
+}
+
+export interface TripExpenseRow {
+  id: string;
+  tripId: string;
+  description: string | null;
+  category: TripCategory;
+  date: string; // ISO
+  currency: string;
+  amount: number; // total group cost in `currency`
+  fxRate: number | null; // BDT per 1 unit of currency
+  amountBdt: number;
+  payerId: string;
+  payerName: string;
+  payerIsSelf: boolean;
+  splitMode: TripSplitMode;
+  accountId: string | null;
+  accountName: string | null;
+  accountType: string | null; // MoneyAccountType of the funding account (for bucketing)
+  /** True when this expense posted a MoneyEntry to the personal money ledger. */
+  posted: boolean;
+  shares: TripExpenseShareRow[];
+}
+
+export interface TripSettlementRow {
+  id: string;
+  tripId: string;
+  date: string; // ISO
+  fromParticipantId: string;
+  fromName: string;
+  toParticipantId: string;
+  toName: string;
+  amount: number;
+  currency: string;
+  fxRate: number | null;
+  amountBdt: number;
+  note: string | null;
 }
 
 // ─── Report ─────────────────────────────────────────────────────────────────--
@@ -111,15 +170,42 @@ export interface TripDaySpend {
   bdt: number;
 }
 
+/** Per-participant tally for the who-owes-whom view (all BDT). `net > 0` ⇒ the
+ *  group owes this person; `net < 0` ⇒ this person owes the group. */
+export interface TripPersonBalance {
+  participantId: string;
+  name: string;
+  isSelf: boolean;
+  paidBdt: number; // expenses this person fronted
+  spentBdt: number; // this person's share of expenses (their consumption)
+  settlementsPaidBdt: number; // money they handed to others (contributions / settle-ups out)
+  settlementsReceivedBdt: number; // money others handed to them
+  netBdt: number; // paid + settlementsPaid − spent − settlementsReceived
+}
+
+/** One suggested settle-up transfer from the greedy minimal-transfer pass. */
+export interface TripOwesTransfer {
+  fromParticipantId: string;
+  fromName: string;
+  toParticipantId: string;
+  toName: string;
+  amountBdt: number;
+}
+
 export interface TripReport {
   trip: TripRow;
   byCategory: TripCategoryReport[];
-  settlement: TripSettlementSplit;
+  /** Syful's own cash flow: immediate (cash/bank/wallet) vs deferred (credit card). */
+  personalCashFlow: TripSettlementSplit;
   byCurrency: TripCurrencyBreakdown[];
   byDay: TripDaySpend[];
   wallet: TripWalletSummary | null;
+  /** Per-person paid/spent/net and the minimal settle-up transfers. */
+  participants: TripPersonBalance[];
+  owes: TripOwesTransfer[];
   totalPlannedBdt: number;
-  totalActualBdt: number;
+  totalActualBdt: number; // total group cost across all payers
+  paidByMeBdt: number; // subset self (Syful) fronted
 }
 
 // ─── Public (aggregate-safe) summary for /trips/[slug] ─────────────────────────

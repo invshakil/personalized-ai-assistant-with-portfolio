@@ -55,7 +55,7 @@ import {
   getSolarWeather,
   listTariffs as listElectricityTariffs,
 } from "@/services/solar";
-import { getTrips, getTripReport } from "@/services/trips";
+import { getTrips, getTripReport, listParticipants } from "@/services/trips";
 import { PERIOD_TOKENS } from "@/services/_shared/dateRange";
 import { PaymentKind, ExpenseCategory } from "@prisma/client";
 import { writeToolDefs, isWriteTool, previewWrite } from "./writeTools";
@@ -576,10 +576,22 @@ const tripsReadTools: AiToolDef[] = [
     name: "get_trip_report",
     description:
       "Full report for one trip: planned-vs-actual per category (Flights, Accommodation, Food, Local " +
-      "transport, Activities, Shopping, Visa/insurance, Misc); the settlement split — out-of-pocket " +
-      "(cash/bank, immediate) vs credit-card (deferred to the card bill), in BDT; spending by currency; " +
-      "per-day spend; and the foreign trip-wallet summary (funded/spent/leftover). Amounts are " +
-      "BDT-canonical (converted at each expense's stored rate). Pass the tripId from list_trips.",
+      "transport, Activities, Shopping, Visa/insurance, Misc); total group cost across ALL payers plus " +
+      "the amount Syful himself fronted (paidByMeBdt); his personal cash-flow split — out-of-pocket " +
+      "(cash/bank/wallet, immediate) vs credit-card (deferred, not posted to the money ledger); spending " +
+      "by currency; per-day spend; the foreign trip-wallet summary (funded/spent/leftover); and — for " +
+      "group trips — per-person paid/spent/net (participants) and the minimal 'who owes whom' settle-up " +
+      "transfers (owes). Amounts are BDT-canonical. Pass the tripId from list_trips.",
+    parameters: obj({
+      tripId: { type: "string", description: "The trip id (from list_trips)" },
+    }),
+  },
+  {
+    name: "list_trip_participants",
+    description:
+      "List the people on a trip (Trip Expense Manager group trips): name, whether they are Syful " +
+      "himself (isSelf), any linked Beneficiary, and active status. Use with get_trip_report to explain " +
+      "who owes whom. Pass the tripId from list_trips.",
     parameters: obj({
       tripId: { type: "string", description: "The trip id (from list_trips)" },
     }),
@@ -719,6 +731,11 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
     const id = str(i.tripId);
     if (!id) throw new Error("tripId is required (get it from list_trips)");
     return getTripReport(id);
+  },
+  list_trip_participants: (i) => {
+    const id = str(i.tripId);
+    if (!id) throw new Error("tripId is required (get it from list_trips)");
+    return listParticipants(id);
   },
   // Finance — reports
   get_monthly_pnl: (i) => getMonthlyPnl(range(i)),

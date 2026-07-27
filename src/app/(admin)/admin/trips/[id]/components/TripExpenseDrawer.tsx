@@ -5,57 +5,63 @@ import {
   TRIP_CATEGORY_LABEL,
   type MoneyAccountRow,
   type TripCategory,
+  type TripParticipantRow,
+  type TripSplitMode,
 } from "@/types";
-import { accountOptions, currencySymbol, fmt } from "../../format";
-import type { TripExpenseForm } from "../hooks/useTripExpenseDrawer";
+import type { TripExpenseForm } from "../hooks/expenseForm";
+import SplitEditor from "./SplitEditor";
+import ExpenseFundingFields from "./ExpenseFundingFields";
 
 interface Props {
   open: boolean;
   editing: boolean;
   form: TripExpenseForm;
+  active: TripParticipantRow[];
   accounts: MoneyAccountRow[];
   saving: boolean;
   error: string | null;
   rateLoading: boolean;
-  currencyOf: (id: string) => string;
+  payerIsSelf: boolean;
   setForm: (updater: (f: TripExpenseForm) => TripExpenseForm) => void;
+  onPayerChange: (id: string) => void;
   onAccountChange: (id: string) => void;
+  onCurrencyChange: (cur: string) => void;
+  onMode: (mode: TripSplitMode) => void;
+  onToggle: (id: string, checked: boolean) => void;
+  onSelectAll: () => void;
+  onSelectOnlyPayer: () => void;
+  onExact: (id: string, val: string) => void;
   onClose: () => void;
   onSave: () => void;
 }
 
 const CATEGORY_OPTIONS = TRIP_CATEGORIES.map((c) => ({ value: c, label: TRIP_CATEGORY_LABEL[c] }));
 
-export default function TripExpenseDrawer({
-  open,
-  editing,
-  form,
-  accounts,
-  saving,
-  error,
-  rateLoading,
-  currencyOf,
-  setForm,
-  onAccountChange,
-  onClose,
-  onSave,
-}: Props) {
-  const currency = currencyOf(form.accountId);
-  const foreign = currency !== "BDT";
-  const bdt =
-    foreign && form.amount && form.fxRate ? Number(form.amount) * Number(form.fxRate) : null;
+export default function TripExpenseDrawer(props: Props) {
+  const { form, active, saving, error, payerIsSelf, setForm } = props;
+  const amount = Number(form.amount) || 0;
+  const exactSum = form.participantIds.reduce(
+    (s, id) => s + (Number(form.exactAmounts[id]) || 0),
+    0
+  );
+  const splitValid =
+    form.participantIds.length > 0 &&
+    (form.splitMode !== "EXACT" || Math.abs(amount - exactSum) < 0.001);
+  const canSave =
+    !saving && !!form.amount && amount > 0 && splitValid && (!payerIsSelf || !!form.accountId);
 
   return (
     <Drawer
       anchor="right"
-      open={open}
-      onClose={onClose}
-      slotProps={{ paper: { sx: { width: { xs: "100%", sm: 420 } } } }}
+      open={props.open}
+      onClose={props.onClose}
+      slotProps={{ paper: { sx: { width: { xs: "100%", sm: 440 } } } }}
     >
       <Box sx={{ p: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
-          {editing ? "Edit Expense" : "Add Expense"}
+          {props.editing ? "Edit Expense" : "Add Expense"}
         </Typography>
+
         <TextField
           label="Date"
           type="date"
@@ -72,41 +78,33 @@ export default function TripExpenseDrawer({
           onChange={(v) => setForm((f) => ({ ...f, category: v as TripCategory }))}
           sx={{ mb: 2 }}
         />
-        <SearchableSelect
-          label="Paid from account"
-          value={form.accountId}
-          options={accountOptions(accounts)}
-          onChange={onAccountChange}
-          disabled={editing}
-          sx={{ mb: 2 }}
+
+        <ExpenseFundingFields
+          form={form}
+          active={active}
+          accounts={props.accounts}
+          payerIsSelf={payerIsSelf}
+          rateLoading={props.rateLoading}
+          setForm={setForm}
+          onPayerChange={props.onPayerChange}
+          onAccountChange={props.onAccountChange}
+          onCurrencyChange={props.onCurrencyChange}
         />
-        <TextField
-          label={`Amount (${currencySymbol(currency)})`}
-          type="number"
-          size="small"
-          fullWidth
-          value={form.amount}
-          onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
-          sx={{ mb: 2 }}
+
+        <SplitEditor
+          participants={active}
+          amount={amount}
+          currency={form.currency}
+          splitMode={form.splitMode}
+          selectedIds={form.participantIds}
+          exactAmounts={form.exactAmounts}
+          onMode={props.onMode}
+          onToggle={props.onToggle}
+          onSelectAll={props.onSelectAll}
+          onSelectOnlyPayer={props.onSelectOnlyPayer}
+          onExact={props.onExact}
         />
-        {foreign && (
-          <TextField
-            label={`FX rate (৳ per 1 ${currency})`}
-            type="number"
-            size="small"
-            fullWidth
-            value={form.fxRate}
-            onChange={(e) => setForm((f) => ({ ...f, fxRate: e.target.value }))}
-            helperText={
-              rateLoading
-                ? "Fetching live rate…"
-                : bdt != null
-                  ? `≈ ${fmt(bdt)} (stored as BDT)`
-                  : "Editable"
-            }
-            sx={{ mb: 2 }}
-          />
-        )}
+
         <TextField
           label="Description"
           size="small"
@@ -115,28 +113,13 @@ export default function TripExpenseDrawer({
           onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
           sx={{ mb: 2 }}
         />
-        <TextField
-          label="Notes"
-          size="small"
-          fullWidth
-          multiline
-          rows={2}
-          value={form.notes}
-          onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-          sx={{ mb: 2 }}
-        />
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         )}
-        <Button
-          variant="contained"
-          fullWidth
-          onClick={onSave}
-          disabled={saving || !form.accountId || !form.amount}
-        >
-          {saving ? "Saving…" : editing ? "Save Changes" : "Add Expense"}
+        <Button variant="contained" fullWidth onClick={props.onSave} disabled={!canSave}>
+          {saving ? "Saving…" : props.editing ? "Save Changes" : "Add Expense"}
         </Button>
       </Box>
     </Drawer>

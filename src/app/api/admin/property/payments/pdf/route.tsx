@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
   const rows = await getPayments({ month, year });
   const totalDue = rows.reduce((sum, r) => sum + r.rentDue, 0);
   const totalPaid = rows.reduce((sum, r) => sum + r.amountPaid, 0);
+  const totalOutstanding = rows.reduce((sum, r) => sum + r.balance, 0);
   const period = month && year ? `${MONTHS[month - 1]} ${year}` : "All periods";
 
   const business = await getBusinessProfile();
@@ -42,12 +43,13 @@ export async function GET(req: NextRequest) {
       generatedAt={pdfDate(new Date().toISOString())}
       subtitle={period}
       columns={[
-        { label: "Tenant", flex: 1.8 },
-        { label: "Unit", flex: 1.3 },
-        { label: "Period", flex: 1.6 },
-        { label: "Due", flex: 1.2, align: "right" },
-        { label: "Paid", flex: 1.2, align: "right" },
-        { label: "Status", flex: 1.1, align: "right" },
+        { label: "Tenant", flex: 1.7 },
+        { label: "Unit", flex: 1.1 },
+        { label: "Period", flex: 1.4 },
+        { label: "Due", flex: 1.1, align: "right" },
+        { label: "Paid", flex: 1.1, align: "right" },
+        { label: "Balance", flex: 1.1, align: "right" },
+        { label: "Status", flex: 1, align: "right" },
       ]}
       rows={rows.map((r) => [
         r.tenantName,
@@ -55,10 +57,11 @@ export async function GET(req: NextRequest) {
         `${MONTHS[r.month - 1]} ${r.year}`,
         pdfMoney(r.rentDue),
         pdfMoney(r.amountPaid),
+        pdfMoney(r.balance),
         r.status,
       ])}
-      totalLabel={`Collected ${pdfMoney(totalPaid)} of`}
-      totalValue={pdfMoney(totalDue)}
+      totalLabel={`Collected ${pdfMoney(totalPaid)} of ${pdfMoney(totalDue)} — Outstanding`}
+      totalValue={pdfMoney(totalOutstanding)}
     />
   );
   return pdfResponse(buffer, `rent-collection-${period.replace(/\s+/g, "-").toLowerCase()}.pdf`);

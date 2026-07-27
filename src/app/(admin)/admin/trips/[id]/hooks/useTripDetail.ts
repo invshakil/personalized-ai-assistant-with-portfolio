@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
 import { tripsApi } from "@/lib/api/trips";
 import { useMoneyAccounts } from "@/hooks/useMoneyAccounts";
-import type { MoneyEntryRow, TripReport } from "@/types";
+import type { TripExpenseRow, TripParticipantRow, TripReport, TripSettlementRow } from "@/types";
 
-/** Loads a trip's report + expenses + accounts; `reload` refreshes all three. */
+/** Loads a trip's report + expenses + participants + settlements + accounts;
+ *  `reload` refreshes everything after any mutation. */
 export function useTripDetail(tripId: string) {
   const [report, setReport] = useState<TripReport | null>(null);
-  const [expenses, setExpenses] = useState<MoneyEntryRow[]>([]);
+  const [expenses, setExpenses] = useState<TripExpenseRow[]>([]);
+  const [participants, setParticipants] = useState<TripParticipantRow[]>([]);
+  const [settlements, setSettlements] = useState<TripSettlementRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const { accounts, reload: reloadAccounts } = useMoneyAccounts();
@@ -14,12 +17,16 @@ export function useTripDetail(tripId: string) {
   const loadTrip = useCallback(async () => {
     setLoading(true);
     try {
-      const [r, ex] = await Promise.all([
+      const [r, ex, ps, st] = await Promise.all([
         tripsApi.getReport(tripId),
         tripsApi.listExpenses(tripId),
+        tripsApi.listParticipants(tripId),
+        tripsApi.listSettlements(tripId),
       ]);
       setReport(r ?? null);
       setExpenses(ex ?? []);
+      setParticipants(ps ?? []);
+      setSettlements(st ?? []);
       setNotFound(!r);
     } catch {
       setNotFound(true);
@@ -36,5 +43,5 @@ export function useTripDetail(tripId: string) {
     loadTrip();
   }, [loadTrip]);
 
-  return { report, expenses, loading, notFound, accounts, reload };
+  return { report, expenses, participants, settlements, loading, notFound, accounts, reload };
 }
