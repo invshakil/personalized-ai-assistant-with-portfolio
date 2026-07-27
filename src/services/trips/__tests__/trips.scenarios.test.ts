@@ -1,6 +1,7 @@
-// Trip Expense Manager scenario coverage. Integration tests against the dev DB.
-// All data is created under a unique TAG and removed in after(), so the suite is
-// self-cleaning and never touches real rows.
+// Trip Expense Manager v2 scenario coverage — group trips: participants, splitting,
+// the posting rule (self+real-account posts; card & friend-paid don't), settlements,
+// and who-owes-whom. Integration tests against the dev DB. All data is created under
+// a unique TAG and removed in after(), so the suite is self-cleaning.
 //
 // Run: node --import tsx --test src/services/trips/__tests__/trips.scenarios.test.ts
 import { test, before, after } from "node:test";
@@ -9,11 +10,14 @@ import { createAccount, getAccountBalance } from "@/services/money";
 import {
   createTrip,
   getTrip,
+  listParticipants,
+  createParticipant,
   setTripBudget,
   createTripExpense,
   updateTripExpense,
   deleteTripExpense,
   fundTripWallet,
+  createSettlement,
   getTripReport,
   publishTrip,
   unpublishTrip,
@@ -27,6 +31,9 @@ let cashId = "";
 let cardId = "";
 let walletId = "";
 let tripId = "";
+let selfId = "";
+let bobId = "";
+let carolId = "";
 let slug = "";
 
 before(async () => {
@@ -51,34 +58,81 @@ before(async () => {
     localWalletAccountId: walletId,
   });
   tripId = trip.id;
+
+  // createTrip auto-creates the self ("Me") participant.
+  const ps = await listParticipants(tripId);
+  selfId = ps.find((p) => p.isSelf)!.id;
+  bobId = (await createParticipant({ tripId, name: `${TAG} Bob` })).id;
+  carolId = (await createParticipant({ tripId, name: `${TAG} Carol` })).id;
+});
+
+test("createTrip seeds exactly one self participant", async () => {
+  const ps = await listParticipants(tripId);
+  assert.equal(ps.filter((p) => p.isSelf).length, 1);
+  assert.equal(ps.length, 3);
+  await assert.rejects(
+    () => createParticipant({ tripId, name: `${TAG} Fake`, isSelf: true }),
+    /already has a 'self'/
+  );
 });
 
 test("budgets roll up to totalPlannedBdt", async () => {
   await setTripBudget(tripId, "FLIGHTS", 6000);
   await setTripBudget(tripId, "FOOD", 10000);
-  await setTripBudget(tripId, "ACCOMMODATION", 9000);
   const trip = await getTrip(tripId);
-  assert.equal(trip?.totalPlannedBdt, 25000);
+  assert.equal(trip?.totalPlannedBdt, 16000);
 });
 
-test("expenses on cash / card / MYR wallet split correctly", async () => {
-  // Cash (out-of-pocket, BDT)
-  await createTripExpense({
+test("cash self-paid posts a MoneyEntry, reduces cash, and splits with exact cents", async () => {
+  const exp = await createTripExpense({
     tripId,
-    tripCategory: "FLIGHTS",
-    accountId: cashId,
-    amount: 5000,
+    category: "FLIGHTS",
     date: "2026-08-01",
+    payerId: selfId,
+    accountId: cashId,
+    amount: 3001, // /3 → 1000.34, 1000.33, 1000.33
+    shares: [{ participantId: selfId }, { participantId: bobId }, { participantId: carolId }],
   });
-  // Credit card (deferred, BDT)
-  await createTripExpense({
+  assert.equal(exp.posted, true);
+  assert.equal(exp.shares.length, 3);
+  const shareSum = Math.round(exp.shares.reduce((s, x) => s + x.amount, 0) * 100) / 100;
+  assert.equal(shareSum, 3001);
+  assert.equal(await getAccountBalance(cashId), 96999); // 100000 − 3001
+});
+
+test("credit-card self-paid does NOT post; card balance unchanged; counts as deferred", async () => {
+  const exp = await createTripExpense({
     tripId,
-    tripCategory: "ACCOMMODATION",
+    category: "ACCOMMODATION",
+    date: "2026-08-02",
+    payerId: selfId,
     accountId: cardId,
     amount: 8000,
-    date: "2026-08-02",
+    shares: [{ participantId: selfId }, { participantId: bobId }, { participantId: carolId }],
   });
-  // Fund the MYR wallet: 30,000 BDT → 1,000 MYR
+  assert.equal(exp.posted, false, "card expense must not post to the money ledger");
+  assert.equal(await getAccountBalance(cardId), 0, "card balance untouched by trip card spend");
+  const report = await getTripReport(tripId);
+  assert.equal(report!.personalCashFlow.creditCardBdt, 8000);
+});
+
+test("friend-paid expense creates no MoneyEntry and touches no account", async () => {
+  const before = await getAccountBalance(cashId);
+  const exp = await createTripExpense({
+    tripId,
+    category: "FOOD",
+    date: "2026-08-02",
+    payerId: bobId,
+    amount: 1200,
+    shares: [{ participantId: selfId }, { participantId: bobId }, { participantId: carolId }],
+  });
+  assert.equal(exp.posted, false);
+  assert.equal(exp.accountId, null);
+  assert.equal(exp.payerIsSelf, false);
+  assert.equal(await getAccountBalance(cashId), before);
+});
+
+test("MYR wallet funding + wallet spend posts and reduces the wallet", async () => {
   await fundTripWallet({
     tripId,
     fromAccountId: cashId,
@@ -87,118 +141,180 @@ test("expenses on cash / card / MYR wallet split correctly", async () => {
     toAmount: 1000,
     date: "2026-08-01",
   });
-  // Spend MYR from the wallet: 200 MYR @ 30 = 6,000 BDT
-  await createTripExpense({
+  const exp = await createTripExpense({
     tripId,
-    tripCategory: "FOOD",
+    category: "FOOD",
+    date: "2026-08-03",
+    payerId: selfId,
     accountId: walletId,
     amount: 200,
-    date: "2026-08-03",
     fxRate: 30,
+    shares: [{ participantId: selfId }, { participantId: bobId }],
   });
+  assert.equal(exp.posted, true);
+  assert.equal(exp.currency, "MYR");
+  assert.equal(exp.amountBdt, 6000); // 200 × 30
+  assert.equal(await getAccountBalance(walletId), 800); // 1000 funded − 200 spent
+  assert.equal(await getAccountBalance(cashId), 66999); // 96999 − 30000 funding
+});
 
+test("EXACT split must sum to the amount", async () => {
+  await assert.rejects(
+    () =>
+      createTripExpense({
+        tripId,
+        category: "MISC",
+        date: "2026-08-03",
+        payerId: selfId,
+        accountId: cashId,
+        amount: 200,
+        splitMode: "EXACT",
+        shares: [
+          { participantId: selfId, amount: 100 },
+          { participantId: bobId, amount: 50 },
+        ],
+      }),
+    /must sum/
+  );
+  const ok = await createTripExpense({
+    tripId,
+    category: "MISC",
+    date: "2026-08-03",
+    payerId: selfId,
+    accountId: cashId,
+    amount: 200,
+    splitMode: "EXACT",
+    shares: [
+      { participantId: selfId, amount: 120 },
+      { participantId: bobId, amount: 80 },
+    ],
+  });
+  assert.equal(ok.shares.find((s) => s.participantId === bobId)?.amount, 80);
+});
+
+test("non-finite amounts are rejected", async () => {
+  await assert.rejects(
+    () =>
+      createTripExpense({
+        tripId,
+        category: "FOOD",
+        date: "2026-08-01",
+        payerId: selfId,
+        accountId: cashId,
+        amount: Number.NaN,
+        shares: [{ participantId: selfId }],
+      }),
+    /finite/
+  );
+  await assert.rejects(() => setTripBudget(tripId, "FOOD", Number.POSITIVE_INFINITY), /finite/);
+});
+
+test("expense mutations are scoped to their trip", async () => {
+  const exp = await createTripExpense({
+    tripId,
+    category: "MISC",
+    date: "2026-08-04",
+    payerId: selfId,
+    accountId: cashId,
+    amount: 100,
+    shares: [{ participantId: selfId }],
+  });
+  const full = {
+    category: "MISC" as const,
+    date: "2026-08-04",
+    payerId: selfId,
+    accountId: cashId,
+    amount: 100,
+    shares: [{ participantId: selfId }],
+  };
+  await assert.rejects(
+    () => updateTripExpense("some-other-trip", exp.id, full),
+    /not found for this trip/
+  );
+  await assert.rejects(
+    () => deleteTripExpense("some-other-trip", exp.id),
+    /not found for this trip/
+  );
+  await deleteTripExpense(tripId, exp.id);
+});
+
+test("settlements drive net balances and a self-consistent who-owes-whom", async () => {
+  // Bob hands Syful 1000 BDT toward the trip.
+  await createSettlement({
+    tripId,
+    date: "2026-08-05",
+    fromParticipantId: bobId,
+    toParticipantId: selfId,
+    amount: 1000,
+  });
   const report = await getTripReport(tripId);
-  assert.ok(report, "report exists");
+  const nets = report!.participants.map((p) => p.netBdt);
+  const totalNet = Math.round(nets.reduce((a, b) => a + b, 0) * 100) / 100;
+  assert.equal(totalNet, 0, "everyone's net must sum to zero");
 
-  // Settlement: cash 5000 + MYR-wallet 6000 = 11000 out-of-pocket; card 8000 deferred.
-  assert.equal(report!.settlement.outOfPocketBdt, 11000);
-  assert.equal(report!.settlement.creditCardBdt, 8000);
-  assert.equal(report!.totalActualBdt, 19000);
-
-  // By category actuals.
-  const byCat = Object.fromEntries(report!.byCategory.map((c) => [c.category, c.actualBdt]));
-  assert.equal(byCat.FLIGHTS, 5000);
-  assert.equal(byCat.ACCOMMODATION, 8000);
-  assert.equal(byCat.FOOD, 6000);
-
-  // By currency: BDT 13000, MYR original 200 → 6000 BDT.
-  const myr = report!.byCurrency.find((c) => c.currency === "MYR");
-  assert.equal(myr?.originalAmount, 200);
-  assert.equal(myr?.bdt, 6000);
-
-  // Wallet: funded 1000, spent 200, leftover 800 MYR.
-  assert.equal(report!.wallet?.fundedLocal, 1000);
-  assert.equal(report!.wallet?.fundedBdt, 30000);
-  assert.equal(report!.wallet?.spentLocal, 200);
-  assert.equal(report!.wallet?.balanceLocal, 800);
-  assert.equal(await getAccountBalance(walletId), 800);
+  // Applying the suggested transfers must zero every balance.
+  const net = new Map(report!.participants.map((p) => [p.participantId, p.netBdt]));
+  for (const t of report!.owes) {
+    net.set(t.fromParticipantId, (net.get(t.fromParticipantId) ?? 0) + t.amountBdt);
+    net.set(t.toParticipantId, (net.get(t.toParticipantId) ?? 0) - t.amountBdt);
+  }
+  for (const [, v] of net)
+    assert.ok(Math.abs(v) < 0.01, "settle-up transfers must clear all debts");
 });
 
-test("credit-card spend does not reduce the cash balance beyond cash spend + funding", async () => {
-  // Cash started at 100000; spent 5000 (flight) + 30000 (funding) = 35000 out.
-  const cashBalance = await getAccountBalance(cashId);
-  assert.equal(cashBalance, 65000);
-  // Card balance is negative by the deferred amount (debt), untouched by cash.
-  const cardBalance = await getAccountBalance(cardId);
-  assert.equal(cardBalance, -8000);
+test("dedicated clean trip: exact who-owes-whom split three ways", async () => {
+  const t = await createTrip({
+    name: `${TAG} Dinner`,
+    destination: "KL",
+    localCurrency: "BDT",
+    startDate: "2026-08-10",
+  });
+  const ps = await listParticipants(t.id);
+  const me = ps.find((p) => p.isSelf)!.id;
+  const b = (await createParticipant({ tripId: t.id, name: `${TAG} B` })).id;
+  const c = (await createParticipant({ tripId: t.id, name: `${TAG} C` })).id;
+  await createTripExpense({
+    tripId: t.id,
+    category: "FOOD",
+    date: "2026-08-10",
+    payerId: me,
+    accountId: cashId,
+    amount: 300,
+    shares: [{ participantId: me }, { participantId: b }, { participantId: c }],
+  });
+  const report = await getTripReport(t.id);
+  const byId = new Map(report!.participants.map((p) => [p.participantId, p]));
+  assert.equal(byId.get(me)!.netBdt, 200); // paid 300, ate 100
+  assert.equal(byId.get(b)!.netBdt, -100);
+  assert.equal(byId.get(c)!.netBdt, -100);
+  // Two debtors → one creditor: each owes 100 to me.
+  assert.equal(report!.owes.length, 2);
+  assert.ok(report!.owes.every((o) => o.toParticipantId === me && o.amountBdt === 100));
 });
 
-test("publish exposes an aggregate-safe summary; unpublish hides it", async () => {
+test("publish exposes an aggregate-safe summary; no participant/debt leak", async () => {
   const published = await publishTrip(tripId);
   slug = published.publicSlug ?? "";
   assert.ok(slug, "slug minted");
 
   const summary = await getPublicTripSummary(slug);
   assert.ok(summary, "public summary available while published");
-  assert.equal(summary!.totalBdt, 19000);
-  assert.equal(summary!.byCategory.length, 3);
-  // Aggregate-safe: no account fields leak.
-  assert.equal(Object.prototype.hasOwnProperty.call(summary!, "accountName"), false);
+  // Group total = cash 3001 + card 8000 + friend 1200 + MYR 6000 + exact 200 = 18401.
+  assert.equal(summary!.totalBdt, 18401);
+  // No participant names, per-person spend, or who-owes-whom fields leak.
+  const keys = Object.keys(summary!);
+  assert.ok(!keys.includes("participants"));
+  assert.ok(!keys.includes("owes"));
+  const json = JSON.stringify(summary);
+  assert.equal(json.includes("Bob"), false, "no participant names leak");
+  assert.equal(json.includes("Carol"), false, "no participant names leak");
+  assert.equal(json.includes("Wallet"), false, "no account names leak");
 
   await unpublishTrip(tripId);
-  const gone = await getPublicTripSummary(slug);
-  assert.equal(gone, null, "unpublished trip is not publicly reachable");
-});
-
-test("non-finite amounts are rejected (guard hardening)", async () => {
-  await assert.rejects(
-    () =>
-      createTripExpense({
-        tripId,
-        tripCategory: "FOOD",
-        accountId: cashId,
-        amount: NaN,
-        date: "2026-08-01",
-      }),
-    /finite/
-  );
-  await assert.rejects(
-    () =>
-      createTripExpense({
-        tripId,
-        tripCategory: "FOOD",
-        accountId: cashId,
-        amount: Infinity,
-        date: "2026-08-01",
-      }),
-    /finite/
-  );
-  await assert.rejects(() => setTripBudget(tripId, "FOOD", NaN), /finite/);
-});
-
-test("expense mutations are scoped to their trip", async () => {
-  const exp = await createTripExpense({
-    tripId,
-    tripCategory: "MISC",
-    accountId: cashId,
-    amount: 100,
-    date: "2026-08-04",
-  });
-  await assert.rejects(
-    () => deleteTripExpense("some-other-trip", exp.id),
-    /not found for this trip/
-  );
-  await assert.rejects(
-    () => updateTripExpense("some-other-trip", exp.id, { amount: 50 }),
-    /not found for this trip/
-  );
-  const updated = await updateTripExpense(tripId, exp.id, { amount: 150 });
-  assert.equal(updated.amount, 150);
-  await deleteTripExpense(tripId, exp.id);
+  assert.equal(await getPublicTripSummary(slug), null);
 });
 
 test("trip currency + wallet coherence is enforced", async () => {
-  // cashId is a BDT account — cannot be an MYR trip's wallet.
   await assert.rejects(
     () =>
       createTrip({
@@ -206,7 +322,7 @@ test("trip currency + wallet coherence is enforced", async () => {
         destination: "X",
         localCurrency: "MYR",
         startDate: "2026-08-01",
-        localWalletAccountId: cashId,
+        localWalletAccountId: cashId, // BDT account can't back an MYR trip
       }),
     /must match/
   );
@@ -233,6 +349,8 @@ after(async () => {
   });
   const tripIds = trips.map((t) => t.id);
   const acctIds = accts.map((a) => a.id);
+  // Money entries first (their SetNull unlinks any TripExpense), then trips
+  // (cascades participants / expenses / shares / settlements), then accounts.
   await db.moneyEntry.deleteMany({
     where: {
       OR: [
@@ -242,7 +360,6 @@ after(async () => {
       ],
     },
   });
-  await db.tripBudget.deleteMany({ where: { tripId: { in: tripIds } } });
   await db.trip.deleteMany({ where: { id: { in: tripIds } } });
   await db.moneyAccount.deleteMany({ where: { id: { in: acctIds } } });
   await db.$disconnect();
