@@ -6,15 +6,15 @@
 
 ## Files in scope
 
-| Layer          | Files                                                                                                            |
-| -------------- | --------------------------------------------------------------------------------------------------------------- |
-| Schema         | `prisma/schema.prisma` (Trip, TripBudget, TripParticipant, TripExpense, TripExpenseShare, TripSettlement)       |
+| Layer          | Files                                                                                                               |
+| -------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Schema         | `prisma/schema.prisma` (Trip, TripBudget, TripParticipant, TripExpense, TripExpenseShare, TripSettlement)           |
 | Services       | `src/services/trips/*` (trips, participants, expenses, settlements, fund, report, public, `_split`, `_serializers`) |
-| API routes     | `src/app/api/admin/trips/**` (13 handlers)                                                                       |
-| Public surface | `src/app/(portfolio)/trips/[slug]/page.tsx`, `src/services/trips/public.ts`                                      |
-| Client / AI    | `src/lib/api/trips.ts`, `src/services/ai/tools.ts` (trip read tools)                                             |
-| Admin UI       | `src/app/(admin)/admin/trips/**` (orchestrators, hooks, components)                                              |
-| Tests          | `src/services/trips/__tests__/trips.scenarios.test.ts`                                                           |
+| API routes     | `src/app/api/admin/trips/**` (13 handlers)                                                                          |
+| Public surface | `src/app/(portfolio)/trips/[slug]/page.tsx`, `src/services/trips/public.ts`                                         |
+| Client / AI    | `src/lib/api/trips.ts`, `src/services/ai/tools.ts` (trip read tools)                                                |
+| Admin UI       | `src/app/(admin)/admin/trips/**` (orchestrators, hooks, components)                                                 |
+| Tests          | `src/services/trips/__tests__/trips.scenarios.test.ts`                                                              |
 
 ---
 
@@ -76,7 +76,7 @@ These are unbounded `String`s with no server-side max-length. Not an injection r
 
 ### Strengths ✅
 
-- **Split math is exact.** `distributeByWeights` uses largest-remainder-of-cents so both the currency parts and the BDT parts sum *exactly* to their totals — no rounding drift. Duplicate participants and EXACT-sum mismatches are rejected. Tested with an odd amount (`3001/3`).
+- **Split math is exact.** `distributeByWeights` uses largest-remainder-of-cents so both the currency parts and the BDT parts sum _exactly_ to their totals — no rounding drift. Duplicate participants and EXACT-sum mismatches are rejected. Tested with an odd amount (`3001/3`).
 - **Who-owes-whom is correct.** `minimalTransfers` runs a greedy integer-cent match; the test suite applies the suggested transfers back and asserts every balance zeroes out.
 - **Ledger reconciliation is transactional.** Expense create/update/delete wrap the linked `MoneyEntry` and the share rows in `db.$transaction`, and the update path correctly creates/updates/deletes the ledger entry as the posting rule changes.
 - **Posting rule is well-isolated and tested** — self + real spendable account posts a DEBIT; credit-card and friend-paid do not. Deletes/edits keep the personal ledger consistent.
@@ -160,15 +160,32 @@ Unlike the POST handler (which maps each field explicitly), the PUT handler pass
 
 ## Prioritized action list
 
-| # | Severity | Finding                                                            | Fix location                     |
-| - | -------- | ----------------------------------------------------------------- | -------------------------------- |
-| 1 | Medium   | Public page → anonymous external FX fetch + DB write; add ISR     | `trips/[slug]/page.tsx`, `public.ts` |
-| 2 | Medium   | `endDate < startDate` accepted → negative duration/per-day        | `trips.ts` create/update         |
-| 3 | Medium   | Wallet funding valued at 0 BDT on missing rate                    | `report.ts:46`                   |
-| 4 | Low      | Soft-deleted participants reusable via API                        | `expenses.ts`, `settlements.ts`  |
-| 5 | Low      | No max-length on free-text fields                                 | services                         |
-| 6 | Low      | `getTrips` full-row scan vs `groupBy`                             | `trips.ts` `getTrips`            |
-| 7 | Low      | `updateTrip` forwards raw body                                    | `trips/[id]/route.ts`            |
-| 8 | Low      | No `CLOSED`-status guard (confirm intent)                         | `expenses.ts`, `settlements.ts`  |
+| #   | Severity | Finding                                                       | Fix location                         |
+| --- | -------- | ------------------------------------------------------------- | ------------------------------------ |
+| 1   | Medium   | Public page → anonymous external FX fetch + DB write; add ISR | `trips/[slug]/page.tsx`, `public.ts` |
+| 2   | Medium   | `endDate < startDate` accepted → negative duration/per-day    | `trips.ts` create/update             |
+| 3   | Medium   | Wallet funding valued at 0 BDT on missing rate                | `report.ts:46`                       |
+| 4   | Low      | Soft-deleted participants reusable via API                    | `expenses.ts`, `settlements.ts`      |
+| 5   | Low      | No max-length on free-text fields                             | services                             |
+| 6   | Low      | `getTrips` full-row scan vs `groupBy`                         | `trips.ts` `getTrips`                |
+| 7   | Low      | `updateTrip` forwards raw body                                | `trips/[id]/route.ts`                |
+| 8   | Low      | No `CLOSED`-status guard (confirm intent)                     | `expenses.ts`, `settlements.ts`      |
 
 None of these block release; items 1–3 are the highest-value hardening steps.
+
+---
+
+## Resolution (applied on this branch)
+
+Items **1–7 are fixed**; **8 is deferred** pending a product decision.
+
+- **#1** — `export const revalidate = 3600` on the public trip page; anonymous traffic is served from the ISR cache (one FX/DB refresh per window, not per visit).
+- **#2** — `createTrip`/`updateTrip` reject `endDate < startDate`, comparing against the effective (new-or-existing) dates on update.
+- **#3** — `computeWallet` values each funding by its **stored per-row `fxRate`** (canonical), falling back to a live rate only for legacy rows that never stored one — never silently to `0`.
+- **#4** — expense payer/shares and settlement parties must be `isActive` at the service layer, not just filtered in the UI.
+- **#5** — length caps on trip name/destination/notes/publicIntro, expense description, participant name/note, and settlement note.
+- **#6** — `getTrips` uses `groupBy` (`_sum` + `_count`) instead of transferring every expense row.
+- **#7** — `PUT /trips/[id]` maps accepted fields explicitly instead of forwarding the raw body.
+- **#8** — left as-is: whether a `CLOSED` trip should freeze its ledger or still allow late corrections is a product decision.
+
+Added regression tests in `trips.scenarios.test.ts`: `endDate before startDate is rejected` and `a soft-deleted participant cannot be added to new splits`. Verified with `tsc --noEmit` (0 errors) and `eslint` (clean); the integration suite requires a dev DB (`DATABASE_URL`) not available in the review environment.

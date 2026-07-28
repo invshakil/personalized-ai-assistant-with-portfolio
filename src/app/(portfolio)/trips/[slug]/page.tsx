@@ -2,6 +2,11 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getPublicTripSummary } from "@/services/trips";
 
+// Serve this public page from the ISR cache, regenerating at most hourly. Keeps
+// anonymous traffic off the DB and the third-party FX feed (one refresh per window,
+// not one per visit) — see docs/TRIP_MANAGEMENT_AUDIT.md.
+export const revalidate = 3600;
+
 function fmtBdt(n: number): string {
   return `৳${Math.round(n).toLocaleString("en-IN")}`;
 }

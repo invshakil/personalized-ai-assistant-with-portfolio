@@ -59,11 +59,17 @@ export async function createSettlement(input: CreateSettlementInput): Promise<Tr
   if (Number.isNaN(new Date(input.date).getTime())) throw new Error("date is not a valid date");
   if (input.fromParticipantId === input.toParticipantId)
     throw new Error("A settlement must be between two different people");
+  if (input.note != null && input.note.length > 2000)
+    throw new Error("note must be 2000 characters or fewer");
 
   const people = await db.tripParticipant.count({
-    where: { id: { in: [input.fromParticipantId, input.toParticipantId] }, tripId: input.tripId },
+    where: {
+      id: { in: [input.fromParticipantId, input.toParticipantId] },
+      tripId: input.tripId,
+      isActive: true,
+    },
   });
-  if (people !== 2) throw new Error("Both people must be participants of this trip");
+  if (people !== 2) throw new Error("Both people must be active participants of this trip");
 
   const currency = (input.currency ?? "BDT").toUpperCase();
   const fxRate =

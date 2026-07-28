@@ -99,13 +99,16 @@ async function resolveExpense(input: TripExpenseInput): Promise<Resolved> {
   if (!Number.isFinite(input.amount) || input.amount <= 0)
     throw new Error("amount must be a finite number greater than 0");
   if (Number.isNaN(new Date(input.date).getTime())) throw new Error("date is not a valid date");
+  if (input.description != null && input.description.length > 1000)
+    throw new Error("description must be 1000 characters or fewer");
 
   const payer = await db.tripParticipant.findUnique({
     where: { id: input.payerId },
-    select: { tripId: true, isSelf: true },
+    select: { tripId: true, isSelf: true, isActive: true },
   });
   if (!payer || payer.tripId !== input.tripId)
     throw new Error("Payer is not a participant of this trip");
+  if (!payer.isActive) throw new Error("Payer is no longer an active participant of this trip");
 
   const accountId = input.accountId || null;
   let account: { currency: string; type: string } | null = null;
@@ -132,10 +135,10 @@ async function resolveExpense(input: TripExpenseInput): Promise<Resolved> {
   const shareIds = Array.from(new Set(input.shares.map((s) => s.participantId)));
   if (shareIds.length) {
     const found = await db.tripParticipant.count({
-      where: { id: { in: shareIds }, tripId: input.tripId },
+      where: { id: { in: shareIds }, tripId: input.tripId, isActive: true },
     });
     if (found !== shareIds.length)
-      throw new Error("A share participant does not belong to this trip");
+      throw new Error("A share participant is not an active participant of this trip");
   }
 
   const shareRows = computeShares(input.amount, fxRate, input.splitMode ?? "EQUAL", input.shares);
