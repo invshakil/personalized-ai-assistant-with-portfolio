@@ -19,7 +19,21 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const body = await req.json().catch(() => null);
   if (!body) return Response.json({ error: "Invalid body" }, { status: 400 });
   try {
-    const data = await updateTrip(id, body);
+    // Map accepted fields explicitly — never forward the raw request body.
+    const data = await updateTrip(id, {
+      ...(body.name !== undefined && { name: String(body.name) }),
+      ...(body.destination !== undefined && { destination: String(body.destination) }),
+      ...(body.localCurrency !== undefined && { localCurrency: String(body.localCurrency) }),
+      ...(body.homeCurrency !== undefined && { homeCurrency: String(body.homeCurrency) }),
+      ...(body.startDate !== undefined && { startDate: String(body.startDate) }),
+      ...(body.endDate !== undefined && { endDate: body.endDate ? String(body.endDate) : null }),
+      ...(body.status !== undefined && { status: body.status }),
+      ...(body.localWalletAccountId !== undefined && {
+        localWalletAccountId: body.localWalletAccountId ? String(body.localWalletAccountId) : null,
+      }),
+      ...(body.notes !== undefined && { notes: body.notes ?? null }),
+      ...(body.publicIntro !== undefined && { publicIntro: body.publicIntro ?? null }),
+    });
     return Response.json({ data });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 400 });

@@ -12,6 +12,7 @@ import {
   getTrip,
   listParticipants,
   createParticipant,
+  deleteParticipant,
   setTripBudget,
   createTripExpense,
   updateTripExpense,
@@ -335,6 +336,71 @@ test("trip currency + wallet coherence is enforced", async () => {
         startDate: "2026-08-01",
       }),
     /currency code/
+  );
+});
+
+test("endDate before startDate is rejected", async () => {
+  await assert.rejects(
+    () =>
+      createTrip({
+        name: `${TAG} BadDates`,
+        destination: "X",
+        localCurrency: "BDT",
+        startDate: "2026-08-05",
+        endDate: "2026-08-01",
+      }),
+    /on or after/
+  );
+});
+
+test("a soft-deleted participant cannot be added to new splits", async () => {
+  const t = await createTrip({
+    name: `${TAG} SoftDelete`,
+    destination: "KL",
+    localCurrency: "BDT",
+    startDate: "2026-09-01",
+  });
+  const ps = await listParticipants(t.id);
+  const me = ps.find((p) => p.isSelf)!.id;
+  const dave = (await createParticipant({ tripId: t.id, name: `${TAG} Dave` })).id;
+  // Give Dave split history so removal soft-deletes (stays on the trip, inactive).
+  await createTripExpense({
+    tripId: t.id,
+    category: "FOOD",
+    date: "2026-09-01",
+    payerId: me,
+    accountId: cashId,
+    amount: 100,
+    shares: [{ participantId: me }, { participantId: dave }],
+  });
+  const res = await deleteParticipant(t.id, dave);
+  assert.equal(res.softDeleted, true);
+  // Inactive Dave must not be usable as a payer or a share in a NEW expense.
+  await assert.rejects(
+    () =>
+      createTripExpense({
+        tripId: t.id,
+        category: "FOOD",
+        date: "2026-09-02",
+        payerId: me,
+        accountId: cashId,
+        amount: 50,
+        shares: [{ participantId: me }, { participantId: dave }],
+      }),
+    /active participant/
+  );
+  await assert.rejects(
+    () =>
+      createTripExpense({
+        tripId: t.id,
+        category: "FOOD",
+        date: "2026-09-02",
+        payerId: dave,
+        accountId: cashId,
+        amount: 50,
+        shares: [{ participantId: me }],
+      }),
+    /active participant/
   );
 });
 

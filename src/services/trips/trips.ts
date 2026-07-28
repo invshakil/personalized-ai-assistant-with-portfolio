@@ -14,6 +14,12 @@ function normalizeCurrency(code: string | undefined, field: string): string {
   return c;
 }
 
+/** Reject an over-long free-text value before it reaches the DB / public page. */
+function assertMaxLen(value: string | null | undefined, field: string, max: number): void {
+  if (value != null && value.length > max)
+    throw new Error(`${field} must be ${max} characters or fewer`);
+}
+
 /** A trip's foreign wallet must hold the trip's local currency, or the wallet math is wrong. */
 async function assertWalletCurrency(accountId: string | null | undefined, localCurrency: string) {
   if (!accountId) return;
@@ -90,17 +96,19 @@ function serializeTrip(
 export async function getTrips(): Promise<TripRow[]> {
   const trips = await db.trip.findMany({ orderBy: [{ startDate: "desc" }], include: TRIP_INCLUDE });
   if (!trips.length) return [];
-  // One query for all trips' split-ledger expenses, bucketed in memory — no N+1.
-  const rows = await db.tripExpense.findMany({
+  // One grouped aggregate for all trips' split-ledger actuals — no N+1, no per-row transfer.
+  const grouped = await db.tripExpense.groupBy({
+    by: ["tripId"],
     where: { tripId: { in: trips.map((t) => t.id) } },
-    select: { tripId: true, amountBdt: true },
+    _sum: { amountBdt: true },
+    _count: { _all: true },
   });
   const actuals = new Map<string, { totalActualBdt: number; expenseCount: number }>();
-  for (const r of rows) {
-    const acc = actuals.get(r.tripId) ?? { totalActualBdt: 0, expenseCount: 0 };
-    acc.totalActualBdt += toNum(r.amountBdt);
-    acc.expenseCount += 1;
-    actuals.set(r.tripId, acc);
+  for (const g of grouped) {
+    actuals.set(g.tripId, {
+      totalActualBdt: toNum(g._sum.amountBdt),
+      expenseCount: g._count._all,
+    });
   }
   return trips.map((t) => {
     const a = actuals.get(t.id) ?? { totalActualBdt: 0, expenseCount: 0 };
@@ -133,10 +141,15 @@ export async function createTrip(input: CreateTripInput): Promise<TripRow> {
   if (!input.name?.trim()) throw new Error("name is required");
   if (!input.destination?.trim()) throw new Error("destination is required");
   if (!input.startDate) throw new Error("startDate is required");
+  assertMaxLen(input.name, "name", 200);
+  assertMaxLen(input.destination, "destination", 200);
+  assertMaxLen(input.notes, "notes", 5000);
+  assertMaxLen(input.publicIntro, "publicIntro", 10000);
   const startDate = new Date(input.startDate);
   if (Number.isNaN(startDate.getTime())) throw new Error("startDate is not a valid date");
   const endDate = input.endDate ? new Date(input.endDate) : null;
   if (endDate && Number.isNaN(endDate.getTime())) throw new Error("endDate is not a valid date");
+  if (endDate && endDate < startDate) throw new Error("endDate must be on or after startDate");
   const localCurrency = normalizeCurrency(input.localCurrency, "localCurrency");
   const homeCurrency = normalizeCurrency(input.homeCurrency || "BDT", "homeCurrency");
   await assertWalletCurrency(input.localWalletAccountId, localCurrency);
@@ -180,12 +193,29 @@ export interface UpdateTripInput {
 export async function updateTrip(id: string, input: UpdateTripInput): Promise<TripRow> {
   if (input.localCurrency !== undefined) normalizeCurrency(input.localCurrency, "localCurrency");
   if (input.homeCurrency !== undefined) normalizeCurrency(input.homeCurrency, "homeCurrency");
+  assertMaxLen(input.name, "name", 200);
+  assertMaxLen(input.destination, "destination", 200);
+  assertMaxLen(input.notes, "notes", 5000);
+  assertMaxLen(input.publicIntro, "publicIntro", 10000);
   const startDate = input.startDate ? new Date(input.startDate) : undefined;
   if (startDate && Number.isNaN(startDate.getTime()))
     throw new Error("startDate is not a valid date");
   const endDate =
     input.endDate !== undefined ? (input.endDate ? new Date(input.endDate) : null) : undefined;
   if (endDate && Number.isNaN(endDate.getTime())) throw new Error("endDate is not a valid date");
+
+  // Reject an end-before-start ordering against the effective (new or existing) dates.
+  if (startDate !== undefined || endDate !== undefined) {
+    const existing = await db.trip.findUnique({
+      where: { id },
+      select: { startDate: true, endDate: true },
+    });
+    if (!existing) throw new Error("Trip not found");
+    const effectiveStart = startDate ?? existing.startDate;
+    const effectiveEnd = endDate !== undefined ? endDate : existing.endDate;
+    if (effectiveEnd && effectiveEnd < effectiveStart)
+      throw new Error("endDate must be on or after startDate");
+  }
 
   // Keep wallet ↔ localCurrency coherent whenever either is touched.
   if (input.localCurrency !== undefined || input.localWalletAccountId !== undefined) {

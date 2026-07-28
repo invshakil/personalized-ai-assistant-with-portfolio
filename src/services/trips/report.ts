@@ -33,17 +33,25 @@ async function computeWallet(
   // Fundings = cross-currency TRANSFERs into the wallet for this trip.
   const fundings = await db.moneyEntry.findMany({
     where: { tripId, direction: "TRANSFER", transferAccountId: accountId },
-    select: { amount: true, toAmount: true, currency: true },
+    select: { amount: true, toAmount: true, currency: true, fxRate: true },
   });
-  const sourceCurrencies = Array.from(new Set(fundings.map((f) => f.currency)));
-  const rates = await getLatestRatesToBdt(sourceCurrencies);
+  // Only need a live rate to fill in legacy rows that never stored a per-row fxRate.
+  const missingRateCurrencies = Array.from(
+    new Set(fundings.filter((f) => f.currency !== "BDT" && f.fxRate == null).map((f) => f.currency))
+  );
+  const rates = missingRateCurrencies.length
+    ? await getLatestRatesToBdt(missingRateCurrencies)
+    : new Map<string, { rate: number; asOf: string | null }>();
 
   let fundedLocal = 0;
   let fundedBdt = 0;
   for (const f of fundings) {
     fundedLocal += toNum(f.toAmount);
     const amt = toNum(f.amount);
-    fundedBdt += f.currency === "BDT" ? amt : amt * (rates.get(f.currency)?.rate ?? 0);
+    // Prefer the rate stored on the transaction (canonical); fall back to the live
+    // rate only for legacy rows with no stored fxRate.
+    const rate = f.currency === "BDT" ? 1 : toNum(f.fxRate) || rates.get(f.currency)?.rate || 0;
+    fundedBdt += amt * rate;
   }
 
   // Local spent from the wallet = self-paid trip expenses whose funding account is the wallet.

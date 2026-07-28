@@ -53,6 +53,9 @@ export async function createParticipant(
   input: CreateParticipantInput
 ): Promise<TripParticipantRow> {
   if (!input.name?.trim()) throw new Error("name is required");
+  if (input.name.length > 200) throw new Error("name must be 200 characters or fewer");
+  if (input.note != null && input.note.length > 2000)
+    throw new Error("note must be 2000 characters or fewer");
   await assertBeneficiary(input.beneficiaryId);
   const selfCount = await db.tripParticipant.count({
     where: { tripId: input.tripId, isSelf: true },
@@ -89,6 +92,10 @@ export async function updateParticipant(
   if (!current || current.tripId !== tripId) throw new Error("Participant not found for this trip");
   if (input.beneficiaryId !== undefined) await assertBeneficiary(input.beneficiaryId);
   if (input.name !== undefined && !input.name.trim()) throw new Error("name is required");
+  if (input.name != null && input.name.length > 200)
+    throw new Error("name must be 200 characters or fewer");
+  if (input.note != null && input.note.length > 2000)
+    throw new Error("note must be 2000 characters or fewer");
   const p = await db.tripParticipant.update({
     where: { id },
     data: {
