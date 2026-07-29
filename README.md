@@ -17,6 +17,9 @@ The public side is a marketing/portfolio page. The private side is a full operat
 - **AI assistant with tool use** — chat over your real data. The model calls read tools to answer questions and proposes write actions (create/update) that you approve with a button before anything is saved. Vendor-neutral provider seam (Claude today; OpenAI/Gemini are drop-in adapter slots), encrypted API keys, prompt caching, and `/property` · `/finance` · `/money`.`/solar` slash commands to scope the toolset.
 - **Financial tracker** — client income, employee salaries, business expenses, and recurring subscriptions, with fiscal-year (Jul→June) reporting in BDT (৳).
 - **Property management** — rental units, tenants, monthly rent rows, payments, property expenses, add-on services, scheduled rent changes, and PDF rent receipts.
+- **Money Manager** — a single personal ledger (income / expense / transfers) with derived account balances, credit cards, people & loans, reversible CSV import, and multi-currency (foreign accounts valued back to BDT).
+- **Trip Expense Manager** — plan, track, **split** and share group-trip spending: per-person shares, greedy "who owes whom" settle-up, a foreign trip wallet, and a public, aggregate-safe cost guide at `/trips/<slug>`.
+- **Booking** — a self-hosted consultation scheduler on the portfolio home page: visitors pick a slot, the app creates a Google Calendar event with a Meet link and emails invites. Cloudflare Turnstile + honeypot + per-IP rate limiting; slot math and Google integration are in-repo (no Calendly).
 - **Solar monitoring** — read-only SolisCloud telemetry synced on a schedule into local readings. Reports use a text-first layout (stacked source-split bar, inline self-sufficiency meters, range presets 1M/3M/6M/12M/All) covering generation, consumption split by solar/battery/grid, electricity-cost savings under effective-dated BPDB slab tariffs, a payback/ROI tracker, CO₂ avoided, and a 7-day weather + predicted-generation forecast at the bottom. The inverter is never controlled — read-only by design.
 - **Reports & dashboard** — month/fiscal-year overviews with charts.
 - **Database backups** — one-click `pg_dump`, optional upload to your Google Drive, scheduled retention.
@@ -31,7 +34,7 @@ The public side is a marketing/portfolio page. The private side is a full operat
 | Framework    | **Next.js 16** (App Router, TypeScript strict, `src/`)      |
 | UI (public)  | **Tailwind CSS v4** + SCSS                                  |
 | UI (admin)   | **Material UI v9** + Emotion                                |
-| Database     | **PostgreSQL** via **Prisma** (41 models)                   |
+| Database     | **PostgreSQL** via **Prisma** (58 models)                   |
 | Auth         | **NextAuth v5** (credentials provider, JWT sessions)        |
 | AI           | **Anthropic SDK** behind a vendor-neutral `AiProvider` seam |
 | PDF / charts | `@react-pdf/renderer`, `recharts`                           |
@@ -86,11 +89,14 @@ src/
 ├── app/
 │   ├── (portfolio)/          Public portfolio pages (Tailwind)
 │   ├── (admin)/              Auth-gated dashboard (MUI, themed via AdminShell)
-│   │   └── admin/            account · ai-assistant · finance · property · renovation · reports · settings
+│   │   └── admin/            account · ai-assistant · finance · property · money · trips · bookings · renovation · reports · settings
 │   ├── admin/login/          Login page (outside the admin group — no sidebar)
-│   └── api/admin/            API route handlers (thin — delegate to services/)
-├── services/<domain>/        Server business logic + Prisma (finance, property, admin, ai, solar, solis)
-│   ├── ai/                   Provider seam, tool catalog, read/write tools, sessions, usage
+│   ├── api/admin/            Admin API route handlers (thin — delegate to services/)
+│   └── api/booking/          PUBLIC booking routes (config · slots · create · cancel — no auth)
+├── services/<domain>/        Server business logic + Prisma (finance, property, money, trips, booking, admin, ai, solar, solis)
+│   ├── ai/                   Provider seam, tool catalog, read/write tools (writeTools/), sessions, usage
+│   ├── trips/                Group-trip split ledger, settlements, who-owes-whom, public summary
+│   ├── booking/              Availability/slot math + Google Calendar OAuth + booking lifecycle
 │   ├── solis/                SolisCloud signed client (read-only) + sync + scheduler
 │   └── solar/                Tariff math (slab), report aggregation, payback, weather
 ├── lib/
@@ -143,9 +149,12 @@ See [docs/AI_TOOLS_REFERENCE.md](docs/AI_TOOLS_REFERENCE.md) for the full tool l
 | `npm run seed`            | Seed admin user + base data                   |
 | `npm run seed:financial`  | Seed financial sample data                    |
 | `npm run seed:solar`      | Seed solar system details + BPDB tariffs      |
+| `npm run seed:money`      | Seed Money Manager sample data                |
 | `npm run db:restore`      | Restore a `pg_dump` backup                    |
 | `npm run solis:test`      | Test the SolisCloud connection + print fields |
 | `npm run test`            | Run unit tests (node:test via tsx)            |
+| `npm run test:money`      | Money Manager service tests (needs a dev DB)  |
+| `npm run test:booking`    | Booking service tests (needs a dev DB)        |
 
 ---
 
@@ -154,12 +163,14 @@ See [docs/AI_TOOLS_REFERENCE.md](docs/AI_TOOLS_REFERENCE.md) for the full tool l
 Deeper docs live in [`docs/`](docs/):
 
 - [PROJECT_PLANNING.md](docs/PROJECT_PLANNING.md) — architecture, implementation status, decisions (read this first when contributing)
+- [PROJECT_STATUS_REPORT.md](docs/PROJECT_STATUS_REPORT.md) — current-state snapshot: what's built, what's open, doc↔code health
 - [SERVICE_LAYER.md](docs/SERVICE_LAYER.md) — service-layer conventions and data access
 - [AI_TOOLS_REFERENCE.md](docs/AI_TOOLS_REFERENCE.md) — AI tool catalog & tool-selection strategy
 - [FINANCIAL_TRACKER.md](docs/FINANCIAL_TRACKER.md) — finance module domain model
+- [TRIP_MANAGEMENT_AUDIT.md](docs/TRIP_MANAGEMENT_AUDIT.md) — Trip module security/optimization/standards audit
 - [AI_ENGINEERING_LEARNING_PROGRESS.md](docs/AI_ENGINEERING_LEARNING_PROGRESS.md) — AI-engineering learning notes
 
-For agent/contributor instructions and the full coding standards, see [`CLAUDE.md`](CLAUDE.md) and [`AGENTS.md`](AGENTS.md).
+For agent/contributor instructions and the full coding standards, see [`CLAUDE.md`](CLAUDE.md), [`AGENTS.md`](AGENTS.md), and [`CODING_CONVENTION.md`](CODING_CONVENTION.md).
 
 ---
 

@@ -229,6 +229,31 @@ get_combined_income_summary: async (i) => {
 business and property figures cover the identical window despite their different native grains —
 business by ledger `date`, property by `month`/`year`.)
 
+### Money Manager — `@/services/money` (`/money` scope)
+
+Personal/household finance (distinct from the business Financial Tracker and the property finance).
+All amounts BDT-canonical; foreign account balances are also returned converted at the latest rate.
+
+| Tool                             | Function                              | Params                                                                                             | Returns                                                                                                                        |
+| -------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `get_money_overview`             | `getMoneyOverview(range?)`            | range                                                                                              | Income, expenses, savings + rate, expense-by-category, balances, cash position, card debt, who-owes, read-only venture context |
+| `get_monthly_savings`            | `getMonthlySavings(range?)`           | range                                                                                              | Month-by-month personal savings (income − expenses)                                                                            |
+| `get_personal_expense_breakdown` | `getPersonalExpenseBreakdown(range?)` | range                                                                                              | Personal/household expenses by category + total                                                                                |
+| `get_account_balances`           | `listAccountsWithBalances()`          | —                                                                                                  | Every account's balance (native `currency` + `balanceBdt`), plus `cashPositionBdt` / `cardDebtBdt`                             |
+| `get_people_balances`            | `getPeopleBalances()`                 | —                                                                                                  | Total you owe / are owed + per-person outstanding & lifetime paid                                                              |
+| `list_money_entries`             | `getEntries(opts)`                    | range + `direction?`, `categoryNames[]?`, `accountNames[]?`, `q?`, `sortBy?`, `sortDir?`, `limit?` | Personal ledger rows (income/expense/transfer), name-resolved category/account filters                                         |
+
+### Trip Expense Manager — `@/services/trips` (tagged `domain: "money"`, so `/money` scope)
+
+Group trip tracking: planned-vs-actual, group cost vs paid-by-me, per-person balances, who-owes-whom,
+and the foreign trip-wallet. Read-only in the assistant — **no trip write tools** (edit from the UI).
+
+| Tool                     | Function                      | Params   | Returns                                                                                                                                                                            |
+| ------------------------ | ----------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `list_trips`             | `getTrips()`                  | —        | Trips with derived totals: name, destination, local currency, dates, status, planned budget (BDT), spent (BDT), id                                                                 |
+| `get_trip_report`        | `getTripReport(tripId)`       | `tripId` | Planned-vs-actual per category; group cost (all payers) + `paidByMeBdt`; personal cash-flow split; by-currency; per-day; wallet; per-person paid/spent/net + minimal who-owes-whom |
+| `list_trip_participants` | `getTripParticipants(tripId)` | `tripId` | People on the trip: name, `isSelf`, linked Beneficiary, active status                                                                                                              |
+
 > **Good "AI question" examples these answer:** "What was my net profit last fiscal year?",
 > "How much have I paid Jane in total?", "Which tenants are overdue this month?",
 > "What's my monthly subscription run-rate?", "List income from Acme Corp this year."
@@ -240,7 +265,8 @@ business by ledger `date`, property by `month`/`year`.)
 > **Status (2026-06-18): live.** Create + update tools are exposed to the assistant behind an
 > **enforced UI approval gate**. The model can _propose_ a write but **cannot commit it** — the user
 > must click **Approve** on a card. Deletes/deactivations are intentionally **not** exposed (do them
-> from the dashboard UI). Source: [`src/services/ai/writeTools.ts`](src/services/ai/writeTools.ts).
+> from the dashboard UI). Source: [`src/services/ai/writeTools/`](src/services/ai/writeTools/) (one
+> file per domain, merged in `index.ts`).
 
 ### How it works (two phases, model out of the loop at commit time)
 
@@ -265,7 +291,7 @@ and re-runs the service-layer validation (model input stays untrusted end-to-end
 
 | Piece           | Location                                                             | Role                                                                                                                |
 | --------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
-| Registry        | `src/services/ai/writeTools.ts`                                      | `WRITE_TOOLS` — each tool's schema + `preview()` + `commit()`; one `write()` factory shares a `parse()` across both |
+| Registry        | `src/services/ai/writeTools/` (per-domain files)                     | `WRITE_TOOLS` — each tool's schema + `preview()` + `commit()`; one `write()` factory shares a `parse()` across both |
 | Catalog merge   | `src/services/ai/tools.ts`                                           | `AI_TOOLS = read tools (kind:"read") + writeToolDefs`; `runAiTool` routes write names to `previewWrite`             |
 | Stream event    | `src/services/ai/types.ts`                                           | `AiToolDef.kind`, `PendingAction`, `StreamEvent: pending_action`, `CommitResult`                                    |
 | Adapter         | `src/services/ai/adapters/anthropic.ts`                              | emits `pending_action` for write tools; feeds back an `awaiting_user_approval` tool_result                          |
@@ -296,6 +322,12 @@ outstanding drops) · `create_money_account` · `create_person` · `create_perso
 (a loan or running due, e.g. a shop credit tab) · `increase_person_loan` (grow that running balance
 for a new credit purchase / further lending — no cash moves). Accounts and people are resolved by
 name. Note: unlike Property/Finance, `delete_money_entry` **is** exposed.
+
+**Solar** (`@/services/solar`) — `sync_solar_data` (pull latest SolisCloud telemetry into local
+readings), `update_solar_settings` (system size / install cost / location / CO₂ factor), and
+`add_electricity_tariff` (a new effective-dated BPDB slab tariff version). **None control the
+inverter** — SolisCloud is read-only; `sync_solar_data` reads from Solis and writes only local rows,
+still behind the same approval card.
 
 ### NOT exposed (use the dashboard UI)
 
@@ -346,7 +378,7 @@ The services still exist — they're simply not wired as tools.
   the turn. The chat route (`src/app/api/admin/ai/route.ts`) resolves the active provider via
   `getActiveProvider()` and streams text deltas. The read tools wired today are listed in
   PROJECT_PLANNING → AI Assistant. **Write/action tools (§4) are now wired** behind an enforced
-  propose→approve→commit gate (`writeTools.ts` + `/ai/actions/execute`): the model proposes, the user
+  propose→approve→commit gate (`writeTools/` + `/ai/actions/execute`): the model proposes, the user
   approves a card, and only then does the service run. Deletes remain UI-only.
 
 ---
@@ -445,24 +477,33 @@ ten 50-tool modules is fine under manual scoping; a single 500-tool module is no
 
 ### How manual scope works (tier 2 — implemented)
 
-- Every tool carries a `domain: "property" | "finance" | "shared"` (`AiToolDef.domain`). Read tools are
-  tagged in `tools.ts`; write tools in `writeTools.ts`.
+- Every tool carries a `domain: "property" | "finance" | "money" | "solar" | "shared"`
+  (`AiToolDef.domain`). Read tools are tagged in `tools.ts`; write tools in `writeTools/` (one file per
+  domain: `finance.ts`, `money.ts`, `property.ts`, `solar.ts`). Trip read tools are tagged `money`, so
+  they load under the `/money` scope (there is no separate `/trips` scope).
 - `getToolsForScope(scope)` (`tools.ts`) returns `domain === scope || domain === "shared"`; `"all"`
   returns the full catalog. **Shared (cross-domain) tools load in every scope** so questions like
   "how am I doing overall" still work.
-- The chat UI parses a leading `/property`, `/finance`, or `/money` from the message, sends `scope` to the chat
-  route, and strips the command so the model only sees intent. Unknown/absent scope → `"all"` (never
-  loses capability).
+- The chat UI parses a leading `/property`, `/finance`, `/money`, or `/solar` from the message, sends
+  `scope` to the chat route, and strips the command so the model only sees intent. Unknown/absent scope →
+  `"all"` (never loses capability).
 - Each scope is a **stable prefix**, so the 1h tool prompt-cache stores one entry per scope and reuses
   it across all chats in that scope.
 
-**Current footprint** (66 tools total):
+**Current footprint** (98 tools total — 48 read + 50 write; recount with
+`grep -c 'name: "' src/services/ai/tools.ts` for read and per-file in `writeTools/` for write).
+`vs full` is the reduction in tool count vs the `all` catalog:
 
-| Scope           | Tools | ~Schema tokens | vs full |
-| --------------- | ----- | -------------- | ------- |
-| `all` (default) | 66    | ~9,130         | —       |
-| `/property`     | 37    | ~5,220         | −43%    |
-| `/finance`      | 30    | ~4,140         | −55%    |
+| Scope           | Tools | vs full |
+| --------------- | ----- | ------- |
+| `all` (default) | 98    | —       |
+| `/property`     | 40    | −59%    |
+| `/finance`      | 33    | −66%    |
+| `/money`        | 19    | −81%    |
+| `/solar`        | 9     | −91%    |
+
+(`/money` includes the 3 Trip read tools + 9 Money write tools; every scope also gets the 1 `shared`
+tool.)
 
 ### The switch-mode alert (parameters to watch)
 
@@ -475,7 +516,7 @@ to graduate to retrieval isn't missed:
 | `warn`    | 80 tools/scope  | Manual scoping is **approaching its limit** — start planning tier 3 (retrieval).     |
 | `migrate` | 120 tools/scope | Manual scoping is **past its limit** (accuracy/cost degrade) — migrate to retrieval. |
 
-Today the largest scope is 37 (`/property`), so the alert is silent. When you keep adding write tools
+Today the largest scope is 40 (`/property`), so the alert is silent. When you keep adding write tools
 and a single module's count climbs past 80, the build log will start nagging. Tune the numbers in one
 place (`TOOL_SCOPE_LIMITS`) — keep this table in sync.
 

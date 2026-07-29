@@ -168,7 +168,7 @@ src/store/
 - Layouts: `layout.tsx` (Next.js convention)
 - API routes: `route.ts` (Next.js convention)
 - Lib utilities: `camelCase.ts` — e.g. `auth.ts`, `db.ts`, `adminTheme.ts`
-- Types: `PascalCase` interfaces/types in `src/types/` per-module files (`property.ts`, `finance.ts`, `admin.ts`, `portfolio.ts`), re-exported via the `index.ts` barrel — always import from `@/types`
+- Types: `PascalCase` interfaces/types in `src/types/` per-module files (`property.ts`, `finance.ts`, `money.ts`, `trip.ts`, `fx.ts`, `solar.ts`, `booking.ts`, `admin.ts`, `portfolio.ts`), re-exported via the `index.ts` barrel — always import from `@/types`
 
 ## List page filter standard
 
@@ -180,7 +180,7 @@ Every admin list/table page (Ledger, Payments, Earnings, Expenses, etc.) gets th
 4. **Sortable table columns** (date, amount, category, etc.) use server-side sort params (`sortBy`/`sortDir`) over client sort, so sorting composes with API filtering.
 5. **Period dropdown stays as a shortcut, but always pair it with a real date-range picker** (`from`/`to`) so historical data outside the shortcut presets is reachable. Shared range plumbing: `resolveRange`/`dateColumnWhere` in `src/services/_shared/dateRange.ts`; API routes read `period`/`from`/`to`.
 6. **Keep the matching AI read tool in lockstep** — add new filter/search params to the tool's JSON schema in `src/services/ai/tools.ts` AND refresh its `description` so the model knows the capability exists (e.g. a `categoryId` filter or description search added to a list page must also land on the corresponding `list_*` tool).
-7. **Every dropdown must be searchable (type-to-filter).** Use the shared `src/components/admin/SearchableSelect.tsx` (MUI `Autocomplete` wrapper) instead of raw `<Select>/<MenuItem>` — for filters AND drawer/form selects. Include any "All …" / "— none —" sentinel as an explicit option.
+7. **Every dropdown must be searchable (type-to-filter).** Use the shared `src/components/admin/SearchableSelect.tsx` (MUI `Autocomplete` wrapper) instead of raw `<Select>/<MenuItem>` — for filters AND drawer/form selects. Include any "All …" / "— none —" sentinel as an explicit option. **Currency pickers** are a special case: use `src/components/admin/CurrencySelect.tsx` / `CurrencyMultiSelect.tsx`, fed by the live FX-sourced `useCurrencyOptions` hook (`GET /api/admin/currencies`) — never a hardcoded currency list. Add a new currency to `SUPPORTED_CURRENCIES` in `src/types/fx.ts`.
 
 **Why:** keeps every list page deep-linkable, server-filtered, and fully exposed to the AI assistant — not just visually filtered.
 
@@ -204,3 +204,33 @@ Lessons from decomposing the Property, Finance, and Money modules into the orche
 - **Don't thread a value from a sibling hook as a construction-time argument.** If hook A needs data that only exists inside hook B's state, and hook B needs a value hook A produces, that's a circular hook-construction dependency. Pass the value at _call time_ to the specific handler that needs it instead, or compute the derived value in the orchestrator with `useMemo`.
 - **When two hooks fetch the same resource**, keep the one that's actually wired to refresh after mutations (e.g. via a `reloadAll`), and delete the other "just get me X once" convenience hook — silently picking the never-refreshing one is an easy mistake during decomposition.
 - **Dispatch one background agent per file/directory** when decomposing several oversized pages at once (safe in parallel since each touches a different path), and point each at the closest already-refactored sibling module as a concrete reference — not just a description of the rules.
+
+## Shared hooks & components — what belongs in `src/hooks/` and `src/components/admin/`
+
+The decomposition rules say **feature-specific** hooks/components co-locate next to the feature page.
+The flip side: `src/hooks/` and `src/components/admin/` are for pieces **genuinely reused across ≥2
+features**. Current shared hooks: `useConfirmDialog` (themed delete confirm), `useCurrencyOptions` (live
+FX currency list), `useMoneyAccounts` (account picker data), `useSpeechRecognition` (voice input for the
+AI assistant). Shared admin components include `SearchableSelect`, `CurrencySelect`/`CurrencyMultiSelect`,
+`EntityLink`, `ConfirmDialog`, `PendingActionCard`, `PageHeader`. Before adding to either global folder,
+confirm a second real consumer exists — otherwise co-locate it with the one feature that uses it.
+
+## Public (unauthenticated) surfaces
+
+Some features expose a **public** surface with no session (the Booking form + `/api/booking/*`, and the
+public Trip page `/trips/<slug>` + `getPublicTripSummary`). These carry a different risk profile — apply
+all of the below:
+
+- **Never leak private data.** A public serializer is a strict **whitelist** of aggregate/non-identifying
+  fields (e.g. `getPublicTripSummary` returns per-category/day totals but never participant names,
+  per-person spend, or account fields). Add a test asserting private fields do not appear in the output.
+- **Validate and cap hard in the service**, not the route or the client — every field length-capped,
+  every id re-checked for ownership/scope, currency codes validated against the supported list.
+- **Rate-limit + bot-guard public POSTs** — per-IP limits, a honeypot field, and a captcha
+  (Cloudflare Turnstile) on any form that creates data. The server verifies the captcha; the client key
+  is public.
+- **ISR any public page that can trigger an outbound fetch or DB write** (e.g. a live FX lookup) so
+  anonymous traffic is served from cache — `export const revalidate = <seconds>` — never fetch-live per
+  anonymous request.
+- **Portfolio-surface UI stays Tailwind**, even for booking/trip pages — the admin/portfolio styling split
+  still holds; public pages live under `src/app/(portfolio)/` or `src/components/portfolio/`.

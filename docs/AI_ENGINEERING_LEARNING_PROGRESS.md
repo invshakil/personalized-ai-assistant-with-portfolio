@@ -14,7 +14,7 @@
 - **Built:** a read-only AI assistant → then **write tools** (create/update) with an **enforced
   approval gate** → then **prompt caching** → then **module-scoped tool selection** (`/property`,
   `/finance`).
-- **Tier of tool selection:** **Tier 2 — manual scope** (see §5). Largest scope today = 37 tools.
+- **Tier of tool selection:** **Tier 2 — manual scope** (see §5). Largest scope today = 40 tools (`/property`); 98 total.
 - **Model:** moved from Haiku 4.5 → **Sonnet 4.6** for analytical accuracy.
 - **Comfortable with:** the tool-use loop, propose→approve→commit, prompt-cache economics, why tool
   count matters, and the feed-all vs selector trade-off.
@@ -91,7 +91,7 @@ Key things I learned:
 - I deliberately exposed **create + update only** — no deletes/deactivations through the AI (those stay
   in the dashboard UI).
 
-**In my code:** `src/services/ai/writeTools.ts` (registry: schema + preview + commit per tool),
+**In my code:** `src/services/ai/writeTools/` (registry: schema + preview + commit per tool, one file per domain),
 `src/app/api/admin/ai/actions/execute/route.ts` (commit endpoint), `PendingActionCard.tsx` (the card).
 
 ---
@@ -136,7 +136,7 @@ messages`; my breakpoint is on tools, so outputs (which live in `messages`, afte
 
 ## 5. Tool selection at scale — feed-all vs selector
 
-**The insight that reframed everything:** it's not about my 66 tools today — at **thousands** of tools,
+**The insight that reframed everything:** it's not about my 98 tools today — at **thousands** of tools,
 three things break: **cost** (linear), **context window** (schemas eat the budget / don't fit), and —
 biggest — **accuracy** (models mis-pick as the menu grows). Caching makes tokens _cheaper_ but not
 _fewer_, so it doesn't fix context or accuracy.
@@ -216,7 +216,7 @@ Tier 3 only swaps the _selector_; `runAiTool`, the approval flow, and caching st
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | Tool-use loop, prompt caching                             | `src/services/ai/adapters/anthropic.ts`                                                                |
 | Read catalog, scope filter, thresholds                    | `src/services/ai/tools.ts`                                                                             |
-| Write tools (preview/commit)                              | `src/services/ai/writeTools.ts`                                                                        |
+| Write tools (preview/commit)                              | `src/services/ai/writeTools/` (one file per domain)                                                    |
 | Shared types (`AiToolDef`, `StreamEvent`, `ToolScope`, …) | `src/services/ai/types.ts`                                                                             |
 | Chat route (stream, scope, budget)                        | `src/app/api/admin/ai/route.ts`                                                                        |
 | Commit endpoint                                           | `src/app/api/admin/ai/actions/execute/route.ts`                                                        |
