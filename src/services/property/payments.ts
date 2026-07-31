@@ -38,6 +38,7 @@ export async function getPayments(opts: GetPaymentsOptions) {
           id: true,
           tenantCode: true,
           name: true,
+          phone: true,
           advanceAmount: true,
           services: {
             where: { isActive: true },
@@ -75,6 +76,7 @@ export async function getPayments(opts: GetPaymentsOptions) {
     tenantId: p.tenantId,
     tenantName: p.tenant.name,
     tenantCode: p.tenant.tenantCode,
+    tenantPhone: p.tenant.phone,
     advanceBalance: toNum(p.tenant.advanceAmount),
     services: p.tenant.services.map((s) => ({
       name: s.service.name,

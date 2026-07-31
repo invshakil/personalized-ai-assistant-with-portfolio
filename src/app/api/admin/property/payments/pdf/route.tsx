@@ -43,16 +43,18 @@ export async function GET(req: NextRequest) {
       generatedAt={pdfDate(new Date().toISOString())}
       subtitle={period}
       columns={[
-        { label: "Tenant", flex: 1.7 },
-        { label: "Unit", flex: 1.1 },
-        { label: "Period", flex: 1.4 },
+        { label: "Tenant", flex: 1.6 },
+        { label: "Phone", flex: 1.4 },
+        { label: "Unit", flex: 0.9 },
+        { label: "Period", flex: 1.3 },
         { label: "Due", flex: 1.1, align: "right" },
         { label: "Paid", flex: 1.1, align: "right" },
         { label: "Balance", flex: 1.1, align: "right" },
-        { label: "Status", flex: 1, align: "right" },
+        { label: "Status", flex: 0.9, align: "right" },
       ]}
       rows={rows.map((r) => [
         r.tenantName,
+        r.tenantPhone || "—",
         r.unitNumber ?? "—",
         `${MONTHS[r.month - 1]} ${r.year}`,
         pdfMoney(r.rentDue),

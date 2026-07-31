@@ -114,6 +114,7 @@ export interface PaymentWithTenant {
   tenantId: string;
   tenantName: string;
   tenantCode: string | null;
+  tenantPhone: string | null;
   unitId: string | null;
   unitNumber: string | null;
   month: number;
