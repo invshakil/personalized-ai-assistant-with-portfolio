@@ -215,6 +215,30 @@ export interface PublicTripCategory {
   label: string;
   bdt: number;
   local: number; // valued in localCurrency at the live rate
+  share: number; // percentage of the trip total, 0–100
+  plannedBdt: number | null; // budgeted for this category, when the trip has budgets
+}
+
+/** One calendar day of the trip. Zero-filled across the whole range so the public
+ *  daily chart shows quiet days rather than silently closing the gap. */
+export interface PublicTripDay {
+  date: string; // yyyy-mm-dd
+  bdt: number;
+  local: number;
+}
+
+/** Derived headline numbers for the public cost guide. Aggregate-only — nothing
+ *  here is traceable to a participant, an account, or a single expense. */
+export interface PublicTripInsights {
+  expenseCount: number;
+  activeDays: number; // days that carried at least one expense
+  avgPerDayBdt: number | null; // total ÷ trip duration
+  avgPerActiveDayBdt: number | null; // total ÷ days with spend
+  busiestDay: PublicTripDay | null;
+  quietestDay: PublicTripDay | null; // cheapest day that still had spend
+  topCategory: PublicTripCategory | null;
+  fxRate: number; // effective BDT per 1 unit of localCurrency actually paid, blended across the trip
+  totalPlannedBdt: number | null; // sum of category budgets, when set
 }
 
 export interface PublicTripSummary {
@@ -229,5 +253,6 @@ export interface PublicTripSummary {
   totalBdt: number;
   totalLocal: number;
   byCategory: PublicTripCategory[];
-  byDay: TripDaySpend[];
+  byDay: PublicTripDay[];
+  insights: PublicTripInsights;
 }

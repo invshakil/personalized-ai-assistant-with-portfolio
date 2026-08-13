@@ -311,6 +311,32 @@ test("publish exposes an aggregate-safe summary; no participant/debt leak", asyn
   assert.equal(json.includes("Carol"), false, "no participant names leak");
   assert.equal(json.includes("Wallet"), false, "no account names leak");
 
+  // Report fields backing the public cost guide are aggregate-only and coherent.
+  const shares = summary!.byCategory.reduce((s, c) => s + c.share, 0);
+  assert.ok(Math.abs(shares - 100) < 0.5, `category shares total ~100 (got ${shares})`);
+  assert.deepEqual(
+    summary!.byCategory.map((c) => c.bdt),
+    [...summary!.byCategory.map((c) => c.bdt)].sort((a, b) => b - a),
+    "categories are ordered largest first"
+  );
+  // byDay is zero-filled across the trip window, so it spans a contiguous range.
+  assert.ok(summary!.byDay.length > 0, "daily series present");
+  assert.equal(
+    summary!.byDay.every((d, idx) => idx === 0 || d.date > summary!.byDay[idx - 1].date),
+    true,
+    "daily series is sorted and de-duplicated"
+  );
+  const dayTotal = summary!.byDay.reduce((s, d) => s + d.bdt, 0);
+  assert.ok(
+    Math.abs(dayTotal - summary!.totalBdt) < 0.01,
+    `daily series reconciles to the trip total (${dayTotal} vs ${summary!.totalBdt})`
+  );
+  const ins = summary!.insights;
+  assert.equal(ins.activeDays, summary!.byDay.filter((d) => d.bdt > 0).length);
+  assert.ok(ins.busiestDay && ins.quietestDay, "peak/lean days derived");
+  assert.ok(ins.busiestDay!.bdt >= ins.quietestDay!.bdt);
+  assert.equal(ins.topCategory?.bdt, summary!.byCategory[0].bdt, "top category is the largest");
+
   await unpublishTrip(tripId);
   assert.equal(await getPublicTripSummary(slug), null);
 });
