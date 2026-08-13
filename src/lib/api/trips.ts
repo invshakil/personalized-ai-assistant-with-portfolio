@@ -89,7 +89,8 @@ export const tripsApi = {
     apiPut<TripParticipantRow>(`/trips/${id}/participants/${pid}`, body),
   deleteParticipant: (id: string, pid: string) => apiDelete(`/trips/${id}/participants/${pid}`),
 
-  listExpenses: (id: string) => apiGet<TripExpenseRow[]>(`/trips/${id}/expenses`),
+  listExpenses: (id: string, params?: { category?: string; payerId?: string; q?: string }) =>
+    apiGet<TripExpenseRow[]>(`/trips/${id}/expenses`, { params }),
   createExpense: (id: string, body: TripExpensePayload) =>
     apiPost<TripExpenseRow>(`/trips/${id}/expenses`, body),
   updateExpense: (id: string, expenseId: string, body: TripExpensePayload) =>

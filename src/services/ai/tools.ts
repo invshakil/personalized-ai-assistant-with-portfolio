@@ -56,7 +56,8 @@ import {
   getSolarWeather,
   listTariffs as listElectricityTariffs,
 } from "@/services/solar";
-import { getTrips, getTripReport, listParticipants } from "@/services/trips";
+import { getTrips, getTripReport, listParticipants, listTripExpenses } from "@/services/trips";
+import { TRIP_CATEGORIES, type TripCategory } from "@/types";
 import { PERIOD_TOKENS } from "@/services/_shared/dateRange";
 import { PaymentKind, ExpenseCategory } from "@prisma/client";
 import { writeToolDefs, isWriteTool, previewWrite } from "./writeTools";
@@ -601,6 +602,30 @@ const tripsReadTools: AiToolDef[] = [
     }),
   },
   {
+    name: "list_trip_expenses",
+    description:
+      "List the individual expenses on a trip's split ledger — date, category, description, amount " +
+      "(original currency + BDT), who paid, the funding account, and how it was split. Filter by " +
+      "category (FLIGHTS, ACCOMMODATION, FOOD, LOCAL_TRANSPORT, ACTIVITIES, SHOPPING, VISA_INSURANCE, " +
+      "MISC), by the participant who fronted the money (payerId, from list_trip_participants), and/or " +
+      "search the description with q (case-insensitive substring). Use this when the question is about " +
+      'specific spending ("what did we spend on food", "what did Rifat pay for"); use get_trip_report ' +
+      "for totals and who-owes-whom. Pass the tripId from list_trips.",
+    parameters: obj({
+      tripId: { type: "string", description: "The trip id (from list_trips), required" },
+      category: {
+        type: "string",
+        enum: TRIP_CATEGORIES,
+        description: "Spend category (optional)",
+      },
+      payerId: {
+        type: "string",
+        description: "Participant id who paid, from list_trip_participants (optional)",
+      },
+      q: { type: "string", description: "Case-insensitive search on the description (optional)" },
+    }),
+  },
+  {
     name: "list_trip_participants",
     description:
       "List the people on a trip (Trip Expense Manager group trips): name, whether they are Syful " +
@@ -741,6 +766,18 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
   list_clients: () => getIncomeSources(),
   // Trips (Trip Expense Manager)
   list_trips: () => getTrips(),
+  list_trip_expenses: (i) => {
+    const id = str(i.tripId);
+    if (!id) throw new Error("tripId is required (get it from list_trips)");
+    return listTripExpenses(id, {
+      // Ignore a category the enum doesn't know rather than letting Prisma throw.
+      category: TRIP_CATEGORIES.includes(i.category as TripCategory)
+        ? (i.category as TripCategory)
+        : undefined,
+      payerId: str(i.payerId),
+      q: str(i.q),
+    });
+  },
   get_trip_report: (i) => {
     const id = str(i.tripId);
     if (!id) throw new Error("tripId is required (get it from list_trips)");

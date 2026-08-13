@@ -1,14 +1,25 @@
 import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import { listTripExpenses, createTripExpense } from "@/services/trips";
+import { TRIP_CATEGORIES, type TripCategory } from "@/types";
 import { parseExpenseBody, type RawExpenseBody } from "./_body";
 
 // GET a trip's split-ledger expenses; POST a new one (may post a MoneyEntry — see service).
-export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const { id } = await params;
-  const data = await listTripExpenses(id);
+  const { searchParams } = new URL(req.url);
+  const category = searchParams.get("category");
+  const data = await listTripExpenses(id, {
+    // Only pass a category the enum actually knows; an unknown value would make
+    // Prisma throw rather than simply matching nothing.
+    category: TRIP_CATEGORIES.includes(category as TripCategory)
+      ? (category as TripCategory)
+      : undefined,
+    payerId: searchParams.get("payerId") ?? undefined,
+    q: searchParams.get("q") ?? undefined,
+  });
   return Response.json({ data });
 }
 

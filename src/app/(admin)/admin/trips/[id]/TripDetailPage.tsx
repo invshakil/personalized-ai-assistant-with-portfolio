@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import Link from "next/link";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
@@ -7,6 +8,8 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import type { TripExpenseRow, TripParticipantRow, TripSettlementRow } from "@/types";
 import { useTripDetail } from "./hooks/useTripDetail";
+import { useTripExpenses } from "./hooks/useTripExpenses";
+import { useTripExpenseFilters } from "./hooks/useTripExpenseFilters";
 import { useTripForm } from "../hooks/useTripForm";
 import { useTripExpenseDrawer } from "./hooks/useTripExpenseDrawer";
 import { useTripParticipants } from "./hooks/useTripParticipants";
@@ -21,6 +24,7 @@ import ParticipantDrawer from "./components/ParticipantDrawer";
 import TripBudgetPanel from "./components/TripBudgetPanel";
 import TripBudgetDrawer from "./components/TripBudgetDrawer";
 import TripExpensesTable from "./components/TripExpensesTable";
+import TripExpenseFilters from "./components/TripExpenseFilters";
 import TripExpenseDrawer from "./components/TripExpenseDrawer";
 import SettlementPanel from "./components/SettlementPanel";
 import SettlementDrawer from "./components/SettlementDrawer";
@@ -31,24 +35,34 @@ import TripBreakdownPanel from "./components/TripBreakdownPanel";
 import TripFormDrawer from "../components/TripFormDrawer";
 
 export default function TripDetailPage({ tripId }: { tripId: string }) {
-  const { report, expenses, participants, settlements, accounts, loading, notFound, reload } =
+  const { report, participants, settlements, accounts, loading, notFound, reload } =
     useTripDetail(tripId);
+
+  const expenseFilters = useTripExpenseFilters();
+  const { expenses, reload: reloadExpenses } = useTripExpenses(tripId, expenseFilters.applied);
+
+  // Any mutation can move both the expense list and the derived report/balances,
+  // so every hook below refreshes the pair rather than just one of them.
+  const reloadAll = useCallback(
+    () => Promise.all([reload(), reloadExpenses()]).then(() => undefined),
+    [reload, reloadExpenses]
+  );
 
   const activeParticipants = participants.filter((p) => p.isActive);
 
-  const tripForm = useTripForm(reload);
-  const expenseDrawer = useTripExpenseDrawer(tripId, accounts, participants, reload);
-  const people = useTripParticipants(tripId, reload);
-  const settle = useTripSettlements(tripId, reload);
-  const budgets = useTripBudgets(tripId, report?.trip.budgets ?? [], reload);
+  const tripForm = useTripForm(reloadAll);
+  const expenseDrawer = useTripExpenseDrawer(tripId, accounts, participants, reloadAll);
+  const people = useTripParticipants(tripId, reloadAll);
+  const settle = useTripSettlements(tripId, reloadAll);
+  const budgets = useTripBudgets(tripId, report?.trip.budgets ?? [], reloadAll);
   const fund = useFundWalletDrawer(
     tripId,
     report?.trip.localWalletAccountId ?? null,
     report?.trip.localCurrency ?? "BDT",
     accounts,
-    reload
+    reloadAll
   );
-  const publish = useTripPublish(tripId, reload);
+  const publish = useTripPublish(tripId, reloadAll);
   const confirm = useConfirmDialog();
 
   const askDeleteExpense = (r: TripExpenseRow) =>
@@ -128,6 +142,21 @@ export default function TripDetailPage({ tripId }: { tripId: string }) {
       <TripBudgetPanel byCategory={report.byCategory} onEditBudgets={budgets.openEdit} />
       <TripExpensesTable
         expenses={expenses}
+        filtered={expenseFilters.hasActiveFilters}
+        filters={
+          <TripExpenseFilters
+            category={expenseFilters.category}
+            payerId={expenseFilters.payerId}
+            q={expenseFilters.q}
+            participants={participants}
+            hasActiveFilters={expenseFilters.hasActiveFilters}
+            matchCount={expenses.length}
+            onCategoryChange={(category) => expenseFilters.setParams({ category })}
+            onPayerChange={(payerId) => expenseFilters.setParams({ payerId })}
+            onSearchChange={expenseFilters.setQ}
+            onClear={expenseFilters.clear}
+          />
+        }
         onAdd={expenseDrawer.openAdd}
         onEdit={expenseDrawer.openEdit}
         onDelete={askDeleteExpense}

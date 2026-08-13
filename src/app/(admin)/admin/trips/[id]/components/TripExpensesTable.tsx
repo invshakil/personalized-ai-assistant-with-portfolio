@@ -18,6 +18,10 @@ import { fmt, fmtCurrency, fmtDate } from "../../format";
 
 interface Props {
   expenses: TripExpenseRow[];
+  /** Filter bar rendered under the header — supplied by the orchestrator. */
+  filters?: React.ReactNode;
+  /** True when a filter is narrowing the list, so the empty state can say so. */
+  filtered?: boolean;
   onAdd: () => void;
   onEdit: (r: TripExpenseRow) => void;
   onDelete: (r: TripExpenseRow) => void;
@@ -46,7 +50,14 @@ function PaidVia({ e }: { e: TripExpenseRow }) {
   );
 }
 
-export default function TripExpensesTable({ expenses, onAdd, onEdit, onDelete }: Props) {
+export default function TripExpensesTable({
+  expenses,
+  filters,
+  filtered = false,
+  onAdd,
+  onEdit,
+  onDelete,
+}: Props) {
   return (
     <Card variant="outlined" sx={{ p: 2, mb: 3 }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
@@ -57,9 +68,10 @@ export default function TripExpensesTable({ expenses, onAdd, onEdit, onDelete }:
           Add expense
         </Button>
       </Box>
+      {filters}
       {expenses.length === 0 ? (
         <Typography variant="body2" sx={{ color: "text.secondary", py: 2 }}>
-          No expenses recorded yet.
+          {filtered ? "No expenses match these filters." : "No expenses recorded yet."}
         </Typography>
       ) : (
         <Box sx={{ overflowX: "auto" }}>

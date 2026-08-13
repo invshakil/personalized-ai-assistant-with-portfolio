@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { tripsApi } from "@/lib/api/trips";
 import { useMoneyAccounts } from "@/hooks/useMoneyAccounts";
-import type { TripExpenseRow, TripParticipantRow, TripReport, TripSettlementRow } from "@/types";
+import type { TripParticipantRow, TripReport, TripSettlementRow } from "@/types";
 
-/** Loads a trip's report + expenses + participants + settlements + accounts;
- *  `reload` refreshes everything after any mutation. */
+/** Loads a trip's report + participants + settlements + accounts; `reload`
+ *  refreshes them after any mutation. Expenses are deliberately NOT loaded here —
+ *  they are filtered server-side and owned by useTripExpenses, so keeping a second
+ *  copy in this hook would mean one of them silently going stale. */
 export function useTripDetail(tripId: string) {
   const [report, setReport] = useState<TripReport | null>(null);
-  const [expenses, setExpenses] = useState<TripExpenseRow[]>([]);
   const [participants, setParticipants] = useState<TripParticipantRow[]>([]);
   const [settlements, setSettlements] = useState<TripSettlementRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -17,14 +18,12 @@ export function useTripDetail(tripId: string) {
   const loadTrip = useCallback(async () => {
     setLoading(true);
     try {
-      const [r, ex, ps, st] = await Promise.all([
+      const [r, ps, st] = await Promise.all([
         tripsApi.getReport(tripId),
-        tripsApi.listExpenses(tripId),
         tripsApi.listParticipants(tripId),
         tripsApi.listSettlements(tripId),
       ]);
       setReport(r ?? null);
-      setExpenses(ex ?? []);
       setParticipants(ps ?? []);
       setSettlements(st ?? []);
       setNotFound(!r);
@@ -43,5 +42,5 @@ export function useTripDetail(tripId: string) {
     loadTrip();
   }, [loadTrip]);
 
-  return { report, expenses, participants, settlements, loading, notFound, accounts, reload };
+  return { report, participants, settlements, loading, notFound, accounts, reload };
 }

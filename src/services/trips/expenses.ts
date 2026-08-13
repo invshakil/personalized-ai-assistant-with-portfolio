@@ -55,9 +55,27 @@ function serializeExpense(e: ExpenseWith): TripExpenseRow {
   };
 }
 
-export async function listTripExpenses(tripId: string): Promise<TripExpenseRow[]> {
+export interface TripExpenseFilters {
+  /** Restrict to one spend category (FLIGHTS, FOOD, …). */
+  category?: TripCategory;
+  /** Restrict to expenses fronted by one participant. */
+  payerId?: string;
+  /** Case-insensitive search over the description. */
+  q?: string;
+}
+
+export async function listTripExpenses(
+  tripId: string,
+  filters: TripExpenseFilters = {}
+): Promise<TripExpenseRow[]> {
+  const q = filters.q?.trim();
   const rows = await db.tripExpense.findMany({
-    where: { tripId },
+    where: {
+      tripId,
+      ...(filters.category && { category: filters.category }),
+      ...(filters.payerId && { payerId: filters.payerId }),
+      ...(q && { description: { contains: q, mode: "insensitive" as const } }),
+    },
     include: EXPENSE_INCLUDE,
     orderBy: [{ date: "desc" }, { createdAt: "desc" }],
   });
