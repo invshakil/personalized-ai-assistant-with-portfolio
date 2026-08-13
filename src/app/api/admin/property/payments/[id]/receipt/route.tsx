@@ -115,6 +115,7 @@ function fmt(n: number) {
 
 type TxRow = { type: string; amount: number; date: Date };
 type ServiceRow = { name: string; fee: number };
+type BillLineRow = { id: string; label: string; amount: number };
 
 interface HalfProps {
   label: string;
@@ -138,6 +139,9 @@ interface HalfProps {
   transactions: TxRow[];
   baseRent: number;
   services: ServiceRow[];
+  oneOffCharges: BillLineRow[];
+  vouchers: BillLineRow[];
+  carryForward: number;
   advanceBalance: number | null;
   advanceSettled: boolean;
 }
@@ -165,6 +169,9 @@ function ReceiptHalf(props: HalfProps) {
     transactions,
     baseRent,
     services,
+    oneOffCharges,
+    vouchers,
+    carryForward,
     advanceBalance,
     advanceSettled,
   } = props;
@@ -229,6 +236,24 @@ function ReceiptHalf(props: HalfProps) {
         <View key={sv.name} style={s.lineItem}>
           <Text style={s.label}>{sv.name}</Text>
           <Text>{fmt(sv.fee)}</Text>
+        </View>
+      ))}
+      {oneOffCharges.map((c) => (
+        <View key={c.id} style={s.lineItem}>
+          <Text style={s.label}>{c.label}</Text>
+          <Text>{fmt(c.amount)}</Text>
+        </View>
+      ))}
+      {carryForward > 0 && (
+        <View style={s.lineItem}>
+          <Text style={s.label}>Previous Balance</Text>
+          <Text>{fmt(carryForward)}</Text>
+        </View>
+      )}
+      {vouchers.map((v) => (
+        <View key={v.id} style={s.lineItem}>
+          <Text style={s.label}>{v.label} (voucher)</Text>
+          <Text>-{fmt(v.amount)}</Text>
         </View>
       ))}
       <View style={s.totalRow}>
@@ -311,6 +336,27 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   if (!payment) return Response.json({ error: "Not found" }, { status: 404 });
 
+  // One-off charges and vouchers hang off (tenantId, month, year), not the payment.
+  const periodWhere = {
+    tenantId: payment.tenantId,
+    month: payment.month,
+    year: payment.year,
+  };
+  const [chargeRows, voucherRows] = await Promise.all([
+    db.oneOffCharge.findMany({ where: periodWhere, orderBy: { createdAt: "asc" } }),
+    db.voucher.findMany({ where: periodWhere, orderBy: { createdAt: "asc" } }),
+  ]);
+  const oneOffCharges: BillLineRow[] = chargeRows.map((c) => ({
+    id: c.id,
+    label: c.label,
+    amount: Number(c.amount),
+  }));
+  const vouchers: BillLineRow[] = voucherRows.map((v) => ({
+    id: v.id,
+    label: v.label,
+    amount: Number(v.amount),
+  }));
+
   const receiptNumber =
     payment.receiptNumber ?? `RCP-${payment.year}-${id.slice(-4).toUpperCase()}`;
   const issuedDate = new Date().toLocaleDateString("en-GB");
@@ -349,6 +395,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     transactions,
     baseRent,
     services,
+    oneOffCharges,
+    vouchers,
+    carryForward: Number(payment.carryForward),
     advanceBalance:
       payment.tenant.advanceAmount !== null ? Number(payment.tenant.advanceAmount) : null,
     advanceSettled: payment.tenant.advanceSettled,
