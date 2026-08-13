@@ -1,35 +1,24 @@
+import { cache } from "react";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getPublicTripSummary } from "@/services/trips";
+import { fmtBdt } from "./format";
+import { buildInsightCards } from "./insights";
+import TripHero from "./components/TripHero";
+import TripStatBand from "./components/TripStatBand";
+import TripCategoryBreakdown from "./components/TripCategoryBreakdown";
+import TripDailyChart from "./components/TripDailyChart";
+import TripInsightCards from "./components/TripInsightCards";
+import TripClosingNote from "./components/TripClosingNote";
 
 // Serve this public page from the ISR cache, regenerating at most hourly. Keeps
 // anonymous traffic off the DB and the third-party FX feed (one refresh per window,
 // not one per visit) — see docs/TRIP_MANAGEMENT_AUDIT.md.
 export const revalidate = 3600;
 
-function fmtBdt(n: number): string {
-  return `৳${Math.round(n).toLocaleString("en-IN")}`;
-}
-
-function fmtLocal(n: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat("en", {
-      style: "currency",
-      currency,
-      maximumFractionDigits: 0,
-    }).format(n);
-  } catch {
-    return `${currency} ${Math.round(n).toLocaleString()}`;
-  }
-}
-
-function fmtDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
+// generateMetadata and the page body both need the summary; cache() collapses them
+// into a single DB + FX pass per render instead of two.
+const getSummary = cache(getPublicTripSummary);
 
 export async function generateMetadata({
   params,
@@ -37,104 +26,75 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const trip = await getPublicTripSummary(slug);
+  const trip = await getSummary(slug);
+  if (!trip) return { title: "Trip" };
+
+  const days = trip.durationDays ? ` over ${trip.durationDays} days` : "";
   return {
-    title: trip ? `${trip.name} — Trip cost guide` : "Trip",
-    description: trip
-      ? `What a trip to ${trip.destination} cost: ${fmtBdt(trip.totalBdt)} across ${trip.byCategory.length} categories.`
-      : undefined,
+    title: `${trip.destination} trip cost — ${fmtBdt(trip.totalBdt)} | Shakil`,
+    description: `What a real trip to ${trip.destination} cost${days}: ${fmtBdt(
+      trip.totalBdt
+    )} across ${trip.byCategory.length} categories, with a day-by-day and per-category breakdown.`,
   };
 }
 
 export default async function PublicTripPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const trip = await getPublicTripSummary(slug);
+  const trip = await getSummary(slug);
   if (!trip) notFound();
 
-  const perDay = trip.durationDays ? trip.totalBdt / trip.durationDays : null;
-  const maxCat = Math.max(1, ...trip.byCategory.map((c) => c.bdt));
+  const cards = buildInsightCards(trip);
+  const hasSpend = trip.totalBdt > 0 && trip.byCategory.length > 0;
 
   return (
-    <main className="min-h-screen bg-[var(--color-linen)] px-[var(--px)] py-16 text-[var(--color-forest)]">
-      <div className="mx-auto max-w-3xl">
-        {/* Hero */}
-        <p className="text-sm uppercase tracking-widest text-[var(--color-sage-dark)]">
-          Trip cost guide
-        </p>
-        <h1 className="mt-2 text-4xl font-bold sm:text-5xl">{trip.destination}</h1>
-        <p className="mt-2 text-lg text-[var(--color-forest-light)]">{trip.name}</p>
-        <p className="mt-1 text-sm text-[var(--color-sage-dark)]">
-          {fmtDate(trip.startDate)}
-          {trip.endDate ? ` – ${fmtDate(trip.endDate)}` : ""}
-          {trip.durationDays ? ` · ${trip.durationDays} days` : ""}
-        </p>
-
-        {/* Totals */}
-        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl bg-white/70 p-5 shadow-sm">
-            <p className="text-xs uppercase tracking-wide text-[var(--color-sage-dark)]">
-              Total spent
-            </p>
-            <p className="mt-1 text-2xl font-bold">
-              {fmtLocal(trip.totalLocal, trip.localCurrency)}
-            </p>
-            <p className="text-sm text-[var(--color-forest-light)]">{fmtBdt(trip.totalBdt)}</p>
-          </div>
-          {perDay != null && (
-            <div className="rounded-2xl bg-white/70 p-5 shadow-sm">
-              <p className="text-xs uppercase tracking-wide text-[var(--color-sage-dark)]">
-                Per day
-              </p>
-              <p className="mt-1 text-2xl font-bold">{fmtBdt(perDay)}</p>
-              <p className="text-sm text-[var(--color-forest-light)]">average</p>
-            </div>
-          )}
-          <div className="rounded-2xl bg-white/70 p-5 shadow-sm">
-            <p className="text-xs uppercase tracking-wide text-[var(--color-sage-dark)]">
-              Currency
-            </p>
-            <p className="mt-1 text-2xl font-bold">{trip.localCurrency}</p>
-            <p className="text-sm text-[var(--color-forest-light)]">local currency</p>
-          </div>
+    <>
+      <section className="sec" id="trip-hero">
+        <div className="sec-in">
+          <TripHero trip={trip} />
+          <TripStatBand trip={trip} />
         </div>
+      </section>
 
-        {/* Intro */}
-        {trip.publicIntro && (
-          <div className="mt-8 rounded-2xl bg-[var(--color-sage-light)] p-6">
-            <p className="whitespace-pre-line text-[var(--color-forest)]">{trip.publicIntro}</p>
-          </div>
-        )}
-
-        {/* Category breakdown */}
-        {trip.byCategory.length > 0 && (
-          <section className="mt-10">
-            <h2 className="text-xl font-semibold">Where the money went</h2>
-            <div className="mt-4 space-y-3">
-              {trip.byCategory.map((c) => (
-                <div key={c.category}>
-                  <div className="flex items-baseline justify-between text-sm">
-                    <span className="font-medium">{c.label}</span>
-                    <span className="text-[var(--color-forest-light)]">
-                      {fmtLocal(c.local, trip.localCurrency)} · {fmtBdt(c.bdt)}
-                    </span>
-                  </div>
-                  <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-white/60">
-                    <div
-                      className="h-full rounded-full bg-[var(--color-sage)]"
-                      style={{ width: `${Math.max(3, (c.bdt / maxCat) * 100)}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+      {hasSpend ? (
+        <>
+          <section className="sec" id="trip-breakdown">
+            <div className="sec-in">
+              <TripCategoryBreakdown trip={trip} />
             </div>
           </section>
-        )}
 
-        <p className="mt-12 text-xs text-[var(--color-sage-dark)]">
-          Costs are shown as a real-world guide from an actual trip. Your prices may vary with
-          season, exchange rate and choices.
-        </p>
-      </div>
-    </main>
+          {trip.byDay.length > 1 && (
+            <section className="sec" id="trip-daily">
+              <div className="sec-in">
+                <TripDailyChart trip={trip} />
+              </div>
+            </section>
+          )}
+
+          {cards.length > 0 && (
+            <section className="sec" id="trip-insights">
+              <div className="sec-in">
+                <TripInsightCards cards={cards} />
+              </div>
+            </section>
+          )}
+        </>
+      ) : (
+        <section className="sec" id="trip-breakdown">
+          <div className="sec-in">
+            <h2 className="tr-h">Costs coming soon</h2>
+            <p className="tr-empty">
+              This trip has been shared but no expenses have been recorded against it yet.
+            </p>
+          </div>
+        </section>
+      )}
+
+      <section className="sec" id="trip-note">
+        <div className="sec-in">
+          <TripClosingNote trip={trip} />
+        </div>
+      </section>
+    </>
   );
 }

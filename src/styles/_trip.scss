@@ -1,0 +1,374 @@
+@use "variables" as v;
+@use "mixins" as m;
+
+// ── Public trip cost guide (/trips/<slug>) ──
+// Sections reuse the portfolio shells (.sec / .sec-in) and follow the same
+// background cadence as the home page: hero → skills → experience → projects.
+
+#trip-hero {
+  background: v.$c-hero;
+
+  .sec-in {
+    padding-top: calc(#{v.$nav-height} + 84px);
+    padding-bottom: 72px;
+
+    @include m.respond-to(v.$bp-tablet) {
+      padding-top: calc(#{v.$nav-height} + 56px);
+      padding-bottom: 56px;
+    }
+  }
+}
+
+#trip-breakdown {
+  background: v.$c-skills;
+}
+
+#trip-daily {
+  background: v.$c-exp;
+}
+
+#trip-insights {
+  background: v.$c-proj;
+}
+
+#trip-note {
+  background: v.$c-contact;
+  color: rgba(#fff, 0.66);
+
+  .sec-in {
+    padding-top: 56px;
+    padding-bottom: 56px;
+  }
+}
+
+// ── Hero ──
+.tr-title {
+  font-family: v.$serif;
+  font-size: clamp(38px, 7vw, 64px);
+  line-height: 1.05;
+  color: v.$ink;
+  margin-bottom: 10px;
+}
+
+.tr-name {
+  font-size: 17px;
+  color: v.$ink-2;
+  margin-bottom: 18px;
+}
+
+.tr-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  @include m.label-text(10px, 0.14em);
+  color: v.$ink-3;
+
+  span:not(:last-child)::after {
+    content: "·";
+    margin-left: 10px;
+  }
+}
+
+.tr-intro {
+  margin-top: 34px;
+  padding: 22px 24px;
+  background: rgba(v.$accent, 0.06);
+  border-left: 2px solid rgba(v.$accent, 0.4);
+  font-size: 15px;
+  line-height: 1.75;
+  color: v.$ink-2;
+  white-space: pre-line;
+}
+
+// ── Stat tiles ──
+.tr-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  margin-top: 40px;
+  background: rgba(21, 21, 19, 0.09); // hairline grid via gap bleed
+  border: 1px solid rgba(21, 21, 19, 0.09);
+
+  @include m.respond-to(v.$bp-tablet) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.tr-stat {
+  background: #fff;
+  padding: 20px 22px;
+
+  @include m.respond-to(v.$bp-mobile) {
+    padding: 16px 18px;
+  }
+}
+
+.tr-stat-k {
+  @include m.label-text(9px, 0.16em);
+  color: v.$ink-3;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.tr-stat-v {
+  font-family: v.$serif;
+  font-size: clamp(20px, 2.6vw, 27px);
+  line-height: 1.15;
+  color: v.$ink;
+}
+
+.tr-stat-s {
+  font-size: 12px;
+  color: v.$ink-3;
+  margin-top: 5px;
+}
+
+// ── Section heading shared by the report blocks ──
+.tr-h {
+  font-family: v.$serif;
+  font-size: clamp(24px, 3.6vw, 34px);
+  color: v.$ink;
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+.tr-h-sub {
+  font-size: 14px;
+  color: v.$ink-2;
+  margin-bottom: 34px;
+  max-width: 62ch;
+}
+
+// ── Category breakdown ──
+.tr-cats {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.tr-cat-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 9px;
+}
+
+.tr-cat-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: v.$ink;
+
+  em {
+    @include m.label-text(9px, 0.14em);
+    font-style: normal;
+    color: v.$accent;
+    margin-left: 9px;
+  }
+}
+
+.tr-cat-amt {
+  font-size: 13px;
+  color: v.$ink-2;
+  text-align: right;
+  white-space: nowrap;
+
+  small {
+    display: block;
+    font-size: 11px;
+    color: v.$ink-3;
+  }
+}
+
+.tr-bar {
+  position: relative;
+  height: 7px;
+  background: rgba(21, 21, 19, 0.07);
+  overflow: hidden;
+}
+
+.tr-bar-fill {
+  height: 100%;
+  background: v.$accent;
+  transition: width v.$transition-slow;
+}
+
+// Planned-budget marker sitting on the actual-spend bar.
+.tr-bar-plan {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: rgba(21, 21, 19, 0.42);
+}
+
+.tr-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 26px;
+  @include m.label-text(9px, 0.13em);
+  color: v.$ink-3;
+}
+
+.tr-legend-i {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  i {
+    display: block;
+    width: 14px;
+    height: 7px;
+    background: v.$accent;
+  }
+
+  &.is-plan i {
+    width: 2px;
+    height: 13px;
+    background: rgba(21, 21, 19, 0.42);
+  }
+}
+
+// ── Daily chart ──
+.tr-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 190px;
+  padding-top: 12px;
+  border-bottom: 1px solid rgba(21, 21, 19, 0.12);
+
+  @include m.respond-to(v.$bp-mobile) {
+    height: 140px;
+    gap: 2px;
+  }
+}
+
+.tr-col {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.tr-col-fill {
+  width: 100%;
+  background: v.$accent;
+  opacity: 0.82;
+  min-height: 1px;
+  transition: opacity v.$transition-fast;
+
+  &:hover {
+    opacity: 1;
+  }
+
+  &.is-peak {
+    background: v.$ink;
+    opacity: 1;
+  }
+
+  &.is-zero {
+    background: rgba(21, 21, 19, 0.13);
+  }
+}
+
+.tr-chart-x {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+
+  @include m.respond-to(v.$bp-mobile) {
+    gap: 2px;
+  }
+}
+
+.tr-chart-lbl {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  color: v.$ink-3;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.tr-chart-ends {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  @include m.label-text(9px, 0.13em);
+  color: v.$ink-3;
+}
+
+// ── Insight cards ──
+.tr-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+
+  @include m.respond-to(v.$bp-tablet) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @include m.respond-to(v.$bp-mobile) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.tr-card {
+  background: #fff;
+  border: 1px solid rgba(21, 21, 19, 0.08);
+  padding: 22px;
+}
+
+.tr-card-k {
+  @include m.label-text(9px, 0.16em);
+  color: v.$accent;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.tr-card-v {
+  font-family: v.$serif;
+  font-size: 25px;
+  line-height: 1.2;
+  color: v.$ink;
+  margin-bottom: 7px;
+}
+
+.tr-card-s {
+  font-size: 13px;
+  line-height: 1.65;
+  color: v.$ink-2;
+}
+
+// ── Closing note ──
+.tr-note {
+  font-size: 13px;
+  line-height: 1.8;
+  max-width: 66ch;
+}
+
+.tr-note-link {
+  @include m.label-text(10px, 0.14em);
+  display: inline-block;
+  margin-top: 18px;
+  color: #fff;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(#fff, 0.35);
+  padding-bottom: 3px;
+  transition: border-color v.$transition-fast;
+
+  &:hover {
+    border-color: #fff;
+  }
+}
+
+.tr-empty {
+  font-size: 14px;
+  color: v.$ink-3;
+}

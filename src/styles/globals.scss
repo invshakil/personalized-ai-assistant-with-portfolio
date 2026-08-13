@@ -24,3 +24,6 @@
 @use "testimonials";
 @use "booking";
 @use "contact";
+
+// ── Public trip cost guide (/trips/<slug>) ──
+@use "trip";
