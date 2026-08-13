@@ -5,12 +5,15 @@ import Link from "next/link";
 
 const DELAYS = [0, 0.08, 0.18, 0.28, 0.38, 0.48];
 
+// Root-relative so the nav also works from routes that aren't the home page
+// (e.g. the public trip guide at /trips/<slug>), where bare hashes point at
+// sections that don't exist. On "/" the browser still scrolls in place.
 const NAV_LINKS = [
-  { href: "#skills", label: "Skills" },
-  { href: "#experience", label: "Experience" },
-  { href: "#projects", label: "Projects" },
-  { href: "#education", label: "Education" },
-  { href: "#contact", label: "Contact" },
+  { href: "/#skills", label: "Skills" },
+  { href: "/#experience", label: "Experience" },
+  { href: "/#projects", label: "Projects" },
+  { href: "/#education", label: "Education" },
+  { href: "/#contact", label: "Contact" },
 ] as const;
 
 export default function Nav() {
@@ -59,7 +62,7 @@ export default function Nav() {
   return (
     <nav>
       <div className="nav-inner">
-        <Link className="nav-logo" href="#hero">
+        <Link className="nav-logo" href="/#hero">
           Shakil
         </Link>
 
