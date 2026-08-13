@@ -129,6 +129,7 @@ export async function generatePayments(month: number, year: number) {
       unit: { select: { id: true, monthlyRent: true } },
       services: { where: { isActive: true }, select: { monthlyFee: true } },
       oneOffCharges: { where: { month, year }, select: { amount: true } },
+      vouchers: { where: { month, year }, select: { amount: true } },
     },
   });
 
@@ -156,6 +157,7 @@ export async function generatePayments(month: number, year: number) {
     const baseRent = tenant.unit ? toNum(tenant.unit.monthlyRent) : 0;
     const serviceTotal = tenant.services.reduce((sum, s) => sum + toNum(s.monthlyFee), 0);
     const oneOffTotal = tenant.oneOffCharges.reduce((sum, c) => sum + toNum(c.amount), 0);
+    const voucherTotal = tenant.vouchers.reduce((sum, v) => sum + toNum(v.amount), 0);
 
     const prevPayment = await db.payment.findUnique({
       where: { tenantId_month_year: { tenantId: tenant.id, month: prevMonth, year: prevYear } },
@@ -170,7 +172,13 @@ export async function generatePayments(month: number, year: number) {
         )
       : 0;
 
-    const rentDue = computeRentDue({ baseRent, serviceTotal, oneOffTotal, carryForward });
+    const rentDue = computeRentDue({
+      baseRent,
+      serviceTotal,
+      oneOffTotal,
+      carryForward,
+      voucherTotal,
+    });
 
     const existing = await db.payment.findUnique({
       where: { tenantId_month_year: { tenantId: tenant.id, month, year } },

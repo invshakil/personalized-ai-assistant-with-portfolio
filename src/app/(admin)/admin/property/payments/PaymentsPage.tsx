@@ -16,6 +16,7 @@ import { useEditPayment } from "./hooks/useEditPayment";
 import { useEditTransaction } from "./hooks/useEditTransaction";
 import { usePaymentActions } from "./hooks/usePaymentActions";
 import { useOneOffCharges } from "./hooks/useOneOffCharges";
+import { useVouchers } from "./hooks/useVouchers";
 import PaymentFilters from "./components/PaymentFilters";
 import PaymentSummaryStrip from "./components/PaymentSummaryStrip";
 import OverdueAlert from "./components/OverdueAlert";
@@ -23,7 +24,7 @@ import PaymentTable from "./components/PaymentTable";
 import EditPaymentDrawer from "./components/EditPaymentDrawer";
 import EditTransactionDrawer from "./components/EditTransactionDrawer";
 import PaymentDrawer from "./components/PaymentDrawer";
-import ChargesDrawer from "./components/ChargesDrawer";
+import BillLineDrawer from "./components/BillLineDrawer";
 
 export default function PaymentsPage() {
   const filters = usePaymentFilters();
@@ -42,6 +43,7 @@ export default function PaymentsPage() {
   const editPayment = useEditPayment(data.reload);
   const editTransaction = useEditTransaction(data.reload);
   const charges = useOneOffCharges(data.reload);
+  const vouchers = useVouchers(data.reload);
   const actions = usePaymentActions(data.reload);
 
   return (
@@ -101,6 +103,7 @@ export default function PaymentsPage() {
           onRecordPayment={(p) => paymentDrawer.openPayDrawer(p, "pay")}
           onApplyAdvance={(p) => paymentDrawer.openPayDrawer(p, "advance")}
           onManageCharges={charges.open}
+          onManageVouchers={vouchers.open}
           onDelete={actions.deletePayment}
           onEditTx={editTransaction.openEditTx}
           onDeleteTx={actions.deleteTransaction}
@@ -152,9 +155,10 @@ export default function PaymentsPage() {
         onSubmit={paymentDrawer.submitTransaction}
       />
 
-      <ChargesDrawer
+      <BillLineDrawer
+        variant="charge"
         target={charges.target}
-        charges={charges.charges}
+        lines={charges.lines}
         label={charges.label}
         onLabelChange={charges.setLabel}
         amount={charges.amount}
@@ -163,9 +167,26 @@ export default function PaymentsPage() {
         onNotesChange={charges.setNotes}
         loading={charges.loading}
         error={charges.error}
-        onAdd={charges.addCharge}
-        onRemove={charges.removeCharge}
+        onAdd={charges.add}
+        onRemove={charges.remove}
         onClose={charges.close}
+      />
+
+      <BillLineDrawer
+        variant="voucher"
+        target={vouchers.target}
+        lines={vouchers.lines}
+        label={vouchers.label}
+        onLabelChange={vouchers.setLabel}
+        amount={vouchers.amount}
+        onAmountChange={vouchers.setAmount}
+        notes={vouchers.notes}
+        onNotesChange={vouchers.setNotes}
+        loading={vouchers.loading}
+        error={vouchers.error}
+        onAdd={vouchers.add}
+        onRemove={vouchers.remove}
+        onClose={vouchers.close}
       />
     </Box>
   );

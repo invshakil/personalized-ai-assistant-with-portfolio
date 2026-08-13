@@ -16,6 +16,7 @@ interface PaymentRowProps {
   onRecordPayment: (payment: PaymentWithTenant) => void;
   onApplyAdvance: (payment: PaymentWithTenant) => void;
   onManageCharges: (payment: PaymentWithTenant) => void;
+  onManageVouchers: (payment: PaymentWithTenant) => void;
   onDelete: (id: string, tenantName: string) => void;
   onEditTx: (tx: PaymentTransaction) => void;
   onDeleteTx: (txId: string, isAdvance: boolean) => void;
@@ -30,6 +31,7 @@ export default function PaymentRow({
   onRecordPayment,
   onApplyAdvance,
   onManageCharges,
+  onManageVouchers,
   onDelete,
   onEditTx,
   onDeleteTx,
@@ -97,6 +99,7 @@ export default function PaymentRow({
             onRecordPayment={onRecordPayment}
             onApplyAdvance={onApplyAdvance}
             onManageCharges={onManageCharges}
+            onManageVouchers={onManageVouchers}
             onDelete={onDelete}
           />
         </TableCell>

@@ -8,6 +8,7 @@ export * from "./transactions";
 export * from "./expenses";
 export * from "./addOnServices";
 export * from "./oneOffCharges";
+export * from "./vouchers";
 export * from "./rentChanges";
 export * from "./dashboard";
 export * from "./propertySettings";

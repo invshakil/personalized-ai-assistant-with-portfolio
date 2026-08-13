@@ -9,13 +9,41 @@ import {
   Typography,
 } from "@mui/material";
 import { Trash2 } from "lucide-react";
-import type { OneOffCharge } from "@/types";
 import { MONTHS, fmt } from "../types";
-import type { ChargesTarget } from "../hooks/useOneOffCharges";
+import type { BillLine, BillLineTarget } from "../hooks/useBillLines";
 
-interface ChargesDrawerProps {
-  target: ChargesTarget | null;
-  charges: OneOffCharge[];
+/** Copy + presentation for the two kinds of bill adjustment. */
+const VARIANTS = {
+  charge: {
+    title: "One-off Charges",
+    blurb:
+      "One-time charges (maintenance, repairs, etc.) are billed with this month's rent. They are added to the total due immediately and don't recur.",
+    addHeading: "Add a charge",
+    placeholder: "e.g. Maintenance fee",
+    submit: "Add Charge",
+    submitting: "Adding…",
+    removeTip: "Remove charge",
+    color: "text.primary",
+    sign: "",
+  },
+  voucher: {
+    title: "Vouchers",
+    blurb:
+      "A voucher credits this month's bill — a discount, or paying the tenant back for something they covered that you owe (e.g. maintenance). It is subtracted from the total due immediately.",
+    addHeading: "Issue a voucher",
+    placeholder: "e.g. Maintenance paid by tenant",
+    submit: "Issue Voucher",
+    submitting: "Issuing…",
+    removeTip: "Remove voucher",
+    color: "success.main",
+    sign: "−",
+  },
+} as const;
+
+interface Props {
+  variant: keyof typeof VARIANTS;
+  target: BillLineTarget | null;
+  lines: BillLine[];
   label: string;
   onLabelChange: (v: string) => void;
   amount: string;
@@ -29,9 +57,10 @@ interface ChargesDrawerProps {
   onClose: () => void;
 }
 
-export default function ChargesDrawer({
+export default function BillLineDrawer({
+  variant,
   target,
-  charges,
+  lines,
   label,
   onLabelChange,
   amount,
@@ -43,7 +72,9 @@ export default function ChargesDrawer({
   onAdd,
   onRemove,
   onClose,
-}: ChargesDrawerProps) {
+}: Props) {
+  const v = VARIANTS[variant];
+
   return (
     <Drawer
       anchor="right"
@@ -53,7 +84,7 @@ export default function ChargesDrawer({
     >
       <Box sx={{ width: "100%", p: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
-          One-off Charges
+          {v.title}
         </Typography>
         {target && (
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -61,15 +92,14 @@ export default function ChargesDrawer({
           </Typography>
         )}
         <Alert severity="info" sx={{ mb: 2, fontSize: "0.8rem" }}>
-          One-time charges (maintenance, repairs, etc.) are billed with this month&apos;s rent. They
-          are added to the total due immediately and don&apos;t recur.
+          {v.blurb}
         </Alert>
 
-        {charges.length > 0 && (
+        {lines.length > 0 && (
           <Box sx={{ mb: 2 }}>
-            {charges.map((c) => (
+            {lines.map((line) => (
               <Box
-                key={c.id}
+                key={line.id}
                 sx={{
                   display: "flex",
                   alignItems: "center",
@@ -81,20 +111,21 @@ export default function ChargesDrawer({
               >
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
-                    {c.label}
+                    {line.label}
                   </Typography>
-                  {c.notes && (
+                  {line.notes && (
                     <Typography variant="caption" color="text.secondary" noWrap>
-                      {c.notes}
+                      {line.notes}
                     </Typography>
                   )}
                 </Box>
                 <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {fmt(c.amount)}
+                  <Typography variant="body2" sx={{ fontWeight: 600, color: v.color }}>
+                    {v.sign}
+                    {fmt(line.amount)}
                   </Typography>
-                  <Tooltip title="Remove charge">
-                    <IconButton size="small" color="error" onClick={() => onRemove(c.id)}>
+                  <Tooltip title={v.removeTip}>
+                    <IconButton size="small" color="error" onClick={() => onRemove(line.id)}>
                       <Trash2 size={15} />
                     </IconButton>
                   </Tooltip>
@@ -105,11 +136,11 @@ export default function ChargesDrawer({
         )}
 
         <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>
-          Add a charge
+          {v.addHeading}
         </Typography>
         <TextField
           label="Description"
-          placeholder="e.g. Maintenance fee"
+          placeholder={v.placeholder}
           size="small"
           fullWidth
           value={label}
@@ -151,7 +182,7 @@ export default function ChargesDrawer({
             onClick={onAdd}
             disabled={loading || !label.trim() || !amount || parseFloat(amount) <= 0}
           >
-            {loading ? "Adding…" : "Add Charge"}
+            {loading ? v.submitting : v.submit}
           </Button>
         </Box>
       </Box>

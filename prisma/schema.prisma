@@ -273,6 +273,7 @@ model Tenant {
   services       TenantService[]
   rentChanges    RentChange[]
   oneOffCharges  OneOffCharge[]
+  vouchers       Voucher[]
   documents      TenantDocument[]
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
@@ -367,6 +368,25 @@ model OneOffCharge {
   label     String // e.g. "Maintenance fee", "Plumbing repair"
   amount    Decimal  @db.Decimal(10, 2)
   month     Int // 1–12 — the billing month this charge applies to
+  year      Int
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, month, year])
+}
+
+// A credit applied to one month's bill — a discount, or a reimbursement for
+// something the tenant paid that the landlord owes (e.g. maintenance). Stored as
+// a POSITIVE amount and SUBTRACTED from rentDue, mirroring OneOffCharge which is
+// added. See src/services/property/vouchers.ts.
+model Voucher {
+  id        String   @id @default(cuid())
+  tenant    Tenant   @relation(fields: [tenantId], references: [id])
+  tenantId  String
+  label     String // e.g. "Maintenance paid by tenant"
+  amount    Decimal  @db.Decimal(10, 2) // positive; reduces the month's bill
+  month     Int // 1–12 — the billing month this credit applies to
   year      Int
   notes     String?
   createdAt DateTime @default(now())

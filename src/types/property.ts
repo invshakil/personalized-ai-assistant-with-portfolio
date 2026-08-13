@@ -132,6 +132,7 @@ export interface PaymentWithTenant {
   advanceBalance: number;
   services: { name: string; monthlyFee: number }[];
   oneOffCharges: PaymentOneOffCharge[];
+  vouchers: PaymentVoucher[];
 }
 
 /** A one-time charge (maintenance fee, repair, etc.) billed for one month. */
@@ -148,6 +149,28 @@ export interface OneOffCharge {
 
 /** One-off charge as surfaced inside a payment's bill breakdown. */
 export interface PaymentOneOffCharge {
+  id: string;
+  label: string;
+  amount: number;
+  notes: string | null;
+}
+
+/** A credit applied against one month's bill — a discount, or a reimbursement
+ *  for a cost the tenant fronted that the landlord owes. Stored positive and
+ *  SUBTRACTED from rentDue (the mirror of OneOffCharge). */
+export interface Voucher {
+  id: string;
+  tenantId: string;
+  label: string;
+  amount: number;
+  month: number;
+  year: number;
+  notes: string | null;
+  createdAt: string | null;
+}
+
+/** Voucher as surfaced inside a payment's bill breakdown. */
+export interface PaymentVoucher {
   id: string;
   label: string;
   amount: number;

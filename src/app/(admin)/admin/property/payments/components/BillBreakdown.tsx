@@ -10,6 +10,9 @@ export default function BillBreakdown({ payment: p }: BillBreakdownProps) {
   if (p.rentDue <= 0) return null;
   const serviceFees = p.services.reduce((s, sv) => s + sv.monthlyFee, 0);
   const oneOffTotal = p.oneOffCharges.reduce((s, c) => s + c.amount, 0);
+  // Vouchers were subtracted from rentDue, so add them back when backing out the
+  // base rent — otherwise a credited month shows an understated base.
+  const voucherTotal = p.vouchers.reduce((s, v) => s + v.amount, 0);
 
   return (
     <Box sx={{ mb: 1.5, pb: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
@@ -25,7 +28,7 @@ export default function BillBreakdown({ payment: p }: BillBreakdownProps) {
           Base Rent
         </Typography>
         <Typography variant="caption" sx={{ fontWeight: 600 }}>
-          {fmt(p.rentDue - serviceFees - oneOffTotal - p.carryForward)}
+          {fmt(p.rentDue + voucherTotal - serviceFees - oneOffTotal - p.carryForward)}
         </Typography>
       </Box>
       {p.services.map((sv) => (
@@ -45,6 +48,16 @@ export default function BillBreakdown({ payment: p }: BillBreakdownProps) {
           </Typography>
           <Typography variant="caption" sx={{ fontWeight: 600 }}>
             {fmt(c.amount)}
+          </Typography>
+        </Box>
+      ))}
+      {p.vouchers.map((v) => (
+        <Box key={v.id} sx={{ display: "flex", justifyContent: "space-between" }}>
+          <Typography variant="caption" color="success.main">
+            {v.label} <span style={{ opacity: 0.7 }}>(voucher)</span>
+          </Typography>
+          <Typography variant="caption" sx={{ fontWeight: 600, color: "success.main" }}>
+            −{fmt(v.amount)}
           </Typography>
         </Box>
       ))}

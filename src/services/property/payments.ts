@@ -55,21 +55,37 @@ export async function getPayments(opts: GetPaymentsOptions) {
   // Fetch every charge for the tenants in this result set once, then map each
   // charge to its billing period rather than issuing a query per row.
   const chargeTenantIds = [...new Set(payments.map((p) => p.tenantId))];
-  const charges = chargeTenantIds.length
-    ? await db.oneOffCharge.findMany({ where: { tenantId: { in: chargeTenantIds } } })
-    : [];
+  const [charges, vouchers] = chargeTenantIds.length
+    ? await Promise.all([
+        db.oneOffCharge.findMany({ where: { tenantId: { in: chargeTenantIds } } }),
+        db.voucher.findMany({ where: { tenantId: { in: chargeTenantIds } } }),
+      ])
+    : [[], []];
   const chargeKey = (tenantId: string, month: number, year: number) =>
     `${tenantId}:${month}:${year}`;
-  const chargesByPeriod = new Map<
-    string,
-    { id: string; label: string; amount: number; notes: string | null }[]
-  >();
-  for (const c of charges) {
-    const key = chargeKey(c.tenantId, c.month, c.year);
-    const list = chargesByPeriod.get(key) ?? [];
-    list.push({ id: c.id, label: c.label, amount: toNum(c.amount), notes: c.notes });
-    chargesByPeriod.set(key, list);
-  }
+  type BillLine = { id: string; label: string; amount: number; notes: string | null };
+  const groupByPeriod = (
+    rows: {
+      id: string;
+      tenantId: string;
+      label: string;
+      amount: { toNumber(): number };
+      notes: string | null;
+      month: number;
+      year: number;
+    }[]
+  ) => {
+    const map = new Map<string, BillLine[]>();
+    for (const r of rows) {
+      const key = chargeKey(r.tenantId, r.month, r.year);
+      const list = map.get(key) ?? [];
+      list.push({ id: r.id, label: r.label, amount: toNum(r.amount), notes: r.notes });
+      map.set(key, list);
+    }
+    return map;
+  };
+  const chargesByPeriod = groupByPeriod(charges);
+  const vouchersByPeriod = groupByPeriod(vouchers);
 
   return payments.map((p) => ({
     id: p.id,
@@ -83,6 +99,7 @@ export async function getPayments(opts: GetPaymentsOptions) {
       monthlyFee: toNum(s.monthlyFee),
     })),
     oneOffCharges: chargesByPeriod.get(chargeKey(p.tenantId, p.month, p.year)) ?? [],
+    vouchers: vouchersByPeriod.get(chargeKey(p.tenantId, p.month, p.year)) ?? [],
     unitId: p.unitId,
     unitNumber: p.unit?.unitNumber ?? null,
     month: p.month,
@@ -120,10 +137,15 @@ export async function getPayment(id: string) {
 
   if (!payment) return null;
 
-  const charges = await db.oneOffCharge.findMany({
-    where: { tenantId: payment.tenantId, month: payment.month, year: payment.year },
-    orderBy: { createdAt: "asc" },
-  });
+  const periodWhere = {
+    tenantId: payment.tenantId,
+    month: payment.month,
+    year: payment.year,
+  };
+  const [charges, vouchers] = await Promise.all([
+    db.oneOffCharge.findMany({ where: periodWhere, orderBy: { createdAt: "asc" } }),
+    db.voucher.findMany({ where: periodWhere, orderBy: { createdAt: "asc" } }),
+  ]);
 
   return {
     ...payment,
@@ -132,6 +154,12 @@ export async function getPayment(id: string) {
       label: c.label,
       amount: toNum(c.amount),
       notes: c.notes,
+    })),
+    vouchers: vouchers.map((v) => ({
+      id: v.id,
+      label: v.label,
+      amount: toNum(v.amount),
+      notes: v.notes,
     })),
     rentDue: toNum(payment.rentDue),
     amountPaid: toNum(payment.amountPaid),

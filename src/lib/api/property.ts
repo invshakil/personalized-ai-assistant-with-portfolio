@@ -13,6 +13,7 @@ import type {
   PropertyDashboardStats,
   MoveTenantInput,
   OneOffCharge,
+  Voucher,
 } from "@/types";
 
 type TenantFilter = "active" | "inactive" | "all";
@@ -94,6 +95,21 @@ export const propertyApi = {
     body: { label?: string; amount?: number; notes?: string | null }
   ) => apiPut<OneOffCharge>(`/property/one-off-charges/${id}`, body),
   deleteOneOffCharge: (id: string) => apiDelete(`/property/one-off-charges/${id}`),
+
+  // ── Vouchers (credits against a month's bill) ──────────────────────────────
+  listVouchers: (params?: { tenantId?: string; month?: number; year?: number }) =>
+    apiGet<Voucher[]>("/property/vouchers", { params }),
+  createVoucher: (body: {
+    tenantId: string;
+    label: string;
+    amount: number;
+    month: number;
+    year: number;
+    notes?: string | null;
+  }) => apiPost<Voucher>("/property/vouchers", body),
+  updateVoucher: (id: string, body: { label?: string; amount?: number; notes?: string | null }) =>
+    apiPut<Voucher>(`/property/vouchers/${id}`, body),
+  deleteVoucher: (id: string) => apiDelete(`/property/vouchers/${id}`),
 
   // ── Rent changes ─────────────────────────────────────────────────────────
   updateRentChange: (rcId: string, body: unknown) => apiPut(`/property/rent-changes/${rcId}`, body),

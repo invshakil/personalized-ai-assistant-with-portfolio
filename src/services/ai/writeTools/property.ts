@@ -11,6 +11,7 @@ import {
   updatePayment,
   generatePayments,
   createOneOffCharge,
+  createVoucher,
   createExpense,
   updateExpense,
   createRentChange,
@@ -677,6 +678,59 @@ export const propertyTools: WriteToolDef[] = [
       return {
         summary: `Added ${taka(a.amount)} "${a.label}" one-off charge to ${t.name} for ${ym(a.month, a.year)}.`,
         data: charge,
+      };
+    },
+  }),
+
+  write({
+    name: "issue_voucher",
+    description:
+      "Credit a voucher against a tenant's bill for one month — the mirror of add_one_off_charge. " +
+      "Use for a discount, or to pay a tenant back for a cost they covered that the landlord owes " +
+      "(e.g. they paid a maintenance bill out of pocket). The amount is SUBTRACTED from that month's " +
+      "total due. If the month's rent row already exists, its total updates immediately; otherwise the " +
+      "voucher is folded in when payments are generated. A voucher never pushes a bill below zero, and " +
+      "any excess is not carried to the next month. Resolve the tenant by id, tenant code, or exact name.",
+    parameters: schema(
+      {
+        tenant: Str("Tenant id, tenant code (e.g. T01), or exact name"),
+        label: Str('What the credit is for, e.g. "Maintenance paid by tenant"'),
+        amount: Num("Credit amount in BDT (positive; it reduces the bill)"),
+        month: Int("Billing month 1-12"),
+        year: Int("Billing year, e.g. 2026"),
+        notes: Str("Optional note"),
+      },
+      ["tenant", "label", "amount", "month", "year"]
+    ),
+    parse: (i) => {
+      const month = reqNum(i.month, "month");
+      if (month < 1 || month > 12) throw new Error("month must be between 1 and 12.");
+      return {
+        tenantRef: reqStr(i.tenant, "tenant"),
+        label: reqStr(i.label, "label"),
+        amount: reqNum(i.amount, "amount"),
+        month,
+        year: reqNum(i.year, "year"),
+        notes: optStr(i.notes) ?? null,
+      };
+    },
+    preview: async (a) => {
+      const t = await resolveTenantRef(a.tenantRef);
+      return `Issue voucher "${a.label}" ${taka(a.amount)} to ${t.name} (${t.tenantCode}) for ${ym(a.month, a.year)} \u2014 reduces that month's bill.`;
+    },
+    commit: async (a) => {
+      const t = await resolveTenantRef(a.tenantRef);
+      const voucher = await createVoucher({
+        tenantId: t.id,
+        label: a.label,
+        amount: a.amount,
+        month: a.month,
+        year: a.year,
+        notes: a.notes,
+      });
+      return {
+        summary: `Issued ${taka(a.amount)} "${a.label}" voucher to ${t.name} for ${ym(a.month, a.year)}.`,
+        data: voucher,
       };
     },
   }),

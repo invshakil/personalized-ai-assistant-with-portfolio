@@ -37,16 +37,23 @@ function serialize(c: {
 
 /**
  * The monthly bill total. Base rent + recurring add-on services + one-off
- * charges for the month + carry-forward from the previous month. Pure so it can
- * be unit-tested without a database and reused wherever a bill is (re)computed.
+ * charges for the month + carry-forward from the previous month, less any
+ * vouchers credited for the month. Pure so it can be unit-tested without a
+ * database and reused wherever a bill is (re)computed.
+ *
+ * Floored at 0: a voucher larger than the bill zeroes it rather than producing a
+ * negative due. Excess credit is not carried to the next month — issue a second
+ * voucher there if that is what you want.
  */
 export function computeRentDue(parts: {
   baseRent: number;
   serviceTotal: number;
   oneOffTotal: number;
   carryForward: number;
+  voucherTotal?: number;
 }): number {
-  return parts.baseRent + parts.serviceTotal + parts.oneOffTotal + parts.carryForward;
+  const gross = parts.baseRent + parts.serviceTotal + parts.oneOffTotal + parts.carryForward;
+  return Math.max(0, gross - (parts.voucherTotal ?? 0));
 }
 
 function recalcStatus(rentDue: number, amountPaid: number, advanceApplied: number): PaymentStatus {
@@ -74,9 +81,41 @@ async function applyDeltaToPayment(
     select: { id: true, rentDue: true, amountPaid: true, advanceApplied: true },
   });
   if (!payment) return;
-  const newRentDue = Math.max(0, toNum(payment.rentDue) + delta);
+  // Guaranteed >= 0 by assertDeltaAllowed, which every caller runs BEFORE it
+  // touches the charge row. Left exact rather than floored: a silent max(0, …)
+  // discards the overshoot and makes the matching voucher delete over-restore.
+  const newRentDue = toNum(payment.rentDue) + delta;
   const status = recalcStatus(newRentDue, toNum(payment.amountPaid), toNum(payment.advanceApplied));
   await db.payment.update({ where: { id: payment.id }, data: { rentDue: newRentDue, status } });
+}
+
+/**
+ * Refuse a reduction that would take the bill below the vouchers credited
+ * against it — the bill would have to be floored at 0, silently losing the
+ * difference, and removing that voucher later would restore more than it took.
+ *
+ * MUST be called before the charge row is written: these two writes are not in a
+ * transaction, so throwing afterwards would leave the charge deleted and the
+ * bill still carrying it.
+ */
+async function assertDeltaAllowed(
+  tenantId: string,
+  month: number,
+  year: number,
+  delta: number
+): Promise<void> {
+  if (delta >= 0) return;
+  const payment = await db.payment.findUnique({
+    where: { tenantId_month_year: { tenantId, month, year } },
+    select: { rentDue: true },
+  });
+  if (!payment) return;
+  if (toNum(payment.rentDue) + delta < 0) {
+    throw new Error(
+      "Reducing this charge would take the bill below the vouchers credited against it. " +
+        "Remove or reduce this month's voucher first."
+    );
+  }
 }
 
 export interface GetOneOffChargesOptions {
@@ -154,6 +193,13 @@ export async function updateOneOffCharge(
   if (label !== undefined && !label) throw new Error("A label is required for the charge");
   if (input.amount !== undefined && !(input.amount > 0))
     throw new Error("Amount must be greater than zero");
+  if (input.amount !== undefined)
+    await assertDeltaAllowed(
+      existing.tenantId,
+      existing.month,
+      existing.year,
+      input.amount - toNum(existing.amount)
+    );
 
   const updated = await db.oneOffCharge.update({
     where: { id },
@@ -172,6 +218,12 @@ export async function updateOneOffCharge(
 export async function deleteOneOffCharge(id: string): Promise<{ deleted: true }> {
   const existing = await db.oneOffCharge.findUnique({ where: { id } });
   if (!existing) throw new Error("Charge not found");
+  await assertDeltaAllowed(
+    existing.tenantId,
+    existing.month,
+    existing.year,
+    -toNum(existing.amount)
+  );
 
   await db.oneOffCharge.delete({ where: { id } });
   await applyDeltaToPayment(

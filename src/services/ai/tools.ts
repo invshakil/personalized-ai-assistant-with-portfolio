@@ -25,6 +25,7 @@ import {
   getTenants,
   getPayments,
   getOneOffCharges,
+  getVouchers,
   getExpenses,
   getPropertyFinancials,
   getPropertyExpenseBreakdown,
@@ -332,6 +333,19 @@ const propertyReadTools: AiToolDef[] = [
       "List one-off (non-recurring) charges billed to tenants for a specific month — e.g. maintenance " +
       "fees, repair costs. Filter by tenant id, month, and/or year. Unlike add-on services these do NOT " +
       "recur; each charge is added on top of base rent + recurring services in that one month's bill.",
+    parameters: obj({
+      tenantId: { type: "string", description: "Tenant id (optional)" },
+      month: { type: "integer", description: "Month 1-12 (optional)" },
+      year: { type: "integer", description: "Year (optional)" },
+    }),
+  },
+  {
+    name: "list_vouchers",
+    description:
+      "List vouchers — credits applied against a tenant's monthly bill. A voucher is the opposite of a " +
+      "one-off charge: it is SUBTRACTED from that month's total due. Used for discounts, or to reimburse " +
+      "a tenant for a cost they fronted that the landlord owes (e.g. maintenance they paid for). " +
+      "Filter by tenant id, month, and/or year. Amounts are stored positive; they reduce the bill.",
     parameters: obj({
       tenantId: { type: "string", description: "Tenant id (optional)" },
       month: { type: "integer", description: "Month 1-12 (optional)" },
@@ -769,6 +783,8 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
     }),
   list_one_off_charges: (i) =>
     getOneOffCharges({ tenantId: str(i.tenantId), month: num(i.month), year: num(i.year) }),
+  list_vouchers: (i) =>
+    getVouchers({ tenantId: str(i.tenantId), month: num(i.month), year: num(i.year) }),
   list_property_expenses: (i) =>
     getExpenses({
       month: num(i.month),
