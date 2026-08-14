@@ -8,6 +8,16 @@ interface DashboardStatsRowProps {
 }
 
 export default function DashboardStatsRow({ data }: DashboardStatsRowProps) {
+  // Headline is cash actually received. The sub-line reports coverage (which does
+  // count advance draw-down) and names the advance, so a month settled from a
+  // tenant's advance never reads as if that cash came in this month.
+  const settledPct =
+    data.totalExpected > 0 ? Math.round((data.totalSettled / data.totalExpected) * 100) : 0;
+  const sub =
+    data.totalAdvanceApplied > 0
+      ? `${settledPct}% settled · ${fmt(data.totalAdvanceApplied)} from advances`
+      : `${settledPct}% collected`;
+
   return (
     <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
       <StatCard label="Rent Expected" value={fmt(data.totalExpected)} color="text.primary" />
@@ -15,7 +25,7 @@ export default function DashboardStatsRow({ data }: DashboardStatsRowProps) {
         label="Rent Collected"
         value={fmt(data.totalCollected)}
         color="success.main"
-        sub={`${data.totalExpected > 0 ? Math.round((data.totalCollected / data.totalExpected) * 100) : 0}% collected`}
+        sub={sub}
       />
       <StatCard label="Total Expenses" value={fmt(data.totalExpenses)} color="error.main" />
       <StatCard

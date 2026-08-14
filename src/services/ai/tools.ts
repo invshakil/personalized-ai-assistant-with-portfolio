@@ -267,7 +267,10 @@ const propertyReadTools: AiToolDef[] = [
   {
     name: "get_property_dashboard",
     description:
-      "Rental-property dashboard for a single month: expected vs collected rent, expenses, net profit, occupancy, due tracker, yearly trend. Defaults to the current month.",
+      "Rental-property dashboard for a single month: expected vs collected rent, expenses, net profit, " +
+      "occupancy, due tracker, yearly trend. totalCollected is CASH actually received; " +
+      "totalAdvanceApplied is drawn from tenants' held advances; totalSettled is the two together " +
+      "(what the bills were covered by). Defaults to the current month.",
     parameters: obj({
       month: { type: "integer", description: "Month 1-12 (optional, defaults to current month)" },
       year: { type: "integer", description: "Year (optional, defaults to current year)" },
@@ -387,7 +390,10 @@ const propertyReadTools: AiToolDef[] = [
   {
     name: "get_property_financials",
     description:
-      "Multi-month rental P&L over a date range: expected vs collected rent, collection rate, expenses, net profit, and a monthly trend. Use for 'how did the property do this year'.",
+      "Multi-month rental P&L over a date range: expected vs collected rent, collection rate, expenses, " +
+      "net profit, and a monthly trend. `collected` is CASH received; `advanceApplied` is drawn from " +
+      "tenants' advances; `settled` is the two together and is what collectionRatePct and netProfit " +
+      "run on. Use for 'how did the property do this year'.",
     parameters: obj({ ...RANGE }),
   },
   {
@@ -889,8 +895,16 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
     return {
       range: prop.range,
       business: { income: businessIncome, netProfit: businessNet },
-      property: { collected: prop.collected, netProfit: prop.netProfit },
-      combinedIncome: businessIncome + prop.collected,
+      // Rental income is `settled`, not `collected`: a bill met from a tenant's
+      // held advance is still income for the period, it just isn't new cash.
+      // `collected`/`advanceApplied` are passed through so the split is visible.
+      property: {
+        collected: prop.collected,
+        advanceApplied: prop.advanceApplied,
+        income: prop.settled,
+        netProfit: prop.netProfit,
+      },
+      combinedIncome: businessIncome + prop.settled,
       combinedNetProfit: businessNet + prop.netProfit,
     };
   },

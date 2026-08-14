@@ -3,23 +3,25 @@ import { fmt } from "../types";
 
 interface PaymentSummaryStripProps {
   totalExpected: number;
-  totalPaid: number;
   totalCollected: number;
+  totalAdvanceApplied: number;
   totalOutstanding: number;
   overdueCount: number;
 }
 
 export default function PaymentSummaryStrip({
   totalExpected,
-  totalPaid,
   totalCollected,
+  totalAdvanceApplied,
   totalOutstanding,
   overdueCount,
 }: PaymentSummaryStripProps) {
+  // Collected + Advance Applied + Outstanding == Expected, so the row reads as
+  // one sum: what was billed, and how each taka of it was (or wasn't) covered.
   const stats = [
     { label: "Expected", value: fmt(totalExpected), color: "text.primary" },
-    { label: "Total Paid", value: fmt(totalPaid), color: "success.main" },
     { label: "Collected", value: fmt(totalCollected), color: "success.main" },
+    { label: "Advance Applied", value: fmt(totalAdvanceApplied), color: "info.main" },
     { label: "Outstanding", value: fmt(totalOutstanding), color: "error.main" },
     {
       label: "Unpaid Tenants",

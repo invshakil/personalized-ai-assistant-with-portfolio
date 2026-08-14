@@ -7,24 +7,40 @@ import MiniStat from "./MiniStat";
 interface FinancialOverviewCardProps {
   data: Pick<
     PropertyDashboardStats,
-    "totalExpected" | "totalCollected" | "totalExpenses" | "netProfit" | "yearlyData"
+    | "totalExpected"
+    | "totalCollected"
+    | "totalAdvanceApplied"
+    | "totalSettled"
+    | "totalExpenses"
+    | "netProfit"
+    | "yearlyData"
   >;
   month: number;
   year: number;
 }
 
 export default function FinancialOverviewCard({ data, month, year }: FinancialOverviewCardProps) {
-  const { totalExpected, totalCollected, totalExpenses, netProfit, yearlyData } = data;
-  const collectionPct = totalExpected > 0 ? (totalCollected / totalExpected) * 100 : 0;
-  const uncollected = Math.max(0, totalExpected - totalCollected);
-  // Expenses shown relative to what was collected (how much of income they ate).
-  const expensePct = totalCollected > 0 ? (totalExpenses / totalCollected) * 100 : 0;
+  const {
+    totalExpected,
+    totalCollected,
+    totalAdvanceApplied,
+    totalSettled,
+    totalExpenses,
+    netProfit,
+    yearlyData,
+  } = data;
+  // Every ratio here measures the month's rent income, which a bill met from a
+  // tenant's advance is part of — so they run on `settled`, matching netProfit.
+  // `totalCollected` (cash only) is surfaced in the note beside it.
+  const collectionPct = totalExpected > 0 ? (totalSettled / totalExpected) * 100 : 0;
+  const uncollected = Math.max(0, totalExpected - totalSettled);
+  const expensePct = totalSettled > 0 ? (totalExpenses / totalSettled) * 100 : 0;
 
-  const yearCollected = yearlyData.reduce((s, m) => s + m.collected, 0);
+  const yearSettled = yearlyData.reduce((s, m) => s + m.settled, 0);
   const yearExpenses = yearlyData.reduce((s, m) => s + m.expenses, 0);
-  const activeMonths = yearlyData.filter((m) => m.collected > 0 || m.expenses > 0);
-  const netMargin = totalCollected > 0 ? Math.round((netProfit / totalCollected) * 100) : 0;
-  const ytdNet = yearCollected - yearExpenses;
+  const activeMonths = yearlyData.filter((m) => m.settled > 0 || m.expenses > 0);
+  const netMargin = totalSettled > 0 ? Math.round((netProfit / totalSettled) * 100) : 0;
+  const ytdNet = yearSettled - yearExpenses;
   const profitableMonths = yearlyData.filter((m) => m.netProfit > 0).length;
 
   return (
@@ -36,12 +52,14 @@ export default function FinancialOverviewCard({ data, month, year }: FinancialOv
 
         <BarRow
           label="Rent collected"
-          value={`${fmt(totalCollected)} / ${fmt(totalExpected)}`}
+          value={`${fmt(totalSettled)} / ${fmt(totalExpected)}`}
           pct={collectionPct}
           color="success.main"
           note={
             totalExpected > 0
-              ? `${Math.round(collectionPct)}% collected · ${fmt(uncollected)} outstanding`
+              ? `${fmt(totalCollected)} cash` +
+                (totalAdvanceApplied > 0 ? ` · ${fmt(totalAdvanceApplied)} from advances` : "") +
+                ` · ${fmt(uncollected)} outstanding`
               : "No rent expected this month"
           }
         />
@@ -52,8 +70,8 @@ export default function FinancialOverviewCard({ data, month, year }: FinancialOv
           pct={expensePct}
           color="error.main"
           note={
-            totalCollected > 0
-              ? `${Math.round(expensePct)}% of collected rent`
+            totalSettled > 0
+              ? `${Math.round(expensePct)}% of rent income`
               : "No income recorded yet"
           }
         />

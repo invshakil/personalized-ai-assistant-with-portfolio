@@ -25,30 +25,51 @@ export async function getPropertyFinancials(input: RangeInput = {}) {
     db.expense.findMany({ where, select: { amount: true, month: true, year: true } }),
   ]);
 
-  const months = new Map<string, { expected: number; collected: number; expenses: number }>();
+  // "Collected" is cash that actually came in; advance applied covers a bill but
+  // is not new money in that month (the cash arrived when the advance was taken).
+  // `settled` is the pair, and is what the coverage ratio and P&L run on.
+  const months = new Map<
+    string,
+    { expected: number; collected: number; advanceApplied: number; expenses: number }
+  >();
   const bucket = (k: string) =>
-    months.get(k) ?? months.set(k, { expected: 0, collected: 0, expenses: 0 }).get(k)!;
+    months.get(k) ??
+    months.set(k, { expected: 0, collected: 0, advanceApplied: 0, expenses: 0 }).get(k)!;
   for (const p of payments) {
     const b = bucket(mk(p.year, p.month));
     b.expected += toNum(p.rentDue);
-    b.collected += toNum(p.amountPaid) + toNum(p.advanceApplied);
+    b.collected += toNum(p.amountPaid);
+    b.advanceApplied += toNum(p.advanceApplied);
   }
   for (const e of expenses) bucket(mk(e.year, e.month)).expenses += toNum(e.amount);
 
   const expected = payments.reduce((s, p) => s + toNum(p.rentDue), 0);
-  const collected = payments.reduce((s, p) => s + toNum(p.amountPaid) + toNum(p.advanceApplied), 0);
+  const collected = payments.reduce((s, p) => s + toNum(p.amountPaid), 0);
+  const advanceApplied = payments.reduce((s, p) => s + toNum(p.advanceApplied), 0);
+  const settled = collected + advanceApplied;
   const expenseTotal = expenses.reduce((s, e) => s + toNum(e.amount), 0);
 
   return {
     range: range.label,
     expected,
     collected,
-    collectionRatePct: expected ? Math.round((collected / expected) * 1000) / 10 : 0,
+    advanceApplied,
+    settled,
+    // Coverage, not cash: a bill met from a tenant's advance IS collected in the
+    // sense this ratio measures, so it stays on `settled` and keeps its meaning.
+    collectionRatePct: expected ? Math.round((settled / expected) * 1000) / 10 : 0,
     expenses: expenseTotal,
-    netProfit: collected - expenseTotal,
+    netProfit: settled - expenseTotal,
     byMonth: Array.from(months.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([period, v]) => ({ period, ...v, net: v.collected - v.expenses })),
+      .map(([period, v]) => ({
+        period,
+        ...v,
+        settled: v.collected + v.advanceApplied,
+        // Same basis as the top-level netProfit above, so the monthly rows sum
+        // to the headline instead of quietly disagreeing with it.
+        net: v.collected + v.advanceApplied - v.expenses,
+      })),
   };
 }
 
