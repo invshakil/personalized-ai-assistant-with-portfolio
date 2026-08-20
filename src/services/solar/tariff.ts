@@ -177,26 +177,30 @@ export async function createTariff(input: TariffInput): Promise<TariffRow> {
 }
 
 export async function updateTariff(id: string, input: TariffInput): Promise<TariffRow> {
-  // Replace slabs wholesale — simplest correct semantics for an edit.
-  await db.tariffSlab.deleteMany({ where: { tariffId: id } });
-  const row = await db.electricityTariff.update({
-    where: { id },
-    data: {
-      name: input.name,
-      distributor: input.distributor ?? "BPDB",
-      effectiveFrom: monthStartFromInput(input.effectiveFrom),
-      demandChargePerKw: input.demandCharge ?? 0,
-      vatPercent: input.vatPercent ?? 5,
-      note: input.note ?? null,
-      slabs: {
-        create: sortSlabs(input.slabs).map((s) => ({
-          fromUnit: s.fromUnit,
-          toUnit: s.toUnit,
-          rate: s.rate,
-        })),
+  // Replace slabs wholesale — simplest correct semantics for an edit. Atomic:
+  // the delete used to be able to commit on its own, leaving a tariff with no
+  // slabs at all if the update then failed — every bill silently costing 0.
+  const row = await db.$transaction(async (tx) => {
+    await tx.tariffSlab.deleteMany({ where: { tariffId: id } });
+    return tx.electricityTariff.update({
+      where: { id },
+      data: {
+        name: input.name,
+        distributor: input.distributor ?? "BPDB",
+        effectiveFrom: monthStartFromInput(input.effectiveFrom),
+        demandChargePerKw: input.demandCharge ?? 0,
+        vatPercent: input.vatPercent ?? 5,
+        note: input.note ?? null,
+        slabs: {
+          create: sortSlabs(input.slabs).map((s) => ({
+            fromUnit: s.fromUnit,
+            toUnit: s.toUnit,
+            rate: s.rate,
+          })),
+        },
       },
-    },
-    include: { slabs: true },
+      include: { slabs: true },
+    });
   });
   return rowToTariff(row);
 }

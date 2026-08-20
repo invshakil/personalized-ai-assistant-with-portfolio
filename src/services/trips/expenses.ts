@@ -165,9 +165,11 @@ async function resolveExpense(input: TripExpenseInput): Promise<Resolved> {
 
 export async function createTripExpense(input: TripExpenseInput): Promise<TripExpenseRow> {
   const r = await resolveExpense(input);
-  const categoryId = r.post ? await ensureCategory(TRAVEL_CATEGORY, "EXPENSE") : null;
 
   const created = await db.$transaction(async (tx) => {
+    // Inside the transaction so a rejected expense cannot leave a brand-new
+    // empty "Travel" category behind.
+    const categoryId = r.post ? await ensureCategory(TRAVEL_CATEGORY, "EXPENSE", tx) : null;
     let moneyEntryId: string | null = null;
     if (r.post && categoryId && r.accountId) {
       const entry = await tx.moneyEntry.create({
@@ -234,9 +236,11 @@ export async function updateTripExpense(
 ): Promise<TripExpenseRow> {
   const existing = await loadExpense(tripId, expenseId);
   const r = await resolveExpense({ ...input, tripId });
-  const categoryId = r.post ? await ensureCategory(TRAVEL_CATEGORY, "EXPENSE") : null;
 
   const updated = await db.$transaction(async (tx) => {
+    // Inside the transaction so a rejected update cannot leave a brand-new
+    // empty "Travel" category behind.
+    const categoryId = r.post ? await ensureCategory(TRAVEL_CATEGORY, "EXPENSE", tx) : null;
     let moneyEntryId = existing.moneyEntryId;
     const entryCore = {
       date: new Date(input.date),

@@ -3,7 +3,7 @@
 // moves (TRANSFER). Payments to people are DEBIT entries tagged with a
 // beneficiaryId (and obligationId for loan repayments). Account balances and
 // the savings number are derived from these rows — see accounts.ts / dashboard.ts.
-import { db } from "@/lib/db";
+import { db, type DbClient } from "@/lib/db";
 import { MoneyEntryDirection, MoneyEntrySource, Prisma, type TripCategory } from "@prisma/client";
 import { resolveRange, dateColumnWhere, type RangeInput } from "@/services/_shared/dateRange";
 import { getFxRateToBdt } from "@/services/_shared/fx";
@@ -117,9 +117,10 @@ export async function getEntry(id: string): Promise<MoneyEntryRow | null> {
 /** A CREDIT must point at an INCOME category, a DEBIT at an EXPENSE category. */
 async function assertCategoryMatchesDirection(
   categoryId: string,
-  direction: "CREDIT" | "DEBIT"
+  direction: "CREDIT" | "DEBIT",
+  client: DbClient = db
 ): Promise<void> {
-  const cat = await db.moneyCategory.findUnique({
+  const cat = await client.moneyCategory.findUnique({
     where: { id: categoryId },
     select: { kind: true },
   });
@@ -138,9 +139,12 @@ function assertMethodAllowed(method: MoneyEntryMethod | null | undefined, direct
 }
 
 /** The currency an account holds (BDT when no account / not found). */
-async function accountCurrency(accountId: string | null | undefined): Promise<string> {
+async function accountCurrency(
+  accountId: string | null | undefined,
+  client: DbClient = db
+): Promise<string> {
   if (!accountId) return "BDT";
-  const acct = await db.moneyAccount.findUnique({
+  const acct = await client.moneyAccount.findUnique({
     where: { id: accountId },
     select: { currency: true },
   });
@@ -185,20 +189,27 @@ export interface CreateEntryInput {
   tripCategory?: TripCategory | null;
 }
 
-export async function createEntry(input: CreateEntryInput): Promise<MoneyEntryRow> {
+/**
+ * Write a ledger entry. Pass `client` to enlist the write in the caller's
+ * transaction, so a later failure in that transaction rolls this entry back too.
+ */
+export async function createEntry(
+  input: CreateEntryInput,
+  client: DbClient = db
+): Promise<MoneyEntryRow> {
   if (!Number.isFinite(input.amount) || input.amount <= 0)
     throw new Error("amount must be a finite number greater than 0");
-  await assertCategoryMatchesDirection(input.categoryId, input.direction);
+  await assertCategoryMatchesDirection(input.categoryId, input.direction, client);
   assertMethodAllowed(input.method, input.direction);
 
-  const acctCurrency = await accountCurrency(input.accountId);
+  const acctCurrency = await accountCurrency(input.accountId, client);
   const currency = (input.currency ?? acctCurrency).toUpperCase();
   if (input.accountId && currency !== acctCurrency) {
     throw new Error(`Entry currency ${currency} does not match account currency ${acctCurrency}`);
   }
   const fxRate = await resolveEntryFxRate(currency, input.fxRate);
 
-  const e = await db.moneyEntry.create({
+  const e = await client.moneyEntry.create({
     data: {
       date: new Date(input.date),
       direction: input.direction,
@@ -322,7 +333,10 @@ export interface RecordTransferInput {
  * currency) linked to the transfer; the transfer + fee are written atomically
  * and deleting the transfer cascades the fee away.
  */
-export async function recordTransfer(input: RecordTransferInput): Promise<MoneyEntryRow> {
+export async function recordTransfer(
+  input: RecordTransferInput,
+  client?: DbClient
+): Promise<MoneyEntryRow> {
   if (!Number.isFinite(input.amount) || input.amount <= 0)
     throw new Error("amount must be a finite number greater than 0");
   if (input.fromAccountId === input.toAccountId) {
@@ -351,11 +365,12 @@ export async function recordTransfer(input: RecordTransferInput): Promise<MoneyE
     fxRate = Math.round((toAmount / input.amount) * 1e6) / 1e6;
   }
 
-  // Resolve the fee category before the transaction (find-or-create needs the
-  // shared client); harmless if the transaction below rolls back.
-  const feeCategoryId = fee > 0 ? await ensureCategory("Transfer Fee", "EXPENSE") : null;
+  // The transfer, its fee entry, and the fee category are one unit of work. When
+  // the caller already has a transaction open (e.g. convertEarnings), join it
+  // rather than nesting — Prisma has no nested interactive transactions.
+  const run = async (tx: DbClient) => {
+    const feeCategoryId = fee > 0 ? await ensureCategory("Transfer Fee", "EXPENSE", tx) : null;
 
-  const e = await db.$transaction(async (tx) => {
     const transfer = await tx.moneyEntry.create({
       data: {
         date: new Date(input.date),
@@ -392,7 +407,8 @@ export async function recordTransfer(input: RecordTransferInput): Promise<MoneyE
     }
 
     return transfer;
-  });
+  };
 
+  const e = client ? await run(client) : await db.$transaction(run);
   return serializeEntry(e);
 }

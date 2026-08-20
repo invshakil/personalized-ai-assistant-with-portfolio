@@ -174,17 +174,24 @@ export async function upsertProviderConfig(
     }
   }
 
-  const updated = await db.aiProviderConfig.update({ where: { provider: input.provider }, data });
+  // Field edits and the activation switch are one unit of work. Split apart, a
+  // rejected activation ("add an API key first") still committed the other
+  // edits, so the form came back showing a saved change beside its own error.
+  await db.$transaction(async (tx) => {
+    const updated = await tx.aiProviderConfig.update({ where: { provider: input.provider }, data });
 
-  if (input.setActive) {
-    if (!entry.supported) throw new Error(`${entry.label} is not supported yet.`);
-    if (!updated.apiKeyEnc)
-      throw new Error(`Add an API key for ${entry.label} before making it active.`);
-    await db.$transaction([
-      db.aiProviderConfig.updateMany({ where: {}, data: { isActive: false } }),
-      db.aiProviderConfig.update({ where: { provider: input.provider }, data: { isActive: true } }),
-    ]);
-  }
+    if (input.setActive) {
+      if (!entry.supported) throw new Error(`${entry.label} is not supported yet.`);
+      if (!updated.apiKeyEnc)
+        throw new Error(`Add an API key for ${entry.label} before making it active.`);
+      // Exactly one provider is active at a time.
+      await tx.aiProviderConfig.updateMany({ where: {}, data: { isActive: false } });
+      await tx.aiProviderConfig.update({
+        where: { provider: input.provider },
+        data: { isActive: true },
+      });
+    }
+  });
 
   return listProviderConfigs();
 }

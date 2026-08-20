@@ -90,32 +90,27 @@ export interface AssignServiceInput {
 export async function assignService(input: AssignServiceInput) {
   const { tenantId, serviceId, monthlyFee, startDate, notes } = input;
 
-  // Re-activate and update fee if a previous subscription exists (ended)
-  const existing = await db.tenantService.findUnique({
+  // Re-activate and update the fee if a previous subscription exists (ended).
+  // A single upsert rather than read-then-branch: the read/write gap could race
+  // two assignments into a unique-constraint crash on (tenantId, serviceId).
+  const record = await db.tenantService.upsert({
     where: { tenantId_serviceId: { tenantId, serviceId } },
+    update: {
+      monthlyFee,
+      startDate: new Date(startDate),
+      endDate: null,
+      isActive: true,
+      notes: notes ?? null,
+    },
+    create: {
+      tenantId,
+      serviceId,
+      monthlyFee,
+      startDate: new Date(startDate),
+      isActive: true,
+      notes: notes ?? null,
+    },
   });
-
-  const record = existing
-    ? await db.tenantService.update({
-        where: { tenantId_serviceId: { tenantId, serviceId } },
-        data: {
-          monthlyFee,
-          startDate: new Date(startDate),
-          endDate: null,
-          isActive: true,
-          notes: notes ?? null,
-        },
-      })
-    : await db.tenantService.create({
-        data: {
-          tenantId,
-          serviceId,
-          monthlyFee,
-          startDate: new Date(startDate),
-          isActive: true,
-          notes: notes ?? null,
-        },
-      });
 
   return {
     ...record,

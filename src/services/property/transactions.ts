@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { db, type DbClient } from "@/lib/db";
 import { toNum } from "./_serializers";
 import { recordLinkedEntry } from "@/services/money";
 import { TransactionType } from "@prisma/client";
@@ -12,15 +12,15 @@ function recalcStatus(rentDue: number, amountPaid: number, advanceApplied: numbe
   return "PENDING" as const;
 }
 
-async function assignReceiptIfNeeded(paymentId: string, year: number) {
-  const payment = await db.payment.findUnique({
+async function assignReceiptIfNeeded(paymentId: string, year: number, client: DbClient = db) {
+  const payment = await client.payment.findUnique({
     where: { id: paymentId },
     select: { receiptNumber: true },
   });
   if (payment?.receiptNumber) return;
-  const count = await db.payment.count({ where: { year, receiptNumber: { not: null } } });
+  const count = await client.payment.count({ where: { year, receiptNumber: { not: null } } });
   const receiptNumber = `RCP-${year}-${String(count + 1).padStart(4, "0")}`;
-  await db.payment.update({ where: { id: paymentId }, data: { receiptNumber } });
+  await client.payment.update({ where: { id: paymentId }, data: { receiptNumber } });
 }
 
 export async function getTransactions(paymentId: string) {
@@ -102,30 +102,36 @@ export async function addTransaction(input: AddTransactionInput) {
       });
     }
 
+    // Receipt numbering and the ledger link belong to the same unit of work as
+    // the payment update. They used to run after the transaction committed, so a
+    // failing link (e.g. a foreign destination account) left the rent recorded
+    // as PAID with a receipt issued but no cash in any account.
+    const updated = await prisma.payment.findUnique({
+      where: { id: paymentId },
+      select: { status: true, year: true },
+    });
+    if (updated && (updated.status === "PAID" || updated.status === "PARTIAL")) {
+      await assignReceiptIfNeeded(paymentId, updated.year, prisma);
+    }
+
+    // Opt-in cross-domain link: only post a ledger CREDIT for real cash/bank
+    // receipts, never for advance applications or adjustments.
+    if (accountId && (type === TransactionType.CASH || type === TransactionType.BANK_TRANSFER)) {
+      await recordLinkedEntry(
+        {
+          accountId,
+          direction: "CREDIT",
+          amount,
+          date,
+          categoryName: "Rental Income",
+          description: `Rent — ${payment.tenant.name} ${MONTHS[payment.month - 1]} ${payment.year}`,
+        },
+        prisma
+      );
+    }
+
     return transaction;
   });
-
-  const updated = await db.payment.findUnique({
-    where: { id: paymentId },
-    select: { status: true, year: true },
-  });
-  if (updated && (updated.status === "PAID" || updated.status === "PARTIAL")) {
-    await assignReceiptIfNeeded(paymentId, updated.year);
-  }
-
-  // Opt-in cross-domain link: only post a ledger CREDIT for real cash/bank
-  // receipts, never for advance applications or adjustments. Posted once after
-  // the transaction is recorded; if it throws, let it propagate.
-  if (accountId && (type === TransactionType.CASH || type === TransactionType.BANK_TRANSFER)) {
-    await recordLinkedEntry({
-      accountId,
-      direction: "CREDIT",
-      amount,
-      date,
-      categoryName: "Rental Income",
-      description: `Rent — ${payment.tenant.name} ${MONTHS[payment.month - 1]} ${payment.year}`,
-    });
-  }
 
   return {
     ...tx,
