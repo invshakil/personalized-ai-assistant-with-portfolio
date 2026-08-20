@@ -246,6 +246,7 @@ export default function PropertyPage() {
       <PropertyConfirmDialog
         dialog={confirm.dialog}
         loading={confirm.loading}
+        error={confirm.error}
         onConfirm={confirm.runConfirm}
         onClose={confirm.closeConfirm}
       />

@@ -212,7 +212,8 @@ export const financeApi = {
     id: string,
     body: { name?: string; phone?: string | null; isActive?: boolean; notes?: string | null }
   ) => apiPut<EmployeeRow>(`/finance/employees/${id}`, body),
-  deleteEmployee: (id: string) => apiDelete(`/finance/employees/${id}`),
+  deleteEmployee: (id: string) =>
+    apiDelete<{ deleted: boolean; error?: string }>(`/finance/employees/${id}`),
 
   listClients: () => apiGet<SourceRow[]>("/finance/sources"),
   getSource: (id: string) => apiGet<SourceRow>(`/finance/sources/${id}`),
@@ -220,7 +221,8 @@ export const financeApi = {
     apiPost<SourceRow>("/finance/sources", body),
   updateClient: (id: string, body: { name?: string; notes?: string | null }) =>
     apiPut<SourceRow>(`/finance/sources/${id}`, body),
-  deleteClient: (id: string) => apiDelete(`/finance/sources/${id}`),
+  deleteClient: (id: string) =>
+    apiDelete<{ deleted: boolean; error?: string }>(`/finance/sources/${id}`),
 
   // ── Business profile (PDF letterhead) ────────────────────────────────────
   getBusinessProfile: () => apiGet<BusinessProfile>("/finance/business-profile"),
@@ -231,5 +233,6 @@ export const financeApi = {
   createCategory: (body: { name: string }) => apiPost<CategoryRow>("/finance/categories", body),
   updateCategory: (id: string, body: { name?: string }) =>
     apiPut<CategoryRow>(`/finance/categories/${id}`, body),
-  deleteCategory: (id: string) => apiDelete(`/finance/categories/${id}`),
+  deleteCategory: (id: string) =>
+    apiDelete<{ deleted: boolean; error?: string }>(`/finance/categories/${id}`),
 };

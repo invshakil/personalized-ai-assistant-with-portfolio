@@ -60,6 +60,7 @@ export default function AccountsPage() {
         confirmLabel={confirm.dialog?.confirmLabel}
         confirmColor={confirm.dialog?.confirmColor}
         loading={confirm.loading}
+        error={confirm.error}
         onConfirm={confirm.runConfirm}
         onClose={confirm.closeConfirm}
       />

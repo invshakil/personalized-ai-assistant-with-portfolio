@@ -7,6 +7,7 @@ export function useEarningActions(
   onSuccess: () => Promise<void>
 ) {
   const [reversingId, setReversingId] = useState<string | null>(null);
+  const [reverseError, setReverseError] = useState<string | null>(null);
 
   const requestDelete = (id: string) => {
     confirm.openConfirm(
@@ -22,15 +23,24 @@ export function useEarningActions(
 
   const doReverse = async (id: string) => {
     setReversingId(id);
+    setReverseError(null);
     try {
       await financeApi.reverseConversion(id);
       await onSuccess();
-    } catch {
-      /* surfaced on reload */
+    } catch (e) {
+      // Un-realizing income moves money in the ledger — a failure here is not
+      // something to swallow and hope the next reload explains.
+      setReverseError(e instanceof Error ? e.message : "Could not reverse the conversion.");
     } finally {
       setReversingId(null);
     }
   };
 
-  return { reversingId, requestDelete, doReverse };
+  return {
+    reversingId,
+    reverseError,
+    clearReverseError: () => setReverseError(null),
+    requestDelete,
+    doReverse,
+  };
 }
