@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import { getSubscriptions, createSubscription } from "@/services/finance";
+import { withApiError } from "@/lib/apiRoute";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -14,7 +15,7 @@ export async function GET(req: NextRequest) {
   return Response.json({ data });
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withApiError(async (req: NextRequest) => {
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -35,4 +36,4 @@ export async function POST(req: NextRequest) {
     notes,
   });
   return Response.json({ data }, { status: 201 });
-}
+});

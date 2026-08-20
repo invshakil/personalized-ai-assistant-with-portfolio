@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import { addBlackout, listBlackouts } from "@/services/booking";
+import { withApiError } from "@/lib/apiRoute";
 
 export async function GET() {
   const session = await auth();
@@ -9,7 +10,7 @@ export async function GET() {
   return Response.json({ data });
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withApiError(async (req: NextRequest) => {
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
   const { date, reason } = (await req.json()) as { date?: string; reason?: string };
@@ -18,4 +19,4 @@ export async function POST(req: NextRequest) {
   }
   const data = await addBlackout(date, reason ?? null);
   return Response.json({ data });
-}
+});

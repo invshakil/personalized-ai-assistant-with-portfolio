@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { upsertSiteSettings } from "@/services/admin";
+import { withApiError } from "@/lib/apiRoute";
 
-export async function PUT(req: Request) {
+export const PUT = withApiError(async (req: Request) => {
   const session = await auth();
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -22,4 +23,4 @@ export async function PUT(req: Request) {
     cvUrl,
   });
   return Response.json({ data: settings });
-}
+});

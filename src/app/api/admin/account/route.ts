@@ -1,7 +1,8 @@
 import { auth } from "@/lib/auth";
 import { updateDisplayName, changePassword } from "@/services/admin";
+import { withApiError } from "@/lib/apiRoute";
 
-export async function PUT(req: Request) {
+export const PUT = withApiError(async (req: Request) => {
   const session = await auth();
   if (!session?.user?.id) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -25,4 +26,4 @@ export async function PUT(req: Request) {
   }
 
   return Response.json({ error: "Nothing to update" }, { status: 400 });
-}
+});

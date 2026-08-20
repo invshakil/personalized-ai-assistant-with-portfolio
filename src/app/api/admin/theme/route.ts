@@ -1,13 +1,14 @@
 import { auth } from "@/lib/auth";
 import { upsertThemeSettings } from "@/services/admin";
 import type { AdminThemeSettings } from "@/types";
+import { withApiError } from "@/lib/apiRoute";
 
 const MODES = ["light", "dark", "system"];
 const SHADOWS = ["none", "soft", "elevated"];
 const DENSITIES = ["compact", "comfortable"];
 const HEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
-export async function PUT(req: Request) {
+export const PUT = withApiError(async (req: Request) => {
   const session = await auth();
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -49,4 +50,4 @@ export async function PUT(req: Request) {
   } satisfies AdminThemeSettings);
 
   return Response.json({ data: settings });
-}
+});
