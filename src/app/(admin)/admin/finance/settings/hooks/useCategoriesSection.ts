@@ -33,7 +33,14 @@ export function useCategoriesSection(openConfirm: OpenConfirm, onError: (message
       "This is only possible if nothing references it yet. This cannot be undone.",
       async () => {
         try {
-          await financeApi.deleteCategory(id);
+          // A still-referenced record comes back as a 200 with
+          // { deleted: false, error } rather than throwing, so the catch below
+          // never sees it — check the payload or the failure passes silently.
+          const res = await financeApi.deleteCategory(id);
+          if (res && res.deleted === false) {
+            onError(res.error ?? "Cannot delete this category.");
+            return;
+          }
           await load();
         } catch (e) {
           onError(e instanceof Error ? e.message : "Cannot delete — it is still referenced.");

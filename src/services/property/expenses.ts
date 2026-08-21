@@ -69,40 +69,49 @@ export interface CreateExpenseInput {
 }
 
 export async function createExpense(input: CreateExpenseInput) {
-  const expense = await db.expense.create({
-    data: {
-      description: input.description,
-      amount: input.amount,
-      currency: "BDT",
-      category: input.category,
-      month: input.month,
-      year: input.year,
-      expenseDate: input.expenseDate ? new Date(input.expenseDate) : null,
-      paidTo: input.paidTo ?? null,
-      paymentMode: input.paymentMode ?? null,
-      unitId: input.unitId ?? null,
-      payeeId: input.payeeId ?? null,
-      serviceTypeId: input.serviceTypeId ?? null,
-      notes: input.notes ?? null,
-    },
-    include: {
-      payee: { select: { name: true } },
-      serviceType: { select: { name: true } },
-    },
-  });
-  // Opt-in cross-domain link: post a ledger DEBIT only when the caller supplied
-  // an account. Posted once after the expense is created; no back-sync. If it
-  // throws, let it propagate.
-  if (input.accountId) {
-    await recordLinkedEntry({
-      accountId: input.accountId,
-      direction: "DEBIT",
-      amount: input.amount,
-      date: input.expenseDate ?? `${input.year}-${String(input.month).padStart(2, "0")}-01`,
-      categoryName: "Property Expense",
-      description: input.description,
+  // The expense and its opt-in ledger entry are one unit of work — a failing
+  // link must not leave the expense recorded with no cash movement behind it.
+  const expense = await db.$transaction(async (tx) => {
+    const created = await tx.expense.create({
+      data: {
+        description: input.description,
+        amount: input.amount,
+        currency: "BDT",
+        category: input.category,
+        month: input.month,
+        year: input.year,
+        expenseDate: input.expenseDate ? new Date(input.expenseDate) : null,
+        paidTo: input.paidTo ?? null,
+        paymentMode: input.paymentMode ?? null,
+        unitId: input.unitId ?? null,
+        payeeId: input.payeeId ?? null,
+        serviceTypeId: input.serviceTypeId ?? null,
+        notes: input.notes ?? null,
+      },
+      include: {
+        payee: { select: { name: true } },
+        serviceType: { select: { name: true } },
+      },
     });
-  }
+
+    // Opt-in cross-domain link: post a ledger DEBIT only when the caller supplied
+    // an account. Posted once at create time; no back-sync.
+    if (input.accountId) {
+      await recordLinkedEntry(
+        {
+          accountId: input.accountId,
+          direction: "DEBIT",
+          amount: input.amount,
+          date: input.expenseDate ?? `${input.year}-${String(input.month).padStart(2, "0")}-01`,
+          categoryName: "Property Expense",
+          description: input.description,
+        },
+        tx
+      );
+    }
+
+    return created;
+  });
 
   return {
     ...expense,

@@ -122,6 +122,7 @@ export default function SubscriptionsPage() {
         confirmLabel={actions.confirm.dialog?.confirmLabel}
         confirmColor={actions.confirm.dialog?.confirmColor}
         loading={actions.confirm.loading}
+        error={actions.confirm.error}
         onConfirm={actions.confirm.runConfirm}
         onClose={actions.confirm.closeConfirm}
       />

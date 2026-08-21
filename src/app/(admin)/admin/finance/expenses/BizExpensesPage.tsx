@@ -105,6 +105,7 @@ export default function BizExpensesPage() {
         message={del.dialog?.message ?? ""}
         confirmLabel={del.dialog?.confirmLabel}
         loading={del.loading}
+        error={del.error}
         onConfirm={del.runConfirm}
         onClose={del.closeConfirm}
       />

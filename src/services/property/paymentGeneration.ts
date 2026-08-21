@@ -13,10 +13,17 @@ export async function generatePayments(month: number, year: number) {
   });
 
   for (const rc of pendingChanges) {
-    if (rc.tenant.unitId) {
-      await db.unit.update({ where: { id: rc.tenant.unitId }, data: { monthlyRent: rc.newRent } });
-    }
-    await db.rentChange.update({ where: { id: rc.id }, data: { appliedAt: new Date() } });
+    // Atomic per change: applying the new rent and marking the change applied
+    // must not come apart, or a re-run would re-apply an already-applied change.
+    await db.$transaction(async (tx) => {
+      if (rc.tenant.unitId) {
+        await tx.unit.update({
+          where: { id: rc.tenant.unitId },
+          data: { monthlyRent: rc.newRent },
+        });
+      }
+      await tx.rentChange.update({ where: { id: rc.id }, data: { appliedAt: new Date() } });
+    });
   }
 
   let movedOut = 0;
@@ -116,8 +123,12 @@ export async function generatePayments(month: number, year: number) {
   });
   if (stalePayments.length > 0) {
     const staleIds = stalePayments.map((p) => p.id);
-    await db.paymentTransaction.deleteMany({ where: { paymentId: { in: staleIds } } });
-    await db.payment.deleteMany({ where: { id: { in: staleIds } } });
+    // Atomic: dropping the child transactions without the parent payments would
+    // leave payments whose recorded history had been silently erased.
+    await db.$transaction([
+      db.paymentTransaction.deleteMany({ where: { paymentId: { in: staleIds } } }),
+      db.payment.deleteMany({ where: { id: { in: staleIds } } }),
+    ]);
   }
 
   const prevMonth = month === 1 ? 12 : month - 1;

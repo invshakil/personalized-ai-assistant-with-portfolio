@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import { promises as fs } from "node:fs";
 import { getLocalBackupFile, getDriveBackupBuffer, deleteBackup } from "@/services/admin";
+import { withApiError } from "@/lib/apiRoute";
 
 // GET → download the backup file (local copy if present, else from Google Drive)
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -46,11 +47,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return Response.json({ error: "Backup file not found (local or Drive)" }, { status: 404 });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
+export const DELETE = withApiError(
+  async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+    const session = await auth();
+    if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id } = await params;
-  await deleteBackup(id);
-  return Response.json({ data: { deleted: true } });
-}
+    const { id } = await params;
+    await deleteBackup(id);
+    return Response.json({ data: { deleted: true } });
+  }
+);

@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import {
+  Alert,
   Box,
   Dialog,
   DialogTitle,
@@ -21,6 +22,8 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   confirmColor?: ConfirmColor;
   loading?: boolean;
+  /** Failure from the last confirm attempt; shown inline, dialog stays open. */
+  error?: string | null;
   /** Optional icon shown in a colored circular avatar beside the title. */
   icon?: ReactNode;
   onConfirm: () => void;
@@ -39,6 +42,7 @@ export default function ConfirmDialog({
   cancelLabel = "Cancel",
   confirmColor = "error",
   loading = false,
+  error = null,
   icon,
   onConfirm,
   onClose,
@@ -72,13 +76,18 @@ export default function ConfirmDialog({
       </DialogTitle>
       <DialogContent>
         <DialogContentText sx={{ color: "text.secondary" }}>{message}</DialogContentText>
+        {error && (
+          <Alert severity="error" sx={{ mt: 2 }}>
+            {error}
+          </Alert>
+        )}
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2 }}>
         <Button onClick={onClose} disabled={loading} color="inherit">
           {cancelLabel}
         </Button>
         <Button onClick={onConfirm} disabled={loading} variant="contained" color={confirmColor}>
-          {loading ? "Working…" : confirmLabel}
+          {loading ? "Working…" : error ? "Retry" : confirmLabel}
         </Button>
       </DialogActions>
     </Dialog>

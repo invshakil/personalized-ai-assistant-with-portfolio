@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { ExpenseCategory } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { getServiceTypes, createServiceType } from "@/services/property";
+import { withApiError } from "@/lib/apiRoute";
 
 export async function GET() {
   const session = await auth();
@@ -11,7 +12,7 @@ export async function GET() {
   return Response.json({ data });
 }
 
-export async function POST(req: NextRequest) {
+export const POST = withApiError(async (req: NextRequest) => {
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -26,4 +27,4 @@ export async function POST(req: NextRequest) {
     description: body.description,
   });
   return Response.json({ data }, { status: 201 });
-}
+});

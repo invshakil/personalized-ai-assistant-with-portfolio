@@ -271,30 +271,36 @@ export async function createTenant(input: CreateTenantInput) {
       });
     }
 
+    // Occupancy and the advance's ledger entry belong to the same unit of work
+    // as the tenant row. They used to run after the transaction committed, so a
+    // failing advance link (e.g. a foreign destination account) left a created
+    // tenant sitting in an occupied unit with no matching cash movement.
+    if (input.unitId && tenantStatus === "CURRENT") {
+      await tx.unit.update({ where: { id: input.unitId }, data: { isOccupied: true } });
+    }
+
+    // Opt-in cross-domain link: post the advance as a ledger CREDIT only when the
+    // caller supplied an account and an advance was actually paid. No back-sync.
+    // Dated today (when the deposit is received/recorded), not the move-in date —
+    // a future move-in would otherwise push the entry past the ledger's default
+    // window even though the cash has already landed in the account.
+    const advanceAmount = input.advanceAmount ?? 0;
+    if (input.advancePaid && advanceAmount > 0 && input.advanceAccountId) {
+      await recordLinkedEntry(
+        {
+          accountId: input.advanceAccountId,
+          direction: "CREDIT",
+          amount: advanceAmount,
+          date: new Date().toISOString().slice(0, 10),
+          categoryName: "Tenant Advance",
+          description: `Advance — ${created.name}`,
+        },
+        tx
+      );
+    }
+
     return created;
   });
-
-  if (input.unitId && tenantStatus === "CURRENT") {
-    await db.unit.update({ where: { id: input.unitId }, data: { isOccupied: true } });
-  }
-
-  // Opt-in cross-domain link: post the advance as a ledger CREDIT only when the
-  // caller supplied an account and an advance was actually paid. Posted once at
-  // create time; no back-sync. If it throws, let it propagate.
-  // Dated today (when the deposit is received/recorded), not the move-in date —
-  // a future move-in would otherwise push the entry past the ledger's default
-  // window even though the cash has already landed in the account.
-  const advanceAmount = input.advanceAmount ?? 0;
-  if (input.advancePaid && advanceAmount > 0 && input.advanceAccountId) {
-    await recordLinkedEntry({
-      accountId: input.advanceAccountId,
-      direction: "CREDIT",
-      amount: advanceAmount,
-      date: new Date().toISOString().slice(0, 10),
-      categoryName: "Tenant Advance",
-      description: `Advance — ${tenant.name}`,
-    });
-  }
 
   return serializeTenant(tenant);
 }

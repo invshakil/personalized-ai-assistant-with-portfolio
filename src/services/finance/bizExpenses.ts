@@ -65,29 +65,39 @@ export interface CreateBizExpenseInput {
 
 export async function createBizExpense(input: CreateBizExpenseInput) {
   const date = new Date(input.date);
-  const expense = await db.bizExpense.create({
-    data: {
-      date,
-      name: input.name,
-      categoryId: input.categoryId,
-      isRecurring: input.isRecurring ?? false,
-      amount: input.amount,
-      fiscalYear: input.fiscalYear || fiscalYearOf(date),
-      notes: input.notes ?? null,
-    },
-  });
-
-  // Opt-in cross-domain link: post a ledger DEBIT for the cash paid out.
-  if (input.accountId) {
-    await recordLinkedEntry({
-      accountId: input.accountId,
-      direction: "DEBIT",
-      amount: input.amount,
-      date: input.date,
-      categoryName: "Business Expense",
-      description: input.name,
+  // The expense and its opt-in ledger entry are one unit of work — a failing
+  // link (e.g. a foreign destination account) must not leave the expense behind
+  // with no matching cash movement.
+  const expense = await db.$transaction(async (tx) => {
+    const created = await tx.bizExpense.create({
+      data: {
+        date,
+        name: input.name,
+        categoryId: input.categoryId,
+        isRecurring: input.isRecurring ?? false,
+        amount: input.amount,
+        fiscalYear: input.fiscalYear || fiscalYearOf(date),
+        notes: input.notes ?? null,
+      },
     });
-  }
+
+    // Opt-in cross-domain link: post a ledger DEBIT for the cash paid out.
+    if (input.accountId) {
+      await recordLinkedEntry(
+        {
+          accountId: input.accountId,
+          direction: "DEBIT",
+          amount: input.amount,
+          date: input.date,
+          categoryName: "Business Expense",
+          description: input.name,
+        },
+        tx
+      );
+    }
+
+    return created;
+  });
 
   return { ...expense, amount: toNum(expense.amount), date: toIso(expense.date) };
 }

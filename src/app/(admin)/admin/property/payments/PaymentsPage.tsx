@@ -76,8 +76,8 @@ export default function PaymentsPage() {
 
       <PaymentSummaryStrip
         totalExpected={summary.totalExpected}
-        totalPaid={summary.totalPaid}
         totalCollected={summary.totalCollected}
+        totalAdvanceApplied={summary.totalAdvanceApplied}
         totalOutstanding={summary.totalOutstanding}
         overdueCount={summary.overdueCount}
       />

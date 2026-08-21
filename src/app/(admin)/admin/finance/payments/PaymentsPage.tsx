@@ -104,6 +104,7 @@ export default function PaymentsPage() {
         message={actions.confirm.dialog?.message ?? ""}
         confirmLabel={actions.confirm.dialog?.confirmLabel}
         loading={actions.confirm.loading}
+        error={actions.confirm.error}
         onConfirm={actions.confirm.runConfirm}
         onClose={actions.confirm.closeConfirm}
       />

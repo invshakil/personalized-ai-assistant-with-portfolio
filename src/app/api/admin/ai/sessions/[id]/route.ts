@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/lib/auth";
 import { getChatSession, renameChatSession, deleteChatSession } from "@/services/ai";
+import { withApiError } from "@/lib/apiRoute";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -32,11 +33,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
+export const DELETE = withApiError(
+  async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+    const session = await auth();
+    if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id } = await params;
-  await deleteChatSession(id);
-  return Response.json({ data: { ok: true } });
-}
+    const { id } = await params;
+    await deleteChatSession(id);
+    return Response.json({ data: { ok: true } });
+  }
+);

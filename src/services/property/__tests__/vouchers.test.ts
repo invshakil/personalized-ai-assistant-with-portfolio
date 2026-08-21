@@ -396,6 +396,35 @@ test("a voucher cannot exceed what is still owed, so credit is never swallowed",
   assert.equal(settled!.status, "PAID", "credit exactly settles the month, nothing lost");
 });
 
+test("a voucher moves Expected, never Collected", async () => {
+  // The summary strip reports Collected as cash actually received. A voucher is
+  // a credit on the bill, not money in hand, so it must only ever move rentDue.
+  await generatePayments(2, YEAR);
+  const key = { tenantId_month_year: { tenantId, month: 2, year: YEAR } };
+  const before = await db.payment.findUnique({ where: key });
+  await db.payment.update({
+    where: { id: before!.id },
+    data: { amountPaid: 4000, status: "PARTIAL" },
+  });
+
+  const v = await createVoucher({
+    tenantId,
+    label: "Maintenance paid by tenant",
+    amount: 1500,
+    month: 2,
+    year: YEAR,
+  });
+  const after = await db.payment.findUnique({ where: key });
+  assert.equal(Number(after!.rentDue), BASE_RENT - 1500, "Expected drops by the credit");
+  assert.equal(Number(after!.amountPaid), 4000, "Collected is untouched by a voucher");
+  assert.equal(Number(after!.advanceApplied), 0, "Advance is untouched by a voucher");
+
+  await deleteVoucher(v.id);
+  const restored = await db.payment.findUnique({ where: key });
+  assert.equal(Number(restored!.rentDue), BASE_RENT);
+  assert.equal(Number(restored!.amountPaid), 4000);
+});
+
 test("getVouchers filters by tenant and period", async () => {
   const rows = await getVouchers({ tenantId, month: 7, year: YEAR });
   assert.equal(rows.length, 1);

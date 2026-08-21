@@ -105,6 +105,7 @@ export default function FinanceSettingsPage() {
         confirmLabel={confirm.dialog?.confirmLabel}
         confirmColor={confirm.dialog?.confirmColor}
         loading={confirm.loading}
+        error={confirm.error}
         onConfirm={confirm.runConfirm}
         onClose={confirm.closeConfirm}
       />

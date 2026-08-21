@@ -308,26 +308,35 @@ export interface RecordPaymentInput {
 
 export async function recordPayment(input: RecordPaymentInput) {
   const direction = input.direction ?? "DEBIT";
-  const categoryId =
-    input.categoryId ??
-    (await ensureCategory(
-      direction === "DEBIT" ? "Payments to People" : "Repayments from People",
-      direction === "DEBIT" ? "EXPENSE" : "INCOME"
-    ));
 
   // Delegate to createEntry so the entry inherits the account's currency + the
   // captured fxRate (and amount validation), and returns a full MoneyEntryRow —
   // the same path manual entries and cross-domain links use. The payment is just
   // a ledger entry tagged with the beneficiary (+ obligation for loan repayments).
-  return createEntry({
-    date: input.date,
-    direction,
-    amount: input.amount,
-    categoryId,
-    accountId: input.accountId ?? null,
-    beneficiaryId: input.beneficiaryId,
-    obligationId: input.obligationId ?? null,
-    description: input.description ?? null,
-    notes: input.notes ?? null,
+  // Atomic: the find-or-created category and the entry commit together, so a
+  // rejected entry cannot leave a brand-new empty category behind.
+  return db.$transaction(async (tx) => {
+    const categoryId =
+      input.categoryId ??
+      (await ensureCategory(
+        direction === "DEBIT" ? "Payments to People" : "Repayments from People",
+        direction === "DEBIT" ? "EXPENSE" : "INCOME",
+        tx
+      ));
+
+    return createEntry(
+      {
+        date: input.date,
+        direction,
+        amount: input.amount,
+        categoryId,
+        accountId: input.accountId ?? null,
+        beneficiaryId: input.beneficiaryId,
+        obligationId: input.obligationId ?? null,
+        description: input.description ?? null,
+        notes: input.notes ?? null,
+      },
+      tx
+    );
   });
 }

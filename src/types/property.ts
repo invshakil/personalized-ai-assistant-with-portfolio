@@ -279,7 +279,13 @@ export interface PropertyDashboardStats {
   month: number;
   year: number;
   totalExpected: number;
+  /** Cash/bank actually received this month. Excludes advance draw-down. */
   totalCollected: number;
+  /** Drawn from tenants' held advances — covers a bill but is not new cash. */
+  totalAdvanceApplied: number;
+  /** How much of the bill is covered, however it was covered (cash + advance).
+   *  Coverage ratios use this; `totalCollected` answers "what cash came in". */
+  totalSettled: number;
   totalExpenses: number;
   netProfit: number;
   activeTenantsCount: number;
@@ -297,7 +303,11 @@ export interface PropertyDashboardStats {
 export interface YearlyDataPoint {
   month: number;
   label: string;
+  /** Cash received in the month (excludes advance draw-down). */
   collected: number;
+  advanceApplied: number;
+  /** collected + advanceApplied — what the month's bills were covered by. */
+  settled: number;
   expenses: number;
   netProfit: number;
 }

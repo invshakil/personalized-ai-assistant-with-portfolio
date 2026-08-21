@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import { getBackupState, updateBackupSettings, runBackup } from "@/services/admin";
 import type { BackupFrequency } from "@/types";
+import { withApiError } from "@/lib/apiRoute";
 
 const FREQUENCIES: BackupFrequency[] = ["off", "daily", "weekly"];
 
@@ -14,7 +15,7 @@ export async function GET() {
 }
 
 // PUT { frequency?, retentionCount? } → update schedule settings
-export async function PUT(req: NextRequest) {
+export const PUT = withApiError(async (req: NextRequest) => {
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -29,14 +30,14 @@ export async function PUT(req: NextRequest) {
 
   const data = await updateBackupSettings({ frequency, retentionCount });
   return Response.json({ data });
-}
+});
 
 // POST → run a backup now
-export async function POST() {
+export const POST = withApiError(async () => {
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const result = await runBackup("manual");
   if (!result.ok) return Response.json({ error: result.error }, { status: 500 });
   return Response.json({ data: result.record });
-}
+});

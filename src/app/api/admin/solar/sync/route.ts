@@ -1,10 +1,11 @@
 import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import { runSolisSync } from "@/services/solis";
+import { withApiError } from "@/lib/apiRoute";
 
 // Manual "Sync now". Reads from SolisCloud and writes local readings only —
 // never writes to / controls the inverter.
-export async function POST(req: NextRequest) {
+export const POST = withApiError(async (req: NextRequest) => {
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -21,4 +22,4 @@ export async function POST(req: NextRequest) {
   const result = await runSolisSync(from ? { from } : { backfillDays });
   if (!result.ok) return Response.json({ error: result.error ?? "Sync failed" }, { status: 502 });
   return Response.json({ data: result });
-}
+});

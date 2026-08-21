@@ -1,9 +1,10 @@
 import { auth } from "@/lib/auth";
 import { clearDriveConnection } from "@/services/admin";
 import { revokeToken } from "@/services/admin/googleDrive";
+import { withApiError } from "@/lib/apiRoute";
 
 // POST → disconnect Google Drive (clears the stored token + revokes it).
-export async function POST() {
+export const POST = withApiError(async () => {
   const session = await auth();
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -23,4 +24,4 @@ export async function POST() {
           }),
     },
   });
-}
+});

@@ -26,10 +26,12 @@ export async function getDashboardStats(month: number, year: number) {
   ]);
 
   const totalExpected = monthPayments.reduce((sum, p) => sum + toNum(p.rentDue), 0);
-  const totalCollected = monthPayments.reduce(
-    (sum, p) => sum + toNum(p.amountPaid) + toNum(p.advanceApplied),
-    0
-  );
+  // "Collected" is cash that actually came in. Advance applied covers a bill but
+  // is not new money this month — the cash arrived when the advance was taken —
+  // so it is reported separately. `settled` is the pair, for coverage ratios.
+  const totalCollected = monthPayments.reduce((sum, p) => sum + toNum(p.amountPaid), 0);
+  const totalAdvanceApplied = monthPayments.reduce((sum, p) => sum + toNum(p.advanceApplied), 0);
+  const totalSettled = totalCollected + totalAdvanceApplied;
   const totalExpenses = monthExpenses.reduce((sum, e) => sum + toNum(e.amount), 0);
   const overdueCount = monthPayments.filter((p) => p.status === "OVERDUE").length;
 
@@ -175,13 +177,22 @@ export async function getDashboardStats(month: number, year: number) {
 
   const yearlyData = MONTH_LABELS.map((label, i) => {
     const m = i + 1;
-    const collected = yearPayments
-      .filter((p) => p.month === m)
-      .reduce((sum, p) => sum + toNum(p.amountPaid) + toNum(p.advanceApplied), 0);
+    const inMonth = yearPayments.filter((p) => p.month === m);
+    const collected = inMonth.reduce((sum, p) => sum + toNum(p.amountPaid), 0);
+    const advanceApplied = inMonth.reduce((sum, p) => sum + toNum(p.advanceApplied), 0);
+    const settled = collected + advanceApplied;
     const expenses = yearExpenses
       .filter((e) => e.month === m)
       .reduce((sum, e) => sum + toNum(e.amount), 0);
-    return { month: m, label, collected, expenses, netProfit: collected - expenses };
+    return {
+      month: m,
+      label,
+      collected,
+      advanceApplied,
+      settled,
+      expenses,
+      netProfit: settled - expenses,
+    };
   });
 
   // Scheduled rent changes: any not-yet-applied change for an active tenant.
@@ -262,8 +273,10 @@ export async function getDashboardStats(month: number, year: number) {
     year,
     totalExpected,
     totalCollected,
+    totalAdvanceApplied,
+    totalSettled,
     totalExpenses,
-    netProfit: totalCollected - totalExpenses,
+    netProfit: totalSettled - totalExpenses,
     activeTenantsCount,
     occupiedUnits,
     totalUnits,

@@ -109,39 +109,51 @@ export async function createEarning(input: CreateEarningInput) {
   // Realized basis: BDT earnings realize on earn (counted immediately); foreign
   // earnings start pending (realizedAt NULL) and are booked only on conversion.
   const realizedOnEarn = money.currency === "BDT";
-  const earning = await db.earning.create({
-    data: {
-      date,
-      sourceId: input.sourceId,
-      remittance: input.remittance,
-      amount: money.amount, // BDT canonical (indicative for foreign)
-      currency: money.currency,
-      originalAmount: money.originalAmount,
-      fxRate: money.fxRate,
-      ...(realizedOnEarn && { realizedAt: date, realizedAmount: money.amount, realizedRate: 1 }),
-      fiscalYear: input.fiscalYear || fiscalYearOf(date),
-      notes: input.notes ?? null,
-    },
-  });
 
-  // Opt-in cross-domain link: post a ledger CREDIT for the income received.
-  if (input.accountId) {
-    const source = await db.incomeSource.findUnique({
-      where: { id: input.sourceId },
-      select: { name: true },
+  // The earning and its opt-in ledger entry are ONE unit of work. Linking can
+  // fail (e.g. a USD earning aimed at a EUR account), and without a transaction
+  // that failure left the earning behind with no ledger entry — every retry
+  // adding another orphan. Either both rows land or neither does.
+  const earning = await db.$transaction(async (tx) => {
+    const created = await tx.earning.create({
+      data: {
+        date,
+        sourceId: input.sourceId,
+        remittance: input.remittance,
+        amount: money.amount, // BDT canonical (indicative for foreign)
+        currency: money.currency,
+        originalAmount: money.originalAmount,
+        fxRate: money.fxRate,
+        ...(realizedOnEarn && { realizedAt: date, realizedAmount: money.amount, realizedRate: 1 }),
+        fiscalYear: input.fiscalYear || fiscalYearOf(date),
+        notes: input.notes ?? null,
+      },
     });
-    await recordLinkedEntry({
-      accountId: input.accountId,
-      direction: "CREDIT",
-      amount: money.amount,
-      currency: money.currency,
-      originalAmount: money.originalAmount,
-      fxRate: money.fxRate,
-      date: input.date,
-      categoryName: "Business Income",
-      description: `${source?.name ?? "client"} (${input.remittance})`,
-    });
-  }
+
+    // Opt-in cross-domain link: post a ledger CREDIT for the income received.
+    if (input.accountId) {
+      const source = await tx.incomeSource.findUnique({
+        where: { id: input.sourceId },
+        select: { name: true },
+      });
+      await recordLinkedEntry(
+        {
+          accountId: input.accountId,
+          direction: "CREDIT",
+          amount: money.amount,
+          currency: money.currency,
+          originalAmount: money.originalAmount,
+          fxRate: money.fxRate,
+          date: input.date,
+          categoryName: "Business Income",
+          description: `${source?.name ?? "client"} (${input.remittance})`,
+        },
+        tx
+      );
+    }
+
+    return created;
+  });
 
   return { ...earning, amount: toNum(earning.amount), date: toIso(earning.date) };
 }
@@ -327,17 +339,6 @@ export async function convertEarnings(input: ConvertEarningsInput) {
     }
   }
 
-  // One transfer drains the foreign account and credits BDT at the actual rate.
-  const transfer = await recordTransfer({
-    fromAccountId: input.fromAccountId,
-    toAccountId: input.toAccountId,
-    amount: round2(input.amount),
-    toAmount: round2(input.toAmount),
-    date: input.date,
-    description: `Convert ${currency}→BDT (${allocations.length} earning${allocations.length > 1 ? "s" : ""})`,
-    notes: input.notes ?? null,
-  });
-
   // Split realized BDT per allocation; reconcile the rounding remainder onto
   // the largest allocation so the parts sum exactly to the received total.
   const realized = allocations.map((a) => ({
@@ -352,35 +353,56 @@ export async function convertEarnings(input: ConvertEarningsInput) {
   }
 
   const realizedAt = new Date(input.date);
-  const ops = realized.map((a) => {
-    if (splitInfo && a.id === splitInfo.earning.id) {
-      // This earning's face value shrinks to just the consumed (realized) share.
-      return db.earning.update({
-        where: { id: a.id },
-        data: {
-          originalAmount: splitInfo.consumed,
-          amount: round2(splitInfo.consumed * toNum(splitInfo.earning.fxRate)),
-          realizedAt,
-          realizedAmount: a.realizedAmount,
-          realizedRate: effectiveRate,
-          transferEntryId: transfer.id,
-        },
-      });
-    }
-    return db.earning.update({
-      where: { id: a.id },
-      data: {
-        realizedAt,
-        realizedAmount: a.realizedAmount,
-        realizedRate: effectiveRate,
-        transferEntryId: transfer.id,
+
+  // The ledger transfer and the earnings it realizes are one unit of work. The
+  // transfer used to be posted before the earning updates ran, so a failure
+  // mid-batch left a conversion entry in the ledger against income still marked
+  // pending — convertible twice, and double-counted on the next conversion.
+  const transfer = await db.$transaction(async (tx) => {
+    // One transfer drains the foreign account and credits BDT at the actual rate.
+    const t = await recordTransfer(
+      {
+        fromAccountId: input.fromAccountId,
+        toAccountId: input.toAccountId,
+        amount: round2(input.amount),
+        toAmount: round2(input.toAmount),
+        date: input.date,
+        description: `Convert ${currency}→BDT (${allocations.length} earning${allocations.length > 1 ? "s" : ""})`,
+        notes: input.notes ?? null,
       },
-    });
-  });
-  if (splitInfo) {
-    const e = splitInfo.earning;
-    ops.push(
-      db.earning.create({
+      tx
+    );
+
+    for (const a of realized) {
+      if (splitInfo && a.id === splitInfo.earning.id) {
+        // This earning's face value shrinks to just the consumed (realized) share.
+        await tx.earning.update({
+          where: { id: a.id },
+          data: {
+            originalAmount: splitInfo.consumed,
+            amount: round2(splitInfo.consumed * toNum(splitInfo.earning.fxRate)),
+            realizedAt,
+            realizedAmount: a.realizedAmount,
+            realizedRate: effectiveRate,
+            transferEntryId: t.id,
+          },
+        });
+      } else {
+        await tx.earning.update({
+          where: { id: a.id },
+          data: {
+            realizedAt,
+            realizedAmount: a.realizedAmount,
+            realizedRate: effectiveRate,
+            transferEntryId: t.id,
+          },
+        });
+      }
+    }
+
+    if (splitInfo) {
+      const e = splitInfo.earning;
+      await tx.earning.create({
         data: {
           date: e.date,
           sourceId: e.sourceId,
@@ -392,10 +414,11 @@ export async function convertEarnings(input: ConvertEarningsInput) {
           fiscalYear: e.fiscalYear,
           notes: e.notes,
         },
-      })
-    );
-  }
-  await db.$transaction(ops);
+      });
+    }
+
+    return t;
+  });
 
   return {
     converted: allocations.length,
@@ -423,14 +446,23 @@ export async function reverseConversion(earningId: string) {
     throw new Error("This earning is not a converted foreign earning");
   const transferEntryId = e.transferEntryId;
 
-  await db.earning.updateMany({
-    where: transferEntryId ? { transferEntryId } : { id: earningId },
-    data: { realizedAt: null, realizedAmount: null, realizedRate: null, transferEntryId: null },
+  // Atomic: returning the earnings to pending and removing the ledger transfer
+  // are the same undo. Split apart, a failure could leave pending income still
+  // backed by a conversion entry — convertible a second time.
+  await db.$transaction(async (tx) => {
+    await tx.earning.updateMany({
+      where: transferEntryId ? { transferEntryId } : { id: earningId },
+      data: { realizedAt: null, realizedAmount: null, realizedRate: null, transferEntryId: null },
+    });
+    // Remove the conversion transfer from the ledger (ignore if already gone).
+    if (transferEntryId) {
+      const exists = await tx.moneyEntry.findUnique({
+        where: { id: transferEntryId },
+        select: { id: true },
+      });
+      if (exists) await tx.moneyEntry.delete({ where: { id: transferEntryId } });
+    }
   });
-  // Remove the conversion transfer from the ledger (ignore if already gone).
-  if (transferEntryId) {
-    await db.moneyEntry.delete({ where: { id: transferEntryId } }).catch(() => undefined);
-  }
   return { reversed: true };
 }
 

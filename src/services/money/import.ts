@@ -315,7 +315,12 @@ export async function listImportBatches() {
 
 export async function deleteImportBatch(batchId: string) {
   // Remove the imported entries, then the batch. Reverses a committed import.
-  const deleted = await db.moneyEntry.deleteMany({ where: { importBatchId: batchId } });
-  await db.moneyImportBatch.delete({ where: { id: batchId } });
+  // Atomic: a failure between the two used to destroy the entries while leaving
+  // the batch row pointing at nothing, with no way to re-run the undo.
+  const deleted = await db.$transaction(async (tx) => {
+    const removed = await tx.moneyEntry.deleteMany({ where: { importBatchId: batchId } });
+    await tx.moneyImportBatch.delete({ where: { id: batchId } });
+    return removed;
+  });
   return { deleted: true, removedEntries: deleted.count };
 }

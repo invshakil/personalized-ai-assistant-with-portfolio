@@ -1,6 +1,6 @@
 "use client";
 
-import { Box, CircularProgress } from "@mui/material";
+import { Alert, Box, CircularProgress } from "@mui/material";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
@@ -84,6 +84,12 @@ export default function EarningsPage() {
         onOpenConvert={() => convertDrawer.openConvert()}
         onOpenAdd={earningDrawer.openAdd}
       />
+
+      {actions.reverseError && (
+        <Alert severity="error" sx={{ mb: 2 }} onClose={actions.clearReverseError}>
+          {actions.reverseError}
+        </Alert>
+      )}
 
       {!data.loading && (
         <EarningSummary

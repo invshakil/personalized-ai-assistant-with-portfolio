@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import { getTrip, updateTrip, deleteTrip } from "@/services/trips";
+import { withApiError } from "@/lib/apiRoute";
 
 // GET / PUT / DELETE a single trip.
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -40,10 +41,12 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const { id } = await params;
-  const data = await deleteTrip(id);
-  return Response.json({ data });
-}
+export const DELETE = withApiError(
+  async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+    const session = await auth();
+    if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { id } = await params;
+    const data = await deleteTrip(id);
+    return Response.json({ data });
+  }
+);

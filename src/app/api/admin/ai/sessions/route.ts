@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { listChatSessions, createChatSession } from "@/services/ai";
+import { withApiError } from "@/lib/apiRoute";
 
 export async function GET() {
   const session = await auth();
@@ -10,11 +11,11 @@ export async function GET() {
   return Response.json({ data });
 }
 
-export async function POST() {
+export const POST = withApiError(async () => {
   const session = await auth();
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
   const data = await createChatSession();
   return Response.json({ data });
-}
+});

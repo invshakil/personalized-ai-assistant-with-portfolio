@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { NextRequest } from "next/server";
 import { publishTrip, unpublishTrip } from "@/services/trips";
+import { withApiError } from "@/lib/apiRoute";
 
 // POST — publish the trip's public page; DELETE — hide it (slug kept for re-use).
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -15,10 +16,12 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth();
-  if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
-  const { id } = await params;
-  const data = await unpublishTrip(id);
-  return Response.json({ data });
-}
+export const DELETE = withApiError(
+  async (_req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+    const session = await auth();
+    if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    const { id } = await params;
+    const data = await unpublishTrip(id);
+    return Response.json({ data });
+  }
+);

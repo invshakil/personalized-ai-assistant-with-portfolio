@@ -45,17 +45,21 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "remittance must be REM or NON_REM" }, { status: 400 });
   }
 
-  const data = await createEarning({
-    date,
-    sourceId,
-    remittance: (remittance as RemittanceType) ?? RemittanceType.NON_REM,
-    ...(amount != null && { amount: Number(amount) }),
-    ...(currency && { currency: String(currency) }),
-    ...(originalAmount != null && { originalAmount: Number(originalAmount) }),
-    ...(fxRate != null && { fxRate: Number(fxRate) }),
-    fiscalYear,
-    notes,
-    accountId: accountId || undefined,
-  });
-  return Response.json({ data }, { status: 201 });
+  try {
+    const data = await createEarning({
+      date,
+      sourceId,
+      remittance: (remittance as RemittanceType) ?? RemittanceType.NON_REM,
+      ...(amount != null && { amount: Number(amount) }),
+      ...(currency && { currency: String(currency) }),
+      ...(originalAmount != null && { originalAmount: Number(originalAmount) }),
+      ...(fxRate != null && { fxRate: Number(fxRate) }),
+      fiscalYear,
+      notes,
+      accountId: accountId || undefined,
+    });
+    return Response.json({ data }, { status: 201 });
+  } catch (e) {
+    return Response.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 400 });
+  }
 }

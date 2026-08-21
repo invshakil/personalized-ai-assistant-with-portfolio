@@ -111,6 +111,7 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         confirmLabel={statusActions.dialog?.confirmLabel}
         confirmColor={statusActions.dialog?.confirmColor}
         loading={statusActions.loading}
+        error={statusActions.error}
         onConfirm={statusActions.runConfirm}
         onClose={statusActions.closeConfirm}
       />

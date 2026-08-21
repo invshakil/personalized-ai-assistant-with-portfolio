@@ -7,7 +7,7 @@
 // rent payment / salary / expense later does NOT touch the ledger entry (the
 // user manages the ledger from there). Keep that contract in mind when wiring
 // new callers.
-import { db } from "@/lib/db";
+import { db, type DbClient } from "@/lib/db";
 import { ensureCategory } from "./categories";
 import { createEntry } from "./entries";
 
@@ -34,6 +34,36 @@ export interface LinkedEntryInput {
   fxRate?: number;
 }
 
+/** The subset of a linked entry the posting-currency rule depends on. */
+type PostingSource = Pick<LinkedEntryInput, "amount" | "currency" | "originalAmount" | "fxRate">;
+
+/**
+ * Decide the posting amount + currency from the destination account's currency.
+ * A BDT account takes the BDT-equivalent; a foreign account takes the native
+ * amount, but only when the source is in that same currency. Anything else is a
+ * mismatch and throws (protects balance integrity).
+ */
+function resolvePosting(acctCurrency: string, input: PostingSource) {
+  const sourceCurrency = (input.currency ?? "BDT").toUpperCase();
+  if (acctCurrency === "BDT") {
+    return { amount: input.amount, currency: "BDT", fxRate: 1 as number | undefined };
+  }
+  if (acctCurrency === sourceCurrency && input.originalAmount != null) {
+    return { amount: input.originalAmount, currency: sourceCurrency, fxRate: input.fxRate };
+  }
+  throw new Error(
+    `Cannot post a ${sourceCurrency} record into a ${acctCurrency} account — currencies must match`
+  );
+}
+
+async function accountCurrencyOf(accountId: string, client: DbClient = db): Promise<string> {
+  const account = await client.moneyAccount.findUnique({
+    where: { id: accountId },
+    select: { currency: true },
+  });
+  return account?.currency ?? "BDT";
+}
+
 /**
  * Post a ledger entry on behalf of another domain. Find-or-creates the category
  * (INCOME for CREDIT, EXPENSE for DEBIT) and writes a normal MoneyEntry against
@@ -42,43 +72,33 @@ export interface LinkedEntryInput {
  * the BDT-equivalent. A foreign source into a different foreign account is a
  * mismatch and throws (protects balance integrity). Throws on a bad
  * account/amount so the caller can surface the failure.
+ *
+ * Pass `client` to enlist the category find-or-create and the entry write in the
+ * caller's transaction, so the source record and its ledger entry commit or roll
+ * back as one unit.
  */
-export async function recordLinkedEntry(input: LinkedEntryInput) {
+export async function recordLinkedEntry(input: LinkedEntryInput, client: DbClient = db) {
   const kind = input.direction === "CREDIT" ? "INCOME" : "EXPENSE";
-  const categoryId = await ensureCategory(input.categoryName, kind);
+  const categoryId = await ensureCategory(input.categoryName, kind, client);
 
-  const account = await db.moneyAccount.findUnique({
-    where: { id: input.accountId },
-    select: { currency: true },
-  });
-  const acctCurrency = account?.currency ?? "BDT";
-  const sourceCurrency = (input.currency ?? "BDT").toUpperCase();
-
-  // Decide the posting amount + currency from the destination account.
-  let postAmount = input.amount; // BDT default
-  let postCurrency = "BDT";
-  let postFxRate: number | undefined = 1;
-  if (acctCurrency !== "BDT") {
-    if (acctCurrency === sourceCurrency && input.originalAmount != null) {
-      postAmount = input.originalAmount;
-      postCurrency = sourceCurrency;
-      postFxRate = input.fxRate;
-    } else {
-      throw new Error(
-        `Cannot post a ${sourceCurrency} record into a ${acctCurrency} account — currencies must match`
-      );
-    }
-  }
-
-  return createEntry({
-    date: input.date,
-    direction: input.direction,
+  const {
     amount: postAmount,
     currency: postCurrency,
     fxRate: postFxRate,
-    categoryId,
-    accountId: input.accountId,
-    description: input.description ?? null,
-    notes: input.notes ?? null,
-  });
+  } = resolvePosting(await accountCurrencyOf(input.accountId, client), input);
+
+  return createEntry(
+    {
+      date: input.date,
+      direction: input.direction,
+      amount: postAmount,
+      currency: postCurrency,
+      fxRate: postFxRate,
+      categoryId,
+      accountId: input.accountId,
+      description: input.description ?? null,
+      notes: input.notes ?? null,
+    },
+    client
+  );
 }

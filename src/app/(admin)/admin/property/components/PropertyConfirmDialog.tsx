@@ -11,6 +11,8 @@ interface ConfirmDialogState {
 interface PropertyConfirmDialogProps {
   dialog: ConfirmDialogState | null;
   loading: boolean;
+  /** Failure from the last confirm attempt; shown inline, dialog stays open. */
+  error?: string | null;
   onConfirm: () => void;
   onClose: () => void;
 }
@@ -18,6 +20,7 @@ interface PropertyConfirmDialogProps {
 export default function PropertyConfirmDialog({
   dialog,
   loading,
+  error = null,
   onConfirm,
   onClose,
 }: PropertyConfirmDialogProps) {
@@ -39,6 +42,7 @@ export default function PropertyConfirmDialog({
       confirmColor={dialog?.confirmColor}
       icon={icon}
       loading={loading}
+      error={error}
       onConfirm={onConfirm}
       onClose={onClose}
     />

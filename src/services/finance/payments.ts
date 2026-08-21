@@ -80,42 +80,52 @@ export interface CreateEmployeePaymentInput {
 export async function createEmployeePayment(input: CreateEmployeePaymentInput) {
   const date = new Date(input.date);
   const money = resolveMoney(input);
-  const payment = await db.employeePayment.create({
-    data: {
-      date,
-      employeeId: input.employeeId,
-      type: input.type ?? PaymentKind.SALARY,
-      reference: input.reference ?? null,
-      amount: money.amount, // BDT canonical
-      currency: money.currency,
-      originalAmount: money.originalAmount,
-      fxRate: money.fxRate,
-      fiscalYear: input.fiscalYear || fiscalYearOf(date),
-      notes: input.notes ?? null,
-      ...(input.clientIds?.length && {
-        clients: { connect: input.clientIds.map((id) => ({ id })) },
-      }),
-    },
-  });
+  // The salary row and its opt-in ledger entry are one unit of work. Salaries are
+  // multi-currency, so the link can legitimately fail on an account-currency
+  // mismatch — that must not leave a paid salary with no cash movement behind it.
+  const payment = await db.$transaction(async (tx) => {
+    const created = await tx.employeePayment.create({
+      data: {
+        date,
+        employeeId: input.employeeId,
+        type: input.type ?? PaymentKind.SALARY,
+        reference: input.reference ?? null,
+        amount: money.amount, // BDT canonical
+        currency: money.currency,
+        originalAmount: money.originalAmount,
+        fxRate: money.fxRate,
+        fiscalYear: input.fiscalYear || fiscalYearOf(date),
+        notes: input.notes ?? null,
+        ...(input.clientIds?.length && {
+          clients: { connect: input.clientIds.map((id) => ({ id })) },
+        }),
+      },
+    });
 
-  // Opt-in cross-domain link: post a ledger DEBIT for the cash paid out.
-  if (input.accountId) {
-    const employee = await db.employee.findUnique({
-      where: { id: input.employeeId },
-      select: { name: true },
-    });
-    await recordLinkedEntry({
-      accountId: input.accountId,
-      direction: "DEBIT",
-      amount: money.amount,
-      currency: money.currency,
-      originalAmount: money.originalAmount,
-      fxRate: money.fxRate,
-      date: input.date,
-      categoryName: "Employee Salary",
-      description: `${input.type ?? PaymentKind.SALARY} — ${employee?.name ?? "employee"}`,
-    });
-  }
+    // Opt-in cross-domain link: post a ledger DEBIT for the cash paid out.
+    if (input.accountId) {
+      const employee = await tx.employee.findUnique({
+        where: { id: input.employeeId },
+        select: { name: true },
+      });
+      await recordLinkedEntry(
+        {
+          accountId: input.accountId,
+          direction: "DEBIT",
+          amount: money.amount,
+          currency: money.currency,
+          originalAmount: money.originalAmount,
+          fxRate: money.fxRate,
+          date: input.date,
+          categoryName: "Employee Salary",
+          description: `${input.type ?? PaymentKind.SALARY} — ${employee?.name ?? "employee"}`,
+        },
+        tx
+      );
+    }
+
+    return created;
+  });
 
   return { ...payment, amount: toNum(payment.amount), date: toIso(payment.date) };
 }

@@ -1,6 +1,6 @@
 // Money Manager — personal expense/income categories. Each category has a
 // `kind` (INCOME | EXPENSE) which is the source of truth for savings bucketing.
-import { db } from "@/lib/db";
+import { db, type DbClient } from "@/lib/db";
 import { MoneyCategoryKind } from "@prisma/client";
 import type { MoneyCategoryRow } from "@/types";
 
@@ -65,13 +65,18 @@ export async function deleteCategory(id: string) {
 /**
  * Find-or-create a category by (name, kind). Used by the CSV importer so rows
  * referencing a new category name don't fail. The DB has a @@unique([name, kind]).
+ * Pass `client` to enlist the find-or-create in the caller's transaction.
  */
-export async function ensureCategory(name: string, kind: MoneyCategoryKind): Promise<string> {
-  const existing = await db.moneyCategory.findUnique({
+export async function ensureCategory(
+  name: string,
+  kind: MoneyCategoryKind,
+  client: DbClient = db
+): Promise<string> {
+  const existing = await client.moneyCategory.findUnique({
     where: { name_kind: { name, kind } },
     select: { id: true },
   });
   if (existing) return existing.id;
-  const created = await db.moneyCategory.create({ data: { name, kind } });
+  const created = await client.moneyCategory.create({ data: { name, kind } });
   return created.id;
 }
