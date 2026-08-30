@@ -4,19 +4,27 @@
 import { db } from "@/lib/db";
 import { toNum } from "@/services/finance/_serializers";
 import { costUsd } from "./pricing";
-import type { AiProviderId, BudgetInput, UsageSummary, UsageTotals } from "./types";
+import type { AiFeature, AiProviderId, BudgetInput, UsageSummary, UsageTotals } from "./types";
 
-/** Record one chat turn's token usage + computed cost. */
+/**
+ * Record one call's token usage + computed cost.
+ *
+ * `feature` names the surface that spent it (chat, CSV categorisation, a
+ * nightly insight…). It defaults to "chat" so the historical rows — all of
+ * which were chat turns — stay correct, but new callers should always pass it.
+ */
 export async function recordUsage(input: {
   provider: AiProviderId;
   model: string;
   usage: UsageTotals;
+  feature?: AiFeature;
 }): Promise<void> {
   const { usage } = input;
   await db.aiUsage.create({
     data: {
       provider: input.provider,
       model: input.model,
+      feature: input.feature ?? "chat",
       inputTokens: usage.inputTokens,
       outputTokens: usage.outputTokens,
       cacheReadTokens: usage.cacheReadTokens,
@@ -89,7 +97,7 @@ export async function getUsageSummary(): Promise<UsageSummary> {
   thirtyDaysAgo.setDate(now.getDate() - 29);
   thirtyDaysAgo.setHours(0, 0, 0, 0);
 
-  const [monthToDate, allTimeAgg, rows, dailyRows] = await Promise.all([
+  const [monthToDate, allTimeAgg, rows, dailyRows, featureRows] = await Promise.all([
     spendSince(monthStart(now)),
     db.aiUsage.aggregate({ _sum: { costUsd: true } }),
     // Last 12 months of records for the monthly chart.
@@ -101,6 +109,13 @@ export async function getUsageSummary(): Promise<UsageSummary> {
     db.aiUsage.findMany({
       where: { createdAt: { gte: thirtyDaysAgo } },
       select: { createdAt: true, costUsd: true },
+    }),
+    // Month-to-date spend per product surface — which feature is worth its cost.
+    db.aiUsage.groupBy({
+      by: ["feature"],
+      where: { createdAt: { gte: monthStart(now) } },
+      _sum: { costUsd: true },
+      _count: { _all: true },
     }),
   ]);
   const allTime = toNum(allTimeAgg._sum.costUsd);
@@ -155,5 +170,12 @@ export async function getUsageSummary(): Promise<UsageSummary> {
     overBudget: budget.enforce && limit !== null && monthToDate >= limit,
     monthly,
     daily,
+    byFeature: featureRows
+      .map((r) => ({
+        feature: r.feature,
+        costUsd: Math.round(toNum(r._sum.costUsd) * 1e6) / 1e6,
+        calls: r._count._all,
+      }))
+      .sort((a, b) => b.costUsd - a.costUsd),
   };
 }

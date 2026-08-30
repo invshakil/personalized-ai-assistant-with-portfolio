@@ -4,5 +4,6 @@ export * from "./config";
 export * from "./registry";
 export * from "./tools";
 export * from "./sessions";
+export * from "./task";
 export * from "./usage";
 export type * from "./types";

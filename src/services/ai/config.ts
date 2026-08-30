@@ -11,25 +11,40 @@ interface CatalogEntry {
   provider: AiProviderId;
   label: string;
   defaultModel: string;
+  /**
+   * Cheap/fast model used for one-shot classification and extraction tasks
+   * (`AiTaskPurpose` "classify" / "extract"). Reasoning-heavy work stays on the
+   * configured `defaultModel` — see `getProviderFor` in registry.ts.
+   */
+  fastModel: string;
   models: string[];
   /** Whether an adapter is implemented yet (only "anthropic" today). */
   supported: boolean;
 }
 
-// Current model IDs (Jan 2026). `claude-sonnet-4-20250514` is intentionally
-// absent — it is deprecated and retires 2026-06-15.
+// Current model IDs. `claude-fable-5` is deliberately absent: it has a
+// different request surface (thinking always on, refusal fallbacks) that the
+// adapter does not handle yet, and its rates exceed the Opus tier.
 export const PROVIDER_CATALOG: CatalogEntry[] = [
   {
     provider: "anthropic",
     label: "Claude (Anthropic)",
-    defaultModel: "claude-sonnet-4-6",
-    models: ["claude-opus-4-8", "claude-sonnet-4-6", "claude-haiku-4-5"],
+    defaultModel: "claude-opus-5",
+    fastModel: "claude-haiku-4-5",
+    models: [
+      "claude-opus-5",
+      "claude-sonnet-5",
+      "claude-opus-4-8",
+      "claude-sonnet-4-6",
+      "claude-haiku-4-5",
+    ],
     supported: true,
   },
   {
     provider: "openai",
     label: "OpenAI",
     defaultModel: "gpt-4o",
+    fastModel: "gpt-4o-mini",
     models: ["gpt-4o", "gpt-4o-mini"],
     supported: false,
   },
@@ -37,6 +52,7 @@ export const PROVIDER_CATALOG: CatalogEntry[] = [
     provider: "google",
     label: "Google Gemini",
     defaultModel: "gemini-2.0-flash",
+    fastModel: "gemini-2.0-flash",
     models: ["gemini-2.0-flash", "gemini-1.5-pro"],
     supported: false,
   },
