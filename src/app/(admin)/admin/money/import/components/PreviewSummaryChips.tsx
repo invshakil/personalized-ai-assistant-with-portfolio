@@ -20,6 +20,14 @@ export default function PreviewSummaryChips({ preview }: PreviewSummaryChipsProp
           label={`${preview.newCategories.length} new categories`}
         />
       )}
+      {preview.aiSuggestedRows > 0 && (
+        <Chip
+          size="small"
+          color="info"
+          variant="outlined"
+          label={`${preview.aiSuggestedRows} categorised by AI`}
+        />
+      )}
     </Box>
   );
 }

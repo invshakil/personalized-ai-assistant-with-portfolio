@@ -3,6 +3,7 @@ import type { ImportMapping } from "@/lib/api/money";
 import type { MoneyAccountRow } from "@/types";
 import ColumnSelectField from "./ColumnSelectField";
 import MappingDefaultsFields from "./MappingDefaultsFields";
+import AiCategorizeToggle from "./AiCategorizeToggle";
 
 interface ColumnMappingFormProps {
   headers: string[];
@@ -84,6 +85,7 @@ export default function ColumnMappingForm({
               headers={headers}
               onChange={(v) => onMappingChange((m) => ({ ...m, description: v }))}
             />
+            <AiCategorizeToggle mapping={mapping} onMappingChange={onMappingChange} />
           </Box>
         </Box>
         <Button variant="contained" onClick={onPreview} disabled={!canPreview || previewing}>
