@@ -18,7 +18,8 @@
     "solis:test": "tsx scripts/solis-test.ts",
     "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "test:money": "node --import tsx --test src/services/money/__tests__/money.scenarios.test.ts",
-    "test:booking": "node --import tsx --test src/services/booking/__tests__/booking.test.ts"
+    "test:booking": "node --import tsx --test src/services/booking/__tests__/booking.test.ts",
+    "eval:categorize": "tsx scripts/eval-categorize.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
