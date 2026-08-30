@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { getActiveProvider } from "@/services/ai/registry";
 import { getToolsForScope, runAiTool } from "@/services/ai/tools";
 import { appendTurn } from "@/services/ai/sessions";
+import { saveProposedAction } from "@/services/ai/proposedActions";
 import { isOverBudget, recordUsage } from "@/services/ai/usage";
 import type { AiProviderId, ChatMessage, ToolScope, UsageTotals } from "@/services/ai/types";
 
@@ -121,6 +122,14 @@ export async function POST(req: Request) {
             send({ type: "tool", name: ev.name });
           } else if (ev.type === "pending_action") {
             send({ type: "pending_action", action: ev.action });
+            // Persist the proposal so the card survives a reload and the
+            // outcome is recorded when it is approved. Streamed first — the
+            // user should see the card without waiting on a DB write.
+            await saveProposedAction({
+              action: ev.action,
+              source: "chat",
+              sessionId: sessionId ?? null,
+            });
           } else if (ev.type === "error") {
             send({ type: "error", message: ev.message });
           }
@@ -131,6 +140,7 @@ export async function POST(req: Request) {
           await recordUsage({
             provider: active.provider.id as AiProviderId,
             model: active.model,
+            feature: "chat",
             usage,
           });
         }

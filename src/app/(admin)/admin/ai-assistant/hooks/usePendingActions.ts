@@ -20,7 +20,7 @@ export function usePendingActions({ isStreaming, blocked }: UsePendingActionsPar
     if (!action || action.status === "committing" || action.status === "done") return;
     patchAction(msgIndex, actionId, { status: "committing", error: undefined });
     try {
-      const res = await aiApi.executeAction(action.tool, action.input);
+      const res = await aiApi.executeAction(action.tool, action.input, action.id);
       patchAction(msgIndex, actionId, { status: "done", resultSummary: res.summary });
       dispatch(addMessage({ role: "system", content: res.summary }));
     } catch (e) {
@@ -31,8 +31,12 @@ export function usePendingActions({ isStreaming, blocked }: UsePendingActionsPar
     }
   };
 
-  const cancelAction = (msgIndex: number, actionId: string) =>
+  const cancelAction = (msgIndex: number, actionId: string) => {
     patchAction(msgIndex, actionId, { status: "cancelled" });
+    // Fire-and-forget: the card is already cancelled in the UI, and a failed
+    // audit write must not resurrect it.
+    void aiApi.cancelAction(actionId).catch(() => {});
+  };
 
   const approveAllActions = async (msgIndex: number) => {
     if (isStreaming || blocked) return;

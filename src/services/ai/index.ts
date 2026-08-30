@@ -5,5 +5,6 @@ export * from "./registry";
 export * from "./tools";
 export * from "./sessions";
 export * from "./task";
+export * from "./proposedActions";
 export * from "./usage";
 export type * from "./types";
