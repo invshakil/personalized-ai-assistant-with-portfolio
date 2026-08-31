@@ -24,14 +24,20 @@ export function useCsvFile() {
     setHeaders(cols);
     // Best-effort auto-mapping by header name.
     const find = (re: RegExp) => cols.find((c) => re.test(c)) ?? "";
+    const category = find(/categor/i) || undefined;
+    const description = find(/desc|detail|narration|particular/i) || undefined;
     setMapping({
       date: find(/date/i),
       amount: find(/amount|amt|value/i),
       direction: find(/type|direction|dr.?cr|debit|credit/i) || undefined,
-      category: find(/categor/i) || undefined,
+      category,
       account: find(/account|wallet|bank/i) || undefined,
-      description: find(/desc|detail|narration|particular/i) || undefined,
+      description,
       notes: find(/note/i) || undefined,
+      // Default on exactly where it helps: there is something to read and
+      // nothing already answering the question. A file that carries its own
+      // category column doesn't need the model, and shouldn't pay for it.
+      aiCategorize: !!description && !category,
     });
   };
 

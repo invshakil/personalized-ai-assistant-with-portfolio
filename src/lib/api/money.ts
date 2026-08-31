@@ -118,6 +118,10 @@ export interface ImportMapping {
   defaultAccountId?: string;
   description?: string;
   notes?: string;
+  /** Preview-only: ask the AI to suggest categories for uncategorised rows. */
+  aiCategorize?: boolean;
+  /** Commit-only: the reviewed suggestions the preview returned. */
+  aiCategories?: Record<string, string>;
 }
 
 export interface ImportPreviewRow {
@@ -126,6 +130,8 @@ export interface ImportPreviewRow {
   direction: "CREDIT" | "DEBIT" | null;
   amount: number | null;
   categoryName: string | null;
+  categorySource: "column" | "ai" | "default" | null;
+  categoryConfidence: number | null;
   accountName: string | null;
   description: string | null;
   notes: string | null;
@@ -141,6 +147,8 @@ export interface ImportPreviewResult {
   errorRows: number;
   newCategories: string[];
   rows: ImportPreviewRow[];
+  aiSuggestedRows: number;
+  aiCategories: Record<string, string>;
 }
 
 export interface ImportBatchRow {

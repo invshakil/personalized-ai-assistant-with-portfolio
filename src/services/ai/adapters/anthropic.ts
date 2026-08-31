@@ -5,7 +5,15 @@
 import { randomUUID } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { readChatAttachment } from "../uploads";
-import type { AiProvider, StreamChatOptions, StreamEvent, UsageTotals } from "../types";
+import type {
+  AiProvider,
+  ChatMessage,
+  CompleteOptions,
+  CompleteResult,
+  StreamChatOptions,
+  StreamEvent,
+  UsageTotals,
+} from "../types";
 
 // Anthropic vision accepts these directly. Other image types we accept on
 // upload (gif) would need conversion; we send them as-is and let the API reject
@@ -14,6 +22,43 @@ type AnthropicImageMediaType = "image/jpeg" | "image/png" | "image/webp" | "imag
 
 const MAX_ITERATIONS = 6; // cap the tool loop
 const MAX_TOKENS = 2048;
+/** One-shot tasks return small structured payloads — they never need chat's budget. */
+const TASK_MAX_TOKENS = 4096;
+
+/**
+ * Expand our vendor-neutral turns into Anthropic message params, inlining any
+ * image attachments as base64 blocks. The upload URLs are auth-gated, so the
+ * model cannot fetch them — the bytes have to travel in the request.
+ */
+async function toMessageParams(messages: ChatMessage[]): Promise<Anthropic.MessageParam[]> {
+  return Promise.all(
+    messages.map(async (m): Promise<Anthropic.MessageParam> => {
+      if (!m.attachments?.length) return { role: m.role, content: m.content };
+      const imageBlocks: Anthropic.ImageBlockParam[] = [];
+      for (const att of m.attachments) {
+        const got = await readChatAttachment(att.url);
+        if (!got) continue;
+        imageBlocks.push({
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: got.mimeType as AnthropicImageMediaType,
+            data: got.buffer.toString("base64"),
+          },
+        });
+      }
+      const textBlock: Anthropic.TextBlockParam = { type: "text", text: m.content || "" };
+      return { role: m.role, content: [...imageBlocks, textBlock] };
+    })
+  );
+}
+
+const emptyUsage = (): UsageTotals => ({
+  inputTokens: 0,
+  outputTokens: 0,
+  cacheReadTokens: 0,
+  cacheCreateTokens: 0,
+});
 
 export function createAnthropicProvider(opts: { apiKey: string; baseURL?: string }): AiProvider {
   const client = new Anthropic({ apiKey: opts.apiKey, baseURL: opts.baseURL });
@@ -57,34 +102,10 @@ export function createAnthropicProvider(opts: { apiKey: string; baseURL?: string
       // image content blocks (base64-inlined from local disk — the upload URLs
       // are auth-gated and the model can't fetch them). Each turn becomes a
       // multi-block array iff it has attachments; otherwise plain string.
-      const convo: Anthropic.MessageParam[] = await Promise.all(
-        messages.map(async (m): Promise<Anthropic.MessageParam> => {
-          if (!m.attachments?.length) return { role: m.role, content: m.content };
-          const imageBlocks: Anthropic.ImageBlockParam[] = [];
-          for (const att of m.attachments) {
-            const got = await readChatAttachment(att.url);
-            if (!got) continue;
-            imageBlocks.push({
-              type: "image",
-              source: {
-                type: "base64",
-                media_type: got.mimeType as AnthropicImageMediaType,
-                data: got.buffer.toString("base64"),
-              },
-            });
-          }
-          const textBlock: Anthropic.TextBlockParam = { type: "text", text: m.content || "" };
-          return { role: m.role, content: [...imageBlocks, textBlock] };
-        })
-      );
+      const convo: Anthropic.MessageParam[] = await toMessageParams(messages);
 
       // Accumulate token usage across every API call this turn makes.
-      const usage: UsageTotals = {
-        inputTokens: 0,
-        outputTokens: 0,
-        cacheReadTokens: 0,
-        cacheCreateTokens: 0,
-      };
+      const usage: UsageTotals = emptyUsage();
 
       for (let i = 0; i < MAX_ITERATIONS; i++) {
         const stream = client.messages.stream({
@@ -190,6 +211,63 @@ export function createAnthropicProvider(opts: { apiKey: string; baseURL?: string
 
       yield { type: "usage", usage };
       yield { type: "error", message: "Reached the maximum number of tool steps for this turn." };
+    },
+
+    // ── One-shot structured completion ─────────────────────────────────────
+    // The non-conversational half of the seam: one request, JSON out, no tool
+    // loop. `output_config.format` constrains the model to the caller's JSON
+    // Schema server-side, so the response body IS the JSON — we never coax a
+    // shape out of prose or strip code fences.
+    async complete<T>({
+      model,
+      system,
+      input,
+      schema,
+      maxTokens,
+    }: CompleteOptions): Promise<CompleteResult<T>> {
+      const messages: Anthropic.MessageParam[] =
+        typeof input === "string"
+          ? [{ role: "user", content: input }]
+          : await toMessageParams(input);
+
+      const res = await client.messages.create({
+        model,
+        max_tokens: maxTokens ?? TASK_MAX_TOKENS,
+        system,
+        messages,
+        output_config: { format: { type: "json_schema", schema } },
+      });
+
+      const usage: UsageTotals = {
+        inputTokens: res.usage.input_tokens ?? 0,
+        outputTokens: res.usage.output_tokens ?? 0,
+        cacheReadTokens: res.usage.cache_read_input_tokens ?? 0,
+        cacheCreateTokens: res.usage.cache_creation_input_tokens ?? 0,
+      };
+
+      // A refusal or a token cap returns a well-formed response with unusable
+      // content — surface that as an error rather than failing later in JSON.parse
+      // with a message the caller cannot act on.
+      if (res.stop_reason === "refusal") {
+        throw new Error("The model declined to complete this task.");
+      }
+      if (res.stop_reason === "max_tokens") {
+        throw new Error("The model's response was cut off before it was complete.");
+      }
+
+      const text = res.content
+        .filter((b): b is Anthropic.TextBlock => b.type === "text")
+        .map((b) => b.text)
+        .join("");
+      if (!text.trim()) throw new Error("The model returned an empty response.");
+
+      let result: T;
+      try {
+        result = JSON.parse(text) as T;
+      } catch {
+        throw new Error("The model returned a response that was not valid JSON.");
+      }
+      return { result, usage };
     },
   };
 }

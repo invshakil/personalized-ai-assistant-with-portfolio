@@ -42,8 +42,13 @@ export const aiApi = {
   deleteSession: (id: string) => apiDelete<{ ok: true }>(`/ai/sessions/${id}`),
 
   // Commit a write the assistant proposed and the user approved.
-  executeAction: (tool: string, input: Record<string, unknown>) =>
-    apiPost<CommitResult>("/ai/actions/execute", { tool, input }),
+  // `actionId` is the proposal's row id — passed so the server can record
+  // whether the user approved it and how it turned out.
+  executeAction: (tool: string, input: Record<string, unknown>, actionId?: string) =>
+    apiPost<CommitResult>("/ai/actions/execute", { tool, input, actionId }),
+
+  // Record that the user declined a proposal, so it doesn't sit PENDING forever.
+  cancelAction: (actionId: string) => apiPost<{ ok: true }>("/ai/actions/cancel", { actionId }),
 
   // Upload an image attachment (receipts, screenshots) for the next turn.
   uploadAttachment: (file: File) => {

@@ -39,7 +39,14 @@ export function useImportPreview(onCommitted: (importedCount: number, skipped: n
     setCommitting(true);
     setError(null);
     try {
-      const res = await moneyApi.commitImport(file, mapping, includeDuplicates);
+      // Send back the suggestions the preview produced so the commit writes
+      // exactly what was reviewed. Without this the server would re-run the
+      // model and could categorise a row differently from what was on screen.
+      const res = await moneyApi.commitImport(
+        file,
+        { ...mapping, aiCategorize: false, aiCategories: preview?.aiCategories },
+        includeDuplicates
+      );
       setSuccess(`Imported ${res.imported} entries (${res.skipped} skipped).`);
       setPreview(null);
       onCommitted(res.imported, res.skipped);

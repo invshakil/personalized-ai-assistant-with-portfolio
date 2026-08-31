@@ -1,4 +1,4 @@
-// Token pricing (USD per 1M tokens) and cost computation. Rates as of Jan 2026
+// Token pricing (USD per 1M tokens) and cost computation. Rates as of Aug 2026
 // from the Anthropic pricing table. Cache reads bill at ~0.1× input, 5-minute
 // cache writes at ~1.25× input. Unknown models cost 0 (tokens still recorded).
 import type { UsageTotals } from "./types";
@@ -9,6 +9,8 @@ interface ModelRate {
 }
 
 const RATES: Record<string, ModelRate> = {
+  "claude-opus-5": { input: 5, output: 25 },
+  "claude-sonnet-5": { input: 2, output: 10 },
   "claude-opus-4-8": { input: 5, output: 25 },
   "claude-sonnet-4-6": { input: 3, output: 15 },
   "claude-haiku-4-5": { input: 1, output: 5 },

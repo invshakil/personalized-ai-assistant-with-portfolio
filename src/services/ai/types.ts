@@ -4,6 +4,28 @@
 
 export type AiProviderId = "anthropic" | "openai" | "google";
 
+/**
+ * What a model call is *for*. Drives model selection: cheap/fast work
+ * (classification, extraction) resolves to the provider's fast model, while
+ * reasoning-heavy work stays on the configured default. See `getProviderFor`.
+ */
+export type AiTaskPurpose = "classify" | "extract" | "analyze" | "chat";
+
+/**
+ * Which product surface spent the tokens. Recorded on every AiUsage row so
+ * spend is attributable per feature — without it, one runaway surface silently
+ * consumes the shared monthly budget and nothing says which.
+ */
+export type AiFeature = "chat" | "import_categorize" | "receipt_extract" | "insight" | "filter";
+
+export const AI_FEATURES: AiFeature[] = [
+  "chat",
+  "import_categorize",
+  "receipt_extract",
+  "insight",
+  "filter",
+];
+
 /** One attachment uploaded with a user turn (currently images for vision). */
 export interface ChatAttachment {
   /** Auth-gated URL: /api/admin/ai/uploads/YYYY/MM/<cuid>.<ext> */
@@ -95,10 +117,36 @@ export interface StreamChatOptions {
   runTool: RunTool;
 }
 
+/**
+ * One-shot structured completion — the non-conversational half of the seam.
+ *
+ * `streamChat` exists for the assistant: a streaming conversation that loops
+ * over tools. Embedded AI (categorising a CSV, reading a receipt, ranking
+ * signals for a dashboard) needs the opposite shape — a single call that
+ * returns typed data and nothing else. `schema` is a JSON Schema describing the
+ * result; adapters constrain the model to it rather than parsing prose.
+ */
+export interface CompleteOptions {
+  model: string;
+  system: string;
+  /** The user turn. A plain string, or blocks when images are involved. */
+  input: string | ChatMessage[];
+  /** JSON Schema for the result. Must describe an object. */
+  schema: Record<string, unknown>;
+  maxTokens?: number;
+}
+
+export interface CompleteResult<T> {
+  result: T;
+  usage: UsageTotals;
+}
+
 /** The interface every provider adapter implements. */
 export interface AiProvider {
   id: AiProviderId;
   streamChat(opts: StreamChatOptions): AsyncIterable<StreamEvent>;
+  /** One call, schema-constrained JSON out. No tool loop, no streaming. */
+  complete<T>(opts: CompleteOptions): Promise<CompleteResult<T>>;
 }
 
 // ─── View types (returned to the settings UI; never include the secret) ───────
@@ -154,4 +202,6 @@ export interface UsageSummary {
   overBudget: boolean; // enforce && limit && monthToDate >= limit
   monthly: { period: string; costUsd: number }[]; // "YYYY-MM", oldest first
   daily: { period: string; costUsd: number }[]; // "YYYY-MM-DD", last 30 days, oldest first
+  /** Month-to-date spend split by product surface, biggest first. */
+  byFeature: { feature: string; costUsd: number; calls: number }[];
 }

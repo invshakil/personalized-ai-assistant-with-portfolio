@@ -9,6 +9,14 @@ import { db } from "@/lib/db";
 import { MoneyEntrySource } from "@prisma/client";
 import { toNum, toIso } from "./_serializers";
 import { ensureCategory } from "./categories";
+import {
+  buildValidCategories,
+  canonicalCategory,
+  suggestCategories,
+  suggestionKey,
+  type EntryDirection,
+  type ValidCategories,
+} from "./categorize";
 
 // ─── CSV parsing ───────────────────────────────────────────────────────────--
 
@@ -106,6 +114,18 @@ export interface ImportMapping {
   defaultAccountId?: string; // fallback account id
   description?: string;
   notes?: string;
+  /**
+   * Preview-only: ask the AI to suggest a category for rows that don't get one
+   * from a column. Ignored on commit — see `aiCategories`.
+   */
+  aiCategorize?: boolean;
+  /**
+   * The suggestions the user actually reviewed, keyed by "DIRECTION|description"
+   * (lowercased). The client sends back what the preview returned, so the commit
+   * writes exactly what was on screen instead of re-running the model and
+   * possibly getting different answers.
+   */
+  aiCategories?: Record<string, string>;
 }
 
 export interface ParsedImportRow {
@@ -114,6 +134,10 @@ export interface ParsedImportRow {
   direction: "CREDIT" | "DEBIT" | null;
   amount: number | null;
   categoryName: string | null;
+  /** Where categoryName came from — drives the "AI" chip in the preview table. */
+  categorySource: "column" | "ai" | "default" | null;
+  /** Model confidence 0–1, present only when categorySource is "ai". */
+  categoryConfidence: number | null;
   accountName: string | null;
   description: string | null;
   notes: string | null;
@@ -129,6 +153,10 @@ export interface ImportPreview {
   errorRows: number;
   newCategories: string[];
   rows: ParsedImportRow[];
+  /** How many rows were categorised by the model (0 when AI is off/unavailable). */
+  aiSuggestedRows: number;
+  /** The suggestion map to send back on commit so it writes what was reviewed. */
+  aiCategories: Record<string, string>;
 }
 
 async function existingKeySet(): Promise<Set<string>> {
@@ -147,8 +175,10 @@ function rowKey(dateIso: string, amount: number, desc: string | null): string {
 async function mapRows(
   headers: string[],
   rows: string[][],
-  mapping: ImportMapping
-): Promise<{ parsed: ParsedImportRow[]; newCategories: Set<string> }> {
+  mapping: ImportMapping,
+  /** description|direction → category name. Empty when AI is off or unavailable. */
+  suggestions: Map<string, { categoryName: string; confidence: number }> = new Map()
+): Promise<{ parsed: ParsedImportRow[]; newCategories: Set<string>; aiRows: number }> {
   const idx = (name?: string) => (name ? headers.indexOf(name) : -1);
   const dateI = idx(mapping.date);
   const amountI = idx(mapping.amount);
@@ -165,16 +195,46 @@ async function mapRows(
   const newCategories = new Set<string>();
   const seenInFile = new Set<string>();
 
+  let aiRows = 0;
+
   const parsed = rows.map((cells, i): ParsedImportRow => {
     const get = (j: number) => (j >= 0 ? (cells[j] ?? "").trim() : "");
     const date = dateI >= 0 ? parseDateValue(get(dateI)) : null;
     const amount = amountI >= 0 ? parseAmount(get(amountI)) : null;
     const direction =
       inferDirection(dirI >= 0 ? get(dirI) : undefined) ?? mapping.defaultDirection ?? null;
-    const categoryName = (catI >= 0 ? get(catI) : "") || mapping.defaultCategory || null;
     const accountName = accI >= 0 ? get(accI) || null : null;
     const description = descI >= 0 ? get(descI) || null : null;
     const notes = notesI >= 0 ? get(notesI) || null : null;
+
+    // Precedence: an explicit column always wins (it is the user's own data),
+    // then a per-row AI suggestion, then the blanket default. A suggestion is
+    // more specific than "apply this category to the whole file", which is why
+    // it outranks the default rather than only filling in for a missing one.
+    const fromColumn = (catI >= 0 ? get(catI) : "") || null;
+    const suggested =
+      !fromColumn && description && direction
+        ? suggestions.get(suggestionKey(description, direction as EntryDirection))
+        : undefined;
+
+    let categoryName: string | null;
+    let categorySource: ParsedImportRow["categorySource"];
+    let categoryConfidence: number | null = null;
+    if (fromColumn) {
+      categoryName = fromColumn;
+      categorySource = "column";
+    } else if (suggested) {
+      categoryName = suggested.categoryName;
+      categorySource = "ai";
+      categoryConfidence = suggested.confidence;
+      aiRows++;
+    } else if (mapping.defaultCategory) {
+      categoryName = mapping.defaultCategory;
+      categorySource = "default";
+    } else {
+      categoryName = null;
+      categorySource = null;
+    }
 
     let error: string | null = null;
     if (!date) error = "invalid or missing date";
@@ -199,6 +259,8 @@ async function mapRows(
       direction,
       amount,
       categoryName,
+      categorySource,
+      categoryConfidence,
       accountName,
       description,
       notes,
@@ -207,12 +269,93 @@ async function mapRows(
     };
   });
 
-  return { parsed, newCategories };
+  return { parsed, newCategories, aiRows };
+}
+
+/**
+ * The (description, direction) pairs worth asking the model about: rows that
+ * carry a description and won't already get a category from a mapped column.
+ * Reads the raw cells directly so the preview doesn't have to map twice.
+ */
+function categorizationCandidates(
+  headers: string[],
+  rows: string[][],
+  mapping: ImportMapping
+): { description: string; direction: EntryDirection }[] {
+  const idx = (name?: string) => (name ? headers.indexOf(name) : -1);
+  const descI = idx(mapping.description);
+  if (descI < 0) return [];
+  const catI = idx(mapping.category);
+  const dirI = idx(mapping.direction);
+
+  const out: { description: string; direction: EntryDirection }[] = [];
+  for (const cells of rows) {
+    const get = (j: number) => (j >= 0 ? (cells[j] ?? "").trim() : "");
+    if (catI >= 0 && get(catI)) continue; // the column already answers this row
+    const description = get(descI);
+    if (!description) continue;
+    const direction =
+      inferDirection(dirI >= 0 ? get(dirI) : undefined) ?? mapping.defaultDirection ?? null;
+    if (!direction) continue;
+    out.push({ description, direction });
+  }
+  return out;
+}
+
+/**
+ * Rebuild the suggestion map the preview returned, for use at commit time.
+ *
+ * `aiCategories` arrives from the client, so it is re-validated here against the
+ * live category list rather than trusted. The preview-time guard
+ * (`reconcileAssignments`) constrains what the *model* may propose; without this
+ * second pass those constraints would hold only as long as the client chose to
+ * replay the map faithfully, and a hand-edited request could name a category
+ * that doesn't exist (creating it via `ensureCategory`) or file a DEBIT under an
+ * income category. Same two rules as the preview guard, enforced server-side.
+ *
+ * Pure — unit-tested in `__tests__/categorize.test.ts`.
+ */
+export function validateSuggestionRecord(
+  record: Record<string, string> | undefined,
+  valid: ValidCategories
+): Map<string, { categoryName: string; confidence: number }> {
+  const map = new Map<string, { categoryName: string; confidence: number }>();
+  if (!record || typeof record !== "object") return map;
+
+  for (const [key, categoryName] of Object.entries(record)) {
+    if (typeof categoryName !== "string" || !categoryName.trim()) continue;
+
+    // The key encodes the direction the suggestion was made for; anything that
+    // doesn't parse as one of ours was not produced by the preview.
+    const direction: EntryDirection | null = key.startsWith("CREDIT|")
+      ? "CREDIT"
+      : key.startsWith("DEBIT|")
+        ? "DEBIT"
+        : null;
+    if (!direction) continue;
+
+    const canonical = canonicalCategory(valid, categoryName, direction);
+    if (!canonical) continue;
+
+    // Confidence isn't round-tripped — by commit time the user has reviewed the
+    // suggestion, so it is a decision, not a guess.
+    map.set(key, { categoryName: canonical, confidence: 1 });
+  }
+  return map;
 }
 
 export async function previewImport(text: string, mapping: ImportMapping): Promise<ImportPreview> {
   const { headers, rows } = parseCsv(text);
-  const { parsed, newCategories } = await mapRows(headers, rows, mapping);
+
+  // AI runs here and only here. The commit replays the map this returns, so
+  // what gets written is what the user reviewed — not a second, possibly
+  // different, model answer.
+  let suggestions = new Map<string, { categoryName: string; confidence: number }>();
+  if (mapping.aiCategorize) {
+    suggestions = await suggestCategories(categorizationCandidates(headers, rows, mapping));
+  }
+
+  const { parsed, newCategories, aiRows } = await mapRows(headers, rows, mapping, suggestions);
   return {
     headers,
     totalRows: parsed.length,
@@ -221,6 +364,8 @@ export async function previewImport(text: string, mapping: ImportMapping): Promi
     errorRows: parsed.filter((r) => r.error).length,
     newCategories: Array.from(newCategories),
     rows: parsed,
+    aiSuggestedRows: aiRows,
+    aiCategories: Object.fromEntries([...suggestions].map(([k, v]) => [k, v.categoryName])),
   };
 }
 
@@ -237,7 +382,13 @@ export async function commitImport(
   input: CommitImportInput
 ): Promise<{ batchId: string; imported: number; skipped: number }> {
   const { headers, rows } = parseCsv(input.text);
-  const { parsed } = await mapRows(headers, rows, input.mapping);
+  const knownCategories = await db.moneyCategory.findMany({ select: { name: true, kind: true } });
+  const { parsed } = await mapRows(
+    headers,
+    rows,
+    input.mapping,
+    validateSuggestionRecord(input.mapping.aiCategories, buildValidCategories(knownCategories))
+  );
 
   const toInsert = parsed.filter((r) => !r.error && (input.includeDuplicates || !r.duplicate));
   const skipped = parsed.length - toInsert.length;

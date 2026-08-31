@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { isWriteTool, commitWrite } from "@/services/ai/writeTools";
+import { resolveProposedAction } from "@/services/ai/proposedActions";
 
 // Commits a write the AI proposed and the user approved in the chat UI. The
 // model is NOT in the loop here — this is a plain authenticated mutation that
@@ -10,7 +11,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  let body: { tool?: unknown; input?: unknown };
+  let body: { tool?: unknown; input?: unknown; actionId?: unknown };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -25,14 +26,19 @@ export async function POST(req: Request) {
     );
   }
 
+  // Present for proposals raised after they became persistent; absent for cards
+  // still in flight from an older client. The commit does not depend on it —
+  // it only records the outcome.
+  const actionId = typeof body.actionId === "string" ? body.actionId : null;
+
   try {
     const result = await commitWrite(tool, body.input);
+    if (actionId) await resolveProposedAction(actionId, "APPROVED", result.summary);
     return Response.json({ data: result });
   } catch (e) {
     // Service-layer validation errors are user-safe.
-    return Response.json(
-      { error: e instanceof Error ? e.message : "Failed to perform the action." },
-      { status: 400 }
-    );
+    const message = e instanceof Error ? e.message : "Failed to perform the action.";
+    if (actionId) await resolveProposedAction(actionId, "ERROR", message);
+    return Response.json({ error: message }, { status: 400 });
   }
 }
