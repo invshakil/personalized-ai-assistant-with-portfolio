@@ -5,7 +5,13 @@ import type { MoneyAccountRow, MoneyCategoryRow, MoneyEntryRow } from "@/types";
 import { todayInput } from "../../format";
 import { useFormDefaults } from "@/hooks/useFormDefaults";
 import { useObligationLink } from "./useObligationLink";
-import { BLANK_ENTRY, type EntryDir, type EntryForm } from "../types";
+import {
+  BLANK_ENTRY,
+  categoryIdsFor,
+  categoryKindFor,
+  type EntryDir,
+  type EntryForm,
+} from "../types";
 
 /** Add/edit drawer state for a single ledger entry, incl. the optional obligation link. */
 export function useEntryDrawer(
@@ -28,9 +34,7 @@ export function useEntryDrawer(
   );
   const selectedObligation = linkObligations.find((o) => o.id === form.obligationId) ?? null;
 
-  const formCategories = categories.filter(
-    (c) => c.kind === (form.direction === "CREDIT" ? "INCOME" : "EXPENSE")
-  );
+  const formCategories = categories.filter((c) => c.kind === categoryKindFor(form.direction));
 
   const openAdd = () => {
     setEditing(null);
@@ -40,9 +44,14 @@ export function useEntryDrawer(
     // Each stored value is checked against the ids actually on offer, so a
     // default pointing at a deleted account degrades to an empty field rather
     // than a stale id that would fail on save.
+    //
+    // Categories are checked against the NEW form's direction, not every
+    // category: a last-used income category would otherwise pass here, render
+    // as an empty field (the expense dropdown has no option for it) and then be
+    // refused by the server on save.
     const seeded = defaults.seed({
       accountId: accounts.map((a) => a.id),
-      categoryId: categories.map((c) => c.id),
+      categoryId: categoryIdsFor(categories, BLANK_ENTRY.direction),
     });
     setForm({ ...BLANK_ENTRY, date: todayInput(), ...seeded });
     setError(null);
@@ -74,8 +83,7 @@ export function useEntryDrawer(
       direction,
       // Drop a category that no longer matches the new direction's kind.
       categoryId:
-        categories.find((c) => c.id === f.categoryId)?.kind ===
-        (direction === "CREDIT" ? "INCOME" : "EXPENSE")
+        categories.find((c) => c.id === f.categoryId)?.kind === categoryKindFor(direction)
           ? f.categoryId
           : "",
       // A due is direction-specific; clear it so it can't mismatch the new type.

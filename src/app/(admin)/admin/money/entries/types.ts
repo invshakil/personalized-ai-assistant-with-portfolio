@@ -1,7 +1,27 @@
 import { MONEY_RANGE_PERIOD, todayInput, type MoneyRange } from "../format";
-import type { MoneyEntryMethod } from "@/types";
+import type { MoneyCategoryRow, MoneyEntryMethod } from "@/types";
 
 export type EntryDir = "CREDIT" | "DEBIT";
+
+/**
+ * The category kind a direction requires. The server enforces the same pairing
+ * (`assertCategoryMatchesDirection` in services/money/entries.ts), so any
+ * category the form offers — or seeds from a default — must satisfy it, or the
+ * save is rejected with "A DEBIT entry needs an EXPENSE category".
+ */
+export const categoryKindFor = (direction: EntryDir) =>
+  direction === "CREDIT" ? "INCOME" : "EXPENSE";
+
+/**
+ * The category ids a form in `direction` may hold — exactly the set its
+ * dropdown renders. Seeding a default must be checked against this, not against
+ * every category: a value the dropdown has no option for renders as an empty
+ * field while the id stays in form state, so the mismatch is invisible until
+ * the server refuses the save.
+ */
+export const categoryIdsFor = (categories: MoneyCategoryRow[], direction: EntryDir): string[] =>
+  categories.filter((c) => c.kind === categoryKindFor(direction)).map((c) => c.id);
+
 export type DirFilter = "ALL" | "CREDIT" | "DEBIT" | "TRANSFER";
 export type SortBy = "date" | "amount" | "category";
 export type SortDir = "asc" | "desc";
