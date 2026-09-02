@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { moneyApi } from "@/lib/api/money";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
 import { fmt, todayInput } from "../../format";
 import type {
   BeneficiaryDetail,
@@ -74,11 +75,19 @@ export function usePersonDetail(
   const [editAmount, setEditAmount] = useState("");
   const [editSaving, setEditSaving] = useState(false);
 
+  const defaults = useFormDefaults("money.personPayment");
+  /** A stored default is dropped if the account no longer exists. */
+  const blankPayment = () => ({
+    ...BLANK_PAYMENT,
+    date: todayInput(),
+    ...defaults.seed({ accountId: accounts.map((a) => a.id) }),
+  });
+
   async function openDetail(id: string) {
     setDetailLoading(true);
     setDetailError(null);
     setObForm({ ...BLANK_OBLIGATION, startDate: todayInput() });
-    setPayForm({ ...BLANK_PAYMENT, date: todayInput(), accountId: accounts[0]?.id ?? "" });
+    setPayForm(blankPayment());
     setAddDueId(null);
     setAddDueAmount("");
     setEditObId(null);
@@ -133,7 +142,8 @@ export function usePersonDetail(
         obligationId: payForm.obligationId || null,
         direction: payForm.direction,
       });
-      setPayForm({ ...BLANK_PAYMENT, date: todayInput(), accountId: accounts[0]?.id ?? "" });
+      defaults.remember({ accountId: payForm.accountId });
+      setPayForm(blankPayment());
       await refreshDetail();
     } catch (e: unknown) {
       setDetailError(e instanceof Error ? e.message : "Something went wrong");

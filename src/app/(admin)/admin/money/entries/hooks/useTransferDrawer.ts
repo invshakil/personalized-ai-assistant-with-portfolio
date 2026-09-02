@@ -1,17 +1,27 @@
 import { useState } from "react";
 import { moneyApi } from "@/lib/api/money";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
 import { todayInput } from "../../format";
 import { BLANK_TRANSFER, type TransferForm } from "../types";
 
 /** Add-transfer drawer state (move money between two of the user's own accounts). */
-export function useTransferDrawer(onSuccess: () => Promise<void> | void) {
+export function useTransferDrawer(
+  onSuccess: () => Promise<void> | void,
+  /** Account ids currently on offer — used to drop a default that no longer exists. */
+  accountIds: readonly string[] = []
+) {
+  const defaults = useFormDefaults("money.transfer");
   const [transferOpen, setTransferOpen] = useState(false);
   const [transfer, setTransfer] = useState<TransferForm>(BLANK_TRANSFER);
   const [transferSaving, setTransferSaving] = useState(false);
   const [transferError, setTransferError] = useState<string | null>(null);
 
   const openTransfer = () => {
-    setTransfer({ ...BLANK_TRANSFER, date: todayInput() });
+    setTransfer({
+      ...BLANK_TRANSFER,
+      date: todayInput(),
+      ...defaults.seed({ fromAccountId: accountIds, toAccountId: accountIds }),
+    });
     setTransferError(null);
     setTransferOpen(true);
   };

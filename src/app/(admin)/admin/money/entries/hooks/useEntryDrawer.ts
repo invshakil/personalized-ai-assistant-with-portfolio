@@ -3,6 +3,7 @@ import type { ReadonlyURLSearchParams } from "next/navigation";
 import { moneyApi } from "@/lib/api/money";
 import type { MoneyAccountRow, MoneyCategoryRow, MoneyEntryRow } from "@/types";
 import { todayInput } from "../../format";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
 import { useObligationLink } from "./useObligationLink";
 import { BLANK_ENTRY, type EntryDir, type EntryForm } from "../types";
 
@@ -14,6 +15,7 @@ export function useEntryDrawer(
   setParams: (patch: Record<string, string | undefined>) => void,
   onSuccess: () => Promise<void> | void
 ) {
+  const defaults = useFormDefaults("money.entry");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState<EntryForm>(BLANK_ENTRY);
@@ -32,7 +34,17 @@ export function useEntryDrawer(
 
   const openAdd = () => {
     setEditing(null);
-    setForm({ ...BLANK_ENTRY, date: todayInput(), accountId: accounts[0]?.id ?? "" });
+    // Defaults apply to a NEW entry only. openEdit must never seed from them —
+    // that would quietly rewrite the record being edited.
+    //
+    // Each stored value is checked against the ids actually on offer, so a
+    // default pointing at a deleted account degrades to an empty field rather
+    // than a stale id that would fail on save.
+    const seeded = defaults.seed({
+      accountId: accounts.map((a) => a.id),
+      categoryId: categories.map((c) => c.id),
+    });
+    setForm({ ...BLANK_ENTRY, date: todayInput(), ...seeded });
     setError(null);
     setDrawerOpen(true);
   };
@@ -109,6 +121,9 @@ export function useEntryDrawer(
       };
       if (editing) await moneyApi.updateEntry(editing, body);
       else await moneyApi.createEntry(body);
+      // Fire-and-forget; the server ignores anything not in "lastUsed" mode, so
+      // a pinned account is never overwritten by having been used.
+      defaults.remember({ accountId: form.accountId, categoryId: form.categoryId });
       setDrawerOpen(false);
       await onSuccess();
     } catch (e: unknown) {
