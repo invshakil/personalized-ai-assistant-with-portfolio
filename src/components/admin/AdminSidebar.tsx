@@ -139,6 +139,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
         children: [
           { href: "/admin/settings", label: "Site Settings", icon: SlidersHorizontal },
           { href: "/admin/settings/appearance", label: "Appearance", icon: Palette },
+          { href: "/admin/settings/defaults", label: "Form Defaults", icon: ListChecks },
           { href: "/admin/settings/backup", label: "Backups", icon: Database },
           { href: "/admin/settings/booking", label: "Booking", icon: CalendarClock },
         ],

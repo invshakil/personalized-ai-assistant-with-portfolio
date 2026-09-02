@@ -275,6 +275,45 @@ No `accounts[0]` remains anywhere under `admin/money`.
 
 ---
 
+<a id="d4"></a>
+
+## D4 · Form defaults phase 3 — the Settings page — 2026-09-02
+
+`Settings → Form Defaults` (`/admin/settings/defaults`). Until this landed, a default could only be
+set through the API, so the observable effect of D2–D3 was a form that opened _empty_ rather than
+with the wrong value.
+
+| Piece                    | File                                                 |
+| ------------------------ | ---------------------------------------------------- |
+| Orchestrator (115 lines) | `settings/defaults/DefaultsSettingsPage.tsx`         |
+| Option-source loader     | `settings/defaults/hooks/useDefaultOptions.ts`       |
+| Field row                | `settings/defaults/components/DefaultFieldRow.tsx`   |
+| Form grouping            | `settings/defaults/components/FormDefaultsGroup.tsx` |
+| Nav + breadcrumb         | `AdminSidebar.tsx`, `AdminBreadcrumb.tsx`            |
+
+**Decisions.**
+
+- **Only the sources the registry references are fetched.** Registering a Property field later costs
+  one branch in `useDefaultOptions`, not a page-wide change.
+- **"— no default —" is an explicit option**, per the list-page convention that every sentinel is a
+  real choice rather than an empty box. Choosing it stores `value: ""` and keeps the chosen mode;
+  the separate reset button deletes the row so the field returns to the registry's starting mode.
+- **The mode toggle is visible per field**, so there is no hidden state — you can see that Account is
+  Fixed and Category is Last used without opening anything.
+- **Registry order is display order**, and the page groups by adjacency. A registry that interleaved
+  two forms would render duplicate cards, so that property is asserted in verification rather than
+  left to chance.
+- The page states the open-add rule in a banner, because "why didn't my default apply when I edited
+  this row" is the obvious first confusion.
+
+**Verified.** 9 checks on the page's data path: every registry source is loadable, enum fields carry
+options, account and category shapes match what the page maps over (10 accounts, 46 categories),
+grouping is contiguous, no registered field is unwired to a real form, and the registry lookups the
+page and service share agree. Plus tsc, eslint 0 errors, build, 110/110 tests. All four files inside
+their convention limits (page 115/300, hook 60/200, components 93 and 26/100).
+
+---
+
 ## Open items
 
 | Item                                                                                        | Raised | Where       |
