@@ -1,6 +1,8 @@
 // Typed client for misc admin endpoints (account + portfolio site settings + theme + overview + backups).
 import { apiGet, apiPut, apiPost, apiDelete } from "./client";
 import type {
+  FormDefaultRow,
+  FormDefaultInput,
   AdminThemeSettings,
   AdminOverview,
   AdminBackupState,
@@ -24,4 +26,14 @@ export const adminApi = {
   runBackupNow: () => apiPost<AdminBackupRecord>("/backup"),
   deleteBackup: (id: string) => apiDelete(`/backup/${id}`),
   disconnectDrive: () => apiPost("/backup/google/disconnect"),
+  // ── Form defaults (dropdown starting values) ──
+  listFormDefaults: () => apiGet<FormDefaultRow[]>("/form-defaults"),
+  setFormDefault: (body: FormDefaultInput) => apiPut<FormDefaultRow>("/form-defaults", body),
+  clearFormDefault: (scope: string, field: string) =>
+    apiDelete<{ cleared: boolean }>(
+      `/form-defaults?scope=${encodeURIComponent(scope)}&field=${encodeURIComponent(field)}`
+    ),
+  /** Record what a form just saved, for fields in "lastUsed" mode. */
+  rememberFormValues: (scope: string, values: Record<string, string>) =>
+    apiPost<{ ok: true }>("/form-defaults/remember", { scope, values }),
 };

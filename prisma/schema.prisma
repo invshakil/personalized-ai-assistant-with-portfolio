@@ -235,6 +235,29 @@ model AiBudget {
 
 // Admin dashboard appearance preferences. Drives the MUI theme via
 // createAdminTheme(); admin-editable singleton, falls back to defaults if unset.
+/// One user-chosen default for a single dropdown in a single form.
+///
+/// A keyed table rather than a singleton with columns: the set of defaultable
+/// fields grows every time a form gains a dropdown, and a fixed-column model
+/// would need a migration for each one. A few dozen rows at most, so the whole
+/// table loads once per session.
+model FormDefault {
+  id String @id @default(cuid())
+  /// Stable form id, e.g. "money.entry" — a form identifier, never a route.
+  /// Routes move; a default has to survive that.
+  scope String
+  /// Field within that form, e.g. "accountId".
+  field String
+  /// The stored choice: a record id or an enum value. "" means "no default".
+  value String
+  /// "fixed"    — always start with this value (set in Settings or the inline pin)
+  /// "lastUsed" — start with whatever was chosen last time (written on save)
+  mode      String   @default("fixed")
+  updatedAt DateTime @updatedAt
+
+  @@unique([scope, field])
+}
+
 model AdminThemeSettings {
   id           String   @id @default("singleton")
   mode         String   @default("dark") // "light" | "dark" | "system"
