@@ -287,16 +287,39 @@ strict terms:
 
 ## 7. Sequencing
 
-| Phase                 | Scope                                                                                                                                                                | Why here                                                  |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
-| **0 — Foundation** ✅ | `complete<T>()`; `AiUsage.feature` + per-feature caps; purpose → model map; persist `AiProposedAction`; AI job runner in `instrumentation.ts`; eval harness skeleton | Nothing user-visible; unblocks every phase below          |
-| **1 — Prove it** ✅   | CSV auto-categorisation end-to-end, with evals                                                                                                                       | Smallest surface, clearest win, exercises all of Phase 0  |
-| **2 — Capture**       | Receipt extraction on the three expense drawers; lease/document extraction                                                                                           | Reuses vision that already works; removes the most keying |
-| **3 — Proactive**     | Attention feed + cached report narratives                                                                                                                            | First server-initiated AI; the biggest UX inversion       |
-| **4 — Ambient**       | NL filters across list pages; solar outlook; booking intake; trip settle-up                                                                                          | Broad, cheap, each independently shippable                |
-| **5 — Public**        | Portfolio assistant, guarded                                                                                                                                         | Highest risk, lowest coupling — last on purpose           |
-| **Ongoing**           | Tool-result rendering, conversation caching, payload trimming, model refresh                                                                                         | Assistant quality, independent of the above               |
+Revised 2026-09-02 after a module-by-module analysis (see the companion artifact "AI Where You
+Work"). Phases 2–7 replace the original 2–5: the command bar was promoted out of "ambient" because
+it is structural rather than a feature, reports gained a phase of their own, and voice moved to the
+front of Capture because the hook is already written.
+
+| Phase                 | Scope                                                                                                                                   | Why here                                                                                 |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **0 — Foundation** ✅ | `complete<T>()`; `AiUsage.feature`; purpose → model map; persist `AiProposedAction`; eval harness                                       | Nothing user-visible; unblocks every phase below                                         |
+| **1 — Prove it** ✅   | CSV auto-categorisation end-to-end, with evals                                                                                          | Smallest surface, clearest win, exercises all of Phase 0                                 |
+| **0b — Finish**       | Wire `listSessionProposedActions` into `getChatSession` so cards restore on reload; add the `byFeature` breakdown to the AI spend panel | Both are written-but-unwired; small, and closes a claim I made                           |
+| **2 — Capture**       | Voice entry in the Money drawer; receipt scan on the three expense drawers; then lease/invoice documents                                | Voice first: `useSpeechRecognition` (223 lines) already exists and has one consumer      |
+| **3 — Command bar**   | ⌘K over any admin route, inheriting scope + filters + selected row; results render in place                                             | Structural. Answers the page-switching problem and gives every later idea an entry point |
+| **4 — Proactive**     | AI job runner in `instrumentation.ts` → attention feed on Overview + cached report narratives + solar daily anomaly detection           | One nightly job powers three surfaces; first server-initiated AI                         |
+| **5 — Reports**       | Comparative framing on every figure (**no AI** — do this first), then the natural-language report builder                               | Framing makes the numbers legible; the builder turns 25 fixed reports into an open set   |
+| **6 — Recall**        | Semantic search across the 36 models carrying `notes` / `description` / `reason`                                                        | Years of writing that nothing can search; value compounds with age                       |
+| **7 — Public**        | Portfolio assistant, corpus-only and guarded                                                                                            | Highest risk, lowest coupling — last on purpose                                          |
+| **Ongoing**           | Tool-result rendering as components, conversation caching, payload trimming                                                             | Assistant quality, independent of the above                                              |
+
+### What each phase actually turns on
+
+- **2 (Capture)** needs nothing new — `complete<T>()` already takes image input, and the speech hook
+  already returns text. This is assembly.
+- **3 (Command bar)** needs page context passed to the chat route (route, filters, selected row) and
+  a renderer that applies the outcome to the page instead of printing prose. Tool scoping and the
+  approval gate are unchanged.
+- **4 (Proactive)** needs the job runner that Phase 0 deliberately deferred — a scheduler alongside
+  the backup and Solis ones in `instrumentation.ts`, plus a table to hold generated output so a page
+  view never waits on a model call.
+- **5 (Reports)** starts with work that has no AI in it at all: nothing in the current reports is
+  compared against a prior period, the same period last year, or a trailing median. Add that framing
+  and the narratives in Phase 4 have something to say.
+- **6 (Recall)** is keyword-first over existing columns; embeddings only if that proves too blunt.
 
 **The single sentence version:** the seam, the tools, the approval gate, and the metering are all
-built and all correct — they are just wired to one text box. Phase 0 adds a second way in, and every
+built and all correct — they are just wired to one text box. Phase 0 added a second way in; every
 phase after it is a new caller on infrastructure that already exists.
