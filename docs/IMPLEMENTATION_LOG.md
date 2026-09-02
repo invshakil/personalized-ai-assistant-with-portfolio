@@ -28,6 +28,8 @@ each change exists, which the code deliberately does not repeat.
 | 2026-09-02 | [D4 — Form defaults phase 3: the Settings page](#d4)        | ✅ shipped |
 | 2026-09-02 | [D5 — Code review of D1–D4, and two fixes](#d5)             | ✅ shipped |
 | 2026-09-02 | [D6 — The inert Last-used toggle, and a wiring test](#d6)   | ✅ shipped |
+| 2026-09-03 | [D7 — Closing the last two review items](#d7)               | ✅ shipped |
+| 2026-09-03 | [C1 — Calculator amount input](#c1)                         | ✅ shipped |
 
 ---
 
@@ -400,12 +402,85 @@ tsc, eslint 0 issues, build.
 
 ---
 
+<a id="d7"></a>
+
+## D7 · Closing the last two review items — 2026-09-03
+
+**The unread `loaded` flag was covering a real race.** `useFormDefaults` returned `loaded` and no
+form read it, which looked like dead API surface. It was not: on the Ledger page the **Add Entry** and
+**Transfer** buttons render _outside_ the `data.loading` guard, so both were clickable while the
+accounts, categories and stored defaults were still in flight. Open a drawer in that window and it
+seeds from empty lists — every default silently dropped, since `seed` correctly treats a value absent
+from the live options as stale.
+
+Both drawers seed once, on open, and never re-seed, so there is no recovery after the fact. The
+buttons now wait: `formsReady = !data.loading && entryDrawer.defaultsLoaded`.
+
+Gating on the _fetch_ state rather than on `accounts.length > 0` matters — an install with no accounts
+yet is a legitimate state, and a length check would disable Add permanently.
+
+**Plan document reconciled.** `FORM_DEFAULTS_PLAN.md` still described the pre-implementation API:
+`useFormDefaults(scope, availableOptions)` returning `defaults.values`, a `DefaultableField` with no
+`mode` or `hint`, and §7 proposing `lastUsed` as a deferred maybe. All three shipped differently. The
+document now carries the shipped signatures, a status line, phase ticks, and the two rules that came
+out of building it — the list passed to `seed` must be exactly what the dropdown renders (D5), and
+registering a field is only half the wiring (D6).
+
+**Verified.** tsc, eslint 0 issues, build, 125/125 tests.
+
+---
+
+<a id="c1"></a>
+
+## C1 · Calculator amount input — 2026-09-03
+
+Requested: _"in the ledger input box where I type in amount, sometime I need to remember multiple
+amount and add it. So I want to type like 200 + 300 + 500, input should automatically behave as
+calculator."_
+
+`AmountField` replaces the Ledger drawer's amount box. Type a sum, see the running total under the
+field, and it settles on the number when you leave the field.
+
+| Piece                        | File                                                  |
+| ---------------------------- | ----------------------------------------------------- |
+| Grammar + evaluator (pure)   | `src/lib/calcExpression.ts`                           |
+| The input                    | `src/components/admin/AmountField.tsx`                |
+| Wired into the Ledger drawer | `money/entries/components/EntryDrawerBasicFields.tsx` |
+
+**Decisions.**
+
+- **No `eval`, no `new Function`.** The input is a form field, so it is attacker-controlled by
+  definition. A hand-written tokeniser and recursive-descent parser over
+  `digits . + - * / ( )` is the whole language; anything else is rejected rather than sanitised, so
+  there is no clever input to get past. The rejection tests are the security tests.
+- **The parent only ever receives a resolved number.** This is the part that could have gone quietly
+  wrong: `parseFloat("200 + 300")` is `200`, so a component that passed its raw text up would post
+  200 the moment someone hit Save mid-expression — a plausible wrong figure, silently. Mid-expression
+  the field emits `""` instead, which fails loudly on save. An unfinished sum is not an amount.
+- **`type="number"` had to go.** It rejects `+` and spaces outright. The field is `type="text"` with
+  its own grammar, which also means no browser spinners on a money field.
+- **Results round to 2 decimals**, because these are money amounts: `0.1 + 0.2` is `0.3`.
+- **The hint under the field is permanent.** It is the only cue that the box does arithmetic, and
+  keeping it there holds the row height steady when the running total replaces it.
+- **Errors wait for blur.** "200 +" is a normal thing to have typed a moment ago; flagging it while
+  the cursor is still in the field would be noise. On blur, an unparseable value keeps its text so it
+  can be corrected rather than retyped.
+
+**Verified.** 10 unit tests on the evaluator — precedence, brackets, unary minus, float noise,
+division by zero, and a rejection block covering `alert(1)`, `require('fs')`, `2 ** 8`, `1e3`,
+`0x10`, `__proto__` and `1; 2`. Plus a keystroke trace of `200 + 300 + 500` asserting that every
+value the parent receives equals the true sum of what has been typed so far, and that no keystroke
+yields a plausible-but-wrong number. 135/135 tests, tsc, eslint 0 issues, build.
+
+**Not wired** (offered, not assumed): the Transfer drawer's amount / destination amount / fee, and
+the Property, Finance and Trips amount boxes. `AmountField` drops into any of them unchanged.
+
+---
+
 ## Open items
 
 | Item                                                                                        | Raised | Where       |
 | ------------------------------------------------------------------------------------------- | ------ | ----------- |
-| `useFormDefaults().loaded` returned but unread — Add before load opens silently empty       | D5     | defaults 4  |
-| `FORM_DEFAULTS_PLAN.md` §3/§4/§7 predate the shipped API (`seed()`, `mode`, `hint`)         | D5     | docs        |
 | `listSessionProposedActions` written but never called — approval cards still lost on reload | A2     | AI phase 0b |
 | `byFeature` in the usage payload with no UI panel                                           | A2     | AI phase 0b |
 | Solar reports never visually verified (no browser tool; page is auth-gated)                 | A6     | —           |

@@ -1,6 +1,8 @@
 # FORM_DEFAULTS_PLAN.md — user-controlled dropdown defaults
 
-**Written:** 2026-09-02 · **Owner:** Syful Islam Shakil · **Status:** planned
+**Written:** 2026-09-02 · **Owner:** Syful Islam Shakil
+**Status:** phases 1–3 shipped (2026-09-02). Reconciled with the shipped code 2026-09-03 — see
+`IMPLEMENTATION_LOG.md` D1–D6 for what changed during implementation and why.
 
 Let every dropdown in the admin remember what it should be set to, configurable per field,
 reviewable in one place.
@@ -82,8 +84,12 @@ export interface DefaultableField {
     | "incomeSources"
     | "currencies"
     | "enum";
+  /** Starting mode for a field with no stored row yet (see §7). */
+  mode: DefaultMode;
   /** For source: "enum" — the fixed choices. */
   options?: { value: string; label: string }[];
+  /** One line explaining the choice, shown under the field in Settings. */
+  hint?: string;
 }
 
 export const DEFAULTABLE_FIELDS: DefaultableField[] = [
@@ -93,6 +99,10 @@ export const DEFAULTABLE_FIELDS: DefaultableField[] = [
 
 This registry is the single source of truth. A field that isn't in it cannot be defaulted, and the
 settings page never has to guess what a scope means.
+
+Registering a field is only half the wiring — the form has to read it too, on **both** sides (seed on
+open, report back on save). `lib/formDefaults/__tests__/wiring.test.ts` asserts that for every
+registered scope, because a half-wired field shows a setting that does nothing (D6).
 
 ---
 
@@ -118,12 +128,19 @@ src/app/(admin)/admin/settings/defaults/        the central page
 must not silently poison a form:
 
 ```ts
-// Returns only values that still exist in the options the form will render.
-const defaults = useFormDefaults("money.entry", {
-  accountId: accountOptions,
-  categoryId: catOptions,
+// The hook takes only the scope; the live options are passed to seed() at the
+// moment the form opens, since that is when the form knows what it will render.
+const defaults = useFormDefaults("money.entry");
+
+const seeded = defaults.seed({
+  accountId: accounts.map((a) => a.id),
+  categoryId: categoryIdsFor(categories, BLANK_ENTRY.direction),
 });
 ```
+
+The list passed to `seed` must be **exactly** what that dropdown renders, not a superset. A value the
+dropdown has no option for renders as an empty field while the id stays in form state, so the
+mismatch is invisible until the server refuses the save (D5).
 
 This is the same discipline as the AI categorisation guard: a stored value is re-checked against
 live data at the point of use, never trusted because it was valid when it was saved.
@@ -131,7 +148,7 @@ live data at the point of use, never trusted because it was valid when it was sa
 **Applied on open-add only.** In `useEntryDrawer.openAdd`:
 
 ```ts
-setForm({ ...BLANK_ENTRY, date: todayInput(), ...defaults.values });
+setForm({ ...BLANK_ENTRY, date: todayInput(), ...seeded });
 ```
 
 `openEdit` must **never** apply defaults — an existing record shows its own values, or editing a row
@@ -182,8 +199,13 @@ left it. Same table, same hook, one extra write in the mutation path.
 
 Worth having because the two modes suit different fields: an account is usually _fixed_ (personal
 expenses always come from one wallet), while a category is usually _last used_ (you record three
-cement purchases in a row, then move on). Ship `fixed` first; add `lastUsed` only if the fixed mode
-turns out to be too rigid in practice.
+cement purchases in a row, then move on).
+
+**Shipped in phase 1, not deferred** — the mode is one column on the same row and one branch in the
+same hook, so supporting both cost almost nothing. Two rules came out of building it: the **server**
+decides the effective mode (stored row first, registry second) so a stale tab cannot overwrite a
+pinned value, and the server **returns the rows it wrote** so the client mirrors what was stored
+rather than guessing (D5).
 
 ---
 
@@ -191,12 +213,12 @@ turns out to be too rigid in practice.
 
 | Phase                     | Scope                                                                                                                                 |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **1 — Plumbing**          | `FormDefault` model + migration, registry, service, API route, provider, `useFormDefaults` with option validation. No UI.             |
-| **2 — Apply**             | Wire the Money forms (Add Entry, Transfer, Record Payment) and delete their `accounts[0]` fallbacks. Prove the pattern on one module. |
-| **3 — Central page**      | `Settings → Defaults`, grouped by module/form.                                                                                        |
+| **1 — Plumbing** ✅       | `FormDefault` model + migration, registry, service, API route, provider, `useFormDefaults` with option validation. No UI.             |
+| **2 — Apply** ✅          | Wire the Money forms (Add Entry, Transfer, Record Payment) and delete their `accounts[0]` fallbacks. Prove the pattern on one module. |
+| **3 — Central page** ✅   | `Settings → Defaults`, grouped by module/form. Shipped at `/admin/settings/defaults`.                                                 |
 | **4 — Inline pin**        | `SearchableSelect` affordance for registered fields.                                                                                  |
 | **5 — Rest of the forms** | Property, Finance, Trips — mechanical once 2 lands.                                                                                   |
-| **Optional**              | `lastUsed` mode.                                                                                                                      |
+| ~~**Optional**~~ ✅       | `lastUsed` mode — shipped with phase 1 rather than deferred (§7).                                                                     |
 
 ---
 
