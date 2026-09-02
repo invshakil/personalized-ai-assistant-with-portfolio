@@ -39,6 +39,14 @@ export function useTransferDrawer(
         ...(transfer.toAmount !== "" && { toAmount: parseFloat(transfer.toAmount) }),
         ...(transfer.fee !== "" && { fee: parseFloat(transfer.fee) }),
       });
+      // Fire-and-forget; the server ignores anything not in "lastUsed" mode.
+      // Both accounts start "fixed", so this is a no-op until the user switches
+      // one in Settings — without it that switch would be a control that does
+      // nothing, since this is the only place a transfer's choice is known.
+      defaults.remember({
+        fromAccountId: transfer.fromAccountId,
+        toAccountId: transfer.toAccountId,
+      });
       setTransferOpen(false);
       await onSuccess();
     } catch (e: unknown) {

@@ -27,6 +27,7 @@ each change exists, which the code deliberately does not repeat.
 | 2026-09-02 | [D3 — Form defaults phase 2: Money forms](#d3)              | ✅ shipped |
 | 2026-09-02 | [D4 — Form defaults phase 3: the Settings page](#d4)        | ✅ shipped |
 | 2026-09-02 | [D5 — Code review of D1–D4, and two fixes](#d5)             | ✅ shipped |
+| 2026-09-02 | [D6 — The inert Last-used toggle, and a wiring test](#d6)   | ✅ shipped |
 
 ---
 
@@ -366,14 +367,45 @@ pre-implementation API. See Open items.
 
 ---
 
+<a id="d6"></a>
+
+## D6 · The inert Last-used toggle, and a wiring test — 2026-09-02
+
+Closes the finding D5 left open. `useTransferDrawer` seeded from its defaults but never called
+`remember`, so the Fixed / Last-used toggle the Settings page renders for **From account** and **To
+account** was a control that could not do anything: the transfer drawer is the only place a
+transfer's account choice is ever known, and it was throwing that away.
+
+Harmless in the shipped state — both fields start `fixed`, which ignores `remember` anyway — which is
+exactly why it survived review of the diff. It only becomes wrong the moment someone uses the toggle.
+
+**The real fix is the test, not the call.** One line restores the behaviour; the reason it was missing
+is that nothing could see it was missing. D4 verified "no registered field is unwired" and passed,
+because it checked `seed` and stopped there. `registry.ts` already carried the warning in a comment —
+_"an entry here with no wiring shows the user a setting that does nothing"_ — and a comment cannot
+fail a build.
+
+`lib/formDefaults/__tests__/wiring.test.ts` now scans `src/app/(admin)` for `useFormDefaults("…")`
+call sites and asserts, for every registered scope, that a form both **seeds** from it and
+**reports back** to it — plus the reverse, that no form reads a scope the registry does not declare
+(`setFormDefault` would refuse it). It is deliberately two-sided: a form that seeds and never
+remembers looks correctly wired from every angle except the one that matters.
+
+This matters most for phase 5. Property, Finance and Trips add roughly ten more fields, and each one
+is the same two-sided wiring done by hand.
+
+**Verified.** The wiring test re-run against the unwired code fails on exactly the right assertion —
+`every registered scope reports what was saved` — and passes on the fix. 125/125 tests (was 120),
+tsc, eslint 0 issues, build.
+
+---
+
 ## Open items
 
 | Item                                                                                        | Raised | Where       |
 | ------------------------------------------------------------------------------------------- | ------ | ----------- |
-| `useTransferDrawer` never calls `remember` — its Last-used toggle is inert                  | D5     | defaults 4  |
 | `useFormDefaults().loaded` returned but unread — Add before load opens silently empty       | D5     | defaults 4  |
 | `FORM_DEFAULTS_PLAN.md` §3/§4/§7 predate the shipped API (`seed()`, `mode`, `hint`)         | D5     | docs        |
-| D4's "no registered field is unwired" check verified `seed` only, not `remember`            | D5     | defaults 4  |
 | `listSessionProposedActions` written but never called — approval cards still lost on reload | A2     | AI phase 0b |
 | `byFeature` in the usage payload with no UI panel                                           | A2     | AI phase 0b |
 | Solar reports never visually verified (no browser tool; page is auth-gated)                 | A6     | —           |
