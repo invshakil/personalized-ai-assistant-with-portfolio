@@ -58,11 +58,16 @@ export async function clearFormDefault(scope: string, field: string): Promise<vo
  * — that is the whole difference between the two modes, and enforcing it here
  * rather than on the client means a stale or hand-made request cannot overwrite
  * a deliberately pinned value.
+ *
+ * Returns the rows actually written. The caller cannot work that out for
+ * itself: only this function knows the effective mode, and only it knows
+ * whether a row already existed or was created just now. A client left to guess
+ * either shows a value the server ignored, or misses one it stored.
  */
 export async function rememberFormValues(
   scope: string,
   values: Record<string, string>
-): Promise<void> {
+): Promise<FormDefaultRow[]> {
   const stored = await db.formDefault.findMany({ where: { scope } });
   const modeOf = new Map(stored.map((r) => [r.field, r.mode]));
 
@@ -83,7 +88,8 @@ export async function rememberFormValues(
     ];
   });
 
-  if (writes.length) await db.$transaction(writes);
+  if (!writes.length) return [];
+  return (await db.$transaction(writes)).map(toRow);
 }
 
 /** The registry, for the Settings page. Re-exported so routes have one import. */

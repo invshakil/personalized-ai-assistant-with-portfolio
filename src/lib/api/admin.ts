@@ -33,7 +33,11 @@ export const adminApi = {
     apiDelete<{ cleared: boolean }>(
       `/form-defaults?scope=${encodeURIComponent(scope)}&field=${encodeURIComponent(field)}`
     ),
-  /** Record what a form just saved, for fields in "lastUsed" mode. */
+  /**
+   * Record what a form just saved, for fields in "lastUsed" mode.
+   * Resolves to the rows the server actually wrote — fields it ignored (pinned
+   * to "fixed", unregistered, or empty) are absent.
+   */
   rememberFormValues: (scope: string, values: Record<string, string>) =>
-    apiPost<{ ok: true }>("/form-defaults/remember", { scope, values }),
+    apiPost<FormDefaultRow[]>("/form-defaults/remember", { scope, values }),
 };

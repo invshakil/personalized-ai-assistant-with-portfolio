@@ -21,6 +21,8 @@ export const POST = withApiError(async (req: Request) => {
     }
   }
 
-  await rememberFormValues(scope, values);
-  return Response.json({ data: { ok: true } });
+  // Returns the rows it actually wrote, so the client mirrors what was stored
+  // rather than guessing — including a row created for the first time, which
+  // the client has no way to know about otherwise.
+  return Response.json({ data: await rememberFormValues(scope, values) });
 });

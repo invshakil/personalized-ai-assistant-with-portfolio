@@ -12,6 +12,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { adminApi } from "@/lib/api/admin";
 import { fieldKey } from "@/lib/formDefaults/registry";
+import { mergeRememberedRows } from "@/lib/formDefaults/merge";
 import type { DefaultMode } from "@/lib/formDefaults/registry";
 import type { FormDefaultRow } from "@/types";
 
@@ -78,20 +79,14 @@ export default function FormDefaultsProvider({ children }: { children: React.Rea
     // Deliberately not awaited and deliberately silent: the record has already
     // been saved, and failing to remember a convenience default must never
     // surface as an error on a successful save.
+    //
+    // The response says which rows were written, so the map mirrors the server
+    // instead of second-guessing it — including a row created on a field's very
+    // first save, which is the common case and used to be invisible until a
+    // reload.
     void adminApi
       .rememberFormValues(scope, values)
-      .then(() => {
-        setRows((prev) => {
-          const next = [...prev];
-          for (const [field, value] of Object.entries(values)) {
-            const i = next.findIndex((r) => r.scope === scope && r.field === field);
-            // Only mirror rows already in "lastUsed" mode — the server applies
-            // the same rule, and guessing here would show a stale value.
-            if (i >= 0 && next[i].mode === "lastUsed" && value) next[i] = { ...next[i], value };
-          }
-          return next;
-        });
-      })
+      .then((written) => setRows((prev) => mergeRememberedRows(prev, written ?? [])))
       .catch(() => {});
   }, []);
 
