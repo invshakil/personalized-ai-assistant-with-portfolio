@@ -1,5 +1,6 @@
 import { TextField, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import type { MoneyAccountRow, MoneyCategoryRow } from "@/types";
+import AmountField from "@/components/admin/AmountField";
 import { currencySymbol } from "../../format";
 import type { EntryDir, EntryForm } from "../types";
 import EntryDrawerCategoryFields from "./EntryDrawerCategoryFields";
@@ -45,15 +46,16 @@ export default function EntryDrawerBasicFields({
         onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
         sx={{ mb: 2 }}
       />
-      <TextField
+      {/* The hint is permanent on purpose: it is the only cue that the field
+          does arithmetic, and it holds the row height steady so nothing shifts
+          when the running total replaces it. */}
+      <AmountField
         label={`Amount (${currencySymbol(
           accounts.find((a) => a.id === form.accountId)?.currency ?? "BDT"
         )})`}
-        type="number"
-        size="small"
-        fullWidth
         value={form.amount}
-        onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+        onChange={(amount) => setForm((f) => ({ ...f, amount }))}
+        helperText="Adds up as you type — try 200 + 300"
         sx={{ mb: 2 }}
       />
       <EntryDrawerCategoryFields
