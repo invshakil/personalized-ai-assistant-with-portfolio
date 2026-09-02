@@ -47,6 +47,11 @@ export default function EntriesPage() {
     return data.categories;
   }, [data.categories, filters.dirFilter]);
 
+  // Both drawers seed their dropdowns once, on open, and never re-seed. Opening
+  // one before the accounts, categories or stored defaults have arrived produces
+  // a form quietly missing its defaults, so the buttons wait for all three.
+  const formsReady = !data.loading && entryDrawer.defaultsLoaded;
+
   const handleTypeChange = (next: DirFilter) => filters.onTypeChange(next, data.categories);
   const handleCategoryClick = (categoryId: string) => filters.setParams({ category: categoryId });
   const handleAccountClick = (accountId: string) => filters.setParams({ account: accountId });
@@ -100,6 +105,7 @@ export default function EntriesPage() {
         onClearFilters={filters.clearFilters}
         onOpenTransfer={transferDrawer.openTransfer}
         onOpenAdd={entryDrawer.openAdd}
+        actionsDisabled={!formsReady}
       />
 
       {!data.loading && (

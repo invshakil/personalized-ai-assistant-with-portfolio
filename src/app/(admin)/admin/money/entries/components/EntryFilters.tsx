@@ -29,6 +29,8 @@ interface EntryFiltersProps {
   onClearFilters: () => void;
   onOpenTransfer: () => void;
   onOpenAdd: () => void;
+  /** True until reference data and stored defaults have loaded. */
+  actionsDisabled?: boolean;
 }
 
 export default function EntryFilters({
@@ -52,6 +54,7 @@ export default function EntryFilters({
   onClearFilters,
   onOpenTransfer,
   onOpenAdd,
+  actionsDisabled,
 }: EntryFiltersProps) {
   return (
     <Box sx={{ display: "flex", gap: 2, mb: 2, alignItems: "center", flexWrap: "wrap" }}>
@@ -81,7 +84,11 @@ export default function EntryFilters({
       />
       <EntrySearchField value={searchInput} onChange={onSearchInputChange} />
       {hasActiveFilters && <ClearFiltersButton onClear={onClearFilters} />}
-      <EntryFilterActions onOpenTransfer={onOpenTransfer} onOpenAdd={onOpenAdd} />
+      <EntryFilterActions
+        onOpenTransfer={onOpenTransfer}
+        onOpenAdd={onOpenAdd}
+        disabled={actionsDisabled}
+      />
     </Box>
   );
 }

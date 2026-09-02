@@ -154,6 +154,8 @@ export function useEntryDrawer(
     linkObligationOptions,
     selectedObligation,
     formCategories,
+    /** False until the stored defaults have loaded; gates the Add button. */
+    defaultsLoaded: defaults.loaded,
     openAdd,
     openEdit,
     save,
