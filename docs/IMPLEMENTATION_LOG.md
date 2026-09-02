@@ -25,6 +25,8 @@ each change exists, which the code deliberately does not repeat.
 | 2026-09-02 | [D1 — Form defaults: plan + decisions](#d1)                 | ✅ done    |
 | 2026-09-02 | [D2 — Form defaults phase 1: plumbing](#d2)                 | ✅ shipped |
 | 2026-09-02 | [D3 — Form defaults phase 2: Money forms](#d3)              | ✅ shipped |
+| 2026-09-02 | [D4 — Form defaults phase 3: the Settings page](#d4)        | ✅ shipped |
+| 2026-09-02 | [D5 — Code review of D1–D4, and two fixes](#d5)             | ✅ shipped |
 
 ---
 
@@ -314,11 +316,65 @@ their convention limits (page 115/300, hook 60/200, components 93 and 26/100).
 
 ---
 
+<a id="d5"></a>
+
+## D5 · Code review of D1–D4, and two fixes — 2026-09-02
+
+Reviewed the shipped feature against this log and `FORM_DEFAULTS_PLAN.md`. The architecture held —
+server-decides-mode, registry-as-hard-gate, `openEdit` never seeding, a failed fetch degrading to the
+old behaviour. Two bugs, both reproduced against the live database before being fixed.
+
+**1 — `seed()` was validated against the wrong option list.** `openAdd` checked the stored category
+against _every_ category, while the drawer renders only those matching the direction's kind. A
+last-used INCOME category therefore passed the check, rendered as an **empty field**
+(`SearchableSelect` resolves an unmatched value to `null`) and was then refused by the server —
+"A DEBIT entry needs an EXPENSE category". An error on a field that looks blank.
+
+This was plan Rule 2 applied to the wrong list. The fix pairs the rule with the code that renders it:
+`categoryKindFor` / `categoryIdsFor` in `money/entries/types.ts`, now used by `formCategories`,
+`setDirection` and the seed alike. Note the seed cannot use `formCategories` — at `openAdd` time
+`form.direction` still holds the _previous_ form's value, so it derives from `BLANK_ENTRY.direction`.
+
+**2 — The first `lastUsed` write never reached the open tab.** The provider mirrored a write only
+into a row it already held (`findIndex(...); if (i >= 0)`), but the server _creates_ the row when
+none exists. Save an entry, reopen the drawer: still empty. Reload: works. With the table at zero
+rows this was the state of every field, so it was the first thing anyone would hit.
+
+The old comment defended not _guessing_ the mode, which was right; the gap was that the server had
+already decided and did not say so. `rememberFormValues` now returns the rows it wrote, the route
+passes them through, and `mergeRememberedRows` (pure, in `lib/formDefaults/merge.ts`) applies them —
+appending rows the client has never seen.
+
+**Tests.** Both fixes are pinned, closing the gap that D2–D4 were only ever verified by throwaway
+scripts — the same discipline A3/A5 applied to the AI guard, for the same reason: these are pure
+functions, so there is no excuse for not testing them.
+
+| File                                            | Covers                                                          |
+| ----------------------------------------------- | --------------------------------------------------------------- |
+| `money/entries/__tests__/entryDefaults.test.ts` | seedable ids ≡ the ids the dropdown offers, for both directions |
+| `lib/formDefaults/__tests__/merge.test.ts`      | an unseen row is added; a `fixed` row is left alone             |
+
+**Verified.** Both reproductions re-run green against the live database (the INCOME category now
+dropped, the write reported back, a `fixed` field still ignored, the tab updating with no reload) and
+the database left at zero rows. The new tests were re-run against the _old_ code to confirm they
+catch it: **4 failures**, then 120/120 passing on the fix. Plus tsc, eslint 0 issues, build.
+
+**Left open deliberately** (raised in review, not fixed here): `useTransferDrawer` never calls
+`remember`, so the Last-used toggle the Settings page offers on the transfer accounts does nothing;
+`useFormDefaults` returns a `loaded` flag no form reads; and the plan document still describes the
+pre-implementation API. See Open items.
+
+---
+
 ## Open items
 
 | Item                                                                                        | Raised | Where       |
 | ------------------------------------------------------------------------------------------- | ------ | ----------- |
+| `useTransferDrawer` never calls `remember` — its Last-used toggle is inert                  | D5     | defaults 4  |
+| `useFormDefaults().loaded` returned but unread — Add before load opens silently empty       | D5     | defaults 4  |
+| `FORM_DEFAULTS_PLAN.md` §3/§4/§7 predate the shipped API (`seed()`, `mode`, `hint`)         | D5     | docs        |
+| D4's "no registered field is unwired" check verified `seed` only, not `remember`            | D5     | defaults 4  |
 | `listSessionProposedActions` written but never called — approval cards still lost on reload | A2     | AI phase 0b |
 | `byFeature` in the usage payload with no UI panel                                           | A2     | AI phase 0b |
 | Solar reports never visually verified (no browser tool; page is auth-gated)                 | A6     | —           |
-| This work sits on `fix/write-integrity-audit`, a branch about a different topic             | A2     | —           |
+| This whole work stream (A2–D5) was committed straight onto `main`, never a feature branch   | A2     | —           |
