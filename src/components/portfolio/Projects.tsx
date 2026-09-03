@@ -48,7 +48,7 @@ const PROJECTS: Project[] = [
     num: "01",
     title: "MapX — Talent Intelligence Platform",
     description:
-      "B2B SaaS platform for talent intelligence and organisational research, including executive talent mapping. Built data-rich interfaces for executive search, filtering, and analytics — owning the full frontend architecture, state management, API integration, and automated deployment pipelines across dev, staging, and production.",
+      "B2B SaaS platform for talent intelligence and organisational research, serving 22M candidate profiles. Built the data-dense search, filtering and analytics interfaces used concurrently by 30–40 researchers at global automotive and consumer brands, and led the frontend for AI-assisted candidate search — an LLM extracts filter criteria from a described profile, surfaced as an editable draft the user validates before running. Owned the full frontend architecture, state management, API integration, and automated deployment pipelines across dev, staging, and production.",
     tech: ["React", "TypeScript", "Node.js", "CI/CD"],
     footer: { label: "Private · Savannah Group", icon: "lock" },
   },
@@ -74,11 +74,15 @@ const PROJECTS: Project[] = [
   },
   {
     num: "04",
-    title: "Home Network & Solar Setup",
+    title: "Solar + AI Battery Scheduling",
     description:
-      "Hobby project — designed and deployed a multi-floor home network (Starlink → Mikrotik → mesh Wi-Fi) with tenant subnet isolation and bandwidth controls. Paired with a 6kW hybrid solar system and 16kWh battery bank, monitored for energy self-sufficiency and load management.",
-    tech: ["Mikrotik", "Networking", "Solar / IoT", "Linux"],
-    footer: { label: "Hobby & personal", icon: "heart" },
+      "Hybrid inverter integration with an API-driven scheduling layer that shifts battery charge and discharge against tariff windows and generation forecasts. Raised household energy self-sufficiency from 62% to 72% across two iterations. Also runs a multi-floor home network (Starlink → Mikrotik → mesh Wi-Fi) with tenant subnet isolation and bandwidth controls.",
+    tech: ["Next.js", "Claude API", "IoT", "Linux"],
+    footer: {
+      label: "Personal · Public",
+      icon: "heart",
+      link: "https://github.com/invshakil/personalized-ai-assistant-with-portfolio",
+    },
   },
 ];
 
