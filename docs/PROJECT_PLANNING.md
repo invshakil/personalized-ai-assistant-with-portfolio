@@ -178,13 +178,12 @@ sshakil-app/
 │   │   └── page.tsx               ✅ root → re-exports portfolio page
 │   ├── components/
 │   │   ├── portfolio/
-│   │   │   ├── Hero.tsx           ✅ photo, badge, stats, CTAs
+│   │   │   ├── Hero.tsx           ✅ photo, availability block, stats, CTAs
 │   │   │   ├── Skills.tsx         ✅ 5 skill groups, tag pills
-│   │   │   ├── Experience.tsx     ✅ full-time + freelance columns
-│   │   │   ├── Projects.tsx       ✅ 4 cards, icons, GitHub link
+│   │   │   ├── Experience.tsx     ✅ contract + freelance columns
+│   │   │   ├── Projects.tsx       ✅ 4 cards, icons, 2 GitHub links
 │   │   │   ├── Testimonials.tsx   ✅ 2 Upwork reviews, stars
-│   │   │   ├── Education.tsx      ✅ 3 entries, flat flex layout
-│   │   │   └── Contact.tsx        ✅ 5 links, SVG icons, dark bg
+│   │   │   └── Contact.tsx        ✅ 5 links + education block, SVG icons, dark bg
 │   │   ├── admin/                 ← all MUI — shared across admin routes
 │   │   │   ├── AdminSidebar.tsx   ✅ MUI List nav, sticky, collapsible groups, <Box role="navigation"> (no top-level Reports item — Solar/Property/Finance each carry their own Reports child)
 │   │   │   ├── AdminHeader.tsx    ✅ MUI Box header — breadcrumb + light/dark toggle + user avatar
@@ -210,7 +209,6 @@ sshakil-app/
 │   │   ├── _skills.scss           ✅
 │   │   ├── _experience.scss       ✅
 │   │   ├── _projects.scss         ✅
-│   │   ├── _education.scss        ✅
 │   │   ├── _testimonials.scss     ✅
 │   │   ├── _contact.scss          ✅
 │   │   ├── globals.scss           ✅ @use orchestrator
@@ -251,13 +249,12 @@ sshakil-app/
 
 | Component          | Section ID      | Background              | Key content                                                                          |
 | ------------------ | --------------- | ----------------------- | ------------------------------------------------------------------------------------ |
-| `Hero.tsx`         | `#hero`         | `--color-linen`         | Photo, name, tagline, availability badge, 3 CTAs (Hire Me / View Work / Download CV) |
+| `Hero.tsx`         | `#hero`         | `--color-linen`         | Photo, name, tagline, availability block, 3 CTAs (Hire Me / View Work / Download CV) |
 | `Skills.tsx`       | `#skills`       | `--color-sage-light`    | 5 skill groups with tag pills                                                        |
-| `Experience.tsx`   | `#experience`   | `--color-slate-light`   | Two columns: full-time left, freelance right                                         |
-| `Projects.tsx`     | `#projects`     | `--color-purple-light`  | 4 project cards, private badges, 1 GitHub link                                       |
+| `Experience.tsx`   | `#experience`   | `--color-slate-light`   | Two columns: contract left, freelance right                                          |
+| `Projects.tsx`     | `#projects`     | `--color-purple-light`  | 4 project cards, private badges, 2 GitHub links                                      |
 | `Testimonials.tsx` | `#testimonials` | white                   | 2 Upwork reviews, link to Upwork profile                                             |
-| `Education.tsx`    | `#education`    | white                   | 3 entries, flat flex layout                                                          |
-| `Contact.tsx`      | `#contact`      | `--color-forest` (dark) | 5 contact links + CV download, dark bg                                               |
+| `Contact.tsx`      | `#contact`      | `--color-forest` (dark) | 5 contact links + CV download + education (BSc), dark bg                             |
 
 All sections use `padding: var(--px)` for horizontal spacing. Do not hardcode padding values.
 
