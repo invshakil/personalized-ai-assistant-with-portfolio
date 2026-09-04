@@ -26,13 +26,14 @@ export const metadata: Metadata = {
     template: "%s | Syful Islam Shakil",
   },
   description:
-    "Tech Lead and Full-Stack Engineer based in Comilla, Bangladesh. 10+ years building SaaS platforms, working with European agencies and US-based startups.",
+    "Senior full-stack engineer and tech lead, 10+ years. Available now for European remote contracts. 6 years building a UK B2B SaaS platform serving 22M profiles.",
   keywords: [
-    "Tech Lead Bangladesh",
-    "Full Stack Developer Bangladesh",
-    "React Developer Bangladesh",
+    "European remote contractor",
+    "B2B contractor engineer",
+    "Senior Full Stack Engineer remote",
+    "React Developer remote",
     "Next.js Developer",
-    "Remote developer Bangladesh",
+    "Tech Lead Bangladesh",
     "Syful Islam Shakil",
     "sshakil.com",
   ],
@@ -54,7 +55,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Syful Islam Shakil — Software Engineer & Tech Lead",
     description:
-      "10+ years building full-stack products. Available for freelance as Tech Lead with a delivery team.",
+      "Senior full-stack engineer and tech lead, 10+ years. Available now for European remote contracts. 6 years building a UK B2B SaaS platform serving 22M profiles.",
     // OG/Twitter images are supplied by the app/opengraph-image.tsx convention.
   },
   other: {

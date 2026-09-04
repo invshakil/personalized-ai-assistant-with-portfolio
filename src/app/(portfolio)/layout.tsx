@@ -28,23 +28,24 @@ const personSchema = {
     "Next.js",
     "TypeScript",
     "Node.js",
+    "NestJS",
     "PHP",
     "Laravel",
     "PostgreSQL",
     "MySQL",
     "Docker",
     "CI/CD",
-    "Figma",
+    "WebSockets",
     "Claude API",
+    "OpenAI API",
     "LLM Tool Use",
     "AI-assisted Development",
   ],
   description:
-    "Software Engineer and Tech Lead with 10+ years of experience building full-stack products for SaaS platforms, European agencies, and US-based startups.",
-  worksFor: {
-    "@type": "Organization",
-    name: "Savannah Group",
-    url: "https://www.savannah-group.com",
+    "Senior full-stack engineer and tech lead with 10+ years of experience building products for SaaS platforms, European agencies, and US-based startups. Available for European remote contracts.",
+  alumniOf: {
+    "@type": "CollegeOrUniversity",
+    name: "University of Information Technology & Science (UITS)",
   },
 };
 
@@ -54,7 +55,7 @@ const websiteSchema = {
   name: "Syful Islam Shakil — Portfolio",
   url: "https://sshakil.com",
   description:
-    "Portfolio of Syful Islam Shakil, Senior Software Engineer and Tech Lead based in Bangladesh.",
+    "Portfolio of Syful Islam Shakil, senior software engineer and tech lead based in Bangladesh, available for European remote contracts.",
   inLanguage: "en",
   author: { "@type": "Person", name: "Syful Islam Shakil" },
 };
@@ -62,11 +63,11 @@ const websiteSchema = {
 const serviceSchema = {
   "@context": "https://schema.org",
   "@type": "ProfessionalService",
-  name: "Syful Islam Shakil — Freelance Tech Lead",
+  name: "Syful Islam Shakil — Contract Software Engineer & Tech Lead",
   url: "https://sshakil.com",
   description:
-    "Freelance Software Engineering and Tech Lead services for clients in Bangladesh, South Asia, Europe and the USA.",
-  areaServed: ["Bangladesh", "South Asia", "Europe", "United States"],
+    "Contract software engineering and tech lead services, working remotely with clients in Europe, the UK, and the USA.",
+  areaServed: ["Europe", "United Kingdom", "United States", "Bangladesh"],
   provider: { "@type": "Person", name: "Syful Islam Shakil" },
   serviceType: [
     "Software Engineering",
@@ -79,7 +80,8 @@ const serviceSchema = {
   offers: {
     "@type": "Offer",
     availability: "https://schema.org/InStock",
-    description: "Available for freelance projects as Tech Lead with a delivery team",
+    description:
+      "Available now for full-capacity European remote contracts — B2B contractor or EOR, no relocation",
   },
 };
 

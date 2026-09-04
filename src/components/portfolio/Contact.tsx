@@ -1,4 +1,4 @@
-import type { ContactLink, ContactIconType } from "@/types";
+import type { ContactLink, ContactIconType, EducationItem } from "@/types";
 
 const CONTACT_LINKS: ContactLink[] = [
   {
@@ -34,6 +34,14 @@ const CONTACT_LINKS: ContactLink[] = [
     icon: "cv",
   },
 ];
+
+// Education lives here rather than in its own section — a single degree does not
+// carry a full-width section band.
+const EDUCATION: EducationItem = {
+  years: "2012 – 2017",
+  degree: "Bachelor of Science in Information Technology (BSc IT)",
+  institution: "University of Information Technology & Science (UITS) — Dhaka",
+};
 
 function ContactIcon({ type }: { type: ContactIconType }) {
   const props = {
@@ -105,6 +113,14 @@ export default function Contact() {
               Whether it&apos;s a product idea, a technical challenge, or a collaboration — I&apos;m
               always open to a good conversation.
             </p>
+
+            <div className="contact-edu" data-animate="true" data-delay="2">
+              <div className="c-lbl">Education</div>
+              <div className="c-val">{EDUCATION.degree}</div>
+              <div className="contact-edu-inst">
+                {EDUCATION.institution} &middot; {EDUCATION.years}
+              </div>
+            </div>
           </div>
 
           <div className="contact-links" data-animate="true" data-delay="2">

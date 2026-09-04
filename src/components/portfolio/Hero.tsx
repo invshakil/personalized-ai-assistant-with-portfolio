@@ -41,13 +41,13 @@ export default function Hero() {
 
         <div className="avail-badge fu d2">
           <span className="avail-dot" />
-          <span>
-            Available for freelance &mdash; <strong>as Tech Lead with a team</strong>
-          </span>
+          <strong>Available now for European remote contracts</strong>
         </div>
 
         <p className="avail-note fu d2">
-          Part-time capacity &middot; Team leadership &middot; Project &amp; delivery ownership
+          Full capacity &middot; B2B contractor or EOR &middot; No relocation
+          <br />
+          UTC+6 &mdash; afternoons overlap European working hours
         </p>
 
         <p className="hero-eyebrow fu d2">
@@ -64,25 +64,26 @@ export default function Hero() {
         <p className="hero-title fu d4">Software Engineer &amp; Tech Lead</p>
 
         <p className="hero-bio fu d5">
-          10 years building software that ships — for SaaS platforms, European agencies, and
-          US-based startups. I&apos;ve led teams, owned architecture, designed interfaces, and kept
-          deployments running. Currently leading frontend at a B2B talent intelligence platform in
-          the UK while taking on freelance projects as Tech Lead with a delivery team. I work fast
-          because I use AI tools the right way — not as a shortcut, but as leverage.
+          10+ years building software that ships — for SaaS platforms, European agencies, and
+          US-based startups. I spent six years as the founding frontend engineer on a UK B2B talent
+          intelligence platform serving 22M candidate profiles, from first commit through to
+          acquisition — leading a three-engineer team, running frontend hiring, and holding the
+          architecture through a scale-up to 16 engineers and a downsize to 4. I ship production LLM
+          integrations with real validation, not demos.
         </p>
 
         <div className="hero-stats fu d6">
           <div>
+            <div className="stat-n">22M</div>
+            <div className="stat-l">Profiles searched at scale</div>
+          </div>
+          <div>
             <div className="stat-n">10+</div>
-            <div className="stat-l">Years Experience</div>
+            <div className="stat-l">Years shipping product</div>
           </div>
           <div>
-            <div className="stat-n">Full</div>
-            <div className="stat-l">Stack Coverage</div>
-          </div>
-          <div>
-            <div className="stat-n">AI</div>
-            <div className="stat-l">Augmented Workflow</div>
+            <div className="stat-n">6 yrs</div>
+            <div className="stat-l">Async delivery with UK &amp; DE teams</div>
           </div>
         </div>
 
