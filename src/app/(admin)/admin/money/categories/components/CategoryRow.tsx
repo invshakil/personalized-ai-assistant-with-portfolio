@@ -1,15 +1,16 @@
 import NextLink from "next/link";
 import { Box, Chip, IconButton, Link, TableCell, TableRow, Tooltip } from "@mui/material";
-import { Pencil, Trash2 } from "lucide-react";
+import { Merge, Pencil, Trash2 } from "lucide-react";
 import type { MoneyCategoryRow } from "@/types";
 
 interface Props {
   category: MoneyCategoryRow;
   onEdit: (c: MoneyCategoryRow) => void;
+  onMerge: (c: MoneyCategoryRow) => void;
   onDelete: (c: MoneyCategoryRow) => void;
 }
 
-export default function CategoryRow({ category: c, onEdit, onDelete }: Props) {
+export default function CategoryRow({ category: c, onEdit, onMerge, onDelete }: Props) {
   return (
     <TableRow hover>
       <TableCell data-label="Name" sx={{ fontWeight: 600 }}>
@@ -39,6 +40,11 @@ export default function CategoryRow({ category: c, onEdit, onDelete }: Props) {
           <Tooltip title="Edit">
             <IconButton size="small" onClick={() => onEdit(c)}>
               <Pencil size={14} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Merge into another category">
+            <IconButton size="small" onClick={() => onMerge(c)}>
+              <Merge size={14} />
             </IconButton>
           </Tooltip>
           <Tooltip title="Delete">

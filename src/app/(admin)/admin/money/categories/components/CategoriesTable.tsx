@@ -19,10 +19,18 @@ interface Props {
   loading: boolean;
   emptyMessage: string;
   onEdit: (c: MoneyCategoryRow) => void;
+  onMerge: (c: MoneyCategoryRow) => void;
   onDelete: (c: MoneyCategoryRow) => void;
 }
 
-export default function CategoriesTable({ rows, loading, emptyMessage, onEdit, onDelete }: Props) {
+export default function CategoriesTable({
+  rows,
+  loading,
+  emptyMessage,
+  onEdit,
+  onMerge,
+  onDelete,
+}: Props) {
   if (loading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", py: 8 }}>
@@ -53,7 +61,13 @@ export default function CategoriesTable({ rows, loading, emptyMessage, onEdit, o
             </TableRow>
           ) : (
             rows.map((c) => (
-              <CategoryRow key={c.id} category={c} onEdit={onEdit} onDelete={onDelete} />
+              <CategoryRow
+                key={c.id}
+                category={c}
+                onEdit={onEdit}
+                onMerge={onMerge}
+                onDelete={onDelete}
+              />
             ))
           )}
         </TableBody>
