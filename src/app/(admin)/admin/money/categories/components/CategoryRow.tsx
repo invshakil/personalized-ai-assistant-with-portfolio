@@ -11,6 +11,11 @@ interface Props {
 }
 
 export default function CategoryRow({ category: c, onEdit, onMerge, onDelete }: Props) {
+  // A category holding entries can't be deleted (MoneyEntry.categoryId is
+  // onDelete: Restrict), so point at merge rather than offer a click that
+  // always fails. The span is there because MUI drops tooltips on a disabled
+  // button — it has no pointer events of its own to hang the listener on.
+  const hasEntries = c.entryCount > 0;
   return (
     <TableRow hover>
       <TableCell data-label="Name" sx={{ fontWeight: 600 }}>
@@ -47,10 +52,23 @@ export default function CategoryRow({ category: c, onEdit, onMerge, onDelete }: 
               <Merge size={14} />
             </IconButton>
           </Tooltip>
-          <Tooltip title="Delete">
-            <IconButton size="small" color="error" onClick={() => onDelete(c)}>
-              <Trash2 size={14} />
-            </IconButton>
+          <Tooltip
+            title={
+              hasEntries
+                ? `Holds ${c.entryCount} entr${c.entryCount === 1 ? "y" : "ies"} — merge it into another category instead`
+                : "Delete"
+            }
+          >
+            <span>
+              <IconButton
+                size="small"
+                color="error"
+                disabled={hasEntries}
+                onClick={() => onDelete(c)}
+              >
+                <Trash2 size={14} />
+              </IconButton>
+            </span>
           </Tooltip>
         </Box>
       </TableCell>

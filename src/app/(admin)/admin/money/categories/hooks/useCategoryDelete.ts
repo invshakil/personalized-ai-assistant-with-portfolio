@@ -11,6 +11,9 @@ type OpenConfirm = (
 /** Wires the shared confirm-dialog hook to the delete-category mutation. */
 export function useCategoryDelete(openConfirm: OpenConfirm, onDeleted: () => void) {
   function deleteCategory(c: MoneyCategoryRow) {
+    // Only reachable for an empty category — CategoryRow gates the button on
+    // entryCount, because the FK is Restrict and the delete would just fail.
+    // A stale count still lands on the server's message via the catch below.
     openConfirm(
       "Delete category",
       `Delete "${c.name}"? This cannot be undone.`,
