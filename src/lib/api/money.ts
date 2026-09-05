@@ -35,6 +35,20 @@ export interface CategoryPayload {
   isActive?: boolean;
 }
 
+export interface MergeCategoryPayload {
+  /** The category that keeps the entries. */
+  targetId: string;
+  /** Delete the emptied duplicate afterwards. Defaults to true server-side. */
+  deleteSource?: boolean;
+}
+
+export interface MergeCategoryResult {
+  movedEntries: number;
+  sourceDeleted: boolean;
+  sourceName: string;
+  targetName: string;
+}
+
 export interface EntryPayload {
   date: string;
   direction: "CREDIT" | "DEBIT";
@@ -197,6 +211,9 @@ export const moneyApi = {
     apiPut<MoneyCategoryRow>(`/money/categories/${id}`, body),
   deleteCategory: (id: string) =>
     apiDelete<{ deleted: boolean; error?: string }>(`/money/categories/${id}`),
+  /** Fold `id` (the duplicate) into `targetId`, moving all of its entries across. */
+  mergeCategory: (id: string, body: MergeCategoryPayload) =>
+    apiPost<MergeCategoryResult>(`/money/categories/${id}/merge`, body),
 
   // Entries (ledger)
   listEntries: (filters: EntryFilters = {}) =>

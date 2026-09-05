@@ -22,6 +22,9 @@ import {
   getEntries,
   parseCsv,
   previewImport,
+  mergeCategories,
+  getCategories,
+  getPersonalSavings,
 } from "@/services/money";
 import { moneyTools } from "@/services/ai/writeTools/money";
 import { db } from "@/lib/db";
@@ -311,6 +314,92 @@ test("AI create_person_loan then increase_person_loan track a running shop due",
   p = (await getBeneficiaries()).find((b) => b.name === name)!;
   assert.equal(p.outstandingByMe, 15000);
   assert.match(res.summary, /now owe/);
+});
+
+// ─── Category merge (duplicate cleanup) ─────────────────────────────────────
+
+test("merging a duplicate category moves its entries and deletes the source", async () => {
+  const dupe = await ensureCategory(`${TAG} Materials Dupe`, "EXPENSE");
+  await createEntry({
+    date: "2024-04-01",
+    direction: "DEBIT",
+    amount: 700,
+    categoryId: dupe,
+    accountId: accA,
+  });
+  const targetBefore = await db.moneyEntry.count({ where: { categoryId: expCat } });
+
+  const res = await mergeCategories({ sourceId: dupe, targetId: expCat });
+
+  assert.equal(res.movedEntries, 1);
+  assert.equal(res.sourceDeleted, true);
+  assert.equal(await db.moneyEntry.count({ where: { categoryId: expCat } }), targetBefore + 1);
+  assert.equal(await db.moneyCategory.count({ where: { id: dupe } }), 0);
+});
+
+test("merge with deleteSource:false empties the source but keeps it", async () => {
+  const dupe = await ensureCategory(`${TAG} Materials Keep`, "EXPENSE");
+  await createEntry({
+    date: "2024-04-02",
+    direction: "DEBIT",
+    amount: 300,
+    categoryId: dupe,
+    accountId: accA,
+  });
+
+  const res = await mergeCategories({ sourceId: dupe, targetId: expCat, deleteSource: false });
+
+  assert.equal(res.movedEntries, 1);
+  assert.equal(res.sourceDeleted, false);
+  const kept = (await getCategories()).find((c) => c.id === dupe);
+  assert.equal(kept?.entryCount, 0);
+});
+
+test("a cross-kind merge is refused and moves nothing", async () => {
+  const dupe = await ensureCategory(`${TAG} Materials Cross`, "EXPENSE");
+  await createEntry({
+    date: "2024-04-03",
+    direction: "DEBIT",
+    amount: 400,
+    categoryId: dupe,
+    accountId: accA,
+  });
+
+  await assert.rejects(() => mergeCategories({ sourceId: dupe, targetId: incCat }), /same kind/);
+  // The rollback matters more than the message: the entry must still be here.
+  assert.equal(await db.moneyEntry.count({ where: { categoryId: dupe } }), 1);
+});
+
+test("a same-kind merge leaves the savings totals untouched", async () => {
+  // The point of the same-kind rule. getPersonalSavings only counts an entry
+  // when CREDIT pairs with an INCOME category and DEBIT with an EXPENSE one, so
+  // a cross-kind merge would silently drop rows from BOTH income and expense —
+  // no error, just a quietly wrong savings number. Same-kind must be a no-op.
+  const window = { from: "2024-05-01", to: "2024-05-31" };
+  const dupe = await ensureCategory(`${TAG} Materials May`, "EXPENSE");
+  await createEntry({
+    date: "2024-05-15",
+    direction: "DEBIT",
+    amount: 1250,
+    categoryId: dupe,
+    accountId: accA,
+  });
+
+  const before = (await getPersonalSavings(window)).totals;
+  // Guard against a vacuous pass: the new row must actually be in the window.
+  assert.ok(before.expense >= 1250, "the test entry should be counted before the merge");
+
+  await mergeCategories({ sourceId: dupe, targetId: expCat });
+  const after = (await getPersonalSavings(window)).totals;
+
+  assert.deepEqual(after, before);
+});
+
+test("merging a category into itself is refused", async () => {
+  await assert.rejects(
+    () => mergeCategories({ sourceId: expCat, targetId: expCat }),
+    /different category/
+  );
 });
 
 // ─── CSV import parsing (pure) ──────────────────────────────────────────────--

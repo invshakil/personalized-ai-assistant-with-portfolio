@@ -80,3 +80,66 @@ export async function ensureCategory(
   const created = await client.moneyCategory.create({ data: { name, kind } });
   return created.id;
 }
+
+export interface MergeCategoriesInput {
+  /** The duplicate being folded away — its entries are reassigned. */
+  sourceId: string;
+  /** The category that keeps the entries. */
+  targetId: string;
+  /** Delete the (now empty) source once its entries have moved. Default true. */
+  deleteSource?: boolean;
+}
+
+export interface MergeCategoriesResult {
+  movedEntries: number;
+  sourceDeleted: boolean;
+  sourceName: string;
+  targetName: string;
+}
+
+/**
+ * Fold one category into another: reassign every entry from `sourceId` to
+ * `targetId`, then (by default) delete the emptied source. This is how a
+ * duplicate category — "Groceries" imported twice, say — gets cleaned up
+ * without touching the ledger rows themselves.
+ *
+ * Cross-kind merges are refused: `kind` is the source of truth for
+ * income/expense bucketing, so moving a DEBIT entry under an INCOME category
+ * would silently corrupt savings and the expense breakdown.
+ *
+ * The reassignment and the delete run in one transaction — a failed delete
+ * must not leave the entries already moved.
+ */
+export async function mergeCategories(input: MergeCategoriesInput): Promise<MergeCategoriesResult> {
+  const { sourceId, targetId, deleteSource = true } = input;
+  if (!sourceId || !targetId) throw new Error("sourceId and targetId are required");
+  if (sourceId === targetId) throw new Error("Pick a different category to merge into.");
+
+  return db.$transaction(async (tx) => {
+    const [source, target] = await Promise.all([
+      tx.moneyCategory.findUnique({ where: { id: sourceId } }),
+      tx.moneyCategory.findUnique({ where: { id: targetId } }),
+    ]);
+    if (!source) throw new Error("The category being merged no longer exists.");
+    if (!target) throw new Error("The category to merge into no longer exists.");
+    if (source.kind !== target.kind) {
+      throw new Error(
+        `Cannot merge a ${source.kind === "INCOME" ? "income" : "expense"} category into a ` +
+          `${target.kind === "INCOME" ? "income" : "expense"} one — merge within the same kind.`
+      );
+    }
+
+    const { count } = await tx.moneyEntry.updateMany({
+      where: { categoryId: sourceId },
+      data: { categoryId: targetId },
+    });
+    if (deleteSource) await tx.moneyCategory.delete({ where: { id: sourceId } });
+
+    return {
+      movedEntries: count,
+      sourceDeleted: deleteSource,
+      sourceName: source.name,
+      targetName: target.name,
+    };
+  });
+}
