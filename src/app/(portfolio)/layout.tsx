@@ -42,7 +42,7 @@ const personSchema = {
     "AI-assisted Development",
   ],
   description:
-    "Senior full-stack engineer and tech lead with 10+ years of experience building products for SaaS platforms, European agencies, and US-based startups. Available for European remote contracts.",
+    "Senior full-stack engineer and tech lead with 10+ years of experience building products for SaaS platforms, European agencies, and US-based startups. Available immediately for B2B contract, EOR or full-time work — remote or open to relocation worldwide.",
   alumniOf: {
     "@type": "CollegeOrUniversity",
     name: "University of Information Technology & Science (UITS)",
@@ -55,7 +55,7 @@ const websiteSchema = {
   name: "Syful Islam Shakil — Portfolio",
   url: "https://sshakil.com",
   description:
-    "Portfolio of Syful Islam Shakil, senior software engineer and tech lead based in Bangladesh, available for European remote contracts.",
+    "Portfolio of Syful Islam Shakil, senior software engineer and tech lead based in Bangladesh, available immediately for B2B contract, EOR or full-time work — remote or open to relocation worldwide.",
   inLanguage: "en",
   author: { "@type": "Person", name: "Syful Islam Shakil" },
 };
@@ -81,7 +81,7 @@ const serviceSchema = {
     "@type": "Offer",
     availability: "https://schema.org/InStock",
     description:
-      "Available now for full-capacity European remote contracts — B2B contractor or EOR, no relocation",
+      "Available immediately · B2B contract, EOR or full-time · Remote or open to relocation worldwide",
   },
 };
 

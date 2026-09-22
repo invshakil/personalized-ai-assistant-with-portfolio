@@ -41,11 +41,11 @@ export default function Hero() {
 
         <div className="avail-badge fu d2">
           <span className="avail-dot" />
-          <strong>Available now for European remote contracts</strong>
+          <strong>Available immediately</strong>
         </div>
 
         <p className="avail-note fu d2">
-          Full capacity &middot; B2B contractor or EOR &middot; No relocation
+          B2B contract, EOR or full-time &middot; Remote or open to relocation worldwide
           <br />
           UTC+6 &mdash; afternoons overlap European working hours
         </p>
