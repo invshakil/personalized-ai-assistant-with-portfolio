@@ -42,12 +42,12 @@ const FREELANCE_JOBS: ExperienceEntry[] = [
   {
     badge: "Mar 2025 – May 2026",
     isCurrent: false,
-    role: "Tech Lead & Product Owner",
+    role: "Tech Lead",
     company: "DevArena GmbH",
     logo: "/devarena-logo.png",
     companyUrl: "https://www.linkedin.com/company/devarena/",
     summary:
-      "Platform where companies evaluate and grow developer talent through assessments and live competitive challenges. Delivered to MVP; paused while the founder raised funding.",
+      "Platform where companies evaluate and grow developer talent through assessments and live competitive challenges. Delivered to MVP; paused while the founder raises funding.",
     lead: "I owned the product direction end-to-end — deciding which features shipped, how they worked, and the workflows behind them, then leading the team to deliver them.",
     bullets: [
       "Owned product scope and roadmap — feature decisions, behaviour, and workflows",
