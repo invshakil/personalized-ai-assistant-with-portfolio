@@ -4,7 +4,7 @@ import type { ExperienceEntry } from "@/types";
 
 const CONTRACT_JOBS: ExperienceEntry[] = [
   {
-    badge: "Nov 2020 – Jul 2026",
+    badge: "Apr 2022 – Jul 2026",
     isCurrent: false,
     role: "Lead Frontend Engineer",
     company: "Savannah Group",
@@ -14,13 +14,26 @@ const CONTRACT_JOBS: ExperienceEntry[] = [
       "Lead frontend engineer on a B2B SaaS platform for talent intelligence and organisational research. Engagement ended when the product was acquired; the acquirer did not retain contractors.",
     lead: "A hands-on product partner — not just an implementer. I planned and decided alongside the product owner, shaping requirements, scope, and how features behaved before any code was written.",
     bullets: [
-      "Founding frontend engineer — owned architecture, state management, the API integration layer and weekly releases from first commit through to acquisition",
+      "Promoted to lead after 18 months and owned the frontend through to acquisition — architecture, state management, API integration layer, and weekly releases across dev, staging and production.",
       "Longest tenure on the engineering team at six years; next-longest was 3.5",
       "Retained as the most senior engineer through a downsize from 16 engineers to 4",
       "Led a three-engineer frontend team and ran frontend hiring: 15 candidates interviewed, 6 hired and onboarded",
       "Diagnosed UI freezes under concurrent background jobs and fixed them by tiering event delivery — high-priority completions over Pusher, interval polling for the rest",
       "Led the frontend for AI-assisted candidate search: an LLM extracts filter criteria from a described profile, surfaced as an editable draft the user validates before running",
       "Built the data-dense search, filtering and analytics interfaces used concurrently by 30–40 researchers at global automotive and consumer brands",
+    ],
+  },
+  {
+    badge: "Nov 2020 – Apr 2022",
+    isCurrent: false,
+    role: "Frontend Engineer",
+    company: "Savannah Group",
+    logo: "/savannah-logo.png",
+    companyUrl: "https://www.linkedin.com/company/savannah-group/",
+    summary:
+      "Frontend engineer on MapX, the B2B SaaS platform for talent intelligence and organisational research.",
+    bullets: [
+      "Founding frontend engineer on MapX: built the frontend from first commit — application architecture, state management and the API integration layer — and set the release process the team used from then on.",
     ],
   },
 ];
@@ -113,7 +126,7 @@ export default function Experience() {
               Contract (via German agency)
             </p>
             {CONTRACT_JOBS.map((entry, i) => (
-              <ExperienceCard key={entry.company} entry={entry} delay={i + 2} />
+              <ExperienceCard key={`${entry.company}-${entry.badge}`} entry={entry} delay={i + 2} />
             ))}
           </div>
           <div>
@@ -121,7 +134,7 @@ export default function Experience() {
               Freelance
             </p>
             {FREELANCE_JOBS.map((entry, i) => (
-              <ExperienceCard key={entry.company} entry={entry} delay={i + 2} />
+              <ExperienceCard key={`${entry.company}-${entry.badge}`} entry={entry} delay={i + 2} />
             ))}
           </div>
         </div>
