@@ -11,7 +11,7 @@ const SKILL_GROUPS: SkillGroup[] = [
   },
   {
     name: "DevOps & Infra",
-    tags: ["Docker", "Linux VPS", "CI/CD", "Nginx", "Amazon EC2"],
+    tags: ["Docker", "Linux VPS", "CI/CD", "Nginx", "Google Cloud (working knowledge)"],
   },
   {
     name: "Leadership",
