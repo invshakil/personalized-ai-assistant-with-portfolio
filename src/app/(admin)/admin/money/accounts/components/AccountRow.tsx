@@ -3,7 +3,7 @@ import { Box, Chip, Collapse, TableCell, TableRow } from "@mui/material";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import EntityLink from "@/components/admin/EntityLink";
 import type { MoneyAccountRow, MoneyEntryRow } from "@/types";
-import { fmtCurrency, ACCOUNT_TYPE_LABEL } from "../../format";
+import { fmtCurrency } from "../../format";
 import AccountTransactionsPanel from "./AccountTransactionsPanel";
 import AccountRowActions from "./AccountRowActions";
 
@@ -48,7 +48,7 @@ export default function AccountRow({
           </Box>
         </TableCell>
         <TableCell data-label="Type">
-          {ACCOUNT_TYPE_LABEL[a.type]}
+          {a.accountTypeName}
           {a.currency !== "BDT" && (
             <Chip
               size="small"

@@ -203,19 +203,19 @@ model AiUsage {
 /// and so surfaces other than chat — an import, a receipt scan, a nightly
 /// insight — can propose actions through the same approve/commit gate.
 model AiProposedAction {
-  id        String    @id @default(cuid())
-  createdAt DateTime  @default(now())
+  id         String    @id @default(cuid())
+  createdAt  DateTime  @default(now())
   /// Where the proposal came from: "chat" | "import" | "receipt" | "insight".
-  source    String
+  source     String
   /// Set only for chat-originated proposals, so a session can restore its cards.
-  sessionId String?
-  tool      String
-  input     Json
-  summary   String
+  sessionId  String?
+  tool       String
+  input      Json
+  summary    String
   /// PENDING | APPROVED | CANCELLED | ERROR
-  status    String    @default("PENDING")
+  status     String    @default("PENDING")
   /// Commit summary on success, or the user-safe error message on failure.
-  result    String?
+  result     String?
   resolvedAt DateTime?
 
   session ChatSession? @relation(fields: [sessionId], references: [id], onDelete: Cascade)
@@ -242,14 +242,14 @@ model AiBudget {
 /// would need a migration for each one. A few dozen rows at most, so the whole
 /// table loads once per session.
 model FormDefault {
-  id String @id @default(cuid())
+  id        String   @id @default(cuid())
   /// Stable form id, e.g. "money.entry" — a form identifier, never a route.
   /// Routes move; a default has to survive that.
-  scope String
+  scope     String
   /// Field within that form, e.g. "accountId".
-  field String
+  field     String
   /// The stored choice: a record id or an enum value. "" means "no default".
-  value String
+  value     String
   /// "fixed"    — always start with this value (set in Settings or the inline pin)
   /// "lastUsed" — start with whatever was chosen last time (written on save)
   mode      String   @default("fixed")
@@ -766,6 +766,9 @@ enum MoneyEntryDirection {
   TRANSFER // account-to-account; excluded from income/expense/savings
 }
 
+/// The fixed *kind* of an account — drives behaviour (a CREDIT_CARD has a credit
+/// limit and is never auto-posted by trips). The user-facing, archivable list of
+/// types lives in `AccountType`; each of those maps to exactly one kind.
 enum MoneyAccountType {
   CASH
   BANK
@@ -825,10 +828,27 @@ enum TripCategory {
   MISC
 }
 
+/// A user-managed account type ("Cash", "Bank", "bKash", "Savings"…). Archiving
+/// (isActive = false) hides the type — and the accounts under it — from every
+/// picker, without touching history. `kind` is fixed at creation so the kind
+/// snapshot on MoneyAccount.type can never drift from it.
+model AccountType {
+  id        String           @id @default(cuid())
+  name      String           @unique
+  kind      MoneyAccountType
+  isActive  Boolean          @default(true)
+  sortOrder Int              @default(0)
+  accounts  MoneyAccount[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
 model MoneyAccount {
   id             String           @id @default(cuid())
   name           String
-  type           MoneyAccountType
+  type           MoneyAccountType // kind snapshot of accountType.kind (immutable per type) — behaviour switches read this
+  accountType    AccountType      @relation(fields: [accountTypeId], references: [id])
+  accountTypeId  String
   currency       String           @default("BDT") // account currency: BDT | USD | EUR. All non-transfer entries are in this currency; balance is in this currency.
   openingBalance Decimal          @default(0) @db.Decimal(12, 2) // real balance at setup, in `currency`; card: negative = owed
   creditLimit    Decimal?         @db.Decimal(12, 2) // CREDIT_CARD only; availableCredit = creditLimit + balance
@@ -841,6 +861,8 @@ model MoneyAccount {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   // balance = openingBalance + Σ(CREDIT) − Σ(DEBIT, TRANSFER-out) + Σ(TRANSFER-in) — computed in service.
+
+  @@index([accountTypeId])
 }
 
 model MoneyCategory {

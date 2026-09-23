@@ -4,6 +4,7 @@ import { apiGet, apiPost, apiPut, apiDelete, apiUpload } from "./client";
 import type {
   MoneyAccountRow,
   MoneyAccountType,
+  AccountTypeRow,
   MoneyCategoryRow,
   MoneyCategoryKind,
   MoneyEntryRow,
@@ -21,12 +22,17 @@ import type {
 
 export interface AccountPayload {
   name: string;
-  type: MoneyAccountType;
+  accountTypeId: string;
   currency?: string;
   openingBalance?: number;
   creditLimit?: number | null;
   isActive?: boolean;
   notes?: string | null;
+}
+
+export interface AccountTypePayload {
+  name: string;
+  kind: MoneyAccountType;
 }
 
 export interface CategoryPayload {
@@ -202,6 +208,17 @@ export const moneyApi = {
     apiPut<MoneyAccountRow>(`/money/accounts/${id}`, body),
   deleteAccount: (id: string) =>
     apiDelete<{ deleted: boolean; error?: string }>(`/money/accounts/${id}`),
+
+  // Account types
+  listAccountTypes: () => apiGet<AccountTypeRow[]>("/money/account-types"),
+  createAccountType: (body: AccountTypePayload) =>
+    apiPost<AccountTypeRow>("/money/account-types", body),
+  updateAccountType: (
+    id: string,
+    body: Partial<Pick<AccountTypeRow, "name" | "isActive" | "sortOrder">>
+  ) => apiPut<AccountTypeRow>(`/money/account-types/${id}`, body),
+  deleteAccountType: (id: string) =>
+    apiDelete<{ deleted: boolean; error?: string }>(`/money/account-types/${id}`),
 
   // Categories
   listCategories: (kind?: MoneyCategoryKind) =>

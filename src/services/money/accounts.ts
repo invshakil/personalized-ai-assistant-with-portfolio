@@ -6,6 +6,7 @@
 import { db } from "@/lib/db";
 import { MoneyAccountType } from "@prisma/client";
 import { toNum } from "./_serializers";
+import { resolveAccountType } from "./accountTypes";
 import type { MoneyAccountRow } from "@/types";
 
 interface Flows {
@@ -60,7 +61,10 @@ export async function listAccountsWithBalances(): Promise<MoneyAccountRow[]> {
   const [accounts, flows] = await Promise.all([
     db.moneyAccount.findMany({
       orderBy: [{ isActive: "desc" }, { name: "asc" }],
-      include: { _count: { select: { entries: true } } },
+      include: {
+        _count: { select: { entries: true } },
+        accountType: { select: { name: true, isActive: true, sortOrder: true } },
+      },
     }),
     accountFlows(),
   ]);
@@ -73,6 +77,10 @@ export async function listAccountsWithBalances(): Promise<MoneyAccountRow[]> {
       id: a.id,
       name: a.name,
       type: a.type,
+      accountTypeId: a.accountTypeId,
+      accountTypeName: a.accountType.name,
+      accountTypeActive: a.accountType.isActive,
+      accountTypeSortOrder: a.accountType.sortOrder,
       currency: a.currency,
       openingBalance: opening,
       creditLimit: limit,
@@ -117,7 +125,10 @@ export async function getAccountBalance(id: string): Promise<number> {
 
 export interface CreateAccountInput {
   name: string;
-  type: MoneyAccountType;
+  /** The account type. Takes precedence over `type`. */
+  accountTypeId?: string | null;
+  /** A bare kind — resolves to the first active type of that kind. */
+  type?: MoneyAccountType | null;
   currency?: string;
   openingBalance?: number;
   creditLimit?: number | null;
@@ -126,13 +137,15 @@ export interface CreateAccountInput {
 }
 
 export async function createAccount(input: CreateAccountInput) {
+  const t = await resolveAccountType({ accountTypeId: input.accountTypeId, kind: input.type });
   return db.moneyAccount.create({
     data: {
       name: input.name,
-      type: input.type,
+      type: t.kind,
+      accountTypeId: t.id,
       currency: (input.currency ?? "BDT").toUpperCase(),
       openingBalance: input.openingBalance ?? 0,
-      creditLimit: input.type === "CREDIT_CARD" ? (input.creditLimit ?? null) : null,
+      creditLimit: t.kind === "CREDIT_CARD" ? (input.creditLimit ?? null) : null,
       isActive: input.isActive ?? true,
       notes: input.notes ?? null,
     },
@@ -141,6 +154,8 @@ export async function createAccount(input: CreateAccountInput) {
 
 export interface UpdateAccountInput {
   name?: string;
+  accountTypeId?: string;
+  /** A bare kind — ignored when `accountTypeId` is given. */
   type?: MoneyAccountType;
   currency?: string;
   openingBalance?: number;
@@ -170,11 +185,29 @@ export async function updateAccount(id: string, input: UpdateAccountInput) {
     }
   }
 
+  // Re-typing: only to an active type, and the kind snapshot follows the type.
+  // Leaving the type as it is never trips the archive check, so an account
+  // under an archived type can still be renamed or deactivated.
+  let retype: { accountTypeId: string; type: MoneyAccountType } | null = null;
+  if (input.accountTypeId || input.type) {
+    const current = await db.moneyAccount.findUnique({
+      where: { id },
+      select: { accountTypeId: true, type: true },
+    });
+    const unchanged = input.accountTypeId
+      ? current?.accountTypeId === input.accountTypeId
+      : current?.type === input.type;
+    if (!unchanged) {
+      const t = await resolveAccountType({ accountTypeId: input.accountTypeId, kind: input.type });
+      retype = { accountTypeId: t.id, type: t.kind };
+    }
+  }
+
   return db.moneyAccount.update({
     where: { id },
     data: {
       ...(input.name && { name: input.name }),
-      ...(input.type && { type: input.type }),
+      ...retype,
       ...(input.currency && { currency: input.currency.toUpperCase() }),
       ...(input.openingBalance != null && { openingBalance: input.openingBalance }),
       ...(input.creditLimit !== undefined && { creditLimit: input.creditLimit }),

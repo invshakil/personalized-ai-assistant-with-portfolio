@@ -8,6 +8,7 @@ import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { useAccountsData } from "./hooks/useAccountsData";
 import { useAccountForm } from "./hooks/useAccountForm";
 import { useAccountDelete } from "./hooks/useAccountDelete";
+import { useAccountTypeOptions } from "./hooks/useAccountTypeOptions";
 import AccountsSummary from "./components/AccountsSummary";
 import AccountsTable from "./components/AccountsTable";
 import AccountFormDrawer from "./components/AccountFormDrawer";
@@ -17,7 +18,9 @@ export default function AccountsPage() {
   const confirm = useConfirmDialog();
 
   const data = useAccountsData();
-  const form = useAccountForm(data.load);
+  const [editingTypeId, setEditingTypeId] = useState("");
+  const accountTypes = useAccountTypeOptions(editingTypeId);
+  const form = useAccountForm(accountTypes.types, data.load);
   const { deleteAccount } = useAccountDelete(confirm.openConfirm, data.load, setToast);
 
   return (
@@ -37,7 +40,10 @@ export default function AccountsPage() {
         txLoading={data.txLoading}
         txByAccount={data.txByAccount}
         onToggleExpand={data.toggleExpand}
-        onEdit={form.openEdit}
+        onEdit={(a) => {
+          setEditingTypeId(a.accountTypeId);
+          form.openEdit(a);
+        }}
         onDelete={deleteAccount}
       />
 
@@ -46,6 +52,8 @@ export default function AccountsPage() {
         editing={!!form.editing}
         editingHasEntries={form.editingHasEntries}
         form={form.form}
+        kind={form.kind}
+        typeOptions={accountTypes.options}
         saving={form.saving}
         error={form.error}
         onChange={form.setForm}

@@ -8,7 +8,6 @@ export {
 } from "@/app/(admin)/admin/finance/format";
 
 import type { MoneyAccountRow, TripStatus } from "@/types";
-import { ACCOUNT_TYPE_LABEL } from "@/app/(admin)/admin/money/format";
 
 export const TRIP_STATUS_COLOR: Record<TripStatus, "info" | "success" | "default"> = {
   PLANNING: "info",
@@ -20,6 +19,6 @@ export const TRIP_STATUS_COLOR: Record<TripStatus, "info" | "success" | "default
 export function accountOptions(accounts: MoneyAccountRow[]) {
   return accounts.map((a) => ({
     value: a.id,
-    label: `${a.name} — ${ACCOUNT_TYPE_LABEL[a.type]} · ${a.currency}`,
+    label: `${a.name} — ${a.accountTypeName} · ${a.currency}`,
   }));
 }

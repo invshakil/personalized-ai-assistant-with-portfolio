@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { moneyApi } from "@/lib/api/money";
-import type { MoneyAccountRow, MoneyAccountType } from "@/types";
+import type { AccountTypeRow, MoneyAccountRow } from "@/types";
 
 export type AccountForm = {
   name: string;
-  type: MoneyAccountType;
+  accountTypeId: string;
   currency: string;
   openingBalance: string;
   creditLimit: string;
@@ -14,7 +14,7 @@ export type AccountForm = {
 
 const BLANK: AccountForm = {
   name: "",
-  type: "BANK",
+  accountTypeId: "",
   currency: "BDT",
   openingBalance: "0",
   creditLimit: "",
@@ -22,8 +22,12 @@ const BLANK: AccountForm = {
   notes: "",
 };
 
-/** Owns the add/edit drawer's open state, form values, and save mutation. */
-export function useAccountForm(onSaved: () => void) {
+/**
+ * Owns the add/edit drawer's open state, form values, and save mutation.
+ * `types` is the account-type list — its kind decides whether the credit-limit
+ * field applies.
+ */
+export function useAccountForm(types: AccountTypeRow[], onSaved: () => void) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   // Currency is locked once an account has entries (changing it would mix units).
@@ -32,10 +36,12 @@ export function useAccountForm(onSaved: () => void) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const kind = types.find((t) => t.id === form.accountTypeId)?.kind ?? null;
+
   const openAdd = () => {
     setEditing(null);
     setEditingHasEntries(false);
-    setForm(BLANK);
+    setForm({ ...BLANK, accountTypeId: types.find((t) => t.isActive)?.id ?? "" });
     setError(null);
     setDrawerOpen(true);
   };
@@ -45,7 +51,7 @@ export function useAccountForm(onSaved: () => void) {
     setEditingHasEntries(a.entryCount > 0);
     setForm({
       name: a.name,
-      type: a.type,
+      accountTypeId: a.accountTypeId,
       currency: a.currency,
       openingBalance: String(a.openingBalance),
       creditLimit: a.creditLimit != null ? String(a.creditLimit) : "",
@@ -64,13 +70,11 @@ export function useAccountForm(onSaved: () => void) {
     try {
       const body = {
         name: form.name,
-        type: form.type,
+        accountTypeId: form.accountTypeId,
         currency: form.currency,
         openingBalance: parseFloat(form.openingBalance) || 0,
         creditLimit:
-          form.type === "CREDIT_CARD" && form.creditLimit !== ""
-            ? parseFloat(form.creditLimit)
-            : null,
+          kind === "CREDIT_CARD" && form.creditLimit !== "" ? parseFloat(form.creditLimit) : null,
         isActive: form.isActive,
         notes: form.notes || null,
       };
@@ -90,6 +94,7 @@ export function useAccountForm(onSaved: () => void) {
     editing,
     editingHasEntries,
     form,
+    kind,
     setForm,
     saving,
     error,

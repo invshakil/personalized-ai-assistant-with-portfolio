@@ -17,17 +17,20 @@ export const POST = withApiError(async (req: NextRequest) => {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { name, type, openingBalance, creditLimit, isActive, notes } = body;
-  if (!name || !type) {
-    return Response.json({ error: "name and type are required" }, { status: 400 });
+  const { name, type, accountTypeId, currency, openingBalance, creditLimit, isActive, notes } =
+    body;
+  if (!name || (!type && !accountTypeId)) {
+    return Response.json({ error: "name and accountTypeId are required" }, { status: 400 });
   }
-  if (!(type in MoneyAccountType)) {
+  if (type && !(type in MoneyAccountType)) {
     return Response.json({ error: "invalid account type" }, { status: 400 });
   }
 
   const data = await createAccount({
     name,
-    type: type as MoneyAccountType,
+    accountTypeId: typeof accountTypeId === "string" ? accountTypeId : null,
+    type: type ? (type as MoneyAccountType) : null,
+    currency: typeof currency === "string" ? currency : undefined,
     openingBalance: openingBalance != null ? Number(openingBalance) : 0,
     creditLimit: creditLimit != null ? Number(creditLimit) : null,
     isActive,

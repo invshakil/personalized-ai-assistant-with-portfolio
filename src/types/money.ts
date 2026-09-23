@@ -19,7 +19,11 @@ export type MoneyEntryMethod = "CASH" | "BANK_TRANSFER" | "MOBILE_BANKING" | "CH
 export interface MoneyAccountRow {
   id: string;
   name: string;
-  type: MoneyAccountType;
+  type: MoneyAccountType; // the kind — drives behaviour (credit card, trip posting)
+  accountTypeId: string;
+  accountTypeName: string;
+  accountTypeActive: boolean; // false = its type is archived; hidden from pickers
+  accountTypeSortOrder: number;
   currency: string; // BDT | USD | EUR — balance is in this currency
   openingBalance: number;
   creditLimit: number | null;
@@ -29,6 +33,18 @@ export interface MoneyAccountRow {
   balance: number; // openingBalance + Σ credits − Σ debits ± transfers (in `currency`)
   availableCredit: number | null; // CREDIT_CARD only = creditLimit + balance
   entryCount: number;
+}
+
+// ─── Account types ───────────────────────────────────────────────────────────
+
+/** A user-managed account type. `kind` is fixed at creation. */
+export interface AccountTypeRow {
+  id: string;
+  name: string;
+  kind: MoneyAccountType;
+  isActive: boolean;
+  sortOrder: number;
+  accountCount: number;
 }
 
 // ─── Categories ──────────────────────────────────────────────────────────────
@@ -133,6 +149,7 @@ export interface AccountBalanceSummary {
   id: string;
   name: string;
   type: MoneyAccountType;
+  accountTypeName: string;
   currency: string;
   balance: number; // in `currency`
   creditLimit: number | null;
