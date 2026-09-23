@@ -1,8 +1,15 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { propertyApi } from "@/lib/api/property";
-import type { SelectOption } from "@/components/admin/SearchableSelect";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
+import {
+  EMPTY_SELECTION,
+  pairValidValues,
+  rememberAccountPair,
+  seedAccountPair,
+  withKindFallback,
+  type AccountSelection,
+} from "@/lib/accountPicker";
 import type { MoneyAccountRow, PaymentWithTenant } from "@/types";
-import { NO_ACCOUNT } from "../types";
 
 export function usePaymentDrawer(accounts: MoneyAccountRow[], onSuccess: () => Promise<void>) {
   const [drawer, setDrawer] = useState<{
@@ -13,29 +20,21 @@ export function usePaymentDrawer(accounts: MoneyAccountRow[], onSuccess: () => P
   const [txAmount, setTxAmount] = useState("");
   const [txDate, setTxDate] = useState(new Date().toISOString().split("T")[0]);
   const [txNotes, setTxNotes] = useState("");
-  const [txAccountId, setTxAccountId] = useState<string>(NO_ACCOUNT);
+  const [txAccount, setTxAccount] = useState<AccountSelection>(EMPTY_SELECTION);
+  const defaults = useFormDefaults("property.payment");
   const [txLoading, setTxLoading] = useState(false);
   const [txError, setTxError] = useState<string | null>(null);
 
-  // Pick a sensible default account for a transaction type: first CASH account
-  // for cash, first BANK account for bank transfer; "" (none) otherwise.
+  // Only real cash/bank receipts can land in an account. A stored default wins;
+  // with none, the first Cash account for cash and the first Bank account for a
+  // bank transfer — the behaviour this form had before defaults existed.
   const defaultAccountForType = useCallback(
-    (type: string): string => {
-      if (type === "CASH") return accounts.find((a) => a.type === "CASH")?.id ?? NO_ACCOUNT;
-      if (type === "BANK_TRANSFER")
-        return accounts.find((a) => a.type === "BANK")?.id ?? NO_ACCOUNT;
-      return NO_ACCOUNT;
+    (type: string): AccountSelection => {
+      if (type !== "CASH" && type !== "BANK_TRANSFER") return EMPTY_SELECTION;
+      const seeded = seedAccountPair(accounts, defaults.seed(pairValidValues(accounts)));
+      return withKindFallback(accounts, seeded, type === "CASH" ? "CASH" : "BANK");
     },
-    [accounts]
-  );
-
-  // Account dropdown options: a "none" sentinel plus every account.
-  const accountOptions: SelectOption[] = useMemo(
-    () => [
-      { value: NO_ACCOUNT, label: "— none / don't add to wallet —" },
-      ...accounts.map((a) => ({ value: a.id, label: a.name })),
-    ],
-    [accounts]
+    [accounts, defaults]
   );
 
   function openPayDrawer(payment: PaymentWithTenant, mode: "pay" | "advance") {
@@ -47,14 +46,14 @@ export function usePaymentDrawer(accounts: MoneyAccountRow[], onSuccess: () => P
     setTxAmount(String(maxApplicable > 0 ? maxApplicable : ""));
     setTxDate(new Date().toISOString().split("T")[0]);
     setTxNotes("");
-    setTxAccountId(defaultAccountForType(initialType));
+    setTxAccount(defaultAccountForType(initialType));
     setTxError(null);
     setDrawer({ payment, mode });
   }
 
   function changeTxType(next: string) {
     setTxType(next);
-    setTxAccountId(defaultAccountForType(next));
+    setTxAccount(defaultAccountForType(next));
   }
 
   async function submitTransaction() {
@@ -69,10 +68,13 @@ export function usePaymentDrawer(accounts: MoneyAccountRow[], onSuccess: () => P
         notes: txNotes || null,
         // Only link to the wallet for real cash/bank receipts when one is chosen.
         accountId:
-          (txType === "CASH" || txType === "BANK_TRANSFER") && txAccountId
-            ? txAccountId
+          (txType === "CASH" || txType === "BANK_TRANSFER") && txAccount.accountId
+            ? txAccount.accountId
             : undefined,
       });
+      if (txType === "CASH" || txType === "BANK_TRANSFER") {
+        defaults.remember(rememberAccountPair(txAccount));
+      }
       setDrawer(null);
       await onSuccess();
     } catch (e: unknown) {
@@ -93,11 +95,10 @@ export function usePaymentDrawer(accounts: MoneyAccountRow[], onSuccess: () => P
     setTxDate,
     txNotes,
     setTxNotes,
-    txAccountId,
-    setTxAccountId,
+    txAccount,
+    setTxAccount,
     txLoading,
     txError,
-    accountOptions,
     openPayDrawer,
     submitTransaction,
   };

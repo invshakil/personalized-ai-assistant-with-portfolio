@@ -2,6 +2,13 @@ import { useState, useCallback } from "react";
 import { financeApi } from "@/lib/api/finance";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import type { MoneyAccountRow } from "@/types";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
+import {
+  pairValidValues,
+  rememberAccountPair,
+  seedAccountPair,
+  withKindFallback,
+} from "@/lib/accountPicker";
 import type { PaymentRow, EmployeeRow } from "../../types";
 import { fmtDate, todayInput } from "../../format";
 import { NO_ACCOUNT, BLANK, type PaymentForm } from "../types";
@@ -18,17 +25,23 @@ export function usePaymentDrawer(
   const [error, setError] = useState<string | null>(null);
   const [rateLoading, setRateLoading] = useState(false);
   const [rateNote, setRateNote] = useState<string | null>(null);
-
-  const defaultAccountId = () => accounts.find((a) => a.type === "BANK")?.id ?? NO_ACCOUNT;
+  const defaults = useFormDefaults("finance.payment");
 
   const openAdd = () => {
     setEditing(null);
+    // A stored default wins; with none, salaries still start on the first Bank account.
+    const pair = withKindFallback(
+      accounts,
+      seedAccountPair(accounts, defaults.seed(pairValidValues(accounts))),
+      "BANK"
+    );
     setForm({
       ...BLANK,
       date: todayInput(),
       fiscalYear: fiscalYearOf(new Date()),
       employeeId: employees[0]?.id ?? "",
-      accountId: defaultAccountId(),
+      accountTypeId: pair.typeId,
+      accountId: pair.accountId,
     });
     setError(null);
     setDrawerOpen(true);
@@ -47,6 +60,7 @@ export function usePaymentDrawer(
       fxRate: String(p.fxRate),
       fiscalYear: p.fiscalYear,
       notes: p.notes ?? "",
+      accountTypeId: "",
       accountId: NO_ACCOUNT,
     });
     setRateNote(null);
@@ -123,7 +137,12 @@ export function usePaymentDrawer(
       };
       if (editing) await financeApi.updatePayment(editing, body);
       // accountId is create-only (opt-in link; no back-sync on edit).
-      else await financeApi.createPayment({ ...body, accountId: form.accountId || undefined });
+      else {
+        await financeApi.createPayment({ ...body, accountId: form.accountId || undefined });
+        defaults.remember(
+          rememberAccountPair({ typeId: form.accountTypeId, accountId: form.accountId })
+        );
+      }
       setDrawerOpen(false);
       await onSuccess();
     } catch (e: unknown) {

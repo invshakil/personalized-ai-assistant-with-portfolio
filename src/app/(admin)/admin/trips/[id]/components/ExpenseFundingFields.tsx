@@ -1,9 +1,12 @@
-import { Box, TextField, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import SearchableSelect from "@/components/admin/SearchableSelect";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
+import type { AccountSelection } from "@/lib/accountPicker";
 import CurrencySelect from "@/components/admin/CurrencySelect";
 import type { MoneyAccountRow, TripParticipantRow } from "@/types";
-import { accountOptions, currencySymbol, fmt } from "../../format";
+import { currencySymbol, fmt } from "../../format";
 import type { TripExpenseForm } from "../hooks/expenseForm";
+import NumberField from "@/components/admin/NumberField";
 
 interface Props {
   form: TripExpenseForm;
@@ -13,7 +16,7 @@ interface Props {
   rateLoading: boolean;
   setForm: (updater: (f: TripExpenseForm) => TripExpenseForm) => void;
   onPayerChange: (id: string) => void;
-  onAccountChange: (id: string) => void;
+  onAccountChange: (sel: AccountSelection) => void;
   onCurrencyChange: (cur: string) => void;
 }
 
@@ -48,11 +51,14 @@ export default function ExpenseFundingFields({
         sx={{ mb: 2 }}
       />
       {payerIsSelf ? (
-        <SearchableSelect
-          label="Paid from account"
-          value={form.accountId}
-          options={accountOptions(accounts)}
+        <AccountTypeAccountSelect
+          accounts={accounts}
+          accountLabel="Paid from account"
+          value={{ typeId: form.accountTypeId, accountId: form.accountId }}
           onChange={onAccountChange}
+          optional
+          noneLabel="— none / not from an account —"
+          optionLabel={(a) => `${a.name} · ${a.currency}`}
           sx={{ mb: 0.5 }}
         />
       ) : (
@@ -69,23 +75,23 @@ export default function ExpenseFundingFields({
           : "Paid by someone else — tracked in the trip only, never your money ledger."}
       </Typography>
 
-      <TextField
+      <NumberField
         label={`Amount (${currencySymbol(form.currency)})`}
-        type="number"
         size="small"
         fullWidth
         value={form.amount}
-        onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+        onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
         sx={{ mb: 2 }}
       />
       {foreign && (
-        <TextField
+        <NumberField
           label={`FX rate (৳ per 1 ${form.currency})`}
-          type="number"
+          decimals={6}
+          min={0}
           size="small"
           fullWidth
           value={form.fxRate}
-          onChange={(e) => setForm((f) => ({ ...f, fxRate: e.target.value }))}
+          onChange={(v) => setForm((f) => ({ ...f, fxRate: v }))}
           helperText={
             rateLoading
               ? "Fetching live rate…"

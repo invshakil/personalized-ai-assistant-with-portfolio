@@ -88,3 +88,10 @@ test("isExpression tells a sum from a single number", () => {
   assert.equal(isExpression("0.5"), false);
   assert.equal(isExpression("-50"), false, "a leading sign is not arithmetic");
 });
+
+test("results round to 2 decimals unless a precision is given", () => {
+  assert.equal(value("10 / 3"), 3.33);
+  assert.equal(evaluateExpression("10 / 3", 4).value, 3.3333);
+  assert.equal(evaluateExpression("10 / 4", 0).value, 3);
+  assert.equal(toAmountString(1 / 3, 6), "0.333333");
+});

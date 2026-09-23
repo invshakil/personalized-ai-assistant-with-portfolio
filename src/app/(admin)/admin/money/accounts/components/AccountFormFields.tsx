@@ -2,15 +2,27 @@ import { FormControlLabel, Switch, TextField } from "@mui/material";
 import { currencySymbol } from "../../format";
 import type { AccountForm } from "../hooks/useAccountForm";
 import AccountTypeCurrencyFields from "./AccountTypeCurrencyFields";
+import NumberField from "@/components/admin/NumberField";
+import type { SelectOption } from "@/components/admin/SearchableSelect";
+import type { MoneyAccountType } from "@/types";
 
 interface Props {
   form: AccountForm;
+  /** The selected type's kind — a credit card gets a credit limit. */
+  kind: MoneyAccountType | null;
+  typeOptions: SelectOption[];
   editingHasEntries: boolean;
   onChange: (updater: (f: AccountForm) => AccountForm) => void;
 }
 
 /** The name/type/currency/balance/notes/active fields shared by the add & edit drawer. */
-export default function AccountFormFields({ form, editingHasEntries, onChange }: Props) {
+export default function AccountFormFields({
+  form,
+  kind,
+  typeOptions,
+  editingHasEntries,
+  onChange,
+}: Props) {
   return (
     <>
       <TextField
@@ -23,31 +35,30 @@ export default function AccountFormFields({ form, editingHasEntries, onChange }:
       />
       <AccountTypeCurrencyFields
         form={form}
+        typeOptions={typeOptions}
         editingHasEntries={editingHasEntries}
         onChange={onChange}
       />
-      <TextField
+      <NumberField
         label={
-          form.type === "CREDIT_CARD"
+          kind === "CREDIT_CARD"
             ? `Opening balance (${currencySymbol(form.currency)}, negative if owed)`
             : `Opening balance (${currencySymbol(form.currency)})`
         }
-        type="number"
         size="small"
         fullWidth
         value={form.openingBalance}
-        onChange={(e) => onChange((f) => ({ ...f, openingBalance: e.target.value }))}
+        onChange={(v) => onChange((f) => ({ ...f, openingBalance: v }))}
         helperText="The real balance you currently hold (or owe) in this account."
         sx={{ mb: 2 }}
       />
-      {form.type === "CREDIT_CARD" && (
-        <TextField
+      {kind === "CREDIT_CARD" && (
+        <NumberField
           label={`Credit limit (${currencySymbol(form.currency)})`}
-          type="number"
           size="small"
           fullWidth
           value={form.creditLimit}
-          onChange={(e) => onChange((f) => ({ ...f, creditLimit: e.target.value }))}
+          onChange={(v) => onChange((f) => ({ ...f, creditLimit: v }))}
           sx={{ mb: 2 }}
         />
       )}

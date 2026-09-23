@@ -98,8 +98,8 @@ export default function UnitDetailPage({ unitId }: { unitId: string }) {
         form={addFuture.addFutureForm}
         onFormChange={addFuture.setAddFutureForm}
         accounts={addFuture.accounts}
-        advanceAccountId={addFuture.advanceAccountId}
-        onAdvanceAccountChange={addFuture.setAdvanceAccountId}
+        advanceAccount={addFuture.advanceAccount}
+        onAdvanceAccountChange={addFuture.setAdvanceAccount}
         saving={addFuture.saving}
         onSave={addFuture.addFutureTenant}
       />

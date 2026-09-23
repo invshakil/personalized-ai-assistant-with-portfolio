@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { moneyApi } from "@/lib/api/money";
 import { DEFAULTABLE_FIELDS, type OptionSource } from "@/lib/formDefaults/registry";
 import type { SelectOption } from "@/components/admin/SearchableSelect";
+import { isSelectable } from "@/lib/accountPicker";
 
 /** Shown as an explicit option so "no default" is a choice, not an empty box. */
 export const NO_DEFAULT = "__none__";
@@ -31,11 +32,17 @@ export function useDefaultOptions() {
       try {
         const next: OptionMap = {};
         if (needed.has("moneyAccounts")) {
-          const rows = (await moneyApi.listAccounts()) ?? [];
+          // Only what a form could actually offer — an archived account or type
+          // would be dropped as stale the moment a form tried to seed it.
+          const rows = ((await moneyApi.listAccounts()) ?? []).filter(isSelectable);
           next.moneyAccounts = rows.map((a) => ({
             value: a.id,
             label: a.currency && a.currency !== "BDT" ? `${a.name} (${a.currency})` : a.name,
           }));
+        }
+        if (needed.has("accountTypes")) {
+          const rows = ((await moneyApi.listAccountTypes()) ?? []).filter((t) => t.isActive);
+          next.accountTypes = rows.map((t) => ({ value: t.id, label: t.name }));
         }
         if (needed.has("moneyCategories")) {
           const rows = (await moneyApi.listCategories()) ?? [];

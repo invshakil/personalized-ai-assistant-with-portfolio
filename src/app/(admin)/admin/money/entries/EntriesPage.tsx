@@ -37,8 +37,7 @@ export default function EntriesPage() {
     filters.setParams,
     reloadAll
   );
-  const accountIds = useMemo(() => data.accounts.map((a) => a.id), [data.accounts]);
-  const transferDrawer = useTransferDrawer(reloadAll, accountIds);
+  const transferDrawer = useTransferDrawer(reloadAll, data.accounts);
   const actions = useEntryActions(confirm, reloadAll);
 
   const categoryOptions = useMemo(() => {

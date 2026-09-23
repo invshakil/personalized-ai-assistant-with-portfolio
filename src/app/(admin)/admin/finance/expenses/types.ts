@@ -12,6 +12,8 @@ export type ExpenseForm = {
   amount: string;
   fiscalYear: string;
   notes: string;
+  /** Filter only — narrows the account list; never sent to the API. */
+  accountTypeId: string;
   /** Optional Money account to post a linked DEBIT to (opt-in; create only). */
   accountId: string;
 };
@@ -24,5 +26,6 @@ export const BLANK_EXPENSE_FORM: ExpenseForm = {
   amount: "",
   fiscalYear: fiscalYearOf(new Date()),
   notes: "",
+  accountTypeId: "",
   accountId: NO_ACCOUNT,
 };

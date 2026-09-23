@@ -2,9 +2,12 @@ import { useCallback, useState } from "react";
 import { tripsApi } from "@/lib/api/trips";
 import { moneyApi } from "@/lib/api/money";
 import type { MoneyAccountRow } from "@/types";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
+import { pairValidValues, rememberAccountPair, seedAccountPair } from "@/lib/accountPicker";
 import { todayInput } from "../../format";
 
 interface FundForm {
+  fromAccountTypeId: string; // filter only — never sent
   fromAccountId: string;
   amount: string;
   toAmount: string;
@@ -13,6 +16,7 @@ interface FundForm {
 }
 
 const BLANK: FundForm = {
+  fromAccountTypeId: "",
   fromAccountId: "",
   amount: "",
   toAmount: "",
@@ -33,13 +37,21 @@ export function useFundWalletDrawer(
   const [rateNote, setRateNote] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const defaults = useFormDefaults("trips.fundWallet");
 
   const openDrawer = useCallback(() => {
-    setForm(BLANK);
+    // The wallet can't fund itself, so it is never a valid default source.
+    const notWallet = (a: MoneyAccountRow) => a.id !== walletAccountId;
+    const pair = seedAccountPair(
+      accounts,
+      defaults.seed(pairValidValues(accounts, { filter: notWallet })),
+      { filter: notWallet }
+    );
+    setForm({ ...BLANK, fromAccountTypeId: pair.typeId, fromAccountId: pair.accountId });
     setRateNote(null);
     setError(null);
     setOpen(true);
-  }, []);
+  }, [accounts, defaults, walletAccountId]);
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -82,6 +94,9 @@ export function useFundWalletDrawer(
         date: form.date,
         notes: form.notes || null,
       });
+      defaults.remember(
+        rememberAccountPair({ typeId: form.fromAccountTypeId, accountId: form.fromAccountId })
+      );
       setOpen(false);
       await reload();
     } catch (e) {
@@ -89,7 +104,7 @@ export function useFundWalletDrawer(
     } finally {
       setSaving(false);
     }
-  }, [walletAccountId, tripId, form, reload]);
+  }, [walletAccountId, tripId, form, reload, defaults]);
 
   return { open, form, setForm, rateNote, saving, error, openDrawer, close, prefillRate, save };
 }

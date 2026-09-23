@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 import { Box, Button, TextField } from "@mui/material";
 import type { RcForm } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 interface RateChangeAddFormProps {
   rcForm: RcForm;
@@ -35,12 +36,11 @@ export default function RateChangeAddForm({
         value={rcForm.effectiveMonth}
         onChange={(e) => onRcFormChange((f) => ({ ...f, effectiveMonth: e.target.value }))}
       />
-      <TextField
+      <NumberField
         label="New monthly amount (৳)"
-        type="number"
         size="small"
         value={rcForm.monthlyAmount}
-        onChange={(e) => onRcFormChange((f) => ({ ...f, monthlyAmount: e.target.value }))}
+        onChange={(v) => onRcFormChange((f) => ({ ...f, monthlyAmount: v }))}
       />
       <TextField
         label="Note (optional)"

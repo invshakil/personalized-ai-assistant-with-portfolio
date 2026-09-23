@@ -14,7 +14,6 @@ import ExpenseFiltersBar from "./components/ExpenseFiltersBar";
 import ExpenseSummaryCard from "./components/ExpenseSummaryCard";
 import ExpenseTable from "./components/ExpenseTable";
 import ExpenseFormDrawer from "./components/ExpenseFormDrawer";
-import { NO_ACCOUNT } from "./types";
 
 export default function BizExpensesPage() {
   const filters = useExpenseFilters();
@@ -35,10 +34,6 @@ export default function BizExpensesPage() {
     value: c.id,
     label: c.name,
   }));
-  const accountSelectOptions: SelectOption[] = [
-    { value: NO_ACCOUNT, label: "— none —" },
-    ...accounts.map((a) => ({ value: a.id, label: a.name })),
-  ];
 
   // Download mirrors the active fiscal-year filter (the PDF route filters by FY).
   // Use the first selected FY if exactly one is chosen; otherwise no FY param.
@@ -92,7 +87,7 @@ export default function BizExpensesPage() {
         onFormChange={form.setForm}
         onDateChange={form.onDateChange}
         categoryOptions={categorySelectOptions}
-        accountSelectOptions={accountSelectOptions}
+        accounts={accounts}
         saving={form.saving}
         error={form.error}
         onSave={form.save}

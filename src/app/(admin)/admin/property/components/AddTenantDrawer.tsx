@@ -7,6 +7,7 @@ import AddTenantUnitFields from "./AddTenantUnitFields";
 import AddTenantDateFields from "./AddTenantDateFields";
 import AddTenantAdvanceFields from "./AddTenantAdvanceFields";
 import AddTenantDocumentsSection from "./AddTenantDocumentsSection";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 interface AddTenantDrawerProps {
   open: boolean;
@@ -17,8 +18,8 @@ interface AddTenantDrawerProps {
   unitsWithoutFuture: UnitWithTenant[];
   selectedUnit: UnitWithTenant | undefined;
   accounts: MoneyAccountRow[];
-  advanceAccountId: string;
-  onAdvanceAccountChange: (id: string) => void;
+  advanceAccount: AccountSelection;
+  onAdvanceAccountChange: (sel: AccountSelection) => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
   pendingFiles: File[];
   onAddFiles: (files: File[]) => void;
@@ -36,7 +37,7 @@ export default function AddTenantDrawer({
   unitsWithoutFuture,
   selectedUnit,
   accounts,
-  advanceAccountId,
+  advanceAccount,
   onAdvanceAccountChange,
   fileInputRef,
   pendingFiles,
@@ -99,7 +100,7 @@ export default function AddTenantDrawer({
             form={form}
             onFormChange={onFormChange}
             accounts={accounts}
-            advanceAccountId={advanceAccountId}
+            advanceAccount={advanceAccount}
             onAdvanceAccountChange={onAdvanceAccountChange}
           />
 

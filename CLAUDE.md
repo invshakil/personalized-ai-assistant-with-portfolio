@@ -156,6 +156,8 @@ semantic keys and both modes work automatically.
 - **Do not** use MUI components inside portfolio components — use Tailwind
 - **Do not** use `<Box component="nav">` in admin — use `<Box role="navigation">` (global SCSS `nav { position: fixed }` bleeds in)
 - **Do not** use the `<form>` HTML element in React components — use `onSubmit` with controlled state
+- **Do not** use `<TextField type="number">` in admin — use `NumberField` (every number input is a calculator; a test enforces it)
+- **Do not** hand-roll a Money account dropdown or a "payment mode" select — use `AccountTypeAccountSelect` (only active accounts under active account types are selectable)
 - **Do not** add inverter-control / write endpoints to `src/services/solis/` — the SolisCloud integration is **read-only by design**. We only pull telemetry; we never command the inverter.
 
 ---

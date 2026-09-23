@@ -36,7 +36,8 @@ export default function EntryCategoryCell({
           {e.beneficiaryName}
         </EntityLink>
       ) : null}
-      {e.method ? (
+      {/* Legacy: entries saved before the account type replaced "method". */}
+      {e.method && !e.accountId ? (
         <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
           {METHOD_LABEL[e.method]}
         </Typography>

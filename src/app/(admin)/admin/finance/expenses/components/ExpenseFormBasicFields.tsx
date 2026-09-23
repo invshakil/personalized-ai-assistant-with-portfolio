@@ -1,6 +1,7 @@
 import { TextField } from "@mui/material";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import type { ExpenseForm } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 interface ExpenseFormBasicFieldsProps {
   form: ExpenseForm;
@@ -41,13 +42,12 @@ export default function ExpenseFormBasicFields({
         onChange={(v) => onFormChange({ ...form, categoryId: v })}
         sx={{ mb: 2 }}
       />
-      <TextField
+      <NumberField
         label="Amount (৳)"
-        type="number"
         size="small"
         fullWidth
         value={form.amount}
-        onChange={(e) => onFormChange({ ...form, amount: e.target.value })}
+        onChange={(v) => onFormChange({ ...form, amount: v })}
         sx={{ mb: 2 }}
       />
       <TextField

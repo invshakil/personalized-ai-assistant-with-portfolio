@@ -1,5 +1,5 @@
 import { MONEY_RANGE_PERIOD, todayInput, type MoneyRange } from "../format";
-import type { MoneyCategoryRow, MoneyEntryMethod } from "@/types";
+import type { MoneyCategoryRow } from "@/types";
 
 export type EntryDir = "CREDIT" | "DEBIT";
 
@@ -37,18 +37,21 @@ export type EntryForm = {
   direction: EntryDir;
   amount: string;
   categoryId: string;
+  /** Filter only — narrows the account list; never sent to the API. */
+  accountTypeId: string;
   accountId: string;
   description: string;
   notes: string;
   beneficiaryId: string;
   obligationId: string;
-  /** How a CREDIT arrived (cash/bank transfer/etc.) — CREDIT-only. */
-  method: MoneyEntryMethod | "";
 };
 
 export type TransferForm = {
   date: string;
+  /** Filters only — narrow each side's account list; never sent to the API. */
+  fromAccountTypeId: string;
   fromAccountId: string;
+  toAccountTypeId: string;
   toAccountId: string;
   amount: string;
   /** Destination amount (destination currency) for a cross-currency transfer. */
@@ -63,12 +66,12 @@ export const BLANK_ENTRY: EntryForm = {
   direction: "DEBIT",
   amount: "",
   categoryId: "",
+  accountTypeId: "",
   accountId: "",
   description: "",
   notes: "",
   beneficiaryId: "",
   obligationId: "",
-  method: "",
 };
 
 // Entry direction → which side of an obligation it can settle.
@@ -79,7 +82,9 @@ export const DIR_TO_OBLIGATION: Record<EntryDir, "OWED_BY_ME" | "OWED_TO_ME"> = 
 
 export const BLANK_TRANSFER: TransferForm = {
   date: todayInput(),
+  fromAccountTypeId: "",
   fromAccountId: "",
+  toAccountTypeId: "",
   toAccountId: "",
   amount: "",
   toAmount: "",
@@ -105,7 +110,9 @@ export function swapTransferDirection(t: TransferForm): TransferForm {
   const amountsArePaired = t.toAmount !== "";
   return {
     ...t,
+    fromAccountTypeId: t.toAccountTypeId,
     fromAccountId: t.toAccountId,
+    toAccountTypeId: t.fromAccountTypeId,
     toAccountId: t.fromAccountId,
     ...(amountsArePaired && { amount: t.toAmount, toAmount: t.amount }),
   };

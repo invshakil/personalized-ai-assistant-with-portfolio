@@ -3,13 +3,13 @@ import {
   Checkbox,
   Chip,
   FormControlLabel,
-  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import type { TripParticipantRow, TripSplitMode } from "@/types";
 import { fmtCurrency } from "../../format";
+import NumberField from "@/components/admin/NumberField";
 
 interface Props {
   participants: TripParticipantRow[]; // active only
@@ -88,11 +88,10 @@ export default function SplitEditor({
                 }
               />
               {on && splitMode === "EXACT" ? (
-                <TextField
-                  type="number"
+                <NumberField
                   size="small"
                   value={exactAmounts[p.id] ?? ""}
-                  onChange={(e) => onExact(p.id, e.target.value)}
+                  onChange={(v) => onExact(p.id, v)}
                   sx={{ width: 110 }}
                 />
               ) : (

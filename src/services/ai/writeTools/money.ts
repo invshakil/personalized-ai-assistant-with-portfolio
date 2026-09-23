@@ -4,6 +4,7 @@
 // model can use natural-language references ("Cash", "bKash", "Mum").
 import {
   listAccountsWithBalances,
+  listAccountTypes,
   createAccount,
   createEntry,
   updateEntry,
@@ -37,19 +38,12 @@ import {
   Str,
   Num,
   Enum,
+  selectableAccountByName,
 } from "./shared";
 
 // ─── Reference resolvers ──────────────────────────────────────────────────────
 
-async function accountByName(name: string) {
-  const accounts = await listAccountsWithBalances();
-  const found = accounts.find((a) => a.name.toLowerCase() === name.toLowerCase());
-  if (!found) {
-    const names = accounts.map((a) => a.name).join(", ");
-    throw new Error(`No account named "${name}". Available: ${names}`);
-  }
-  return found;
-}
+const accountByName = selectableAccountByName;
 
 async function beneficiaryByName(name: string) {
   const people = await getBeneficiaries();
@@ -64,7 +58,6 @@ async function beneficiaryByName(name: string) {
 }
 
 const DIRECTIONS = ["CREDIT", "DEBIT"] as const;
-const METHODS = ["CASH", "BANK_TRANSFER", "MOBILE_BANKING", "CHEQUE", "OTHER"] as const;
 const PAYMENT_DIRS = ["DEBIT", "CREDIT"] as const;
 const ACCOUNT_TYPES = ["CASH", "BANK", "MOBILE_WALLET", "CREDIT_CARD", "OTHER"] as const;
 const OBLIGATION_DIRS = ["OWED_BY_ME", "OWED_TO_ME"] as const;
@@ -84,7 +77,7 @@ export const moneyTools: WriteToolDef[] = [
       "categoryName is free-text — it will be created if it doesn't exist (INCOME for CREDIT, EXPENSE for DEBIT). " +
       "accountName must match an existing account (use get_account_balances to list them); the amount is " +
       "in that account's currency (e.g. a USD account → amount is USD; BDT/no account → BDT). " +
-      "method (CREDIT only) records how the money arrived: CASH, BANK_TRANSFER, MOBILE_BANKING, CHEQUE, OTHER. " +
+      "How money moved is the account's type (Cash, Bank, bKash…), so pass accountName rather than a method. " +
       "To move money between two of your own accounts (e.g. cash withdrawal) use record_money_transfer instead.",
     parameters: schema(
       {
@@ -93,7 +86,6 @@ export const moneyTools: WriteToolDef[] = [
         date: Str("Date YYYY-MM-DD"),
         categoryName: Str("Category name (created if needed, e.g. Groceries, Salary)"),
         accountName: Str("Account name, e.g. Cash, bKash (optional)"),
-        method: Enum(METHODS, "How a CREDIT arrived (optional; CREDIT only)"),
         description: Str("Short description (optional)"),
         notes: Str("Notes (optional)"),
       },
@@ -105,7 +97,6 @@ export const moneyTools: WriteToolDef[] = [
       date: reqDate(i.date, "date"),
       categoryName: reqStr(i.categoryName, "categoryName"),
       accountName: optStr(i.accountName),
-      method: optEnum(i.method, METHODS, "method"),
       description: optStr(i.description) ?? null,
       notes: optStr(i.notes) ?? null,
     }),
@@ -126,7 +117,6 @@ export const moneyTools: WriteToolDef[] = [
         amount: a.amount,
         categoryId,
         accountId: account?.id ?? null,
-        method: a.direction === "CREDIT" ? a.method : null,
         description: a.description,
         notes: a.notes,
       });
@@ -151,7 +141,6 @@ export const moneyTools: WriteToolDef[] = [
         date: Str("New date YYYY-MM-DD (optional)"),
         categoryName: Str("New category name (optional)"),
         accountName: Str("New account name (optional — pass empty string to clear)"),
-        method: Enum(METHODS, "New source — how a CREDIT arrived (optional; CREDIT only)"),
         description: Str("New description (optional)"),
         notes: Str("New notes (optional)"),
       },
@@ -166,7 +155,6 @@ export const moneyTools: WriteToolDef[] = [
         categoryName: optStr(i.categoryName),
         accountName: optStr(i.accountName),
         clearAccount: i.accountName === "",
-        method: optEnum(i.method, METHODS, "method"),
         description: optStr(i.description),
         notes: optStr(i.notes),
       };
@@ -177,7 +165,6 @@ export const moneyTools: WriteToolDef[] = [
         patch.categoryName === undefined &&
         patch.accountName === undefined &&
         !patch.clearAccount &&
-        patch.method === undefined &&
         patch.description === undefined &&
         patch.notes === undefined
       ) {
@@ -217,7 +204,6 @@ export const moneyTools: WriteToolDef[] = [
         date: patch.date,
         categoryId,
         accountId,
-        method: patch.method,
         description: patch.description,
         notes: patch.notes,
       });
@@ -412,43 +398,72 @@ export const moneyTools: WriteToolDef[] = [
   write({
     name: "create_money_account",
     description:
-      "Add a personal money account (where funds live). type: CASH, BANK, MOBILE_WALLET (e.g. bKash/Nagad), CREDIT_CARD, or OTHER. " +
+      "Add a personal money account (where funds live). Pass accountType — the name of one of the user's active account types " +
+      "(e.g. Cash, Bank, bKash; archived types are refused) — or, if none fits, type: CASH, BANK, MOBILE_WALLET, CREDIT_CARD or OTHER, " +
+      "which picks the first active account type of that kind. " +
       "openingBalance is the current balance to start the account at (default 0). creditLimit applies only to CREDIT_CARD. " +
       "Use this before assigning entries to a new account.",
     parameters: schema(
       {
         name: Str("Account name, e.g. Cash, City Bank, bKash"),
-        type: Enum(ACCOUNT_TYPES, "CASH, BANK, MOBILE_WALLET, CREDIT_CARD or OTHER"),
+        accountType: Str("Name of an active account type, e.g. Bank, bKash (preferred)"),
+        type: Enum(ACCOUNT_TYPES, "Kind, used when accountType is omitted"),
         currency: Enum(CURRENCIES, "Account currency: BDT (default), USD or EUR"),
         openingBalance: Num("Starting balance in the account's currency (default 0)"),
         creditLimit: Num("Credit limit (CREDIT_CARD only, optional)"),
         notes: Str("Notes (optional)"),
       },
-      ["name", "type"]
+      ["name"]
     ),
-    parse: (i) => ({
-      name: reqStr(i.name, "name"),
-      type: reqEnum(i.type, ACCOUNT_TYPES, "type") as MoneyAccountType,
-      currency: (optEnum(i.currency, CURRENCIES, "currency") ?? "BDT") as string,
-      openingBalance: optNum(i.openingBalance),
-      creditLimit: optNum(i.creditLimit),
-      notes: optStr(i.notes) ?? null,
-    }),
+    parse: (i) => {
+      const accountType = optStr(i.accountType);
+      const type = optEnum(i.type, ACCOUNT_TYPES, "type") as MoneyAccountType | undefined;
+      if (!accountType && !type)
+        throw new Error("Pass accountType (a type name) or type (a kind).");
+      return {
+        name: reqStr(i.name, "name"),
+        accountType,
+        type,
+        currency: (optEnum(i.currency, CURRENCIES, "currency") ?? "BDT") as string,
+        openingBalance: optNum(i.openingBalance),
+        creditLimit: optNum(i.creditLimit),
+        notes: optStr(i.notes) ?? null,
+      };
+    },
     preview: async (a) => {
       const bal =
         a.openingBalance != null
           ? ` with opening balance ${cur(a.openingBalance, a.currency)}`
           : "";
       const ccy = a.currency !== "BDT" ? ` (${a.currency})` : "";
-      return `Create ${a.type.toLowerCase().replace("_", " ")} account "${a.name}"${ccy}${bal}.`;
+      const kind = a.accountType ?? a.type!.toLowerCase().replace("_", " ");
+      return `Create ${kind} account "${a.name}"${ccy}${bal}.`;
     },
     commit: async (a) => {
       const existing = await listAccountsWithBalances();
       if (existing.some((x) => x.name.toLowerCase() === a.name.toLowerCase())) {
         throw new Error(`An account named "${a.name}" already exists.`);
       }
+      let accountTypeId: string | null = null;
+      if (a.accountType) {
+        const types = await listAccountTypes();
+        const t = types.find((x) => x.name.toLowerCase() === a.accountType!.toLowerCase());
+        if (!t || !t.isActive) {
+          const names = types
+            .filter((x) => x.isActive)
+            .map((x) => x.name)
+            .join(", ");
+          throw new Error(
+            t
+              ? `Account type "${t.name}" is archived. Active types: ${names}`
+              : `No account type named "${a.accountType}". Active types: ${names}`
+          );
+        }
+        accountTypeId = t.id;
+      }
       const account = await createAccount({
         name: a.name,
+        accountTypeId,
         type: a.type,
         currency: a.currency,
         openingBalance: a.openingBalance ?? 0,
@@ -456,7 +471,7 @@ export const moneyTools: WriteToolDef[] = [
         notes: a.notes,
       });
       return {
-        summary: `Created ${a.type} account "${account.name}" (${account.currency}).`,
+        summary: `Created ${a.accountType ?? a.type} account "${account.name}" (${account.currency}).`,
         data: account,
       };
     },

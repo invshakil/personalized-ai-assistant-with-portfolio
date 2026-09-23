@@ -16,6 +16,7 @@ export type DefaultMode = "fixed" | "lastUsed";
 /** Which option set the Settings page renders to choose a value. */
 export type OptionSource =
   | "moneyAccounts"
+  | "accountTypes"
   | "moneyCategories"
   | "payees"
   | "employees"
@@ -43,20 +44,50 @@ export interface DefaultableField {
   hint?: string;
 }
 
+/**
+ * The two fields behind one "Account type → Account" picker. The type is only a
+ * filter, so its default narrows the account list; when both are set and
+ * disagree, the account wins (see lib/accountPicker.ts → seedSelection).
+ */
+function accountPair(
+  scope: string,
+  module: string,
+  form: string,
+  opts: { prefix?: string; label?: string; hint?: string } = {}
+): DefaultableField[] {
+  const { prefix = "", label = "Account", hint } = opts;
+  const key = (f: string) => (prefix ? `${prefix}${f[0].toUpperCase()}${f.slice(1)}` : f);
+  return [
+    {
+      scope,
+      field: key("accountTypeId"),
+      label: `${label} type`,
+      module,
+      form,
+      source: "accountTypes",
+      mode: "fixed",
+      hint: "Narrows the account list. Ignored when a default account is set.",
+    },
+    {
+      scope,
+      field: key("accountId"),
+      label,
+      module,
+      form,
+      source: "moneyAccounts",
+      mode: "fixed",
+      hint,
+    },
+  ];
+}
+
 // Accounts default to "fixed" and categories to "lastUsed" on purpose: money
 // tends to come from the same wallet every time, while categories arrive in
 // runs — three cement purchases, then something else entirely.
 export const DEFAULTABLE_FIELDS: DefaultableField[] = [
-  {
-    scope: "money.entry",
-    field: "accountId",
-    label: "Account",
-    module: "Money Manager",
-    form: "Add Entry",
-    source: "moneyAccounts",
-    mode: "fixed",
+  ...accountPair("money.entry", "Money Manager", "Add Entry", {
     hint: "Which account a new entry is recorded against.",
-  },
+  }),
   {
     scope: "money.entry",
     field: "categoryId",
@@ -67,34 +98,42 @@ export const DEFAULTABLE_FIELDS: DefaultableField[] = [
     mode: "lastUsed",
     hint: "Remembers the last category you saved.",
   },
-  {
-    scope: "money.transfer",
-    field: "fromAccountId",
+  ...accountPair("money.transfer", "Money Manager", "Transfer", {
+    prefix: "from",
     label: "From account",
-    module: "Money Manager",
-    form: "Transfer",
-    source: "moneyAccounts",
-    mode: "fixed",
-  },
-  {
-    scope: "money.transfer",
-    field: "toAccountId",
+  }),
+  ...accountPair("money.transfer", "Money Manager", "Transfer", {
+    prefix: "to",
     label: "To account",
-    module: "Money Manager",
-    form: "Transfer",
-    source: "moneyAccounts",
-    mode: "fixed",
-  },
-  {
-    scope: "money.personPayment",
-    field: "accountId",
-    label: "Account",
-    module: "Money Manager",
-    form: "Record Payment (People)",
-    source: "moneyAccounts",
-    mode: "fixed",
+  }),
+  ...accountPair("money.personPayment", "Money Manager", "Record Payment (People)", {
     hint: "Which account a payment to a person comes from.",
-  },
+  }),
+  ...accountPair("finance.payment", "Financial Tracker", "Salary Payment", {
+    label: "Pay from account",
+  }),
+  ...accountPair("finance.expense", "Financial Tracker", "Business Expense", {
+    label: "Pay from account",
+  }),
+  ...accountPair("finance.earning", "Financial Tracker", "Earning", {
+    label: "Deposit to account",
+  }),
+  ...accountPair("finance.convert", "Financial Tracker", "Convert Earnings", {
+    prefix: "to",
+    label: "To account (BDT)",
+  }),
+  ...accountPair("property.payment", "Property", "Rent Receipt", {
+    label: "Add to account",
+    hint: "Unset: the first account matching the receipt type (Cash / Bank).",
+  }),
+  ...accountPair("property.expense", "Property", "Property Expense", {
+    label: "Pay from account",
+  }),
+  ...accountPair("property.advance", "Property", "Tenant Advance", {
+    label: "Add advance to account",
+  }),
+  ...accountPair("trips.expense", "Trips", "Trip Expense", { label: "Paid from account" }),
+  ...accountPair("trips.fundWallet", "Trips", "Fund Wallet", { label: "From account" }),
 ];
 
 const byKey = new Map(DEFAULTABLE_FIELDS.map((f) => [`${f.scope}|${f.field}`, f]));

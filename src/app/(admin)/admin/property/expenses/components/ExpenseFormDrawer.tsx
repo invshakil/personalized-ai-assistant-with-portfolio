@@ -3,6 +3,7 @@ import type { Payee, PropertyServiceType, MoneyAccountRow } from "@/types";
 import type { ExpenseForm } from "../types";
 import ExpenseFormBasicFields from "./ExpenseFormBasicFields";
 import ExpenseFormExtraFields from "./ExpenseFormExtraFields";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 interface ExpenseFormDrawerProps {
   open: boolean;
@@ -16,8 +17,8 @@ interface ExpenseFormDrawerProps {
   serviceTypes: PropertyServiceType[];
   payees: Payee[];
   accounts: MoneyAccountRow[];
-  expenseAccountId: string;
-  onAccountChange: (id: string) => void;
+  expenseAccount: AccountSelection;
+  onAccountChange: (sel: AccountSelection) => void;
 }
 
 export default function ExpenseFormDrawer({
@@ -32,7 +33,7 @@ export default function ExpenseFormDrawer({
   serviceTypes,
   payees,
   accounts,
-  expenseAccountId,
+  expenseAccount,
   onAccountChange,
 }: ExpenseFormDrawerProps) {
   return (
@@ -58,7 +59,7 @@ export default function ExpenseFormDrawer({
           onFormChange={onFormChange}
           editing={editing}
           accounts={accounts}
-          expenseAccountId={expenseAccountId}
+          expenseAccount={expenseAccount}
           onAccountChange={onAccountChange}
         />
 

@@ -228,7 +228,10 @@ export interface PropertyExpense {
   year: number;
   expenseDate: string | null;
   paidTo: string | null;
-  paymentMode: string | null;
+  paymentMode: string | null; // legacy free text — shown only when there is no account
+  accountId: string | null;
+  accountName: string | null;
+  accountTypeName: string | null; // the payment mode for rows recorded with an account
   unitId: string | null;
   unitNumber: string | null;
   payeeId: string | null;

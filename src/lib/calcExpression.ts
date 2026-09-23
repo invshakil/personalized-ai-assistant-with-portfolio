@@ -13,8 +13,17 @@
 //   factor  := ("-" | "+")? primary
 //   primary := number | "(" expr ")"
 
-/** Amounts are money, so results round to 2 decimals — 0.1 + 0.2 is 0.3, not 0.30000000000000004. */
-const round2 = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
+/**
+ * Results round to a fixed number of decimals — 2 by default, because most
+ * fields are money: 0.1 + 0.2 is 0.3, not 0.30000000000000004. Fields that need
+ * more precision (an FX rate, a per-kWh tariff) pass their own.
+ */
+export const DEFAULT_DECIMALS = 2;
+
+const roundTo = (n: number, decimals: number): number => {
+  const f = 10 ** decimals;
+  return Math.round((n + Number.EPSILON) * f) / f;
+};
 
 export interface CalcResult {
   ok: boolean;
@@ -74,7 +83,7 @@ function tokenize(src: string): Token[] | null {
  * falling back to a partial read of the text: `parseFloat("200 + 300")` is 200,
  * which would silently save the wrong figure.
  */
-export function evaluateExpression(input: string): CalcResult {
+export function evaluateExpression(input: string, decimals = DEFAULT_DECIMALS): CalcResult {
   const tokens = tokenize(input.trim());
   if (!tokens || tokens.length === 0) return INVALID;
 
@@ -151,7 +160,7 @@ export function evaluateExpression(input: string): CalcResult {
   // must still be rejected.
   if (failed || pos !== tokens.length || !Number.isFinite(result)) return INVALID;
 
-  return { ok: true, value: round2(result) };
+  return { ok: true, value: roundTo(result, decimals) };
 }
 
 /**
@@ -165,6 +174,6 @@ export function isExpression(input: string): boolean {
 }
 
 /** The canonical form-state string for a result: no trailing zeros, no float noise. */
-export function toAmountString(value: number): string {
-  return String(round2(value));
+export function toAmountString(value: number, decimals = DEFAULT_DECIMALS): string {
+  return String(roundTo(value, decimals));
 }

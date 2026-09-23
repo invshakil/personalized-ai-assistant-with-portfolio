@@ -33,6 +33,8 @@ function sourceFiles(dir: string, out: string[] = []): string[] {
 
 /** scope → what the file declaring it does with the hook. */
 const wiring = new Map<string, { seeds: boolean; remembers: boolean; file: string }>();
+/** scope → the source of every file that reads it, for field-level checks. */
+const sources = new Map<string, string[]>();
 
 for (const file of sourceFiles(ADMIN_ROOT)) {
   const src = readFileSync(file, "utf8");
@@ -44,6 +46,7 @@ for (const file of sourceFiles(ADMIN_ROOT)) {
   const seeds = /\.seed\(/.test(src);
   const remembers = /\.remember\(/.test(src);
   for (const scope of scopes) {
+    sources.set(scope, [...(sources.get(scope) ?? []), src]);
     const prev = wiring.get(scope);
     wiring.set(scope, {
       seeds: seeds || !!prev?.seeds,
@@ -99,4 +102,56 @@ test("no form reads a scope the registry does not declare", () => {
         `setFormDefault would refuse it`
     );
   }
+});
+
+/**
+ * The prefix of every `rememberAccountPair(...)` call in a source: "" for
+ * `rememberAccountPair(sel)`, "from" for `rememberAccountPair(sel, "from")`.
+ * Walks balanced parens so an object-literal first argument is handled.
+ */
+function rememberPrefixes(src: string): string[] {
+  const out: string[] = [];
+  const re = /rememberAccountPair\(/g;
+  for (let m = re.exec(src); m; m = re.exec(src)) {
+    let depth = 1;
+    let i = m.index + m[0].length;
+    const start = i;
+    for (; i < src.length && depth > 0; i++) {
+      if (src[i] === "(") depth++;
+      else if (src[i] === ")") depth--;
+    }
+    const args = src.slice(start, i - 1);
+    out.push(/,\s*"(\w+)"\s*,?\s*$/.exec(args)?.[1] ?? "");
+  }
+  return out;
+}
+
+test("every registered field is named by a form that reads its scope", () => {
+  // Scope-level wiring is not enough: a form can seed "accountId" while the
+  // registry also offers "accountTypeId", which Settings would then show as a
+  // default that does nothing. A field counts as named when the source spells
+  // it out, or — for an account picker — when it remembers the pair through
+  // rememberAccountPair with the matching prefix ("from", "to", or none).
+  const PAIR = /^(|from|to)(?:A|a)ccount(?:Type)?Id$/;
+  for (const f of DEFAULTABLE_FIELDS) {
+    const srcs = sources.get(f.scope) ?? [];
+    const prefix = PAIR.exec(f.field)?.[1];
+    const named = srcs.some(
+      (src) =>
+        src.includes(f.field) || (prefix !== undefined && rememberPrefixes(src).includes(prefix))
+    );
+    assert.ok(named, `"${f.scope}.${f.field}" is registered but its form never mentions it`);
+  }
+});
+
+test("rememberPrefixes reads the prefix of each remember call", () => {
+  // Guards the field check above from passing vacuously on a parse slip.
+  assert.deepEqual(rememberPrefixes("defaults.remember(rememberAccountPair(sel));"), [""]);
+  assert.deepEqual(
+    rememberPrefixes(
+      'rememberAccountPair({ typeId: f.a, accountId: g(f.b) }, "from"); rememberAccountPair(t, "to")'
+    ),
+    ["from", "to"]
+  );
+  assert.deepEqual(rememberPrefixes("no calls here"), []);
 });

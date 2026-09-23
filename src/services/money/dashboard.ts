@@ -175,6 +175,7 @@ export async function getMoneyDashboard(input: RangeInput = {}): Promise<MoneyDa
       id: a.id,
       name: a.name,
       type: a.type,
+      accountTypeName: a.accountTypeName,
       currency: a.currency,
       balance: a.balance,
       creditLimit: a.creditLimit,

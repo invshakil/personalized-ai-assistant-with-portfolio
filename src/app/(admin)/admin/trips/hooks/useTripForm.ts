@@ -10,6 +10,7 @@ export interface TripForm {
   startDate: string;
   endDate: string;
   status: TripStatus;
+  localWalletTypeId: string; // filter only — never sent
   localWalletAccountId: string;
   notes: string;
   publicIntro: string;
@@ -22,6 +23,7 @@ const BLANK: TripForm = {
   startDate: todayInput(),
   endDate: "",
   status: "PLANNING",
+  localWalletTypeId: "",
   localWalletAccountId: "",
   notes: "",
   publicIntro: "",
@@ -51,6 +53,7 @@ export function useTripForm(reload: () => Promise<void>) {
       startDate: t.startDate.slice(0, 10),
       endDate: t.endDate?.slice(0, 10) ?? "",
       status: t.status,
+      localWalletTypeId: "", // "All types": the chosen wallet shows as-is
       localWalletAccountId: t.localWalletAccountId ?? "",
       notes: t.notes ?? "",
       publicIntro: t.publicIntro ?? "",

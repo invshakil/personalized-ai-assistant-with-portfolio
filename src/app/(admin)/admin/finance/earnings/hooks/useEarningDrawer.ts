@@ -2,6 +2,13 @@ import { useCallback, useState } from "react";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { financeApi } from "@/lib/api/finance";
 import type { MoneyAccountRow } from "@/types";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
+import {
+  pairValidValues,
+  rememberAccountPair,
+  seedAccountPair,
+  withKindFallback,
+} from "@/lib/accountPicker";
 import type { EarningRow, SourceRow } from "../../types";
 import { fmtDate, todayInput } from "../../format";
 import { BLANK_EARNING_FORM, NO_ACCOUNT, type EarningForm } from "../types";
@@ -19,16 +26,25 @@ export function useEarningDrawer(
   const [rateLoading, setRateLoading] = useState(false);
   const [rateNote, setRateNote] = useState<string | null>(null);
 
-  const defaultAccountId = () => accounts.find((a) => a.type === "BANK")?.id ?? NO_ACCOUNT;
+  const defaults = useFormDefaults("finance.earning");
+  // A stored default wins; with none, the form still starts on the first Bank account.
+  const seedPair = () =>
+    withKindFallback(
+      accounts,
+      seedAccountPair(accounts, defaults.seed(pairValidValues(accounts))),
+      "BANK"
+    );
 
   const openAdd = () => {
     setEditing(null);
+    const pair = seedPair();
     setForm({
       ...BLANK_EARNING_FORM,
       date: todayInput(),
       fiscalYear: fiscalYearOf(new Date()),
       sourceId: sources[0]?.id ?? "",
-      accountId: defaultAccountId(),
+      accountTypeId: pair.typeId,
+      accountId: pair.accountId,
     });
     setError(null);
     setDrawerOpen(true);
@@ -45,6 +61,7 @@ export function useEarningDrawer(
       fxRate: String(e.fxRate),
       fiscalYear: e.fiscalYear,
       notes: e.notes ?? "",
+      accountTypeId: "",
       accountId: NO_ACCOUNT,
     });
     setRateNote(null);
@@ -118,7 +135,12 @@ export function useEarningDrawer(
       };
       if (editing) await financeApi.updateEarning(editing, body);
       // accountId is create-only (opt-in link; no back-sync on edit).
-      else await financeApi.createEarning({ ...body, accountId: form.accountId || undefined });
+      else {
+        await financeApi.createEarning({ ...body, accountId: form.accountId || undefined });
+        defaults.remember(
+          rememberAccountPair({ typeId: form.accountTypeId, accountId: form.accountId })
+        );
+      }
       setDrawerOpen(false);
       await onSuccess();
     } catch (e: unknown) {

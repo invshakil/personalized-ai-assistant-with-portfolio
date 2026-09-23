@@ -2,6 +2,7 @@ import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle } from
 import type { MoneyAccountRow } from "@/types";
 import type { AddFutureForm, TenantHistory, UnitDetail } from "../types";
 import AddFutureTenantFields from "./AddFutureTenantFields";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 interface AddFutureTenantDialogProps {
   open: boolean;
@@ -11,8 +12,8 @@ interface AddFutureTenantDialogProps {
   form: AddFutureForm;
   onFormChange: (form: AddFutureForm) => void;
   accounts: MoneyAccountRow[];
-  advanceAccountId: string;
-  onAdvanceAccountChange: (id: string) => void;
+  advanceAccount: AccountSelection;
+  onAdvanceAccountChange: (sel: AccountSelection) => void;
   saving: boolean;
   onSave: () => void;
 }
@@ -25,7 +26,7 @@ export default function AddFutureTenantDialog({
   form,
   onFormChange,
   accounts,
-  advanceAccountId,
+  advanceAccount,
   onAdvanceAccountChange,
   saving,
   onSave,
@@ -52,7 +53,7 @@ export default function AddFutureTenantDialog({
           unit={unit}
           currentTenant={currentTenant}
           accounts={accounts}
-          advanceAccountId={advanceAccountId}
+          advanceAccount={advanceAccount}
           onAdvanceAccountChange={onAdvanceAccountChange}
         />
       </DialogContent>

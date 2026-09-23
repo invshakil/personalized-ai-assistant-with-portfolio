@@ -2,6 +2,8 @@ import { Box, TextField } from "@mui/material";
 import type { MoneyAccountRow } from "@/types";
 import { dayBefore, fmt, type AddFutureForm, type TenantHistory, type UnitDetail } from "../types";
 import AddFutureTenantAdvanceFields from "./AddFutureTenantAdvanceFields";
+import NumberField from "@/components/admin/NumberField";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 interface AddFutureTenantFieldsProps {
   form: AddFutureForm;
@@ -9,8 +11,8 @@ interface AddFutureTenantFieldsProps {
   unit: UnitDetail | null;
   currentTenant: TenantHistory | null;
   accounts: MoneyAccountRow[];
-  advanceAccountId: string;
-  onAdvanceAccountChange: (id: string) => void;
+  advanceAccount: AccountSelection;
+  onAdvanceAccountChange: (sel: AccountSelection) => void;
 }
 
 export default function AddFutureTenantFields({
@@ -19,7 +21,7 @@ export default function AddFutureTenantFields({
   unit,
   currentTenant,
   accounts,
-  advanceAccountId,
+  advanceAccount,
   onAdvanceAccountChange,
 }: AddFutureTenantFieldsProps) {
   return (
@@ -81,11 +83,10 @@ export default function AddFutureTenantFields({
         onChange={(e) => onFormChange({ ...form, leaseEndDate: e.target.value })}
         slotProps={{ inputLabel: { shrink: true } }}
       />
-      <TextField
+      <NumberField
         label={currentTenant ? "New Rent (৳)" : "Monthly Rent (৳)"}
-        type="number"
         value={form.newRent}
-        onChange={(e) => onFormChange({ ...form, newRent: e.target.value })}
+        onChange={(v) => onFormChange({ ...form, newRent: v })}
         size="small"
         fullWidth
         placeholder={String(unit?.monthlyRent ?? "")}
@@ -102,7 +103,7 @@ export default function AddFutureTenantFields({
         form={form}
         onFormChange={onFormChange}
         accounts={accounts}
-        advanceAccountId={advanceAccountId}
+        advanceAccount={advanceAccount}
         onAdvanceAccountChange={onAdvanceAccountChange}
       />
     </Box>

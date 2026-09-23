@@ -1,6 +1,8 @@
 import { FormControl, InputLabel, MenuItem, Select, TextField } from "@mui/material";
-import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
 import type { MoneyAccountRow, PaymentWithTenant } from "@/types";
+import NumberField from "@/components/admin/NumberField";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 interface PaymentDrawerFieldsProps {
   payment: PaymentWithTenant;
@@ -8,9 +10,8 @@ interface PaymentDrawerFieldsProps {
   txType: string;
   onTxTypeChange: (v: string) => void;
   accounts: MoneyAccountRow[];
-  accountOptions: SelectOption[];
-  txAccountId: string;
-  onTxAccountChange: (v: string) => void;
+  txAccount: AccountSelection;
+  onTxAccountChange: (sel: AccountSelection) => void;
   txAmount: string;
   onTxAmountChange: (v: string) => void;
   txDate: string;
@@ -25,8 +26,7 @@ export default function PaymentDrawerFields({
   txType,
   onTxTypeChange,
   accounts,
-  accountOptions,
-  txAccountId,
+  txAccount,
   onTxAccountChange,
   txAmount,
   onTxAmountChange,
@@ -53,28 +53,26 @@ export default function PaymentDrawerFields({
       {mode === "pay" &&
         (txType === "CASH" || txType === "BANK_TRANSFER") &&
         accounts.length > 0 && (
-          <SearchableSelect
-            label="Add to wallet/account (optional)"
-            value={txAccountId}
-            options={accountOptions}
+          <AccountTypeAccountSelect
+            accounts={accounts}
+            accountLabel="Add to account (optional)"
+            value={txAccount}
             onChange={onTxAccountChange}
+            optional
+            noneLabel="— none / don't add to an account —"
             sx={{ mb: 2 }}
           />
         )}
 
-      <TextField
+      <NumberField
         label="Amount (৳)"
-        type="number"
         size="small"
         fullWidth
         value={txAmount}
-        onChange={(e) => onTxAmountChange(e.target.value)}
+        onChange={onTxAmountChange}
+        min={0}
+        max={mode === "advance" ? Math.min(payment.advanceBalance, payment.balance) : undefined}
         sx={{ mb: 2 }}
-        slotProps={{
-          htmlInput: {
-            max: mode === "advance" ? Math.min(payment.advanceBalance, payment.balance) : undefined,
-          },
-        }}
       />
       <TextField
         label="Date"

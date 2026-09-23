@@ -13,7 +13,7 @@ import type { MoneyEntryRow, MoneyEntryMethod } from "@/types";
 
 const ENTRY_INCLUDE = {
   category: { select: { name: true, kind: true } },
-  account: { select: { name: true, type: true } },
+  account: { select: { name: true, type: true, accountType: { select: { name: true } } } },
   transferAccount: { select: { name: true } },
   beneficiary: { select: { name: true } },
 } satisfies Prisma.MoneyEntryInclude;
@@ -35,6 +35,7 @@ function serializeEntry(e: EntryWithRelations): MoneyEntryRow {
     accountId: e.accountId,
     accountName: e.account?.name ?? null,
     accountType: e.account?.type ?? null,
+    accountTypeName: e.account?.accountType.name ?? null,
     transferAccountId: e.transferAccountId,
     transferAccountName: e.transferAccount?.name ?? null,
     beneficiaryId: e.beneficiaryId,

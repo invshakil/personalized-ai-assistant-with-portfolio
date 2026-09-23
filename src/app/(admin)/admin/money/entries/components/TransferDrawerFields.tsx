@@ -3,6 +3,7 @@ import type { MoneyAccountRow } from "@/types";
 import { currencySymbol, fmtCurrency } from "../../format";
 import type { TransferForm } from "../types";
 import TransferAccountFields from "./TransferAccountFields";
+import NumberField from "@/components/admin/NumberField";
 
 interface TransferDrawerFieldsProps {
   transfer: TransferForm;
@@ -40,34 +41,31 @@ export default function TransferDrawerFields({
   return (
     <>
       <TransferAccountFields transfer={transfer} setTransfer={setTransfer} accounts={accounts} />
-      <TextField
+      <NumberField
         label={`Amount (${currencySymbol(fromCur)})`}
-        type="number"
         size="small"
         fullWidth
         value={transfer.amount}
-        onChange={(e) => setTransfer((t) => ({ ...t, amount: e.target.value }))}
+        onChange={(v) => setTransfer((t) => ({ ...t, amount: v }))}
         sx={{ mb: 2 }}
       />
       {crossCurrency && (
-        <TextField
+        <NumberField
           label={`Amount received (${currencySymbol(toCur)})`}
-          type="number"
           size="small"
           fullWidth
           value={transfer.toAmount}
-          onChange={(e) => setTransfer((t) => ({ ...t, toAmount: e.target.value }))}
+          onChange={(v) => setTransfer((t) => ({ ...t, toAmount: v }))}
           helperText={`Cross-currency: enter how much ${toCur} arrives in the destination.`}
           sx={{ mb: 2 }}
         />
       )}
-      <TextField
+      <NumberField
         label={`Fee (${currencySymbol(fromCur)}) — optional`}
-        type="number"
         size="small"
         fullWidth
         value={transfer.fee}
-        onChange={(e) => setTransfer((t) => ({ ...t, fee: e.target.value }))}
+        onChange={(v) => setTransfer((t) => ({ ...t, fee: v }))}
         helperText={feeHelper}
         sx={{ mb: 2 }}
       />

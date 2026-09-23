@@ -11,6 +11,8 @@
 // The model's input is untrusted: parse() coerces + validates and throws
 // user-safe errors; the service layer is the real guard.
 import type { AiToolDef, CommitResult } from "../types";
+import { listAccountsWithBalances } from "@/services/money";
+import { isSelectable } from "@/lib/accountPicker";
 
 // ─── Tool definition shape ────────────────────────────────────────────────────
 
@@ -185,3 +187,31 @@ export const TX_TYPES = [
 export const REMITTANCE = ["REM", "NON_REM"] as const;
 export const PAYMENT_KINDS = ["SALARY", "BONUS", "ADVANCE", "OTHER"] as const;
 export const PAYMENT_STATUSES = ["PENDING", "PAID", "PARTIAL", "OVERDUE"] as const;
+
+// ─── Money accounts ──────────────────────────────────────────────────────────
+
+/**
+ * Resolve a Money account by name for a write. Only selectable accounts count —
+ * active, under an active account type — the same rule every picker in the
+ * admin applies (lib/accountPicker.ts), so the assistant can't post to an
+ * account the UI would not offer.
+ */
+export async function selectableAccountByName(name: string) {
+  const accounts = await listAccountsWithBalances();
+  const found = accounts.find((a) => a.name.toLowerCase() === name.toLowerCase());
+  if (found && !isSelectable(found)) {
+    throw new Error(
+      found.isActive
+        ? `Account "${found.name}" is under the archived type "${found.accountTypeName}".`
+        : `Account "${found.name}" is inactive.`
+    );
+  }
+  if (!found) {
+    const names = accounts
+      .filter(isSelectable)
+      .map((a) => a.name)
+      .join(", ");
+    throw new Error(`No account named "${name}". Available: ${names}`);
+  }
+  return found;
+}

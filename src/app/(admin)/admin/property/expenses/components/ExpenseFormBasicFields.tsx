@@ -1,6 +1,7 @@
 import { FormControl, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import type { ExpenseCategory, Payee, PropertyServiceType } from "@/types";
 import { CATEGORIES, CAT_LABELS, type ExpenseForm } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 interface ExpenseFormBasicFieldsProps {
   form: ExpenseForm;
@@ -25,13 +26,12 @@ export default function ExpenseFormBasicFields({
         onChange={(e) => onFormChange({ ...form, description: e.target.value })}
         sx={{ mb: 2 }}
       />
-      <TextField
+      <NumberField
         label="Amount (৳)"
-        type="number"
         size="small"
         fullWidth
         value={form.amount}
-        onChange={(e) => onFormChange({ ...form, amount: e.target.value })}
+        onChange={(v) => onFormChange({ ...form, amount: v })}
         sx={{ mb: 2 }}
       />
 

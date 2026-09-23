@@ -1,13 +1,20 @@
 import { useCallback, useMemo, useState } from "react";
 import { tripsApi } from "@/lib/api/trips";
-import { moneyApi } from "@/lib/api/money";
 import type { MoneyAccountRow, TripExpenseRow, TripParticipantRow, TripSplitMode } from "@/types";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
+import {
+  pairValidValues,
+  rememberAccountPair,
+  seedAccountPair,
+  typeOfAccount,
+} from "@/lib/accountPicker";
 import {
   blankExpenseForm,
   formToExpensePayload,
   rowToExpenseForm,
   type TripExpenseForm,
 } from "./expenseForm";
+import { useExpenseFunding } from "./useExpenseFunding";
 
 export type { TripExpenseForm } from "./expenseForm";
 
@@ -24,17 +31,13 @@ export function useTripExpenseDrawer(
   const [editing, setEditing] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [rateLoading, setRateLoading] = useState(false);
+  const defaults = useFormDefaults("trips.expense");
 
   const active = useMemo(() => participants.filter((p) => p.isActive), [participants]);
   const selfId = useMemo(() => participants.find((p) => p.isSelf)?.id ?? "", [participants]);
   const isSelf = useCallback(
     (pid: string) => participants.find((p) => p.id === pid)?.isSelf ?? false,
     [participants]
-  );
-  const accountCurrency = useCallback(
-    (id: string) => accounts.find((a) => a.id === id)?.currency ?? "BDT",
-    [accounts]
   );
 
   const blank = useCallback(
@@ -47,60 +50,34 @@ export function useTripExpenseDrawer(
   );
 
   const [form, setForm] = useState<TripExpenseForm>(blank);
+  const funding = useExpenseFunding(accounts, setForm);
 
-  const openAdd = useCallback(() => {
-    setEditing(null);
-    setForm(blank());
-    setError(null);
-    setOpen(true);
-  }, [blank]);
-
-  const openEdit = useCallback((r: TripExpenseRow) => {
-    setEditing(r.id);
-    setForm(rowToExpenseForm(r));
-    setError(null);
-    setOpen(true);
-  }, []);
+  const openEdit = useCallback(
+    (r: TripExpenseRow) => {
+      setEditing(r.id);
+      setForm({ ...rowToExpenseForm(r), accountTypeId: typeOfAccount(accounts, r.accountId) });
+      setError(null);
+      setOpen(true);
+    },
+    [accounts]
+  );
 
   const close = useCallback(() => setOpen(false), []);
-
-  const prefillRate = useCallback(async (cur: string) => {
-    if (cur === "BDT") {
-      setForm((f) => ({ ...f, fxRate: "" }));
-      return;
-    }
-    setRateLoading(true);
-    try {
-      const r = await moneyApi.getFxRate(cur);
-      if (r?.rate) setForm((f) => ({ ...f, fxRate: String(r.rate) }));
-    } finally {
-      setRateLoading(false);
-    }
-  }, []);
 
   /** Change payer; a non-self payer can't post, so drop the funding account. */
   const setPayer = useCallback((pid: string) => {
     setForm((f) => ({ ...f, payerId: pid }));
   }, []);
 
-  /** Self path: pick the funding account and inherit its currency + live rate. */
-  const setAccount = useCallback(
-    async (id: string) => {
-      const cur = accountCurrency(id);
-      setForm((f) => ({ ...f, accountId: id, currency: cur }));
-      await prefillRate(cur);
-    },
-    [accountCurrency, prefillRate]
-  );
-
-  /** Friend path: choose the currency the expense was paid in. */
-  const setCurrency = useCallback(
-    async (cur: string) => {
-      setForm((f) => ({ ...f, currency: cur }));
-      await prefillRate(cur);
-    },
-    [prefillRate]
-  );
+  // A seeded default account brings its currency + live rate with it.
+  const openAdd = useCallback(() => {
+    setEditing(null);
+    setForm(blank());
+    const seeded = seedAccountPair(accounts, defaults.seed(pairValidValues(accounts)));
+    if (seeded.accountId || seeded.typeId) void funding.setAccount(seeded);
+    setError(null);
+    setOpen(true);
+  }, [blank, accounts, defaults, funding]);
 
   const toggleParticipant = useCallback((id: string, checked: boolean) => {
     setForm((f) => ({
@@ -134,6 +111,11 @@ export function useTripExpenseDrawer(
       const body = formToExpensePayload(form, accounts, isSelf(form.payerId));
       if (editing) await tripsApi.updateExpense(tripId, editing, body);
       else await tripsApi.createExpense(tripId, body);
+      if (isSelf(form.payerId)) {
+        defaults.remember(
+          rememberAccountPair({ typeId: form.accountTypeId, accountId: form.accountId })
+        );
+      }
       setOpen(false);
       await reload();
     } catch (e) {
@@ -141,7 +123,7 @@ export function useTripExpenseDrawer(
     } finally {
       setSaving(false);
     }
-  }, [editing, form, tripId, reload, isSelf, accounts]);
+  }, [editing, form, tripId, reload, isSelf, accounts, defaults]);
 
   const remove = useCallback(
     async (r: TripExpenseRow) => {
@@ -159,14 +141,14 @@ export function useTripExpenseDrawer(
     active,
     saving,
     error,
-    rateLoading,
+    rateLoading: funding.rateLoading,
     payerIsSelf: isSelf(form.payerId),
     openAdd,
     openEdit,
     close,
     setPayer,
-    setAccount,
-    setCurrency,
+    setAccount: funding.setAccount,
+    setCurrency: funding.setCurrency,
     toggleParticipant,
     selectAll,
     selectOnlyPayer,

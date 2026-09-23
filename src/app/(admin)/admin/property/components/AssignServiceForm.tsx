@@ -1,4 +1,5 @@
 import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField } from "@mui/material";
+import NumberField from "@/components/admin/NumberField";
 
 interface ServiceOption {
   id: string;
@@ -47,13 +48,12 @@ export default function AssignServiceForm({
             ))}
           </Select>
         </FormControl>
-        <TextField
+        <NumberField
           label="Fee (৳)"
-          type="number"
           size="small"
           sx={{ flex: 1 }}
           value={addSvcFee}
-          onChange={(e) => onSvcFeeChange(e.target.value)}
+          onChange={onSvcFeeChange}
           placeholder="0"
         />
       </Box>

@@ -23,7 +23,6 @@ import {
   getIncomeSources,
   getExpenseCategories,
 } from "@/services/finance";
-import { listAccountsWithBalances } from "@/services/money";
 import { RemittanceType, PaymentKind } from "@prisma/client";
 import {
   write,
@@ -51,6 +50,7 @@ import {
   Enum,
   REMITTANCE,
   PAYMENT_KINDS,
+  selectableAccountByName,
 } from "./shared";
 
 // ─── Reference resolvers (existence checks + readable labels) ────────────────────
@@ -73,15 +73,7 @@ async function bizCategoryById(id: string) {
 }
 // Resolve an optional Money account by name (case-insensitive) for opt-in
 // cross-domain linking. Mirrors accountByName in writeTools/money.ts.
-async function moneyAccountByName(name: string) {
-  const accounts = await listAccountsWithBalances();
-  const found = accounts.find((a) => a.name.toLowerCase() === name.toLowerCase());
-  if (!found) {
-    const names = accounts.map((a) => a.name).join(", ");
-    throw new Error(`No account named "${name}". Available: ${names}`);
-  }
-  return found;
-}
+const moneyAccountByName = selectableAccountByName;
 
 export const financeTools: WriteToolDef[] = [
   write({

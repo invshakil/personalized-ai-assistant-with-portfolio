@@ -1,6 +1,7 @@
 // Barrel export for all Money Manager service functions.
 // Import from "@/services/money" in route handlers, AI tool handlers, and the CLI.
 export * from "./accounts";
+export * from "./accountTypes";
 export * from "./categories";
 export * from "./entries";
 export * from "./link";

@@ -2,7 +2,7 @@ import { TextField } from "@mui/material";
 import SearchableSelect from "@/components/admin/SearchableSelect";
 import CurrencySelect from "@/components/admin/CurrencySelect";
 import { TRIP_STATUS_LABEL, type MoneyAccountRow, type TripStatus } from "@/types";
-import { accountOptions } from "../format";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
 import type { TripForm } from "../hooks/useTripForm";
 
 interface Props {
@@ -17,9 +17,6 @@ const STATUS_OPTIONS = (Object.keys(TRIP_STATUS_LABEL) as TripStatus[]).map((s) 
 }));
 
 export default function TripFormFields({ form, accounts, onChange }: Props) {
-  // A trip wallet must hold the local currency (funded by conversion).
-  const walletOpts = accountOptions(accounts.filter((a) => a.currency === form.localCurrency));
-
   return (
     <>
       <TextField
@@ -69,12 +66,20 @@ export default function TripFormFields({ form, accounts, onChange }: Props) {
         onChange={(v) => onChange((f) => ({ ...f, status: v as TripStatus }))}
         sx={{ mb: 2 }}
       />
-      <SearchableSelect
-        label={`Trip wallet (${form.localCurrency} account, optional)`}
-        value={form.localWalletAccountId}
-        options={walletOpts}
-        onChange={(v) => onChange((f) => ({ ...f, localWalletAccountId: v }))}
-        clearable
+      {/* A trip wallet must hold the local currency (funded by conversion). */}
+      <AccountTypeAccountSelect
+        accounts={accounts}
+        accountLabel={`Trip wallet (${form.localCurrency} account, optional)`}
+        filter={(a) => a.currency === form.localCurrency}
+        value={{ typeId: form.localWalletTypeId, accountId: form.localWalletAccountId }}
+        onChange={(sel) =>
+          onChange((f) => ({
+            ...f,
+            localWalletTypeId: sel.typeId,
+            localWalletAccountId: sel.accountId,
+          }))
+        }
+        optional
         sx={{ mb: 2 }}
       />
       <TextField

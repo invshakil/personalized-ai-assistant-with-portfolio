@@ -1,21 +1,23 @@
-import { FormControlLabel, Switch, TextField } from "@mui/material";
-import SearchableSelect from "@/components/admin/SearchableSelect";
+import { FormControlLabel, Switch } from "@mui/material";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
 import type { MoneyAccountRow } from "@/types";
-import { NO_ACCOUNT, type AddFutureForm } from "../types";
+import type { AddFutureForm } from "../types";
+import NumberField from "@/components/admin/NumberField";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 interface AddFutureTenantAdvanceFieldsProps {
   form: AddFutureForm;
   onFormChange: (form: AddFutureForm) => void;
   accounts: MoneyAccountRow[];
-  advanceAccountId: string;
-  onAdvanceAccountChange: (id: string) => void;
+  advanceAccount: AccountSelection;
+  onAdvanceAccountChange: (sel: AccountSelection) => void;
 }
 
 export default function AddFutureTenantAdvanceFields({
   form,
   onFormChange,
   accounts,
-  advanceAccountId,
+  advanceAccount,
   onAdvanceAccountChange,
 }: AddFutureTenantAdvanceFieldsProps) {
   return (
@@ -30,24 +32,22 @@ export default function AddFutureTenantAdvanceFields({
         label="Advance Paid"
       />
       {form.advancePaid && (
-        <TextField
+        <NumberField
           label="Advance Amount (৳)"
-          type="number"
           value={form.advanceAmount}
-          onChange={(e) => onFormChange({ ...form, advanceAmount: e.target.value })}
+          onChange={(v) => onFormChange({ ...form, advanceAmount: v })}
           size="small"
           fullWidth
         />
       )}
-      {form.advancePaid && accounts.length > 0 && (
-        <SearchableSelect
-          label="Add advance to wallet/account (optional)"
-          value={advanceAccountId}
-          options={[
-            { value: NO_ACCOUNT, label: "— none / don't add to wallet —" },
-            ...accounts.map((a) => ({ value: a.id, label: a.name })),
-          ]}
+      {form.advancePaid && (
+        <AccountTypeAccountSelect
+          accounts={accounts}
+          accountLabel="Add advance to account (optional)"
+          value={advanceAccount}
           onChange={onAdvanceAccountChange}
+          optional
+          noneLabel="— none / don't add to an account —"
         />
       )}
     </>

@@ -29,6 +29,7 @@ import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { solarApi } from "@/lib/api/solar";
 import type { SolarSettingsData, TariffRow, TariffSlabInput } from "@/services/solar";
+import NumberField from "@/components/admin/NumberField";
 
 interface TariffForm {
   id: string | null;
@@ -368,26 +369,25 @@ export default function SolarSettingsPage() {
             weather forecast. Capacity/location auto-fill from SolisCloud if left blank.
           </Typography>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2 }}>
-            <TextField
+            <NumberField
               label="System size (kWp)"
+              min={0}
               size="small"
-              type="number"
               value={form.systemSizeKwp}
-              onChange={(e) => set("systemSizeKwp", e.target.value)}
+              onChange={(v) => set("systemSizeKwp", v)}
             />
-            <TextField
+            <NumberField
               label="Battery capacity (kWh)"
+              min={0}
               size="small"
-              type="number"
               value={form.batteryKwh}
-              onChange={(e) => set("batteryKwh", e.target.value)}
+              onChange={(v) => set("batteryKwh", v)}
             />
-            <TextField
+            <NumberField
               label={`Install cost (${form.currency})`}
               size="small"
-              type="number"
               value={form.installCost}
-              onChange={(e) => set("installCost", e.target.value)}
+              onChange={(v) => set("installCost", v)}
             />
             <TextField
               label="Install date"
@@ -397,26 +397,31 @@ export default function SolarSettingsPage() {
               value={form.installDate}
               onChange={(e) => set("installDate", e.target.value)}
             />
-            <TextField
+            <NumberField
               label="Latitude"
+              decimals={6}
+              min={-90}
+              max={90}
               size="small"
-              type="number"
               value={form.latitude}
-              onChange={(e) => set("latitude", e.target.value)}
+              onChange={(v) => set("latitude", v)}
             />
-            <TextField
+            <NumberField
               label="Longitude"
+              decimals={6}
+              min={-180}
+              max={180}
               size="small"
-              type="number"
               value={form.longitude}
-              onChange={(e) => set("longitude", e.target.value)}
+              onChange={(v) => set("longitude", v)}
             />
-            <TextField
+            <NumberField
               label="CO₂ factor (kg/kWh)"
+              decimals={4}
+              min={0}
               size="small"
-              type="number"
               value={form.co2FactorKgPerKwh}
-              onChange={(e) => set("co2FactorKgPerKwh", e.target.value)}
+              onChange={(v) => set("co2FactorKgPerKwh", v)}
             />
             <TextField
               label="Currency"
@@ -542,21 +547,19 @@ export default function SolarSettingsPage() {
                     setTariffDialog({ ...tariffDialog, effectiveFrom: e.target.value })
                   }
                 />
-                <TextField
+                <NumberField
                   label="Demand charge (BDT/mo)"
                   size="small"
-                  type="number"
                   value={tariffDialog.demandCharge}
-                  onChange={(e) =>
-                    setTariffDialog({ ...tariffDialog, demandCharge: e.target.value })
-                  }
+                  onChange={(v) => setTariffDialog({ ...tariffDialog, demandCharge: v })}
                 />
-                <TextField
+                <NumberField
                   label="VAT %"
+                  min={0}
+                  max={100}
                   size="small"
-                  type="number"
                   value={tariffDialog.vatPercent}
-                  onChange={(e) => setTariffDialog({ ...tariffDialog, vatPercent: e.target.value })}
+                  onChange={(v) => setTariffDialog({ ...tariffDialog, vatPercent: v })}
                 />
               </Box>
 
@@ -570,26 +573,29 @@ export default function SolarSettingsPage() {
               </Box>
               {tariffDialog.slabs.map((s, i) => (
                 <Box key={i} sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-                  <TextField
+                  <NumberField
                     label="From"
+                    integer
+                    min={0}
                     size="small"
-                    type="number"
                     value={s.fromUnit}
-                    onChange={(e) => updateSlab(i, "fromUnit", e.target.value)}
+                    onChange={(v) => updateSlab(i, "fromUnit", v)}
                   />
-                  <TextField
+                  <NumberField
                     label="To"
+                    integer
+                    min={0}
                     size="small"
-                    type="number"
                     value={s.toUnit}
-                    onChange={(e) => updateSlab(i, "toUnit", e.target.value)}
+                    onChange={(v) => updateSlab(i, "toUnit", v)}
                   />
-                  <TextField
+                  <NumberField
                     label="৳/kWh"
+                    decimals={4}
+                    min={0}
                     size="small"
-                    type="number"
                     value={s.rate}
-                    onChange={(e) => updateSlab(i, "rate", e.target.value)}
+                    onChange={(v) => updateSlab(i, "rate", v)}
                   />
                   <IconButton
                     size="small"

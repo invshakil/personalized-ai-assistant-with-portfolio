@@ -2,10 +2,12 @@ import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField } fro
 import { HandCoins } from "lucide-react";
 import type { MoneyAccountRow, ObligationRow } from "@/types";
 import PaymentAccountObligationFields from "./PaymentAccountObligationFields";
+import NumberField from "@/components/admin/NumberField";
 
 type PaymentForm = {
   amount: string;
   date: string;
+  accountTypeId: string; // filter only
   accountId: string;
   obligationId: string;
   direction: "DEBIT" | "CREDIT";
@@ -42,13 +44,12 @@ export default function RecordPaymentForm({
             <MenuItem value="CREDIT">They paid me</MenuItem>
           </Select>
         </FormControl>
-        <TextField
+        <NumberField
           label="Amount (৳)"
-          type="number"
           size="small"
           sx={{ width: 130 }}
           value={form.amount}
-          onChange={(e) => onChange({ ...form, amount: e.target.value })}
+          onChange={(v) => onChange({ ...form, amount: v })}
         />
         <TextField
           label="Date"
@@ -59,11 +60,13 @@ export default function RecordPaymentForm({
           onChange={(e) => onChange({ ...form, date: e.target.value })}
         />
         <PaymentAccountObligationFields
-          accountId={form.accountId}
+          account={{ typeId: form.accountTypeId, accountId: form.accountId }}
           obligationId={form.obligationId}
           accounts={accounts}
           obligations={obligations}
-          onAccountChange={(accountId) => onChange({ ...form, accountId })}
+          onAccountChange={(sel) =>
+            onChange({ ...form, accountTypeId: sel.typeId, accountId: sel.accountId })
+          }
           onObligationChange={(obligationId) => onChange({ ...form, obligationId })}
         />
       </Box>

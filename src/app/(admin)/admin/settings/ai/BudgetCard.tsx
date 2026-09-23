@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   Typography,
-  TextField,
   Switch,
   Button,
   Alert,
@@ -18,6 +17,7 @@ import {
 import { Wallet } from "lucide-react";
 import { aiApi } from "@/lib/api/ai";
 import type { UsageSummary } from "@/services/ai/types";
+import NumberField from "@/components/admin/NumberField";
 
 const usd = (n: number) => `$${n.toFixed(n > 0 && n < 1 ? 4 : 2)}`;
 
@@ -99,12 +99,12 @@ export default function BudgetCard() {
         )}
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 2 }}>
-          <TextField
+          <NumberField
             size="small"
             label="Monthly limit"
-            type="number"
+            min={0}
             value={limit}
-            onChange={(e) => setLimit(e.target.value)}
+            onChange={setLimit}
             placeholder="No limit"
             helperText="Leave blank for no limit."
             slotProps={{

@@ -11,7 +11,6 @@ import { useEarningData } from "./hooks/useEarningData";
 import { useEarningDrawer } from "./hooks/useEarningDrawer";
 import { useConvertDrawer } from "./hooks/useConvertDrawer";
 import { useEarningActions } from "./hooks/useEarningActions";
-import { NO_ACCOUNT } from "./types";
 import EarningFilters from "./components/EarningFilters";
 import EarningSummary from "./components/EarningSummary";
 import EarningTable from "./components/EarningTable";
@@ -47,10 +46,6 @@ export default function EarningsPage() {
     value: s.id,
     label: s.name,
   }));
-  const accountSelectOptions: SelectOption[] = [
-    { value: NO_ACCOUNT, label: "— none —" },
-    ...data.accounts.map((a) => ({ value: a.id, label: a.name })),
-  ];
 
   // Download mirrors the active fiscal-year filter (the PDF route filters by FY).
   // Use the first selected FY if exactly one is chosen; otherwise no FY param.
@@ -122,7 +117,7 @@ export default function EarningsPage() {
         form={earningDrawer.form}
         setForm={earningDrawer.setForm}
         sources={data.sources}
-        accountSelectOptions={accountSelectOptions}
+        accounts={data.accounts}
         saving={earningDrawer.saving}
         error={earningDrawer.error}
         rateLoading={earningDrawer.rateLoading}

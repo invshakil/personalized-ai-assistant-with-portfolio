@@ -1,6 +1,7 @@
 import { FormControl, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import type { UnitWithTenant } from "@/types";
 import { fmt } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 interface AssignUnitFieldsProps {
   units: UnitWithTenant[];
@@ -44,11 +45,10 @@ export default function AssignUnitFields({
       </FormControl>
 
       {assigningUnitId && (
-        <TextField
+        <NumberField
           label={u?.isOccupied ? "New Rent for Future Tenant (৳)" : "Monthly Rent (৳)"}
-          type="number"
           value={assignRent}
-          onChange={(e) => onAssignRentChange(e.target.value)}
+          onChange={onAssignRentChange}
           size="small"
           fullWidth
           placeholder={String(u?.monthlyRent ?? "")}

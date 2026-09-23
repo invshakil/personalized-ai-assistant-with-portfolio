@@ -11,6 +11,7 @@ import {
 import { Trash2 } from "lucide-react";
 import { MONTHS, fmt } from "../types";
 import type { BillLine, BillLineTarget } from "../hooks/useBillLines";
+import NumberField from "@/components/admin/NumberField";
 
 /** Copy + presentation for the two kinds of bill adjustment. */
 const VARIANTS = {
@@ -147,13 +148,12 @@ export default function BillLineDrawer({
           onChange={(e) => onLabelChange(e.target.value)}
           sx={{ mb: 2 }}
         />
-        <TextField
+        <NumberField
           label="Amount (৳)"
-          type="number"
           size="small"
           fullWidth
           value={amount}
-          onChange={(e) => onAmountChange(e.target.value)}
+          onChange={onAmountChange}
           sx={{ mb: 2 }}
         />
         <TextField

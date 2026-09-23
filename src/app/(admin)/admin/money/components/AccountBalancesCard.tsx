@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { MoneyDashboardData } from "@/types";
-import { ACCOUNT_TYPE_LABEL, fmtCurrency } from "../format";
+import { fmtCurrency } from "../format";
 
 interface AccountBalancesCardProps {
   accounts: MoneyDashboardData["accounts"];
@@ -48,7 +48,7 @@ export default function AccountBalancesCard({ accounts }: AccountBalancesCardPro
                   {a.name}
                 </TableCell>
                 <TableCell data-label="Type">
-                  {ACCOUNT_TYPE_LABEL[a.type]}
+                  {a.accountTypeName}
                   {a.currency !== "BDT" ? ` · ${a.currency}` : ""}
                 </TableCell>
                 <TableCell

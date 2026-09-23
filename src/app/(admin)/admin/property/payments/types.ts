@@ -1,6 +1,3 @@
-// Sentinel for the optional "don't add to wallet" choice in account dropdowns.
-export const NO_ACCOUNT = "";
-
 export const STATUS_COLORS: Record<string, { bg: string; color: string }> = {
   PAID: { bg: "success.main", color: "#fff" },
   PARTIAL: { bg: "warning.main", color: "#fff" },

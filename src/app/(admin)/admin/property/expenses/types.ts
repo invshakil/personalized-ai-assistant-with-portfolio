@@ -1,8 +1,5 @@
 import type { ExpenseCategory } from "@/types";
 
-// Sentinel for the optional "don't deduct from wallet" choice.
-export const NO_ACCOUNT = "";
-
 export const MONTHS = [
   "January",
   "February",
@@ -55,7 +52,6 @@ export type ExpenseForm = {
   category: ExpenseCategory;
   expenseDate: string;
   paidTo: string;
-  paymentMode: string;
   payeeId: string;
   serviceTypeId: string;
   notes: string;
@@ -67,7 +63,6 @@ export const BLANK_EXPENSE_FORM: ExpenseForm = {
   category: "OTHER",
   expenseDate: new Date().toISOString().split("T")[0],
   paidTo: "",
-  paymentMode: "Cash",
   payeeId: "",
   serviceTypeId: "",
   notes: "",

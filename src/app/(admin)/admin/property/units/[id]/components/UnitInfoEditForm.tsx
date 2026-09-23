@@ -1,5 +1,6 @@
 import { Box, Button, TextField, Typography } from "@mui/material";
 import type { UnitEditForm } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 interface UnitInfoEditFormProps {
   editForm: UnitEditForm;
@@ -35,11 +36,10 @@ export default function UnitInfoEditForm({
         size="small"
         fullWidth
       />
-      <TextField
+      <NumberField
         label="Monthly Rent (৳)"
-        type="number"
         value={editForm.monthlyRent}
-        onChange={(e) => onEditFormChange({ ...editForm, monthlyRent: e.target.value })}
+        onChange={(v) => onEditFormChange({ ...editForm, monthlyRent: v })}
         size="small"
         fullWidth
       />

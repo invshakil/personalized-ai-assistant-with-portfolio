@@ -50,13 +50,20 @@ export default function EntryTableRow({
         {e.direction === "TRANSFER" || !e.accountId ? (
           "—"
         ) : (
-          <Chip
-            size="small"
-            label={accountName(e.accountId)}
-            variant="outlined"
-            clickable
-            onClick={() => onAccountClick(e.accountId!)}
-          />
+          <>
+            <Chip
+              size="small"
+              label={accountName(e.accountId)}
+              variant="outlined"
+              clickable
+              onClick={() => onAccountClick(e.accountId!)}
+            />
+            {e.accountTypeName && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                {e.accountTypeName}
+              </Typography>
+            )}
+          </>
         )}
       </TableCell>
       <TableCell

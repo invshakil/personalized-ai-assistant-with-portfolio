@@ -1,19 +1,20 @@
 import { TextField } from "@mui/material";
-import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import type { EarningForm } from "../types";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
+import type { MoneyAccountRow } from "@/types";
 
 interface EarningDrawerTailFieldsProps {
   editing: string | null;
   form: EarningForm;
   setForm: React.Dispatch<React.SetStateAction<EarningForm>>;
-  accountSelectOptions: SelectOption[];
+  accounts: MoneyAccountRow[];
 }
 
 export default function EarningDrawerTailFields({
   editing,
   form,
   setForm,
-  accountSelectOptions,
+  accounts,
 }: EarningDrawerTailFieldsProps) {
   return (
     <>
@@ -27,12 +28,14 @@ export default function EarningDrawerTailFields({
         sx={{ mb: 2 }}
       />
       {!editing && (
-        <SearchableSelect
-          label="Deposit to account (optional)"
-          value={form.accountId}
-          options={accountSelectOptions}
-          onChange={(v) => setForm((f) => ({ ...f, accountId: v }))}
-          clearable
+        <AccountTypeAccountSelect
+          accounts={accounts}
+          accountLabel="Deposit to account (optional)"
+          value={{ typeId: form.accountTypeId, accountId: form.accountId }}
+          onChange={(sel) =>
+            setForm((f) => ({ ...f, accountTypeId: sel.typeId, accountId: sel.accountId }))
+          }
+          optional
           sx={{ mb: 2 }}
         />
       )}

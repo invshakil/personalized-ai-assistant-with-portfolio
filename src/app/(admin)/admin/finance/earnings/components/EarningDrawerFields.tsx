@@ -1,18 +1,20 @@
 import { TextField } from "@mui/material";
-import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
+import SearchableSelect from "@/components/admin/SearchableSelect";
 import CurrencySelect from "@/components/admin/CurrencySelect";
 import type { RemittanceType, SourceRow } from "../../types";
 import { currencySymbol } from "../../format";
 import type { EarningForm } from "../types";
 import EarningFxRateField from "./EarningFxRateField";
 import EarningDrawerTailFields from "./EarningDrawerTailFields";
+import NumberField from "@/components/admin/NumberField";
+import type { MoneyAccountRow } from "@/types";
 
 interface EarningDrawerFieldsProps {
   editing: string | null;
   form: EarningForm;
   setForm: React.Dispatch<React.SetStateAction<EarningForm>>;
   sources: SourceRow[];
-  accountSelectOptions: SelectOption[];
+  accounts: MoneyAccountRow[];
   rateLoading: boolean;
   rateNote: string | null;
   previewBdt: number | null;
@@ -25,7 +27,7 @@ export default function EarningDrawerFields({
   form,
   setForm,
   sources,
-  accountSelectOptions,
+  accounts,
   rateLoading,
   rateNote,
   previewBdt,
@@ -61,13 +63,12 @@ export default function EarningDrawerFields({
         sx={{ mb: 2 }}
       />
       <CurrencySelect value={form.currency} onChange={onCurrencyChange} sx={{ mb: 2 }} />
-      <TextField
+      <NumberField
         label={`Amount (${currencySymbol(form.currency)})`}
-        type="number"
         size="small"
         fullWidth
         value={form.amount}
-        onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+        onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
         sx={{ mb: 2 }}
       />
       <EarningFxRateField
@@ -82,7 +83,7 @@ export default function EarningDrawerFields({
         editing={editing}
         form={form}
         setForm={setForm}
-        accountSelectOptions={accountSelectOptions}
+        accounts={accounts}
       />
     </>
   );

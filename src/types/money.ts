@@ -19,7 +19,11 @@ export type MoneyEntryMethod = "CASH" | "BANK_TRANSFER" | "MOBILE_BANKING" | "CH
 export interface MoneyAccountRow {
   id: string;
   name: string;
-  type: MoneyAccountType;
+  type: MoneyAccountType; // the kind — drives behaviour (credit card, trip posting)
+  accountTypeId: string;
+  accountTypeName: string;
+  accountTypeActive: boolean; // false = its type is archived; hidden from pickers
+  accountTypeSortOrder: number;
   currency: string; // BDT | USD | EUR — balance is in this currency
   openingBalance: number;
   creditLimit: number | null;
@@ -29,6 +33,18 @@ export interface MoneyAccountRow {
   balance: number; // openingBalance + Σ credits − Σ debits ± transfers (in `currency`)
   availableCredit: number | null; // CREDIT_CARD only = creditLimit + balance
   entryCount: number;
+}
+
+// ─── Account types ───────────────────────────────────────────────────────────
+
+/** A user-managed account type. `kind` is fixed at creation. */
+export interface AccountTypeRow {
+  id: string;
+  name: string;
+  kind: MoneyAccountType;
+  isActive: boolean;
+  sortOrder: number;
+  accountCount: number;
 }
 
 // ─── Categories ──────────────────────────────────────────────────────────────
@@ -57,6 +73,7 @@ export interface MoneyEntryRow {
   accountId: string | null;
   accountName: string | null;
   accountType: MoneyAccountType | null; // for the trip settlement split (cash/bank vs card)
+  accountTypeName: string | null; // the account's named type — how the money moved
   transferAccountId: string | null;
   transferAccountName: string | null;
   beneficiaryId: string | null;
@@ -64,7 +81,7 @@ export interface MoneyEntryRow {
   obligationId: string | null;
   description: string | null;
   notes: string | null;
-  method: MoneyEntryMethod | null; // how a CREDIT arrived (cash/bank transfer/etc.); null for DEBIT/TRANSFER or unspecified
+  method: MoneyEntryMethod | null; // LEGACY: how a CREDIT arrived. No longer set from the UI — the account's type says it; kept for old rows
   source: MoneyEntrySource;
   tripId: string | null; // set when this entry belongs to a trip
   tripCategory: TripCategory | null; // budget bucket for a trip-tagged expense
@@ -133,6 +150,7 @@ export interface AccountBalanceSummary {
   id: string;
   name: string;
   type: MoneyAccountType;
+  accountTypeName: string;
   currency: string;
   balance: number; // in `currency`
   creditLimit: number | null;

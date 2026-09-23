@@ -32,7 +32,6 @@ import {
   getPayees,
   getServiceTypes,
 } from "@/services/property";
-import { listAccountsWithBalances } from "@/services/money";
 import { ExpenseCategory, TransactionType, PaymentStatus } from "@prisma/client";
 import {
   write,
@@ -61,6 +60,7 @@ import {
   EXPENSE_CATEGORIES,
   TX_TYPES,
   PAYMENT_STATUSES,
+  selectableAccountByName,
 } from "./shared";
 
 // ─── Reference resolvers (existence checks + readable labels) ────────────────────
@@ -155,15 +155,7 @@ async function serviceTypeById(id: string) {
 }
 // Resolve a Money-Manager account by name (case-insensitive) for opt-in
 // cross-domain linking. Mirrors accountByName in writeTools/money.ts.
-async function moneyAccountByName(name: string) {
-  const accounts = await listAccountsWithBalances();
-  const found = accounts.find((a) => a.name.toLowerCase() === name.toLowerCase());
-  if (!found) {
-    const names = accounts.map((a) => a.name).join(", ");
-    throw new Error(`No account named "${name}". Available: ${names}`);
-  }
-  return found;
-}
+const moneyAccountByName = selectableAccountByName;
 
 export const propertyTools: WriteToolDef[] = [
   write({
@@ -753,8 +745,9 @@ export const propertyTools: WriteToolDef[] = [
         payeeId: Str("Existing payee id (optional)"),
         unitId: Str("Related unit id (optional)"),
         serviceTypeId: Str("Service type id (optional)"),
-        paymentMode: Str("Payment mode, e.g. cash/bank (optional)"),
-        accountName: Str("Money-Manager account/wallet to debit, e.g. Cash, City Bank (optional)"),
+        accountName: Str(
+          "Money-Manager account it was paid from, e.g. Cash, City Bank (optional). Its account type is the payment mode, and the expense is debited from it"
+        ),
         notes: Str("Notes (optional)"),
       },
       ["description", "amount", "category", "month", "year"]
@@ -773,7 +766,6 @@ export const propertyTools: WriteToolDef[] = [
         payeeId: optStr(i.payeeId) ?? null,
         unitId: optStr(i.unitId) ?? null,
         serviceTypeId: optStr(i.serviceTypeId) ?? null,
-        paymentMode: optStr(i.paymentMode) ?? null,
         accountName: optStr(i.accountName),
         notes: optStr(i.notes) ?? null,
       };

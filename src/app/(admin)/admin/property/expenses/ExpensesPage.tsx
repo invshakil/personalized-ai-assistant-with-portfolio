@@ -69,8 +69,8 @@ export default function ExpensesPage() {
         serviceTypes={serviceTypes}
         payees={payees}
         accounts={accounts}
-        expenseAccountId={form.expenseAccountId}
-        onAccountChange={form.setExpenseAccountId}
+        expenseAccount={form.expenseAccount}
+        onAccountChange={form.setExpenseAccount}
       />
     </Box>
   );

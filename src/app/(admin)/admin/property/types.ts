@@ -1,8 +1,5 @@
 export type { PaymentStatus, IncomeCategory } from "@/types/index";
 
-// Sentinel for the optional "don't add advance to wallet" choice.
-export const NO_ACCOUNT = "";
-
 export function fmt(n: number) {
   return `৳${n.toLocaleString()}`;
 }

@@ -21,6 +21,8 @@ export type EarningForm = {
   fxRate: string;
   fiscalYear: string;
   notes: string;
+  /** Filter only — narrows the account list; never sent to the API. */
+  accountTypeId: string;
   /** Optional Money account to post a linked CREDIT to (opt-in; create only). */
   accountId: string;
 };
@@ -34,5 +36,6 @@ export const BLANK_EARNING_FORM: EarningForm = {
   fxRate: "1",
   fiscalYear: fiscalYearOf(new Date()),
   notes: "",
+  accountTypeId: "",
   accountId: NO_ACCOUNT,
 };

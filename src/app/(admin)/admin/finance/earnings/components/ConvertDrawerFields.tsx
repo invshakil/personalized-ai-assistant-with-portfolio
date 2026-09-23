@@ -1,17 +1,20 @@
 import { Alert, TextField, Typography } from "@mui/material";
-import SearchableSelect from "@/components/admin/SearchableSelect";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
+import { selectableAccounts } from "@/lib/accountPicker";
 import type { MoneyAccountRow } from "@/types";
 import { fmtCurrency } from "../../format";
+import NumberField from "@/components/admin/NumberField";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 interface ConvertDrawerFieldsProps {
   convCurrency: string;
   convAmount: string;
   onConvAmountChange: (v: string) => void;
   onConvAmountBlur: () => void;
-  convFrom: string;
-  onConvFromChange: (v: string) => void;
-  convTo: string;
-  onConvToChange: (v: string) => void;
+  convFrom: AccountSelection;
+  onConvFromChange: (sel: AccountSelection) => void;
+  convTo: AccountSelection;
+  onConvToChange: (sel: AccountSelection) => void;
   convDate: string;
   onConvDateChange: (v: string) => void;
   convToAmount: string;
@@ -48,14 +51,14 @@ export default function ConvertDrawerFields({
 }: ConvertDrawerFieldsProps) {
   return (
     <>
-      <SearchableSelect
-        label={`From account (${convCurrency})`}
+      <AccountTypeAccountSelect
+        accounts={fromAccountOptions}
+        accountLabel={`From account (${convCurrency})`}
         value={convFrom}
-        options={fromAccountOptions.map((a) => ({ value: a.id, label: a.name }))}
         onChange={onConvFromChange}
         sx={{ mb: 2 }}
       />
-      {fromAccountOptions.length === 0 && (
+      {selectableAccounts(fromAccountOptions, "").length === 0 && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           No {convCurrency} account exists — create one in Money → Accounts and deposit the foreign
           income there first.
@@ -68,13 +71,12 @@ export default function ConvertDrawerFields({
         </Typography>
       )}
 
-      <TextField
+      <NumberField
         label={`Amount to convert (${convCurrency})`}
-        type="number"
         size="small"
         fullWidth
         value={convAmount}
-        onChange={(e) => onConvAmountChange(e.target.value)}
+        onChange={onConvAmountChange}
         onBlur={onConvAmountBlur}
         sx={{ mb: 1 }}
       />
@@ -90,10 +92,10 @@ export default function ConvertDrawerFields({
         </Alert>
       )}
 
-      <SearchableSelect
-        label="To account (BDT)"
+      <AccountTypeAccountSelect
+        accounts={toAccountOptions}
+        accountLabel="To account (BDT)"
         value={convTo}
-        options={toAccountOptions.map((a) => ({ value: a.id, label: a.name }))}
         onChange={onConvToChange}
         sx={{ mb: 2, mt: 2 }}
       />
@@ -106,13 +108,12 @@ export default function ConvertDrawerFields({
         onChange={(e) => onConvDateChange(e.target.value)}
         sx={{ mb: 2 }}
       />
-      <TextField
+      <NumberField
         label="BDT received (৳)"
-        type="number"
         size="small"
         fullWidth
         value={convToAmount}
-        onChange={(e) => onConvToAmountChange(e.target.value)}
+        onChange={onConvToAmountChange}
         helperText={
           convRateLoading
             ? "Fetching live rate…"
