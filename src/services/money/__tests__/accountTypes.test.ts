@@ -15,6 +15,7 @@ import {
   updateAccount,
   updateAccountType,
 } from "@/services/money";
+import { selectableAccountByName } from "@/services/ai/writeTools/shared";
 import { db } from "@/lib/db";
 
 const TAG = `__ATTEST_${Date.now()}`;
@@ -124,4 +125,13 @@ test("a type in use can't be deleted; an unused one can", async () => {
 
   const unused = await createAccountType({ name: `${TAG} Unused`, kind: "OTHER" });
   assert.equal((await deleteAccountType(unused.id)).deleted, true);
+});
+
+test("the assistant can't post to an account under an archived type", async () => {
+  const t = await createAccountType({ name: `${TAG} AI hidden`, kind: "BANK" });
+  await createAccount({ name: `${TAG} AI bank`, accountTypeId: t.id });
+  assert.ok(await selectableAccountByName(`${TAG} AI bank`));
+
+  await updateAccountType(t.id, { isActive: false });
+  await assert.rejects(selectableAccountByName(`${TAG} AI bank`), /archived type/);
 });
