@@ -184,6 +184,40 @@ Every admin list/table page (Ledger, Payments, Earnings, Expenses, etc.) gets th
 
 **Why:** keeps every list page deep-linkable, server-filtered, and fully exposed to the AI assistant — not just visually filtered.
 
+## Number inputs are calculators
+
+Every numeric input in the admin is the shared `src/components/admin/NumberField.tsx`, never
+`<TextField type="number">` (a wiring test — `src/components/admin/__tests__/numberInputs.wiring.test.ts`
+— fails the build if one comes back). Typing `200 + 300 + 500` settles on `1000` when the field is left.
+
+- **Contract:** `onChange` only ever receives a resolved number as a string, or `""` while the text is
+  mid-expression or breaks a rule. A form saved mid-sum fails loudly instead of storing a partial read.
+- **Rules as props:** `integer` (counts, minutes, days — fractions are rejected, never rounded), `min`,
+  `max`, `decimals` (default 2 for money; `decimals={6}` for FX rates, `4` for per-kWh tariffs).
+- It passes every other `TextField` prop through (`label`, `size`, `fullWidth`, `slotProps` adornments…),
+  so it is a drop-in. All behaviour lives in `src/lib/numberField.ts` (unit-tested); the arithmetic in
+  `src/lib/calcExpression.ts` — a hand-written parser, never `eval`.
+
+## Account pickers: Account type → Account
+
+Every form that picks a Money account uses `src/components/admin/AccountTypeAccountSelect.tsx` — an
+**Account type** select filtering an **Account** select. Don't hand-roll an account `SearchableSelect`,
+and don't add a "payment mode" / "method" dropdown: the account's type _is_ the mode.
+
+- **The type is a filter only.** Keep `accountTypeId` (or `fromAccountTypeId`…) in form state for
+  defaults, never send it to the API — the record stores the account, which knows its type.
+- **Only selectable accounts are offered:** the account is active **and** its `AccountType` is active
+  (`isSelectable` in `src/lib/accountPicker.ts`). An existing record's current account stays visible
+  even if archived since. Server-side writes by the AI resolve names through `selectableAccountByName`.
+- **Form-specific narrowing** (a currency, "not the destination wallet") goes in the `filter` prop.
+- **Defaults:** register the pair with `accountPair(scope, …)` in `src/lib/formDefaults/registry.ts`, seed
+  with `seedAccountPair(accounts, defaults.seed(pairValidValues(accounts)))` on open-add, and remember
+  with `defaults.remember(rememberAccountPair(sel))` after a save. The form-defaults wiring test checks
+  both halves are wired. Where a form used to auto-pick "the first Cash/Bank account", keep that as
+  `withKindFallback(...)` so a stored default wins but nothing changes for users without one.
+- List-page **filters** over history (e.g. the Ledger's account filter) are not pickers — they keep
+  archived accounts so old rows stay findable.
+
 ## Entity linking: click-to-filter vs. link-to-profile
 
 Two established patterns for making table columns interactive, applied consistently across Property, Finance, and Money modules:
