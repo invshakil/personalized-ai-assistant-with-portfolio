@@ -4,6 +4,12 @@ import { moneyApi } from "@/lib/api/money";
 import type { MoneyAccountRow, MoneyCategoryRow, MoneyEntryRow } from "@/types";
 import { todayInput } from "../../format";
 import { useFormDefaults } from "@/hooks/useFormDefaults";
+import {
+  pairValidValues,
+  rememberAccountPair,
+  seedAccountPair,
+  typeOfAccount,
+} from "@/lib/accountPicker";
 import { useObligationLink } from "./useObligationLink";
 import {
   BLANK_ENTRY,
@@ -50,10 +56,17 @@ export function useEntryDrawer(
     // as an empty field (the expense dropdown has no option for it) and then be
     // refused by the server on save.
     const seeded = defaults.seed({
-      accountId: accounts.map((a) => a.id),
+      ...pairValidValues(accounts),
       categoryId: categoryIdsFor(categories, BLANK_ENTRY.direction),
     });
-    setForm({ ...BLANK_ENTRY, date: todayInput(), ...seeded });
+    const pair = seedAccountPair(accounts, seeded);
+    setForm({
+      ...BLANK_ENTRY,
+      date: todayInput(),
+      categoryId: seeded.categoryId ?? "",
+      accountTypeId: pair.typeId,
+      accountId: pair.accountId,
+    });
     setError(null);
     setDrawerOpen(true);
   };
@@ -66,12 +79,12 @@ export function useEntryDrawer(
       direction: e.direction,
       amount: String(e.amount),
       categoryId: e.categoryId ?? "",
+      accountTypeId: typeOfAccount(accounts, e.accountId),
       accountId: e.accountId ?? "",
       description: e.description ?? "",
       notes: e.notes ?? "",
       beneficiaryId: e.beneficiaryId ?? "",
       obligationId: e.obligationId ?? "",
-      method: e.method ?? "",
     });
     setError(null);
     setDrawerOpen(true);
@@ -88,8 +101,6 @@ export function useEntryDrawer(
           : "",
       // A due is direction-specific; clear it so it can't mismatch the new type.
       obligationId: "",
-      // Method only applies to CREDIT (deposit) entries.
-      method: direction === "CREDIT" ? f.method : "",
     }));
 
   // Deep link from the Accounts page: "?deposit=<accountId>" opens this drawer
@@ -101,6 +112,7 @@ export function useEntryDrawer(
     setForm({
       ...BLANK_ENTRY,
       direction: "CREDIT",
+      accountTypeId: typeOfAccount(accounts, depositAccountId),
       accountId: depositAccountId,
       date: todayInput(),
     });
@@ -125,13 +137,17 @@ export function useEntryDrawer(
         beneficiaryId: form.beneficiaryId || null,
         // Only keep the due link when a person is selected and it still matches.
         obligationId: form.beneficiaryId ? form.obligationId || null : null,
-        method: form.direction === "CREDIT" ? form.method || null : null,
+        // No `method`: the account's type now says how money moved. Leaving it
+        // out (rather than sending null) keeps an old entry's recorded method.
       };
       if (editing) await moneyApi.updateEntry(editing, body);
       else await moneyApi.createEntry(body);
       // Fire-and-forget; the server ignores anything not in "lastUsed" mode, so
       // a pinned account is never overwritten by having been used.
-      defaults.remember({ accountId: form.accountId, categoryId: form.categoryId });
+      defaults.remember({
+        ...rememberAccountPair({ typeId: form.accountTypeId, accountId: form.accountId }),
+        categoryId: form.categoryId,
+      });
       setDrawerOpen(false);
       await onSuccess();
     } catch (e: unknown) {

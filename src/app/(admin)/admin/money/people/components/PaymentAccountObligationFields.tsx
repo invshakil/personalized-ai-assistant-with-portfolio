@@ -1,18 +1,20 @@
 import { FormControl, InputLabel, MenuItem, Select } from "@mui/material";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
+import type { AccountSelection } from "@/lib/accountPicker";
 import { fmt } from "../../format";
 import type { MoneyAccountRow, ObligationRow } from "@/types";
 
 interface Props {
-  accountId: string;
+  account: AccountSelection;
   obligationId: string;
   accounts: MoneyAccountRow[];
   obligations: ObligationRow[];
-  onAccountChange: (accountId: string) => void;
+  onAccountChange: (sel: AccountSelection) => void;
   onObligationChange: (obligationId: string) => void;
 }
 
 export default function PaymentAccountObligationFields({
-  accountId,
+  account,
   obligationId,
   accounts,
   obligations,
@@ -21,17 +23,13 @@ export default function PaymentAccountObligationFields({
 }: Props) {
   return (
     <>
-      <FormControl size="small" sx={{ minWidth: 130 }}>
-        <InputLabel>Account</InputLabel>
-        <Select label="Account" value={accountId} onChange={(e) => onAccountChange(e.target.value)}>
-          <MenuItem value="">— none —</MenuItem>
-          {accounts.map((a) => (
-            <MenuItem key={a.id} value={a.id}>
-              {a.name}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+      <AccountTypeAccountSelect
+        accounts={accounts}
+        value={account}
+        onChange={onAccountChange}
+        optional
+        sx={{ flexBasis: "100%" }}
+      />
       <FormControl size="small" sx={{ minWidth: 150 }}>
         <InputLabel>Against loan</InputLabel>
         <Select

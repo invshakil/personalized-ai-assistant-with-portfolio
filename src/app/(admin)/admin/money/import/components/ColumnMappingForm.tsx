@@ -3,6 +3,8 @@ import type { ImportMapping } from "@/lib/api/money";
 import type { MoneyAccountRow } from "@/types";
 import ColumnSelectField from "./ColumnSelectField";
 import MappingDefaultsFields from "./MappingDefaultsFields";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
+import type { AccountSelection } from "@/lib/accountPicker";
 import AiCategorizeToggle from "./AiCategorizeToggle";
 
 interface ColumnMappingFormProps {
@@ -10,6 +12,8 @@ interface ColumnMappingFormProps {
   mapping: ImportMapping;
   onMappingChange: (updater: (m: ImportMapping) => ImportMapping) => void;
   accounts: MoneyAccountRow[];
+  defaultAccount: AccountSelection;
+  onDefaultAccountChange: (sel: AccountSelection) => void;
   canPreview: boolean;
   previewing: boolean;
   onPreview: () => void;
@@ -21,6 +25,8 @@ export default function ColumnMappingForm({
   mapping,
   onMappingChange,
   accounts,
+  defaultAccount,
+  onDefaultAccountChange,
   canPreview,
   previewing,
   onPreview,
@@ -53,12 +59,7 @@ export default function ColumnMappingForm({
               headers={headers}
               onChange={(v) => onMappingChange((m) => ({ ...m, direction: v }))}
             />
-            <MappingDefaultsFields
-              variant="direction"
-              mapping={mapping}
-              accounts={accounts}
-              onMappingChange={onMappingChange}
-            />
+            <MappingDefaultsFields mapping={mapping} onMappingChange={onMappingChange} />
           </Box>
           <Box>
             <ColumnSelectField
@@ -67,11 +68,13 @@ export default function ColumnMappingForm({
               headers={headers}
               onChange={(v) => onMappingChange((m) => ({ ...m, category: v }))}
             />
-            <MappingDefaultsFields
-              variant="account"
-              mapping={mapping}
+            <AccountTypeAccountSelect
               accounts={accounts}
-              onMappingChange={onMappingChange}
+              accountLabel="Default account"
+              value={defaultAccount}
+              onChange={onDefaultAccountChange}
+              optional
+              sx={{ mb: 2 }}
             />
             <ColumnSelectField
               label="Account column"

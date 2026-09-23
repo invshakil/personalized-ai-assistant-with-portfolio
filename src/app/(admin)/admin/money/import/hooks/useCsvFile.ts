@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { ImportMapping } from "@/lib/api/money";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 /** Owns the selected CSV file, its parsed header row, and the resulting column mapping —
  * including best-effort auto-mapping by header name when a new file is chosen. */
@@ -8,6 +9,17 @@ export function useCsvFile() {
   const [file, setFile] = useState<File | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<ImportMapping>({ date: "", amount: "" });
+  // The type filter over the default-account picker. Kept out of `mapping`,
+  // which is saved with the batch — a filter is not part of the import.
+  const [defaultAccountTypeId, setDefaultAccountTypeId] = useState("");
+  const defaultAccount: AccountSelection = {
+    typeId: defaultAccountTypeId,
+    accountId: mapping.defaultAccountId ?? "",
+  };
+  const setDefaultAccount = (sel: AccountSelection) => {
+    setDefaultAccountTypeId(sel.typeId);
+    setMapping((m) => ({ ...m, defaultAccountId: sel.accountId || undefined }));
+  };
 
   const onFile = async (f: File | null) => {
     setFile(f);
@@ -47,5 +59,15 @@ export function useCsvFile() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  return { fileRef, file, headers, mapping, setMapping, onFile, reset };
+  return {
+    fileRef,
+    file,
+    headers,
+    mapping,
+    setMapping,
+    defaultAccount,
+    setDefaultAccount,
+    onFile,
+    reset,
+  };
 }

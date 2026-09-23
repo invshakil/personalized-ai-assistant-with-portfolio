@@ -7,6 +7,7 @@ import NumberField from "@/components/admin/NumberField";
 type PaymentForm = {
   amount: string;
   date: string;
+  accountTypeId: string; // filter only
   accountId: string;
   obligationId: string;
   direction: "DEBIT" | "CREDIT";
@@ -59,11 +60,13 @@ export default function RecordPaymentForm({
           onChange={(e) => onChange({ ...form, date: e.target.value })}
         />
         <PaymentAccountObligationFields
-          accountId={form.accountId}
+          account={{ typeId: form.accountTypeId, accountId: form.accountId }}
           obligationId={form.obligationId}
           accounts={accounts}
           obligations={obligations}
-          onAccountChange={(accountId) => onChange({ ...form, accountId })}
+          onAccountChange={(sel) =>
+            onChange({ ...form, accountTypeId: sel.typeId, accountId: sel.accountId })
+          }
           onObligationChange={(obligationId) => onChange({ ...form, obligationId })}
         />
       </Box>

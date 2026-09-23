@@ -1,7 +1,7 @@
 import { TextField } from "@mui/material";
 import SearchableSelect from "@/components/admin/SearchableSelect";
-import type { MoneyAccountRow, MoneyCategoryRow, MoneyEntryMethod } from "@/types";
-import { METHOD_LABEL } from "../../format";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
+import type { MoneyAccountRow, MoneyCategoryRow } from "@/types";
 import type { EntryForm } from "../types";
 
 interface EntryDrawerCategoryFieldsProps {
@@ -26,31 +26,15 @@ export default function EntryDrawerCategoryFields({
         onChange={(v) => setForm((f) => ({ ...f, categoryId: v }))}
         sx={{ mb: 2 }}
       />
-      <SearchableSelect
-        label="Account"
-        value={form.accountId}
-        options={[
-          { value: "", label: "— none —" },
-          ...accounts.map((a) => ({ value: a.id, label: a.name })),
-        ]}
-        onChange={(v) => setForm((f) => ({ ...f, accountId: v }))}
+      <AccountTypeAccountSelect
+        accounts={accounts}
+        value={{ typeId: form.accountTypeId, accountId: form.accountId }}
+        onChange={(sel) =>
+          setForm((f) => ({ ...f, accountTypeId: sel.typeId, accountId: sel.accountId }))
+        }
+        optional
         sx={{ mb: 2 }}
       />
-      {form.direction === "CREDIT" && (
-        <SearchableSelect
-          label="Source (how it arrived)"
-          value={form.method}
-          options={[
-            { value: "", label: "— unspecified —" },
-            ...(Object.keys(METHOD_LABEL) as MoneyEntryMethod[]).map((m) => ({
-              value: m,
-              label: METHOD_LABEL[m],
-            })),
-          ]}
-          onChange={(v) => setForm((f) => ({ ...f, method: v as MoneyEntryMethod | "" }))}
-          sx={{ mb: 2 }}
-        />
-      )}
       <TextField
         label="Description"
         size="small"

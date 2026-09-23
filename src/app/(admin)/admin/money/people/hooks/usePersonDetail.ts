@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { moneyApi } from "@/lib/api/money";
 import { useFormDefaults } from "@/hooks/useFormDefaults";
+import { pairValidValues, rememberAccountPair, seedAccountPair } from "@/lib/accountPicker";
 import { fmt, todayInput } from "../../format";
 import type {
   BeneficiaryDetail,
@@ -30,6 +31,7 @@ const BLANK_OBLIGATION: ObligationForm = {
 type PaymentForm = {
   amount: string;
   date: string;
+  accountTypeId: string; // filter only
   accountId: string;
   obligationId: string;
   direction: "DEBIT" | "CREDIT";
@@ -37,6 +39,7 @@ type PaymentForm = {
 const BLANK_PAYMENT: PaymentForm = {
   amount: "",
   date: todayInput(),
+  accountTypeId: "",
   accountId: "",
   obligationId: "",
   direction: "DEBIT",
@@ -76,12 +79,16 @@ export function usePersonDetail(
   const [editSaving, setEditSaving] = useState(false);
 
   const defaults = useFormDefaults("money.personPayment");
-  /** A stored default is dropped if the account no longer exists. */
-  const blankPayment = () => ({
-    ...BLANK_PAYMENT,
-    date: todayInput(),
-    ...defaults.seed({ accountId: accounts.map((a) => a.id) }),
-  });
+  /** A stored default is dropped if the account (or its type) is no longer selectable. */
+  const blankPayment = (): PaymentForm => {
+    const pair = seedAccountPair(accounts, defaults.seed(pairValidValues(accounts)));
+    return {
+      ...BLANK_PAYMENT,
+      date: todayInput(),
+      accountTypeId: pair.typeId,
+      accountId: pair.accountId,
+    };
+  };
 
   async function openDetail(id: string) {
     setDetailLoading(true);
@@ -142,7 +149,9 @@ export function usePersonDetail(
         obligationId: payForm.obligationId || null,
         direction: payForm.direction,
       });
-      defaults.remember({ accountId: payForm.accountId });
+      defaults.remember(
+        rememberAccountPair({ typeId: payForm.accountTypeId, accountId: payForm.accountId })
+      );
       setPayForm(blankPayment());
       await refreshDetail();
     } catch (e: unknown) {

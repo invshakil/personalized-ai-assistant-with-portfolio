@@ -73,6 +73,7 @@ export interface MoneyEntryRow {
   accountId: string | null;
   accountName: string | null;
   accountType: MoneyAccountType | null; // for the trip settlement split (cash/bank vs card)
+  accountTypeName: string | null; // the account's named type — how the money moved
   transferAccountId: string | null;
   transferAccountName: string | null;
   beneficiaryId: string | null;
@@ -80,7 +81,7 @@ export interface MoneyEntryRow {
   obligationId: string | null;
   description: string | null;
   notes: string | null;
-  method: MoneyEntryMethod | null; // how a CREDIT arrived (cash/bank transfer/etc.); null for DEBIT/TRANSFER or unspecified
+  method: MoneyEntryMethod | null; // LEGACY: how a CREDIT arrived. No longer set from the UI — the account's type says it; kept for old rows
   source: MoneyEntrySource;
   tripId: string | null; // set when this entry belongs to a trip
   tripCategory: TripCategory | null; // budget bucket for a trip-tagged expense

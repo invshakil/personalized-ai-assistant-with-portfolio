@@ -44,6 +44,8 @@ export default function ImportPage() {
           mapping={csv.mapping}
           onMappingChange={csv.setMapping}
           accounts={aux.accounts}
+          defaultAccount={csv.defaultAccount}
+          onDefaultAccountChange={csv.setDefaultAccount}
           canPreview={canPreview}
           previewing={preview.previewing}
           onPreview={() => preview.runPreview(csv.file, csv.mapping)}

@@ -1,6 +1,6 @@
 import { Box, IconButton, TextField, Tooltip } from "@mui/material";
 import { ArrowUpDown } from "lucide-react";
-import SearchableSelect from "@/components/admin/SearchableSelect";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
 import type { MoneyAccountRow } from "@/types";
 import { swapTransferDirection, type TransferForm } from "../types";
 
@@ -30,11 +30,18 @@ export default function TransferAccountFields({
         onChange={(e) => setTransfer((t) => ({ ...t, date: e.target.value }))}
         sx={{ mb: 2 }}
       />
-      <SearchableSelect
-        label="From"
-        value={transfer.fromAccountId}
-        options={accounts.map((a) => ({ value: a.id, label: a.name }))}
-        onChange={(v) => setTransfer((t) => ({ ...t, fromAccountId: v }))}
+      <AccountTypeAccountSelect
+        accounts={accounts}
+        accountLabel="From"
+        typeLabel="From type"
+        value={{ typeId: transfer.fromAccountTypeId, accountId: transfer.fromAccountId }}
+        onChange={(sel) =>
+          setTransfer((t) => ({
+            ...t,
+            fromAccountTypeId: sel.typeId,
+            fromAccountId: sel.accountId,
+          }))
+        }
         sx={{ mb: 1 }}
       />
       <Box sx={{ display: "flex", justifyContent: "center", mb: 1 }}>
@@ -57,13 +64,15 @@ export default function TransferAccountFields({
           </span>
         </Tooltip>
       </Box>
-      <SearchableSelect
-        label="To"
-        value={transfer.toAccountId}
-        options={accounts
-          .filter((a) => a.id !== transfer.fromAccountId)
-          .map((a) => ({ value: a.id, label: a.name }))}
-        onChange={(v) => setTransfer((t) => ({ ...t, toAccountId: v }))}
+      <AccountTypeAccountSelect
+        accounts={accounts}
+        accountLabel="To"
+        typeLabel="To type"
+        filter={(a) => a.id !== transfer.fromAccountId}
+        value={{ typeId: transfer.toAccountTypeId, accountId: transfer.toAccountId }}
+        onChange={(sel) =>
+          setTransfer((t) => ({ ...t, toAccountTypeId: sel.typeId, toAccountId: sel.accountId }))
+        }
         sx={{ mb: 2 }}
       />
     </>

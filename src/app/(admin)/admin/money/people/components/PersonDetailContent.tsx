@@ -22,6 +22,7 @@ type ObligationForm = {
 type PaymentForm = {
   amount: string;
   date: string;
+  accountTypeId: string; // filter only
   accountId: string;
   obligationId: string;
   direction: "DEBIT" | "CREDIT";
