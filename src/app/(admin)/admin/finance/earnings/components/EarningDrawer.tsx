@@ -1,8 +1,8 @@
 import { Alert, Box, Button, Drawer, Typography } from "@mui/material";
-import type { SelectOption } from "@/components/admin/SearchableSelect";
 import type { SourceRow } from "../../types";
 import type { EarningForm } from "../types";
 import EarningDrawerFields from "./EarningDrawerFields";
+import type { MoneyAccountRow } from "@/types";
 
 interface EarningDrawerProps {
   open: boolean;
@@ -10,7 +10,7 @@ interface EarningDrawerProps {
   form: EarningForm;
   setForm: React.Dispatch<React.SetStateAction<EarningForm>>;
   sources: SourceRow[];
-  accountSelectOptions: SelectOption[];
+  accounts: MoneyAccountRow[];
   saving: boolean;
   error: string | null;
   rateLoading: boolean;
@@ -29,7 +29,7 @@ export default function EarningDrawer({
   form,
   setForm,
   sources,
-  accountSelectOptions,
+  accounts,
   saving,
   error,
   rateLoading,
@@ -57,7 +57,7 @@ export default function EarningDrawer({
           form={form}
           setForm={setForm}
           sources={sources}
-          accountSelectOptions={accountSelectOptions}
+          accounts={accounts}
           rateLoading={rateLoading}
           rateNote={rateNote}
           previewBdt={previewBdt}

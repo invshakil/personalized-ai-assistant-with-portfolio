@@ -26,6 +26,8 @@ export type PaymentForm = {
   fxRate: string;
   fiscalYear: string;
   notes: string;
+  /** Filter only — narrows the account list; never sent to the API. */
+  accountTypeId: string;
   /** Optional Money account to post a linked DEBIT to (opt-in; create only). */
   accountId: string;
 };
@@ -41,5 +43,6 @@ export const BLANK: PaymentForm = {
   fxRate: "1",
   fiscalYear: fiscalYearOf(new Date()),
   notes: "",
+  accountTypeId: "",
   accountId: NO_ACCOUNT,
 };

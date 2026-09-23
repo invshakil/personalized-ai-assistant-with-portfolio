@@ -12,7 +12,6 @@ import PaymentFiltersBar from "./components/PaymentFilters";
 import PaymentSummaryCard from "./components/PaymentSummaryCard";
 import PaymentTable from "./components/PaymentTable";
 import PaymentDrawer from "./components/PaymentDrawer";
-import { NO_ACCOUNT } from "./types";
 
 export default function PaymentsPage() {
   const filters = usePaymentFilters();
@@ -32,10 +31,6 @@ export default function PaymentsPage() {
     value: c.id,
     label: c.name,
   }));
-  const accountSelectOptions: SelectOption[] = [
-    { value: NO_ACCOUNT, label: "— none —" },
-    ...data.accounts.map((a) => ({ value: a.id, label: a.name })),
-  ];
 
   return (
     <Box>
@@ -85,7 +80,7 @@ export default function PaymentsPage() {
         setForm={drawer.setForm}
         employees={data.employees}
         clients={data.clients}
-        accountSelectOptions={accountSelectOptions}
+        accounts={data.accounts}
         rateLoading={drawer.rateLoading}
         rateNote={drawer.rateNote}
         previewBdt={drawer.previewBdt}

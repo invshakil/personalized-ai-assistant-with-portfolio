@@ -1,5 +1,5 @@
 import { Alert, Box, Button, Drawer, Typography } from "@mui/material";
-import type { SelectOption } from "@/components/admin/SearchableSelect";
+import type { MoneyAccountRow } from "@/types";
 import type { EmployeeRow, SourceRow } from "../../types";
 import type { PaymentForm } from "../types";
 import PaymentDrawerBasicFields from "./PaymentDrawerBasicFields";
@@ -12,7 +12,7 @@ interface PaymentDrawerProps {
   setForm: (updater: (f: PaymentForm) => PaymentForm) => void;
   employees: EmployeeRow[];
   clients: SourceRow[];
-  accountSelectOptions: SelectOption[];
+  accounts: MoneyAccountRow[];
   rateLoading: boolean;
   rateNote: string | null;
   previewBdt: number | null;
@@ -32,7 +32,7 @@ export default function PaymentDrawer({
   setForm,
   employees,
   clients,
-  accountSelectOptions,
+  accounts,
   rateLoading,
   rateNote,
   previewBdt,
@@ -65,7 +65,7 @@ export default function PaymentDrawer({
         <PaymentDrawerAmountFields
           form={form}
           setForm={setForm}
-          accountSelectOptions={accountSelectOptions}
+          accounts={accounts}
           editing={editing}
           rateLoading={rateLoading}
           rateNote={rateNote}

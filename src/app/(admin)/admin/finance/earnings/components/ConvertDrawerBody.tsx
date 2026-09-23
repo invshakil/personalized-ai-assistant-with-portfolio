@@ -3,6 +3,7 @@ import SearchableSelect from "@/components/admin/SearchableSelect";
 import type { MoneyAccountRow } from "@/types";
 import ConvertDrawerFields from "./ConvertDrawerFields";
 import ConvertDrawerFooter from "./ConvertDrawerFooter";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 interface ConvertDrawerBodyProps {
   pendingCurrencies: string[];
@@ -11,10 +12,10 @@ interface ConvertDrawerBodyProps {
   convAmount: string;
   onConvAmountChange: (v: string) => void;
   onConvAmountBlur: () => void;
-  convFrom: string;
-  onConvFromChange: (v: string) => void;
-  convTo: string;
-  onConvToChange: (v: string) => void;
+  convFrom: AccountSelection;
+  onConvFromChange: (sel: AccountSelection) => void;
+  convTo: AccountSelection;
+  onConvToChange: (sel: AccountSelection) => void;
   convDate: string;
   onConvDateChange: (v: string) => void;
   convToAmount: string;

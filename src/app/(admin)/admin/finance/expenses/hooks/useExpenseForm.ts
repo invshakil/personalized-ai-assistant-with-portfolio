@@ -2,6 +2,13 @@ import { useState } from "react";
 import { fiscalYearOf } from "@/lib/fiscalYear";
 import { financeApi } from "@/lib/api/finance";
 import type { MoneyAccountRow } from "@/types";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
+import {
+  pairValidValues,
+  rememberAccountPair,
+  seedAccountPair,
+  withKindFallback,
+} from "@/lib/accountPicker";
 import type { BizExpenseRow, CategoryRow } from "../../types";
 import { todayInput } from "../../format";
 import { BLANK_EXPENSE_FORM, NO_ACCOUNT, type ExpenseForm } from "../types";
@@ -17,16 +24,25 @@ export function useExpenseForm(
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const defaultAccountId = () => accounts.find((a) => a.type === "BANK")?.id ?? NO_ACCOUNT;
+  const defaults = useFormDefaults("finance.expense");
+  // A stored default wins; with none, the form still starts on the first Bank account.
+  const seedPair = () =>
+    withKindFallback(
+      accounts,
+      seedAccountPair(accounts, defaults.seed(pairValidValues(accounts))),
+      "BANK"
+    );
 
   function openAdd() {
     setEditing(null);
+    const pair = seedPair();
     setForm({
       ...BLANK_EXPENSE_FORM,
       date: todayInput(),
       fiscalYear: fiscalYearOf(new Date()),
       categoryId: categories[0]?.id ?? "",
-      accountId: defaultAccountId(),
+      accountTypeId: pair.typeId,
+      accountId: pair.accountId,
     });
     setError(null);
     setDrawerOpen(true);
@@ -42,6 +58,7 @@ export function useExpenseForm(
       amount: String(e.amount),
       fiscalYear: e.fiscalYear,
       notes: e.notes ?? "",
+      accountTypeId: "",
       accountId: NO_ACCOUNT,
     });
     setError(null);
@@ -71,7 +88,12 @@ export function useExpenseForm(
       };
       if (editing) await financeApi.updateExpense(editing, body);
       // accountId is create-only (opt-in link; no back-sync on edit).
-      else await financeApi.createExpense({ ...body, accountId: form.accountId || undefined });
+      else {
+        await financeApi.createExpense({ ...body, accountId: form.accountId || undefined });
+        defaults.remember(
+          rememberAccountPair({ typeId: form.accountTypeId, accountId: form.accountId })
+        );
+      }
       setDrawerOpen(false);
       await onSuccess();
     } catch (e: unknown) {

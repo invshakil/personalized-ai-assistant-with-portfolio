@@ -3,6 +3,7 @@ import type { SelectOption } from "@/components/admin/SearchableSelect";
 import type { ExpenseForm } from "../types";
 import ExpenseFormBasicFields from "./ExpenseFormBasicFields";
 import ExpenseFormExtraFields from "./ExpenseFormExtraFields";
+import type { MoneyAccountRow } from "@/types";
 
 interface ExpenseFormDrawerProps {
   open: boolean;
@@ -11,7 +12,7 @@ interface ExpenseFormDrawerProps {
   onFormChange: (form: ExpenseForm) => void;
   onDateChange: (date: string) => void;
   categoryOptions: SelectOption[];
-  accountSelectOptions: SelectOption[];
+  accounts: MoneyAccountRow[];
   saving: boolean;
   error: string | null;
   onSave: () => void;
@@ -25,7 +26,7 @@ export default function ExpenseFormDrawer({
   onFormChange,
   onDateChange,
   categoryOptions,
-  accountSelectOptions,
+  accounts,
   saving,
   error,
   onSave,
@@ -53,7 +54,7 @@ export default function ExpenseFormDrawer({
           form={form}
           onFormChange={onFormChange}
           editing={editing}
-          accountSelectOptions={accountSelectOptions}
+          accounts={accounts}
         />
 
         {error && (

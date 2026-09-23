@@ -109,6 +109,19 @@ export const DEFAULTABLE_FIELDS: DefaultableField[] = [
   ...accountPair("money.personPayment", "Money Manager", "Record Payment (People)", {
     hint: "Which account a payment to a person comes from.",
   }),
+  ...accountPair("finance.payment", "Financial Tracker", "Salary Payment", {
+    label: "Pay from account",
+  }),
+  ...accountPair("finance.expense", "Financial Tracker", "Business Expense", {
+    label: "Pay from account",
+  }),
+  ...accountPair("finance.earning", "Financial Tracker", "Earning", {
+    label: "Deposit to account",
+  }),
+  ...accountPair("finance.convert", "Financial Tracker", "Convert Earnings", {
+    prefix: "to",
+    label: "To account (BDT)",
+  }),
 ];
 
 const byKey = new Map(DEFAULTABLE_FIELDS.map((f) => [`${f.scope}|${f.field}`, f]));

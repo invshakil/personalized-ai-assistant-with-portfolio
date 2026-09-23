@@ -1,29 +1,32 @@
 import { FormControlLabel, Switch, TextField } from "@mui/material";
-import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import type { ExpenseForm } from "../types";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
+import type { MoneyAccountRow } from "@/types";
 
 interface ExpenseFormExtraFieldsProps {
   form: ExpenseForm;
   onFormChange: (form: ExpenseForm) => void;
   editing: boolean;
-  accountSelectOptions: SelectOption[];
+  accounts: MoneyAccountRow[];
 }
 
 export default function ExpenseFormExtraFields({
   form,
   onFormChange,
   editing,
-  accountSelectOptions,
+  accounts,
 }: ExpenseFormExtraFieldsProps) {
   return (
     <>
       {!editing && (
-        <SearchableSelect
-          label="Pay from account (optional)"
-          value={form.accountId}
-          options={accountSelectOptions}
-          onChange={(v) => onFormChange({ ...form, accountId: v })}
-          clearable
+        <AccountTypeAccountSelect
+          accounts={accounts}
+          accountLabel="Pay from account (optional)"
+          value={{ typeId: form.accountTypeId, accountId: form.accountId }}
+          onChange={(sel) =>
+            onFormChange({ ...form, accountTypeId: sel.typeId, accountId: sel.accountId })
+          }
+          optional
           sx={{ mb: 2 }}
         />
       )}
