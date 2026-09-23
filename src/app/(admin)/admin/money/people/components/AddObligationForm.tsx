@@ -10,6 +10,7 @@ import {
   Typography,
 } from "@mui/material";
 import type { ObligationDirection, ObligationType } from "@/types";
+import NumberField from "@/components/admin/NumberField";
 
 type ObligationForm = {
   type: ObligationType;
@@ -58,13 +59,12 @@ export default function AddObligationForm({ form, onChange, saving, onSave }: Pr
             <MenuItem value="OWED_TO_ME">They owe me</MenuItem>
           </Select>
         </FormControl>
-        <TextField
+        <NumberField
           label={form.type === "LOAN" ? "Principal (৳)" : "Per-period (৳)"}
-          type="number"
           size="small"
           sx={{ width: 140 }}
           value={form.amount}
-          onChange={(e) => onChange({ ...form, amount: e.target.value })}
+          onChange={(v) => onChange({ ...form, amount: v })}
         />
         <TextField
           label="Start"

@@ -2,6 +2,7 @@ import { Alert, TextField, Typography } from "@mui/material";
 import SearchableSelect from "@/components/admin/SearchableSelect";
 import type { MoneyAccountRow } from "@/types";
 import { fmtCurrency } from "../../format";
+import NumberField from "@/components/admin/NumberField";
 
 interface ConvertDrawerFieldsProps {
   convCurrency: string;
@@ -68,13 +69,12 @@ export default function ConvertDrawerFields({
         </Typography>
       )}
 
-      <TextField
+      <NumberField
         label={`Amount to convert (${convCurrency})`}
-        type="number"
         size="small"
         fullWidth
         value={convAmount}
-        onChange={(e) => onConvAmountChange(e.target.value)}
+        onChange={onConvAmountChange}
         onBlur={onConvAmountBlur}
         sx={{ mb: 1 }}
       />
@@ -106,13 +106,12 @@ export default function ConvertDrawerFields({
         onChange={(e) => onConvDateChange(e.target.value)}
         sx={{ mb: 2 }}
       />
-      <TextField
+      <NumberField
         label="BDT received (৳)"
-        type="number"
         size="small"
         fullWidth
         value={convToAmount}
-        onChange={(e) => onConvToAmountChange(e.target.value)}
+        onChange={onConvToAmountChange}
         helperText={
           convRateLoading
             ? "Fetching live rate…"

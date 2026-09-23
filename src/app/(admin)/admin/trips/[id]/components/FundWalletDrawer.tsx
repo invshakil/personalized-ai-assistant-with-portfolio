@@ -2,6 +2,7 @@ import { Alert, Box, Button, Drawer, TextField, Typography } from "@mui/material
 import SearchableSelect from "@/components/admin/SearchableSelect";
 import type { MoneyAccountRow } from "@/types";
 import { accountOptions, currencySymbol } from "../../format";
+import NumberField from "@/components/admin/NumberField";
 
 interface FundForm {
   fromAccountId: string;
@@ -66,25 +67,23 @@ export default function FundWalletDrawer({
           onChange={(v) => setForm((f) => ({ ...f, fromAccountId: v }))}
           sx={{ mb: 2 }}
         />
-        <TextField
+        <NumberField
           label={`Amount to convert (${currencySymbol(sourceCurrency)})`}
-          type="number"
           size="small"
           fullWidth
           value={form.amount}
-          onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+          onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
           sx={{ mb: 1 }}
         />
         <Button size="small" onClick={onPrefillRate} sx={{ mb: 1 }}>
           Prefill at live rate
         </Button>
-        <TextField
+        <NumberField
           label={`Received (${currencySymbol(localCurrency)})`}
-          type="number"
           size="small"
           fullWidth
           value={form.toAmount}
-          onChange={(e) => setForm((f) => ({ ...f, toAmount: e.target.value }))}
+          onChange={(v) => setForm((f) => ({ ...f, toAmount: v }))}
           helperText={rateNote ?? "Use your actual received amount."}
           sx={{ mb: 2 }}
         />

@@ -1,5 +1,6 @@
 import { Alert, Box, Button, Drawer, TextField, Typography } from "@mui/material";
 import type { EditPaymentState } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 interface EditPaymentDrawerProps {
   payment: EditPaymentState | null;
@@ -38,13 +39,12 @@ export default function EditPaymentDrawer({
           Editing Rent Due recalculates the balance and status. Use this to correct the billed
           amount — e.g. to split embedded service fees from base rent.
         </Alert>
-        <TextField
+        <NumberField
           label="Rent Due (৳)"
-          type="number"
           size="small"
           fullWidth
           value={payment?.rentDue ?? ""}
-          onChange={(e) => onChange({ rentDue: e.target.value })}
+          onChange={(v) => onChange({ rentDue: v })}
           sx={{ mb: 2 }}
         />
         <TextField

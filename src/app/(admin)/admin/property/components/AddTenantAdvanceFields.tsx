@@ -1,7 +1,8 @@
-import { FormControlLabel, Switch, TextField } from "@mui/material";
+import { FormControlLabel, Switch } from "@mui/material";
 import SearchableSelect from "@/components/admin/SearchableSelect";
 import type { MoneyAccountRow } from "@/types";
 import { NO_ACCOUNT, type AddTenantForm } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 interface AddTenantAdvanceFieldsProps {
   form: AddTenantForm;
@@ -30,11 +31,10 @@ export default function AddTenantAdvanceFields({
         label="Advance Paid"
       />
       {form.advancePaid && (
-        <TextField
+        <NumberField
           label="Advance Amount (৳)"
-          type="number"
           value={form.advanceAmount}
-          onChange={(e) => onFormChange({ ...form, advanceAmount: e.target.value })}
+          onChange={(v) => onFormChange({ ...form, advanceAmount: v })}
           size="small"
           fullWidth
         />

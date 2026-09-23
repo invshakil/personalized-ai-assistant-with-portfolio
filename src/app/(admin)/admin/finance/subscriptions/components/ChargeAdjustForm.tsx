@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { Box, Button, TableCell, TextField } from "@mui/material";
 import type { SubscriptionCharge } from "../../types";
 import type { AdjustingState } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 interface ChargeAdjustFormProps {
   charge: SubscriptionCharge;
@@ -25,12 +26,11 @@ export default function ChargeAdjustForm({
   return (
     <TableCell colSpan={2}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        <TextField
+        <NumberField
           label="Amount (৳)"
-          type="number"
           size="small"
           value={adjusting.amount}
-          onChange={(e) => onAdjustingChange((a) => (a ? { ...a, amount: e.target.value } : a))}
+          onChange={(v) => onAdjustingChange((a) => (a ? { ...a, amount: v } : a))}
         />
         <TextField
           label="Note (optional)"

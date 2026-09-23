@@ -1,6 +1,7 @@
-import { Alert, FormControl, InputLabel, MenuItem, Select, TextField } from "@mui/material";
+import { Alert, FormControl, InputLabel, MenuItem, Select } from "@mui/material";
 import type { UnitWithTenant } from "@/types";
 import { fmt, type AddTenantForm } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 interface AddTenantUnitFieldsProps {
   form: AddTenantForm;
@@ -53,11 +54,10 @@ export default function AddTenantUnitFields({
       )}
 
       {form.unitId && (
-        <TextField
+        <NumberField
           label={selectedUnit?.isOccupied ? "New Rent for Future Tenant (৳)" : "Monthly Rent (৳)"}
-          type="number"
           value={form.customRent}
-          onChange={(e) => onFormChange({ ...form, customRent: e.target.value })}
+          onChange={(v) => onFormChange({ ...form, customRent: v })}
           size="small"
           fullWidth
           helperText={

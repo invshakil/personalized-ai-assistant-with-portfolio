@@ -11,6 +11,7 @@ import {
 } from "@mui/material";
 import type { UnitWithTenant } from "@/types";
 import { fmt } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 type TenantServices = NonNullable<UnitWithTenant["tenant"]>["services"];
 
@@ -80,11 +81,10 @@ export default function MoveTenantFields({
       {targetUnitId && (
         <>
           <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
-            <TextField
+            <NumberField
               label="Rent for New Unit (৳)"
-              type="number"
               value={rent}
-              onChange={(e) => onRentChange(e.target.value)}
+              onChange={onRentChange}
               size="small"
               fullWidth
               helperText={
@@ -160,13 +160,12 @@ export default function MoveTenantFields({
                     ))}
                   </Select>
                 </FormControl>
-                <TextField
+                <NumberField
                   label="Fee (৳)"
-                  type="number"
                   size="small"
                   sx={{ flex: 1 }}
                   value={addSvcFee}
-                  onChange={(e) => onAddSvcFeeChange(e.target.value)}
+                  onChange={onAddSvcFeeChange}
                   placeholder="0"
                   disabled={!addSvcId}
                 />

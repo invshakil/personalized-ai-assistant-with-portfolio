@@ -2,6 +2,7 @@ import { Box, Button, Divider, TextField, Typography } from "@mui/material";
 import { Plus, TrendingUp } from "lucide-react";
 import type { RentChangeForm } from "../types";
 import { fmt } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 interface RentChangeSectionProps {
   currentRent: number;
@@ -55,11 +56,10 @@ export default function RentChangeSection({
             fullWidth
             slotProps={{ inputLabel: { shrink: true } }}
           />
-          <TextField
+          <NumberField
             label="New Rent (৳)"
-            type="number"
             value={form.newRent}
-            onChange={(e) => onFormChange({ ...form, newRent: e.target.value })}
+            onChange={(v) => onFormChange({ ...form, newRent: v })}
             size="small"
             fullWidth
           />

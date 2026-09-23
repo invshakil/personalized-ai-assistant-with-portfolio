@@ -10,6 +10,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import NumberField from "@/components/admin/NumberField";
 
 interface EditTransactionDrawerProps {
   open: boolean;
@@ -63,13 +64,12 @@ export default function EditTransactionDrawer({
             <MenuItem value="OTHER">Other</MenuItem>
           </Select>
         </FormControl>
-        <TextField
+        <NumberField
           label="Amount (৳)"
-          type="number"
           size="small"
           fullWidth
           value={amount}
-          onChange={(e) => onAmountChange(e.target.value)}
+          onChange={onAmountChange}
           sx={{ mb: 2 }}
         />
         <TextField

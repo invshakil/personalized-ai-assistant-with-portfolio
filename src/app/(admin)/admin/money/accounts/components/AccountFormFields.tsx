@@ -2,6 +2,7 @@ import { FormControlLabel, Switch, TextField } from "@mui/material";
 import { currencySymbol } from "../../format";
 import type { AccountForm } from "../hooks/useAccountForm";
 import AccountTypeCurrencyFields from "./AccountTypeCurrencyFields";
+import NumberField from "@/components/admin/NumberField";
 
 interface Props {
   form: AccountForm;
@@ -26,28 +27,26 @@ export default function AccountFormFields({ form, editingHasEntries, onChange }:
         editingHasEntries={editingHasEntries}
         onChange={onChange}
       />
-      <TextField
+      <NumberField
         label={
           form.type === "CREDIT_CARD"
             ? `Opening balance (${currencySymbol(form.currency)}, negative if owed)`
             : `Opening balance (${currencySymbol(form.currency)})`
         }
-        type="number"
         size="small"
         fullWidth
         value={form.openingBalance}
-        onChange={(e) => onChange((f) => ({ ...f, openingBalance: e.target.value }))}
+        onChange={(v) => onChange((f) => ({ ...f, openingBalance: v }))}
         helperText="The real balance you currently hold (or owe) in this account."
         sx={{ mb: 2 }}
       />
       {form.type === "CREDIT_CARD" && (
-        <TextField
+        <NumberField
           label={`Credit limit (${currencySymbol(form.currency)})`}
-          type="number"
           size="small"
           fullWidth
           value={form.creditLimit}
-          onChange={(e) => onChange((f) => ({ ...f, creditLimit: e.target.value }))}
+          onChange={(v) => onChange((f) => ({ ...f, creditLimit: v }))}
           sx={{ mb: 2 }}
         />
       )}

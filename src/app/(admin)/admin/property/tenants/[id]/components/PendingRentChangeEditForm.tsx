@@ -1,5 +1,6 @@
 import { Box, Button, TextField } from "@mui/material";
 import { Check, X } from "lucide-react";
+import NumberField from "@/components/admin/NumberField";
 
 interface PendingRentChangeEditFormProps {
   editDate: string;
@@ -36,13 +37,12 @@ export default function PendingRentChangeEditForm({
           onChange={(e) => onEditDateChange(e.target.value)}
           slotProps={{ inputLabel: { shrink: true } }}
         />
-        <TextField
+        <NumberField
           label="New Rent (৳)"
-          type="number"
           size="small"
           sx={{ flex: 1 }}
           value={editRent}
-          onChange={(e) => onEditRentChange(e.target.value)}
+          onChange={onEditRentChange}
         />
       </Box>
       <TextField

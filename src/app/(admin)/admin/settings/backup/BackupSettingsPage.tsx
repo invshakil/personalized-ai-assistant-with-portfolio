@@ -9,7 +9,6 @@ import {
   Button,
   ToggleButton,
   ToggleButtonGroup,
-  TextField,
   Alert,
   Divider,
   Chip,
@@ -44,6 +43,7 @@ import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { adminApi } from "@/lib/api/admin";
 import { mobileCardTableSx } from "@/lib/mobileTableSx";
 import type { AdminBackupState, AdminBackupRecord, BackupFrequency } from "@/types";
+import NumberField from "@/components/admin/NumberField";
 
 function formatBytes(n: number): string {
   if (n <= 0) return "—";
@@ -248,12 +248,13 @@ export default function BackupSettingsPage() {
           </ToggleButtonGroup>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-            <TextField
+            <NumberField
               label="Keep last"
-              type="number"
+              integer
+              min={1}
               size="small"
               value={retention}
-              onChange={(e) => setRetention(e.target.value)}
+              onChange={setRetention}
               onBlur={saveRetention}
               helperText="Older backups are pruned (local + Drive)"
               sx={{ width: 160 }}

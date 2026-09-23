@@ -1,5 +1,6 @@
-import { TextField, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
 import { fmt } from "../../format";
+import NumberField from "@/components/admin/NumberField";
 
 interface EarningFxRateFieldProps {
   currency: string;
@@ -22,13 +23,14 @@ export default function EarningFxRateField({
 
   return (
     <>
-      <TextField
+      <NumberField
         label={`FX rate (৳ per 1 ${currency})`}
-        type="number"
+        decimals={6}
+        min={0}
         size="small"
         fullWidth
         value={fxRate}
-        onChange={(e) => onFxRateChange(e.target.value)}
+        onChange={onFxRateChange}
         helperText={
           rateLoading
             ? "Fetching live rate…"

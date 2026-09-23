@@ -2,6 +2,7 @@ import { Box, Button, FormControl, InputLabel, MenuItem, Select, TextField } fro
 import { HandCoins } from "lucide-react";
 import type { MoneyAccountRow, ObligationRow } from "@/types";
 import PaymentAccountObligationFields from "./PaymentAccountObligationFields";
+import NumberField from "@/components/admin/NumberField";
 
 type PaymentForm = {
   amount: string;
@@ -42,13 +43,12 @@ export default function RecordPaymentForm({
             <MenuItem value="CREDIT">They paid me</MenuItem>
           </Select>
         </FormControl>
-        <TextField
+        <NumberField
           label="Amount (৳)"
-          type="number"
           size="small"
           sx={{ width: 130 }}
           value={form.amount}
-          onChange={(e) => onChange({ ...form, amount: e.target.value })}
+          onChange={(v) => onChange({ ...form, amount: v })}
         />
         <TextField
           label="Date"

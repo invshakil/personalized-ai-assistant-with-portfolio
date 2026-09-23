@@ -1,5 +1,6 @@
-import { Alert, Box, Button, Drawer, TextField, Typography } from "@mui/material";
+import { Alert, Box, Button, Drawer, Typography } from "@mui/material";
 import { TRIP_CATEGORIES, TRIP_CATEGORY_LABEL } from "@/types";
+import NumberField from "@/components/admin/NumberField";
 
 interface Props {
   open: boolean;
@@ -37,14 +38,13 @@ export default function TripBudgetDrawer({
           Planned amounts in {homeCurrency}. Leave blank for no budget.
         </Typography>
         {TRIP_CATEGORIES.map((c) => (
-          <TextField
+          <NumberField
             key={c}
             label={TRIP_CATEGORY_LABEL[c]}
-            type="number"
             size="small"
             fullWidth
             value={form[c] ?? ""}
-            onChange={(e) => onChange((f) => ({ ...f, [c]: e.target.value }))}
+            onChange={(v) => onChange((f) => ({ ...f, [c]: v }))}
             sx={{ mb: 2 }}
           />
         ))}

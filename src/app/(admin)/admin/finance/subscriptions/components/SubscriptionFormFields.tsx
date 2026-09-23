@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from "react";
 import { FormControl, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import type { CategoryRow } from "../../types";
 import type { SubForm } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 interface SubscriptionFormFieldsProps {
   editing: string | null;
@@ -40,13 +41,12 @@ export default function SubscriptionFormFields({
           ))}
         </Select>
       </FormControl>
-      <TextField
+      <NumberField
         label={editing ? "Starting amount (৳)" : "Monthly amount (৳)"}
-        type="number"
         size="small"
         fullWidth
         value={form.monthlyAmount}
-        onChange={(e) => onFormChange((f) => ({ ...f, monthlyAmount: e.target.value }))}
+        onChange={(v) => onFormChange((f) => ({ ...f, monthlyAmount: v }))}
         sx={{ mb: 2 }}
       />
       <TextField

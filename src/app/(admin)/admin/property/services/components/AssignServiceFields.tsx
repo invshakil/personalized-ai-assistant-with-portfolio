@@ -1,5 +1,6 @@
 import { FormControl, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import type { ServiceEntry, TenantOption } from "../types";
+import NumberField from "@/components/admin/NumberField";
 
 interface AssignServiceFieldsProps {
   services: ServiceEntry[];
@@ -51,13 +52,12 @@ export default function AssignServiceFields({
             ))}
         </Select>
       </FormControl>
-      <TextField
+      <NumberField
         label="Monthly Fee (৳)"
-        type="number"
         size="small"
         fullWidth
         value={fee}
-        onChange={(e) => onFeeChange(e.target.value)}
+        onChange={onFeeChange}
         sx={{ mb: 2 }}
       />
       <TextField

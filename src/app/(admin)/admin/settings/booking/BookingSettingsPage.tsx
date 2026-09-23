@@ -27,6 +27,7 @@ import type {
   BookingSettingsState,
   BookingWorkingHour,
 } from "@/types";
+import NumberField from "@/components/admin/NumberField";
 
 const WEEKDAY_NAMES = [
   "Sunday",
@@ -328,11 +329,12 @@ export default function BookingSettingsPage() {
                 deleteIcon={<X size={14} />}
               />
             ))}
-            <TextField
+            <NumberField
               size="small"
-              type="number"
               value={newDuration}
-              onChange={(e) => setNewDuration(e.target.value)}
+              onChange={setNewDuration}
+              integer
+              min={1}
               placeholder="e.g. 30"
               sx={{ width: 110 }}
             />
@@ -345,36 +347,40 @@ export default function BookingSettingsPage() {
 
           {/* Numbers row */}
           <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
-            <TextField
+            <NumberField
               label="Slot increment (min)"
+              integer
+              min={1}
               size="small"
-              type="number"
               value={draft.slotIncrementMinutes}
-              onChange={(e) => setField("slotIncrementMinutes", Number(e.target.value) || 0)}
+              onChange={(v) => setField("slotIncrementMinutes", Number(v) || 0)}
               sx={{ width: 170 }}
             />
-            <TextField
+            <NumberField
               label="Buffer between (min)"
+              integer
+              min={0}
               size="small"
-              type="number"
               value={draft.bufferMinutes}
-              onChange={(e) => setField("bufferMinutes", Number(e.target.value) || 0)}
+              onChange={(v) => setField("bufferMinutes", Number(v) || 0)}
               sx={{ width: 170 }}
             />
-            <TextField
+            <NumberField
               label="Min notice (hours)"
+              integer
+              min={0}
               size="small"
-              type="number"
               value={draft.minNoticeHours}
-              onChange={(e) => setField("minNoticeHours", Number(e.target.value) || 0)}
+              onChange={(v) => setField("minNoticeHours", Number(v) || 0)}
               sx={{ width: 170 }}
             />
-            <TextField
+            <NumberField
               label="Max horizon (days)"
+              integer
+              min={1}
               size="small"
-              type="number"
               value={draft.maxHorizonDays}
-              onChange={(e) => setField("maxHorizonDays", Number(e.target.value) || 0)}
+              onChange={(v) => setField("maxHorizonDays", Number(v) || 0)}
               sx={{ width: 170 }}
             />
             <TextField

@@ -6,6 +6,7 @@ import { currencySymbol } from "../../format";
 import type { EarningForm } from "../types";
 import EarningFxRateField from "./EarningFxRateField";
 import EarningDrawerTailFields from "./EarningDrawerTailFields";
+import NumberField from "@/components/admin/NumberField";
 
 interface EarningDrawerFieldsProps {
   editing: string | null;
@@ -61,13 +62,12 @@ export default function EarningDrawerFields({
         sx={{ mb: 2 }}
       />
       <CurrencySelect value={form.currency} onChange={onCurrencyChange} sx={{ mb: 2 }} />
-      <TextField
+      <NumberField
         label={`Amount (${currencySymbol(form.currency)})`}
-        type="number"
         size="small"
         fullWidth
         value={form.amount}
-        onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+        onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
         sx={{ mb: 2 }}
       />
       <EarningFxRateField

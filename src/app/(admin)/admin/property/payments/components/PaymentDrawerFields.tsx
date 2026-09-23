@@ -1,6 +1,7 @@
 import { FormControl, InputLabel, MenuItem, Select, TextField } from "@mui/material";
 import SearchableSelect, { type SelectOption } from "@/components/admin/SearchableSelect";
 import type { MoneyAccountRow, PaymentWithTenant } from "@/types";
+import NumberField from "@/components/admin/NumberField";
 
 interface PaymentDrawerFieldsProps {
   payment: PaymentWithTenant;
@@ -62,19 +63,15 @@ export default function PaymentDrawerFields({
           />
         )}
 
-      <TextField
+      <NumberField
         label="Amount (৳)"
-        type="number"
         size="small"
         fullWidth
         value={txAmount}
-        onChange={(e) => onTxAmountChange(e.target.value)}
+        onChange={onTxAmountChange}
+        min={0}
+        max={mode === "advance" ? Math.min(payment.advanceBalance, payment.balance) : undefined}
         sx={{ mb: 2 }}
-        slotProps={{
-          htmlInput: {
-            max: mode === "advance" ? Math.min(payment.advanceBalance, payment.balance) : undefined,
-          },
-        }}
       />
       <TextField
         label="Date"

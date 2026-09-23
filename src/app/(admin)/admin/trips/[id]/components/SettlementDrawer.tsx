@@ -4,6 +4,7 @@ import CurrencySelect from "@/components/admin/CurrencySelect";
 import type { TripParticipantRow } from "@/types";
 import { currencySymbol, fmt } from "../../format";
 import type { SettlementForm } from "../hooks/useTripSettlements";
+import NumberField from "@/components/admin/NumberField";
 
 interface Props {
   open: boolean;
@@ -85,23 +86,23 @@ export default function SettlementDrawer({
           onChange={onCurrencyChange}
           sx={{ mb: 2 }}
         />
-        <TextField
+        <NumberField
           label={`Amount (${currencySymbol(form.currency)})`}
-          type="number"
           size="small"
           fullWidth
           value={form.amount}
-          onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+          onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
           sx={{ mb: 2 }}
         />
         {foreign && (
-          <TextField
+          <NumberField
             label={`FX rate (৳ per 1 ${form.currency})`}
-            type="number"
+            decimals={6}
+            min={0}
             size="small"
             fullWidth
             value={form.fxRate}
-            onChange={(e) => setForm((f) => ({ ...f, fxRate: e.target.value }))}
+            onChange={(v) => setForm((f) => ({ ...f, fxRate: v }))}
             helperText={
               rateLoading ? "Fetching live rate…" : bdt != null ? `≈ ${fmt(bdt)}` : "Editable"
             }

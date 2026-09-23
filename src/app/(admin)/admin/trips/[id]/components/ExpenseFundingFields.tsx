@@ -1,9 +1,10 @@
-import { Box, TextField, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import SearchableSelect from "@/components/admin/SearchableSelect";
 import CurrencySelect from "@/components/admin/CurrencySelect";
 import type { MoneyAccountRow, TripParticipantRow } from "@/types";
 import { accountOptions, currencySymbol, fmt } from "../../format";
 import type { TripExpenseForm } from "../hooks/expenseForm";
+import NumberField from "@/components/admin/NumberField";
 
 interface Props {
   form: TripExpenseForm;
@@ -69,23 +70,23 @@ export default function ExpenseFundingFields({
           : "Paid by someone else — tracked in the trip only, never your money ledger."}
       </Typography>
 
-      <TextField
+      <NumberField
         label={`Amount (${currencySymbol(form.currency)})`}
-        type="number"
         size="small"
         fullWidth
         value={form.amount}
-        onChange={(e) => setForm((f) => ({ ...f, amount: e.target.value }))}
+        onChange={(v) => setForm((f) => ({ ...f, amount: v }))}
         sx={{ mb: 2 }}
       />
       {foreign && (
-        <TextField
+        <NumberField
           label={`FX rate (৳ per 1 ${form.currency})`}
-          type="number"
+          decimals={6}
+          min={0}
           size="small"
           fullWidth
           value={form.fxRate}
-          onChange={(e) => setForm((f) => ({ ...f, fxRate: e.target.value }))}
+          onChange={(v) => setForm((f) => ({ ...f, fxRate: v }))}
           helperText={
             rateLoading
               ? "Fetching live rate…"

@@ -1,7 +1,8 @@
-import { Box, Button, Card, Chip, IconButton, TextField, Tooltip, Typography } from "@mui/material";
+import { Box, Button, Card, Chip, IconButton, Tooltip, Typography } from "@mui/material";
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import { fmt } from "../../format";
 import type { ObligationDirection, ObligationRow } from "@/types";
+import NumberField from "@/components/admin/NumberField";
 
 const DIR_LABEL: Record<ObligationDirection, string> = {
   OWED_BY_ME: "I owe them",
@@ -89,14 +90,13 @@ export default function ObligationCard({
 
       {isEditing && (
         <Box sx={{ display: "flex", gap: 1, mt: 1.5, alignItems: "center" }}>
-          <TextField
+          <NumberField
             autoFocus
             label="Amount (৳)"
-            type="number"
             size="small"
             sx={{ width: 150 }}
             value={editAmount}
-            onChange={(e) => onEditAmountChange(e.target.value)}
+            onChange={onEditAmountChange}
           />
           <Button
             size="small"
@@ -116,14 +116,13 @@ export default function ObligationCard({
         !isEditing &&
         (isAddingDue ? (
           <Box sx={{ display: "flex", gap: 1, mt: 1.5, alignItems: "center" }}>
-            <TextField
+            <NumberField
               autoFocus
               label="Add amount (৳)"
-              type="number"
               size="small"
               sx={{ width: 150 }}
               value={addDueAmount}
-              onChange={(e) => onAddDueAmountChange(e.target.value)}
+              onChange={onAddDueAmountChange}
             />
             <Button
               size="small"
