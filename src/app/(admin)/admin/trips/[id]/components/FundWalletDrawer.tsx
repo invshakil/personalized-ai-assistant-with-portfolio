@@ -1,10 +1,11 @@
 import { Alert, Box, Button, Drawer, TextField, Typography } from "@mui/material";
-import SearchableSelect from "@/components/admin/SearchableSelect";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
 import type { MoneyAccountRow } from "@/types";
-import { accountOptions, currencySymbol } from "../../format";
+import { currencySymbol } from "../../format";
 import NumberField from "@/components/admin/NumberField";
 
 interface FundForm {
+  fromAccountTypeId: string;
   fromAccountId: string;
   amount: string;
   toAmount: string;
@@ -44,7 +45,6 @@ export default function FundWalletDrawer({
   onSave,
 }: Props) {
   const sourceCurrency = accounts.find((a) => a.id === form.fromAccountId)?.currency ?? "BDT";
-  const fromOptions = accountOptions(accounts.filter((a) => a.id !== walletAccountId));
 
   return (
     <Drawer
@@ -60,11 +60,15 @@ export default function FundWalletDrawer({
         <Typography variant="caption" sx={{ color: "text.secondary", display: "block", mb: 2 }}>
           Convert into {walletAccountName ?? "the wallet"} ({localCurrency}).
         </Typography>
-        <SearchableSelect
-          label="From account"
-          value={form.fromAccountId}
-          options={fromOptions}
-          onChange={(v) => setForm((f) => ({ ...f, fromAccountId: v }))}
+        <AccountTypeAccountSelect
+          accounts={accounts}
+          accountLabel="From account"
+          filter={(a) => a.id !== walletAccountId}
+          optionLabel={(a) => `${a.name} · ${a.currency}`}
+          value={{ typeId: form.fromAccountTypeId, accountId: form.fromAccountId }}
+          onChange={(sel) =>
+            setForm((f) => ({ ...f, fromAccountTypeId: sel.typeId, fromAccountId: sel.accountId }))
+          }
           sx={{ mb: 2 }}
         />
         <NumberField

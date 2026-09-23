@@ -11,6 +11,7 @@ import {
 import type { TripExpenseForm } from "../hooks/expenseForm";
 import SplitEditor from "./SplitEditor";
 import ExpenseFundingFields from "./ExpenseFundingFields";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 interface Props {
   open: boolean;
@@ -24,7 +25,7 @@ interface Props {
   payerIsSelf: boolean;
   setForm: (updater: (f: TripExpenseForm) => TripExpenseForm) => void;
   onPayerChange: (id: string) => void;
-  onAccountChange: (id: string) => void;
+  onAccountChange: (sel: AccountSelection) => void;
   onCurrencyChange: (cur: string) => void;
   onMode: (mode: TripSplitMode) => void;
   onToggle: (id: string, checked: boolean) => void;

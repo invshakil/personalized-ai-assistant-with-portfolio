@@ -8,6 +8,7 @@ export interface TripExpenseForm {
   date: string;
   category: TripCategory;
   payerId: string;
+  accountTypeId: string; // filter only — narrows the account list; never sent
   accountId: string; // funding account (self payer only)
   currency: string; // derived from account for self; editable for a friend-paid expense
   amount: string;
@@ -23,6 +24,7 @@ export function blankExpenseForm(selfId: string, activeIds: string[]): TripExpen
     date: todayInput(),
     category: "FOOD",
     payerId: selfId,
+    accountTypeId: "",
     accountId: "",
     currency: "BDT",
     amount: "",
@@ -39,6 +41,7 @@ export function rowToExpenseForm(r: TripExpenseRow): TripExpenseForm {
     date: r.date.slice(0, 10),
     category: r.category,
     payerId: r.payerId,
+    accountTypeId: "", // filled from the account by the caller, which has the list
     accountId: r.accountId ?? "",
     currency: r.currency,
     amount: String(r.amount),

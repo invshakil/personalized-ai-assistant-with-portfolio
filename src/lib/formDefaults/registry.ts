@@ -132,6 +132,8 @@ export const DEFAULTABLE_FIELDS: DefaultableField[] = [
   ...accountPair("property.advance", "Property", "Tenant Advance", {
     label: "Add advance to account",
   }),
+  ...accountPair("trips.expense", "Trips", "Trip Expense", { label: "Paid from account" }),
+  ...accountPair("trips.fundWallet", "Trips", "Fund Wallet", { label: "From account" }),
 ];
 
 const byKey = new Map(DEFAULTABLE_FIELDS.map((f) => [`${f.scope}|${f.field}`, f]));
