@@ -72,7 +72,7 @@ export default function ExpenseRow({
           </Typography>
         )}
       </TableCell>
-      <TableCell data-label="Mode">{e.paymentMode ?? "—"}</TableCell>
+      <TableCell data-label="Mode">{e.accountTypeName ?? e.paymentMode ?? "—"}</TableCell>
       <TableCell data-label="Notes">
         <Typography variant="caption" color="text.secondary">
           {e.notes ?? "—"}

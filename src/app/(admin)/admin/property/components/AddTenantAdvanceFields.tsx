@@ -1,22 +1,23 @@
 import { FormControlLabel, Switch } from "@mui/material";
-import SearchableSelect from "@/components/admin/SearchableSelect";
+import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
 import type { MoneyAccountRow } from "@/types";
-import { NO_ACCOUNT, type AddTenantForm } from "../types";
+import type { AddTenantForm } from "../types";
 import NumberField from "@/components/admin/NumberField";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 interface AddTenantAdvanceFieldsProps {
   form: AddTenantForm;
   onFormChange: (form: AddTenantForm) => void;
   accounts: MoneyAccountRow[];
-  advanceAccountId: string;
-  onAdvanceAccountChange: (id: string) => void;
+  advanceAccount: AccountSelection;
+  onAdvanceAccountChange: (sel: AccountSelection) => void;
 }
 
 export default function AddTenantAdvanceFields({
   form,
   onFormChange,
   accounts,
-  advanceAccountId,
+  advanceAccount,
   onAdvanceAccountChange,
 }: AddTenantAdvanceFieldsProps) {
   return (
@@ -39,15 +40,14 @@ export default function AddTenantAdvanceFields({
           fullWidth
         />
       )}
-      {form.advancePaid && accounts.length > 0 && (
-        <SearchableSelect
-          label="Add advance to wallet/account (optional)"
-          value={advanceAccountId}
-          options={[
-            { value: NO_ACCOUNT, label: "— none / don't add to wallet —" },
-            ...accounts.map((a) => ({ value: a.id, label: a.name })),
-          ]}
+      {form.advancePaid && (
+        <AccountTypeAccountSelect
+          accounts={accounts}
+          accountLabel="Add advance to account (optional)"
+          value={advanceAccount}
           onChange={onAdvanceAccountChange}
+          optional
+          noneLabel="— none / don't add to an account —"
         />
       )}
     </>

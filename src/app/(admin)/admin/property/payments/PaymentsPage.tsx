@@ -141,9 +141,8 @@ export default function PaymentsPage() {
         txType={paymentDrawer.txType}
         onTxTypeChange={paymentDrawer.changeTxType}
         accounts={accounts}
-        accountOptions={paymentDrawer.accountOptions}
-        txAccountId={paymentDrawer.txAccountId}
-        onTxAccountChange={paymentDrawer.setTxAccountId}
+        txAccount={paymentDrawer.txAccount}
+        onTxAccountChange={paymentDrawer.setTxAccount}
         txAmount={paymentDrawer.txAmount}
         onTxAmountChange={paymentDrawer.setTxAmount}
         txDate={paymentDrawer.txDate}

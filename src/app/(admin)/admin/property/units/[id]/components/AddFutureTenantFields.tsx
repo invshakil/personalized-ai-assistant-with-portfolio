@@ -3,6 +3,7 @@ import type { MoneyAccountRow } from "@/types";
 import { dayBefore, fmt, type AddFutureForm, type TenantHistory, type UnitDetail } from "../types";
 import AddFutureTenantAdvanceFields from "./AddFutureTenantAdvanceFields";
 import NumberField from "@/components/admin/NumberField";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 interface AddFutureTenantFieldsProps {
   form: AddFutureForm;
@@ -10,8 +11,8 @@ interface AddFutureTenantFieldsProps {
   unit: UnitDetail | null;
   currentTenant: TenantHistory | null;
   accounts: MoneyAccountRow[];
-  advanceAccountId: string;
-  onAdvanceAccountChange: (id: string) => void;
+  advanceAccount: AccountSelection;
+  onAdvanceAccountChange: (sel: AccountSelection) => void;
 }
 
 export default function AddFutureTenantFields({
@@ -20,7 +21,7 @@ export default function AddFutureTenantFields({
   unit,
   currentTenant,
   accounts,
-  advanceAccountId,
+  advanceAccount,
   onAdvanceAccountChange,
 }: AddFutureTenantFieldsProps) {
   return (
@@ -102,7 +103,7 @@ export default function AddFutureTenantFields({
         form={form}
         onFormChange={onFormChange}
         accounts={accounts}
-        advanceAccountId={advanceAccountId}
+        advanceAccount={advanceAccount}
         onAdvanceAccountChange={onAdvanceAccountChange}
       />
     </Box>

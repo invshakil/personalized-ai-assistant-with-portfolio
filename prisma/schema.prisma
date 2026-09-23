@@ -531,7 +531,11 @@ model Expense {
   year          Int
   expenseDate   DateTime?
   paidTo        String? // legacy free-text; use payeeId for new records
-  paymentMode   String?
+  paymentMode   String? // legacy free-text; the paying account's type replaces it (see accountId)
+  /// The Money account it was paid from, when one was picked. Its type is the
+  /// payment mode. Posting to the ledger still happens once, at create time.
+  account       MoneyAccount?        @relation(fields: [accountId], references: [id], onDelete: SetNull)
+  accountId     String?
   unitId        String?
   unit          Unit?                @relation(fields: [unitId], references: [id])
   payeeId       String?
@@ -541,6 +545,8 @@ model Expense {
   notes         String?
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
+
+  @@index([accountId])
 }
 
 enum ExpenseCategory {
@@ -844,22 +850,23 @@ model AccountType {
 }
 
 model MoneyAccount {
-  id             String           @id @default(cuid())
-  name           String
-  type           MoneyAccountType // kind snapshot of accountType.kind (immutable per type) — behaviour switches read this
-  accountType    AccountType      @relation(fields: [accountTypeId], references: [id])
-  accountTypeId  String
-  currency       String           @default("BDT") // account currency: BDT | USD | EUR. All non-transfer entries are in this currency; balance is in this currency.
-  openingBalance Decimal          @default(0) @db.Decimal(12, 2) // real balance at setup, in `currency`; card: negative = owed
-  creditLimit    Decimal?         @db.Decimal(12, 2) // CREDIT_CARD only; availableCredit = creditLimit + balance
-  isActive       Boolean          @default(true)
-  notes          String?
-  entries        MoneyEntry[]     @relation("EntryAccount")
-  transfersIn    MoneyEntry[]     @relation("EntryTransferAccount")
-  tripsAsWallet  Trip[]           @relation("TripWallet")
-  tripExpenses   TripExpense[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+  id               String           @id @default(cuid())
+  name             String
+  type             MoneyAccountType // kind snapshot of accountType.kind (immutable per type) — behaviour switches read this
+  accountType      AccountType      @relation(fields: [accountTypeId], references: [id])
+  accountTypeId    String
+  currency         String           @default("BDT") // account currency: BDT | USD | EUR. All non-transfer entries are in this currency; balance is in this currency.
+  openingBalance   Decimal          @default(0) @db.Decimal(12, 2) // real balance at setup, in `currency`; card: negative = owed
+  creditLimit      Decimal?         @db.Decimal(12, 2) // CREDIT_CARD only; availableCredit = creditLimit + balance
+  isActive         Boolean          @default(true)
+  notes            String?
+  entries          MoneyEntry[]     @relation("EntryAccount")
+  transfersIn      MoneyEntry[]     @relation("EntryTransferAccount")
+  tripsAsWallet    Trip[]           @relation("TripWallet")
+  tripExpenses     TripExpense[]
+  propertyExpenses Expense[]
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
   // balance = openingBalance + Σ(CREDIT) − Σ(DEBIT, TRANSFER-out) + Σ(TRANSFER-in) — computed in service.
 
   @@index([accountTypeId])

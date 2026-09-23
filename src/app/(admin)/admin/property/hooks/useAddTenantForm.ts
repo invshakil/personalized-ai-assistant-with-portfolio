@@ -1,7 +1,16 @@
 import { useRef, useState } from "react";
 import { propertyApi } from "@/lib/api/property";
 import type { MoneyAccountRow, UnitWithTenant } from "@/types";
-import { BLANK_ADD_TENANT_FORM, NO_ACCOUNT, dayBefore, type AddTenantForm } from "../types";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
+import {
+  EMPTY_SELECTION,
+  pairValidValues,
+  rememberAccountPair,
+  seedAccountPair,
+  withKindFallback,
+  type AccountSelection,
+} from "@/lib/accountPicker";
+import { BLANK_ADD_TENANT_FORM, dayBefore, type AddTenantForm } from "../types";
 
 export function useAddTenantForm(
   units: UnitWithTenant[],
@@ -13,8 +22,18 @@ export function useAddTenantForm(
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const addFileInputRef = useRef<HTMLInputElement>(null);
   const [addForm, setAddForm] = useState<AddTenantForm>(BLANK_ADD_TENANT_FORM);
-  // Optional Money-Manager wallet to credit with the advance.
-  const [advanceAccountId, setAdvanceAccountId] = useState<string>(NO_ACCOUNT);
+  // Optional Money-Manager account to credit with the advance.
+  const [advanceAccount, setAdvanceAccount] = useState<AccountSelection>(EMPTY_SELECTION);
+  const defaults = useFormDefaults("property.advance");
+  // A stored default wins; with none, the first Cash account (as before).
+  const seedAdvanceAccount = () =>
+    setAdvanceAccount(
+      withKindFallback(
+        accounts,
+        seedAccountPair(accounts, defaults.seed(pairValidValues(accounts))),
+        "CASH"
+      )
+    );
   const [saving, setSaving] = useState(false);
 
   const selectedUnit = units.find((u) => u.id === addForm.unitId);
@@ -23,8 +42,7 @@ export function useAddTenantForm(
     setIsAddingExternal(false);
     setPendingFiles([]);
     setAddForm({ ...BLANK_ADD_TENANT_FORM, unitId });
-    // Default to the first CASH account; user can change or clear.
-    setAdvanceAccountId(accounts.find((a) => a.type === "CASH")?.id ?? NO_ACCOUNT);
+    seedAdvanceAccount();
     setAddOpen(true);
   }
 
@@ -32,7 +50,7 @@ export function useAddTenantForm(
     setIsAddingExternal(true);
     setPendingFiles([]);
     setAddForm(BLANK_ADD_TENANT_FORM);
-    setAdvanceAccountId(accounts.find((a) => a.type === "CASH")?.id ?? NO_ACCOUNT);
+    seedAdvanceAccount();
     setAddOpen(true);
   }
 
@@ -71,7 +89,9 @@ export function useAddTenantForm(
         advancePaid: addForm.advancePaid,
         advanceAmount: addForm.advancePaid ? Number(addForm.advanceAmount) : 0,
         // Opt-in: post the advance into the chosen wallet (only when paid + picked).
-        ...(addForm.advancePaid && advanceAccountId ? { advanceAccountId } : {}),
+        ...(addForm.advancePaid && advanceAccount.accountId
+          ? { advanceAccountId: advanceAccount.accountId }
+          : {}),
         isExternal: isAddingExternal,
         // Occupied unit → the new tenant is queued; schedule the current tenant's move-out.
         outgoingMoveOutDate:
@@ -101,6 +121,7 @@ export function useAddTenantForm(
       }
       setPendingFiles([]);
       setAddOpen(false);
+      if (addForm.advancePaid) defaults.remember(rememberAccountPair(advanceAccount));
       await onSuccess();
     } finally {
       setSaving(false);
@@ -115,8 +136,8 @@ export function useAddTenantForm(
     addFileInputRef,
     addForm,
     setAddForm,
-    advanceAccountId,
-    setAdvanceAccountId,
+    advanceAccount,
+    setAdvanceAccount,
     saving,
     selectedUnit,
     openAddTenant,

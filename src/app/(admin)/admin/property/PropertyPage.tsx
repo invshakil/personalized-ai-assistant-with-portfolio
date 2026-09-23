@@ -198,8 +198,8 @@ export default function PropertyPage() {
         unitsWithoutFuture={filtering.unitsWithoutFuture}
         selectedUnit={addTenantForm.selectedUnit}
         accounts={accounts}
-        advanceAccountId={addTenantForm.advanceAccountId}
-        onAdvanceAccountChange={addTenantForm.setAdvanceAccountId}
+        advanceAccount={addTenantForm.advanceAccount}
+        onAdvanceAccountChange={addTenantForm.setAdvanceAccount}
         fileInputRef={addTenantForm.addFileInputRef}
         pendingFiles={addTenantForm.pendingFiles}
         onAddFiles={addTenantForm.addPendingFiles}

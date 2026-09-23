@@ -2,13 +2,16 @@ import { useState, useEffect } from "react";
 import { propertyApi } from "@/lib/api/property";
 import { moneyApi } from "@/lib/api/money";
 import type { MoneyAccountRow } from "@/types";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
 import {
-  BLANK_ADD_FUTURE_FORM,
-  NO_ACCOUNT,
-  dayBefore,
-  type AddFutureForm,
-  type UnitDetail,
-} from "../types";
+  EMPTY_SELECTION,
+  pairValidValues,
+  rememberAccountPair,
+  seedAccountPair,
+  withKindFallback,
+  type AccountSelection,
+} from "@/lib/accountPicker";
+import { BLANK_ADD_FUTURE_FORM, dayBefore, type AddFutureForm, type UnitDetail } from "../types";
 
 export function useAddFutureTenant(
   unitId: string,
@@ -18,8 +21,9 @@ export function useAddFutureTenant(
   const [addFutureOpen, setAddFutureOpen] = useState(false);
   const [addFutureForm, setAddFutureForm] = useState<AddFutureForm>(BLANK_ADD_FUTURE_FORM);
   const [saving, setSaving] = useState(false);
-  // Optional Money-Manager wallet to credit with the advance.
-  const [advanceAccountId, setAdvanceAccountId] = useState<string>(NO_ACCOUNT);
+  // Optional Money-Manager account to credit with the advance.
+  const [advanceAccount, setAdvanceAccount] = useState<AccountSelection>(EMPTY_SELECTION);
+  const defaults = useFormDefaults("property.advance");
   const [accounts, setAccounts] = useState<MoneyAccountRow[]>([]);
 
   // Money accounts for the optional advance wallet link (loaded once).
@@ -28,8 +32,9 @@ export function useAddFutureTenant(
   }, []);
 
   function openAddFuture() {
-    // Default the advance wallet to the first CASH account; user can clear it.
-    setAdvanceAccountId(accounts.find((a) => a.type === "CASH")?.id ?? NO_ACCOUNT);
+    // A stored default wins; with none, the first Cash account (as before).
+    const seeded = seedAccountPair(accounts, defaults.seed(pairValidValues(accounts)));
+    setAdvanceAccount(withKindFallback(accounts, seeded, "CASH"));
     setAddFutureOpen(true);
   }
 
@@ -46,7 +51,9 @@ export function useAddFutureTenant(
         advancePaid: addFutureForm.advancePaid,
         advanceAmount: addFutureForm.advancePaid ? Number(addFutureForm.advanceAmount) : 0,
         // Opt-in: post the advance into the chosen wallet (only when paid + picked).
-        ...(addFutureForm.advancePaid && advanceAccountId ? { advanceAccountId } : {}),
+        ...(addFutureForm.advancePaid && advanceAccount.accountId
+          ? { advanceAccountId: advanceAccount.accountId }
+          : {}),
         isExternal: false,
         // When a current tenant is being replaced, schedule their move-out.
         outgoingMoveOutDate: unit?.tenants.some((t) => t.tenantStatus === "CURRENT" && t.isActive)
@@ -68,6 +75,7 @@ export function useAddFutureTenant(
       }
       setAddFutureOpen(false);
       setAddFutureForm(BLANK_ADD_FUTURE_FORM);
+      if (addFutureForm.advancePaid) defaults.remember(rememberAccountPair(advanceAccount));
       await onSuccess();
     } finally {
       setSaving(false);
@@ -80,8 +88,8 @@ export function useAddFutureTenant(
     addFutureForm,
     setAddFutureForm,
     saving,
-    advanceAccountId,
-    setAdvanceAccountId,
+    advanceAccount,
+    setAdvanceAccount,
     accounts,
     openAddFuture,
     addFutureTenant,

@@ -34,15 +34,18 @@ export async function getExpenses(opts: GetExpensesOptions) {
       unit: { select: { unitNumber: true } },
       payee: { select: { name: true } },
       serviceType: { select: { name: true } },
+      account: { select: { name: true, accountType: { select: { name: true } } } },
     },
   });
-  return expenses.map((e) => ({
+  return expenses.map(({ account, ...e }) => ({
     ...e,
     amount: toNum(e.amount),
     expenseDate: toIso(e.expenseDate),
     unitNumber: e.unit?.unitNumber ?? null,
     payeeName: e.payee?.name ?? null,
     serviceTypeName: e.serviceType?.name ?? null,
+    accountName: account?.name ?? null,
+    accountTypeName: account?.accountType.name ?? null,
   }));
 }
 
@@ -61,9 +64,10 @@ export interface CreateExpenseInput {
   notes?: string | null;
   /**
    * Optional Money-Manager account to debit when the expense is actually paid.
-   * Opt-in: when set, a linked ledger DEBIT is posted so the cash leaves that
-   * account's balance. No back-sync — editing/deleting the expense later does
-   * not touch the ledger entry.
+   * Opt-in: when set, it is stored on the expense (its type is the payment
+   * mode) and a linked ledger DEBIT is posted so the cash leaves that account's
+   * balance. No back-sync — editing/deleting the expense later does not touch
+   * the ledger entry.
    */
   accountId?: string;
 }
@@ -83,6 +87,7 @@ export async function createExpense(input: CreateExpenseInput) {
         expenseDate: input.expenseDate ? new Date(input.expenseDate) : null,
         paidTo: input.paidTo ?? null,
         paymentMode: input.paymentMode ?? null,
+        accountId: input.accountId ?? null,
         unitId: input.unitId ?? null,
         payeeId: input.payeeId ?? null,
         serviceTypeId: input.serviceTypeId ?? null,

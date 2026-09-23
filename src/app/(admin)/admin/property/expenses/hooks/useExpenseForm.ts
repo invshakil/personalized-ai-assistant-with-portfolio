@@ -1,7 +1,17 @@
 import { useState } from "react";
 import { propertyApi } from "@/lib/api/property";
 import type { PropertyExpense, MoneyAccountRow } from "@/types";
-import { BLANK_EXPENSE_FORM, NO_ACCOUNT, type ExpenseForm } from "../types";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
+import {
+  EMPTY_SELECTION,
+  pairValidValues,
+  rememberAccountPair,
+  seedAccountPair,
+  typeOfAccount,
+  withKindFallback,
+  type AccountSelection,
+} from "@/lib/accountPicker";
+import { BLANK_EXPENSE_FORM, type ExpenseForm } from "../types";
 
 export function useExpenseForm(
   month: number,
@@ -15,29 +25,33 @@ export function useExpenseForm(
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Optional Money-Manager wallet to debit when adding an expense. Linking is
-  // create-only (no back-sync), so this is only used on Add, never on Edit.
-  const [expenseAccountId, setExpenseAccountId] = useState<string>(NO_ACCOUNT);
+  // The Money account it was paid from — its type is the payment mode. Posting
+  // to the ledger is create-only (no back-sync), so on Edit it is shown, not changed.
+  const [expenseAccount, setExpenseAccount] = useState<AccountSelection>(EMPTY_SELECTION);
+  const defaults = useFormDefaults("property.expense");
 
   function openAdd() {
     setEditing(null);
     setForm({ ...BLANK_EXPENSE_FORM, expenseDate: new Date().toISOString().split("T")[0] });
-    // Default to the first CASH account (mode defaults to Cash); user can clear.
-    setExpenseAccountId(accounts.find((a) => a.type === "CASH")?.id ?? NO_ACCOUNT);
+    // A stored default wins; with none, the first Cash account (as before).
+    const seeded = seedAccountPair(accounts, defaults.seed(pairValidValues(accounts)));
+    setExpenseAccount(withKindFallback(accounts, seeded, "CASH"));
     setError(null);
     setDrawerOpen(true);
   }
 
   function openEdit(e: PropertyExpense) {
     setEditing(e.id);
-    setExpenseAccountId(NO_ACCOUNT);
+    setExpenseAccount({
+      typeId: typeOfAccount(accounts, e.accountId),
+      accountId: e.accountId ?? "",
+    });
     setForm({
       description: e.description,
       amount: String(e.amount),
       category: e.category,
       expenseDate: e.expenseDate ? e.expenseDate.split("T")[0] : "",
       paidTo: e.paidTo ?? "",
-      paymentMode: e.paymentMode ?? "Cash",
       payeeId: e.payeeId ?? "",
       serviceTypeId: e.serviceTypeId ?? "",
       notes: e.notes ?? "",
@@ -58,18 +72,21 @@ export function useExpenseForm(
         year,
         expenseDate: form.expenseDate || null,
         paidTo: form.paidTo || null,
-        paymentMode: form.paymentMode || null,
+        // No paymentMode: the account's type is the mode now. Leaving it out
+        // keeps an older expense's recorded mode intact on edit.
         payeeId: form.payeeId || null,
         serviceTypeId: form.serviceTypeId || null,
         notes: form.notes || null,
       };
       if (editing) await propertyApi.updateExpense(editing, body);
       // Linking is create-only: pass the chosen wallet to debit (if any).
-      else
+      else {
         await propertyApi.createExpense({
           ...body,
-          ...(expenseAccountId ? { accountId: expenseAccountId } : {}),
+          ...(expenseAccount.accountId ? { accountId: expenseAccount.accountId } : {}),
         });
+        defaults.remember(rememberAccountPair(expenseAccount));
+      }
       setDrawerOpen(false);
       await onSuccess();
     } catch (e: unknown) {
@@ -92,8 +109,8 @@ export function useExpenseForm(
     setForm,
     saving,
     error,
-    expenseAccountId,
-    setExpenseAccountId,
+    expenseAccount,
+    setExpenseAccount,
     openAdd,
     openEdit,
     save,

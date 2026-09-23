@@ -122,6 +122,16 @@ export const DEFAULTABLE_FIELDS: DefaultableField[] = [
     prefix: "to",
     label: "To account (BDT)",
   }),
+  ...accountPair("property.payment", "Property", "Rent Receipt", {
+    label: "Add to account",
+    hint: "Unset: the first account matching the receipt type (Cash / Bank).",
+  }),
+  ...accountPair("property.expense", "Property", "Property Expense", {
+    label: "Pay from account",
+  }),
+  ...accountPair("property.advance", "Property", "Tenant Advance", {
+    label: "Add advance to account",
+  }),
 ];
 
 const byKey = new Map(DEFAULTABLE_FIELDS.map((f) => [`${f.scope}|${f.field}`, f]));

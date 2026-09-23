@@ -1,8 +1,8 @@
 import { Alert, Box, Button, Drawer, Typography } from "@mui/material";
-import type { SelectOption } from "@/components/admin/SearchableSelect";
 import type { MoneyAccountRow, PaymentWithTenant } from "@/types";
 import PaymentDrawerSummary from "./PaymentDrawerSummary";
 import PaymentDrawerFields from "./PaymentDrawerFields";
+import type { AccountSelection } from "@/lib/accountPicker";
 
 interface PaymentDrawerProps {
   drawer: { payment: PaymentWithTenant; mode: "pay" | "advance" } | null;
@@ -10,9 +10,8 @@ interface PaymentDrawerProps {
   txType: string;
   onTxTypeChange: (v: string) => void;
   accounts: MoneyAccountRow[];
-  accountOptions: SelectOption[];
-  txAccountId: string;
-  onTxAccountChange: (v: string) => void;
+  txAccount: AccountSelection;
+  onTxAccountChange: (sel: AccountSelection) => void;
   txAmount: string;
   onTxAmountChange: (v: string) => void;
   txDate: string;
@@ -30,8 +29,7 @@ export default function PaymentDrawer({
   txType,
   onTxTypeChange,
   accounts,
-  accountOptions,
-  txAccountId,
+  txAccount,
   onTxAccountChange,
   txAmount,
   onTxAmountChange,
@@ -63,8 +61,7 @@ export default function PaymentDrawer({
               txType={txType}
               onTxTypeChange={onTxTypeChange}
               accounts={accounts}
-              accountOptions={accountOptions}
-              txAccountId={txAccountId}
+              txAccount={txAccount}
               onTxAccountChange={onTxAccountChange}
               txAmount={txAmount}
               onTxAmountChange={onTxAmountChange}
