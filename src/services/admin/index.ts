@@ -6,3 +6,4 @@ export * from "./themeSettings";
 export * from "./overview";
 export * from "./backup";
 export * from "./formDefaults";
+export * from "./logs";

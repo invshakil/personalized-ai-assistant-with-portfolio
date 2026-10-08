@@ -8,6 +8,7 @@ import type {
   AdminBackupState,
   AdminBackupRecord,
   BackupFrequency,
+  LogPage,
 } from "@/types";
 
 export const adminApi = {
@@ -26,6 +27,11 @@ export const adminApi = {
   runBackupNow: () => apiPost<AdminBackupRecord>("/backup"),
   deleteBackup: (id: string) => apiDelete(`/backup/${id}`),
   disconnectDrive: () => apiPost("/backup/google/disconnect"),
+  // ── Application log ──
+  listLogs: (params: Record<string, string | number | undefined>) =>
+    apiGet<LogPage>("/logs", { params }),
+  purgeLogs: (olderThanDays: number) =>
+    apiDelete<{ removed: number }>(`/logs?olderThanDays=${olderThanDays}`),
   // ── Form defaults (dropdown starting values) ──
   listFormDefaults: () => apiGet<FormDefaultRow[]>("/form-defaults"),
   setFormDefault: (body: FormDefaultInput) => apiPut<FormDefaultRow>("/form-defaults", body),

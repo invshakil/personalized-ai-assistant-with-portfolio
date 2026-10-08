@@ -102,3 +102,25 @@ export interface AdminThemeSettings {
   density: Density;
   fontSize: number;
 }
+
+// ── Application log (/admin/logs) ──
+export type LogLevelName = "INFO" | "WARN" | "ERROR";
+export type LogSortBy = "createdAt" | "level" | "source";
+
+export interface LogRow {
+  id: string;
+  level: LogLevelName;
+  source: string;
+  message: string;
+  context: unknown;
+  createdAt: string;
+}
+
+export interface LogPage {
+  rows: LogRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  /** Distinct sources present in the log, for the filter dropdown. */
+  sources: string[];
+}

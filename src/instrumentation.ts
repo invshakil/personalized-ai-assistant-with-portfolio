@@ -11,4 +11,6 @@ export async function register() {
   startBackupScheduler();
   const { startSolisScheduler } = await import("@/services/solis/scheduler");
   startSolisScheduler();
+  const { startLogRetention } = await import("@/services/admin/logRetention");
+  startLogRetention();
 }
