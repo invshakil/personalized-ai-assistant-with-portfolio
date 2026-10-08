@@ -1304,3 +1304,25 @@ model SolisDailyReading {
   @@unique([inverterSn, date])
   @@index([date])
 }
+
+// ── Application log ─────────────────────────────────────────────────────────
+// Warnings/errors/notable events written by src/lib/logger.ts and browsed at
+// /admin/logs. Pruned by the retention tick (LOG_RETENTION_DAYS, default 30).
+enum LogLevel {
+  INFO
+  WARN
+  ERROR
+}
+
+model LogEntry {
+  id        String   @id @default(cuid())
+  level     LogLevel
+  source    String // "api" | "auth" | "backup" | "solis" | …
+  message   String
+  context   Json? // redacted + size-capped
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([level, createdAt])
+  @@index([source, createdAt])
+}
