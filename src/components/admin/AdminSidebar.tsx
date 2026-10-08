@@ -50,6 +50,7 @@ import {
   CalendarClock,
   Sun,
   Plane,
+  ScrollText,
 } from "lucide-react";
 
 const SIDEBAR_WIDTH = 260;
@@ -132,6 +133,7 @@ const navGroups: { label: string; items: NavItem[] }[] = [
     label: "Tools",
     items: [
       { href: "/admin/ai-assistant", label: "AI Assistant", icon: Sparkles, exact: false },
+      { href: "/admin/logs", label: "Logs", icon: ScrollText, exact: false },
       { href: "/admin/settings/ai", label: "AI Settings", icon: Cpu, exact: true },
       {
         href: "/admin/settings",
