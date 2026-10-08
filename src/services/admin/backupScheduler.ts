@@ -4,6 +4,7 @@
 // effect without a restart. Guarded against overlapping runs and duplicate
 // timers (HMR in dev).
 import { runScheduledBackupIfDue } from "./backup";
+import { logger } from "@/lib/logger";
 
 const TICK_MS = 30 * 60 * 1000; // check every 30 minutes
 const FIRST_CHECK_MS = 60 * 1000; // first check ~1 min after boot
@@ -19,7 +20,7 @@ async function tick() {
   try {
     await runScheduledBackupIfDue();
   } catch (e) {
-    console.error("[backup] scheduled run failed:", e);
+    logger.error("backup", "Scheduled backup failed", { error: e });
   } finally {
     g.__backupRunning = false;
   }

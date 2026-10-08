@@ -2,6 +2,7 @@ import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { lockoutRemainingMs, recordFailedLogin, clearLoginAttempts } from "@/lib/loginRateLimit";
 
 // Pre-computed bcrypt hash (same cost as real passwords) compared against when
@@ -23,7 +24,10 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         // Brute-force guard: once locked, reject without touching the DB or
         // bcrypt so repeated guesses cost nothing and can't be timed.
-        if (lockoutRemainingMs(email) > 0) return null;
+        if (lockoutRemainingMs(email) > 0) {
+          logger.warn("auth", "Login rejected: account temporarily locked", { email });
+          return null;
+        }
 
         const user = await db.user.findUnique({ where: { email } });
 
@@ -36,6 +40,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!user?.password || !valid) {
           recordFailedLogin(email);
+          logger.warn("auth", "Failed login attempt", { email });
           return null;
         }
 

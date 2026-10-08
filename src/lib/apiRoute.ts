@@ -8,6 +8,7 @@
 // reason. Wrap mutating handlers in `withApiError` so the thrown message lands
 // in the envelope the client already knows how to read.
 import { Prisma } from "@prisma/client";
+import { logger } from "@/lib/logger";
 
 /** Services that need a specific HTTP status carry one on the error. */
 function statusOf(e: unknown): number | null {
@@ -45,13 +46,13 @@ export function toErrorResponse(e: unknown): { error: string; status: number } {
   }
 
   if (e instanceof Prisma.PrismaClientValidationError) {
-    console.error("[api] prisma validation error", e);
+    logger.error("api", "Prisma validation error", { error: e });
     return { error: "Invalid data for this operation.", status: 400 };
   }
 
   if (e instanceof Error) return { error: e.message, status: 400 };
 
-  console.error("[api] non-Error thrown", e);
+  logger.error("api", "Non-Error thrown from route", { error: String(e) });
   return { error: "Something went wrong.", status: 500 };
 }
 
@@ -68,7 +69,10 @@ export function withApiError<A extends unknown[]>(
       return await handler(...args);
     } catch (e) {
       const { error, status } = toErrorResponse(e);
-      if (status >= 500) console.error("[api] unhandled route error", e);
+      if (status >= 500) logger.error("api", `Unhandled route error: ${error}`, { error: e });
+      else if (e instanceof Prisma.PrismaClientKnownRequestError) {
+        logger.warn("api", `Prisma ${e.code}: ${error}`, { error: e, meta: e.meta });
+      }
       return Response.json({ error }, { status });
     }
   };

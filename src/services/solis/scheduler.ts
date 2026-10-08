@@ -3,6 +3,7 @@
 // isSyncDue). Guarded against overlapping runs and duplicate timers (HMR in dev).
 // No-ops when Solis credentials aren't set.
 import { runScheduledSyncIfDue } from "./sync";
+import { logger } from "@/lib/logger";
 
 const TICK_MS = 60 * 60 * 1000; // check hourly
 const FIRST_CHECK_MS = 90 * 1000; // first check ~1.5 min after boot
@@ -18,7 +19,7 @@ async function tick() {
   try {
     await runScheduledSyncIfDue();
   } catch (e) {
-    console.error("[solis] scheduled sync failed:", e);
+    logger.error("solis", "Scheduled sync failed", { error: e });
   } finally {
     g.__solisRunning = false;
   }
