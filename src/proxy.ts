@@ -10,7 +10,10 @@ export default auth((req) => {
 
   // Redirect unauthenticated users away from protected admin routes
   if (isAdminRoute && !isLoginPage && !isLoggedIn) {
-    return NextResponse.redirect(new URL("/admin/login", nextUrl));
+    // Remember where the user was so login can return them there.
+    const loginUrl = new URL("/admin/login", nextUrl);
+    loginUrl.searchParams.set("callbackUrl", nextUrl.pathname + nextUrl.search);
+    return NextResponse.redirect(loginUrl);
   }
 
   // Redirect authenticated users away from the login page

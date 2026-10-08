@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { AppRouterCacheProvider } from "@mui/material-nextjs/v16-appRouter";
 import {
   ThemeProvider,
@@ -20,13 +19,13 @@ import {
 } from "@mui/material";
 import { adminTheme } from "@/lib/adminTheme";
 import { Mail, Lock } from "lucide-react";
+import { safeCallbackPath } from "@/lib/callbackUrl";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +41,10 @@ export default function LoginPage() {
       );
       setLoading(false);
     } else {
-      router.push("/admin");
+      // Hard navigation: a client-side push can reuse the Router Cache's stale
+      // redirect-to-login for /admin and keep the pre-login session state.
+      const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl");
+      window.location.assign(safeCallbackPath(callbackUrl));
     }
   };
 

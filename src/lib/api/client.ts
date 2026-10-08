@@ -36,6 +36,15 @@ export const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (res) => res,
   (err) => {
+    // Session expired mid-use: send the user to login, remembering this page.
+    if (
+      err?.response?.status === 401 &&
+      typeof window !== "undefined" &&
+      !window.location.pathname.startsWith("/admin/login")
+    ) {
+      const here = window.location.pathname + window.location.search;
+      window.location.assign(`/admin/login?callbackUrl=${encodeURIComponent(here)}`);
+    }
     const message =
       err?.response?.data?.error ?? err?.message ?? "Request failed. Please try again.";
     return Promise.reject(new Error(message));
