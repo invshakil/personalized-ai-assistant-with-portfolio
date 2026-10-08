@@ -16,7 +16,7 @@ import type {
   Voucher,
 } from "@/types";
 
-type TenantFilter = "active" | "inactive" | "all";
+type TenantFilter = "active" | "inactive" | "external" | "all";
 
 /** Extra server-side filters for the tenants list (unit, status, name/phone search). */
 export interface TenantListFilters {

@@ -28,10 +28,14 @@ export function useUnitsData() {
       // Auto-deactivate any tenants whose lease has expired (fire-and-forget; silent)
       propertyApi.autoDeactivateExpired().catch(() => {});
 
-      const [unitData, activeTenants] = await Promise.all([
+      // The "active" filter excludes external members, so fetch them separately —
+      // otherwise the External tab is always empty and they can never be deactivated.
+      const [unitData, residentTenants, externalTenants] = await Promise.all([
         propertyApi.listUnits(),
         propertyApi.listTenants("active"),
+        propertyApi.listTenants("external"),
       ]);
+      const activeTenants = [...(residentTenants ?? []), ...(externalTenants ?? [])];
       setUnits(unitData ?? []);
 
       // Active tenants with no unit (e.g. after re-activation before unit reassignment)
@@ -40,7 +44,7 @@ export function useUnitsData() {
         ...(unitData ?? []).map((u) => u.tenant?.id).filter(Boolean),
         ...(unitData ?? []).map((u) => u.futureTenant?.id).filter(Boolean),
       ]);
-      const unassigned: UnitWithTenant[] = ((activeTenants ?? []) as unknown as ActiveTenant[])
+      const unassigned: UnitWithTenant[] = (activeTenants as unknown as ActiveTenant[])
         .filter((t) => !unitTenantIds.has(t.id))
         .map((t) => ({
           id: `unassigned-${t.id}`,
