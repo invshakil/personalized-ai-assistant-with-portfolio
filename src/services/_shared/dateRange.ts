@@ -81,7 +81,8 @@ export function resolveRange(input: RangeInput = {}, fallback: PeriodToken = "al
     case "this_month":
       return {
         from: startOfDay(new Date(now.getFullYear(), now.getMonth(), 1)),
-        to: endOfDay(now),
+        // Whole month, not "up to today": entries dated later this month still belong to it.
+        to: endOfDay(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
         label: "this month",
       };
     case "last_3_months":
@@ -95,7 +96,7 @@ export function resolveRange(input: RangeInput = {}, fallback: PeriodToken = "al
     case "this_year":
       return {
         from: startOfDay(new Date(now.getFullYear(), 0, 1)),
-        to: endOfDay(now),
+        to: endOfDay(new Date(now.getFullYear(), 11, 31)),
         label: `${now.getFullYear()}`,
       };
     case "last_year": {
