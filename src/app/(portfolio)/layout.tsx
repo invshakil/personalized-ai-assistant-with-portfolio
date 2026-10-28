@@ -6,6 +6,7 @@ const personSchema = {
   "@type": "Person",
   name: "Syful Islam Shakil",
   jobTitle: "Software Engineer & Tech Lead",
+  worksFor: { "@type": "Organization", name: "Capital Typing" },
   url: "https://sshakil.com",
   email: "syful.shakil.it@gmail.com",
   telephone: "+8801675332265",
@@ -42,7 +43,7 @@ const personSchema = {
     "AI-assisted Development",
   ],
   description:
-    "Senior full-stack engineer and tech lead with 10+ years of experience building products for SaaS platforms, European agencies, and US-based startups. Available immediately for B2B contract, EOR or full-time work — remote or open to relocation worldwide.",
+    "Senior software engineer and tech lead with 10+ years of experience building products for SaaS platforms, European agencies, and US-based startups. Currently tech lead on a long-term contract with Capital Typing (US).",
   alumniOf: {
     "@type": "CollegeOrUniversity",
     name: "University of Information Technology & Science (UITS)",
@@ -55,7 +56,7 @@ const websiteSchema = {
   name: "Syful Islam Shakil — Portfolio",
   url: "https://sshakil.com",
   description:
-    "Portfolio of Syful Islam Shakil, senior software engineer and tech lead based in Bangladesh, available immediately for B2B contract, EOR or full-time work — remote or open to relocation worldwide.",
+    "Portfolio of Syful Islam Shakil, senior software engineer and tech lead based in Bangladesh, currently on a long-term contract with Capital Typing (US).",
   inLanguage: "en",
   author: { "@type": "Person", name: "Syful Islam Shakil" },
 };
@@ -79,9 +80,8 @@ const serviceSchema = {
   ],
   offers: {
     "@type": "Offer",
-    availability: "https://schema.org/InStock",
-    description:
-      "Available immediately · B2B contract, EOR or full-time · Remote or open to relocation worldwide",
+    availability: "https://schema.org/LimitedAvailability",
+    description: "Currently on a long-term contract with Capital Typing (US)",
   },
 };
 

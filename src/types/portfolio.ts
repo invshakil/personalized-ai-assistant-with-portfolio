@@ -6,19 +6,30 @@ export interface SkillGroup {
   tags: string[];
 }
 
-export interface ExperienceEntry {
+/** One role held at a company; a company can list several (LinkedIn style). */
+export interface ExperienceRole {
+  /** Date range shown on the role, e.g. "Apr 2022 – Jul 2026". */
   badge: string;
   isCurrent: boolean;
   role: string;
-  company: string;
-  /** Public-folder path to the company logo, e.g. "/savannah-logo.png". */
-  logo: string;
-  /** LinkedIn company page — the company name links here for verification. */
-  companyUrl: string;
-  summary: string;
+  summary?: string;
   /** Emphasised lead line framing the product-ownership involvement. */
   lead?: string;
   bullets: string[];
+}
+
+/** A company with its roles, newest role first. */
+export interface ExperienceCompany {
+  company: string;
+  /** Public-folder path to the company logo; without one a monogram is shown. */
+  logo?: string;
+  /** LinkedIn company page — the company name links here for verification. */
+  companyUrl?: string;
+  /** Employment type and location, e.g. "Contract · Remote (United States)". */
+  meta: string;
+  /** Total time at the company, shown when it lists more than one role. */
+  span?: string;
+  roles: ExperienceRole[];
 }
 
 export interface Project {
