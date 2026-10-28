@@ -41,13 +41,13 @@ export default function Hero() {
 
         <div className="avail-badge fu d2">
           <span className="avail-dot" />
-          <strong>Available immediately</strong>
+          <strong>On a long-term contract</strong>
         </div>
 
         <p className="avail-note fu d2">
-          B2B contract, EOR or full-time &middot; Remote or open to relocation worldwide
+          Tech lead at Capital Typing (US) &middot; Not actively looking
           <br />
-          UTC+6 &mdash; afternoons overlap European working hours
+          UTC+6 &mdash; overlaps US and European working hours
         </p>
 
         <p className="hero-eyebrow fu d2">
@@ -65,11 +65,12 @@ export default function Hero() {
 
         <p className="hero-bio fu d5">
           10+ years building software that ships — for SaaS platforms, European agencies, and
-          US-based startups. I spent six years as the founding frontend engineer on a UK B2B talent
-          intelligence platform serving 22M candidate profiles, from first commit through to
-          acquisition — leading a three-engineer team, running frontend hiring, and holding the
-          architecture through a scale-up to 16 engineers and a downsize to 4. I ship production LLM
-          integrations with real validation, not demos.
+          US-based startups. Today I lead development across Capital Typing&apos;s software products
+          on a long-term contract. Before that I spent six years as the founding frontend engineer
+          on a UK B2B talent intelligence platform serving 22M candidate profiles, from first commit
+          through to acquisition — leading a three-engineer team, running frontend hiring, and
+          holding the architecture through a scale-up to 16 engineers and a downsize to 4. I ship
+          production LLM integrations with real validation, not demos.
         </p>
 
         <div className="hero-stats fu d6">

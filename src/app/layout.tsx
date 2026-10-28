@@ -26,7 +26,7 @@ export const metadata: Metadata = {
     template: "%s | Syful Islam Shakil",
   },
   description:
-    "Senior full-stack engineer and tech lead, 10+ years. Available immediately for B2B contract, EOR or full-time work — remote or open to relocation worldwide. 6 years building a UK B2B SaaS platform serving 22M profiles.",
+    "Senior software engineer and tech lead, 10+ years. Currently tech lead on a long-term contract with Capital Typing (US). 6 years building a UK B2B SaaS platform serving 22M profiles.",
   keywords: [
     "European remote contractor",
     "B2B contractor engineer",
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Syful Islam Shakil — Software Engineer & Tech Lead",
     description:
-      "Senior full-stack engineer and tech lead, 10+ years. Available immediately for B2B contract, EOR or full-time work — remote or open to relocation worldwide. 6 years building a UK B2B SaaS platform serving 22M profiles.",
+      "Senior software engineer and tech lead, 10+ years. Currently tech lead on a long-term contract with Capital Typing (US). 6 years building a UK B2B SaaS platform serving 22M profiles.",
     // OG/Twitter images are supplied by the app/opengraph-image.tsx convention.
   },
   other: {

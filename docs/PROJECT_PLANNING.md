@@ -182,7 +182,7 @@ sshakil-app/
 │   │   ├── portfolio/
 │   │   │   ├── Hero.tsx           ✅ photo, availability block, stats, CTAs
 │   │   │   ├── Skills.tsx         ✅ 5 skill groups, tag pills
-│   │   │   ├── Experience.tsx     ✅ contract + freelance columns
+│   │   │   ├── Experience.tsx     ✅ LinkedIn-style list by company (data in experience/)
 │   │   │   ├── Projects.tsx       ✅ 4 cards, icons, 2 GitHub links
 │   │   │   ├── Testimonials.tsx   ✅ 2 Upwork reviews, stars
 │   │   │   └── Contact.tsx        ✅ 5 links + education block, SVG icons, dark bg
@@ -253,7 +253,7 @@ sshakil-app/
 | ------------------ | --------------- | ----------------------- | ------------------------------------------------------------------------------------ |
 | `Hero.tsx`         | `#hero`         | `--color-linen`         | Photo, name, tagline, availability block, 3 CTAs (Hire Me / View Work / Download CV) |
 | `Skills.tsx`       | `#skills`       | `--color-sage-light`    | 5 skill groups with tag pills                                                        |
-| `Experience.tsx`   | `#experience`   | `--color-slate-light`   | Two columns: contract left, freelance right                                          |
+| `Experience.tsx`   | `#experience`   | `--color-slate-light`   | One list, newest first; a company with several roles shows them on a timeline        |
 | `Projects.tsx`     | `#projects`     | `--color-purple-light`  | 4 project cards, private badges, 2 GitHub links                                      |
 | `Testimonials.tsx` | `#testimonials` | white                   | 2 Upwork reviews, link to Upwork profile                                             |
 | `Contact.tsx`      | `#contact`      | `--color-forest` (dark) | 5 contact links + CV download + education (BSc), dark bg                             |
