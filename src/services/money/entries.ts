@@ -338,9 +338,22 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
     await assertCategoryMatchesDirection(nextCategoryId, nextDirection);
   }
   if (input.method) assertMethodAllowed(input.method, nextDirection);
-  const fee = input.fee === undefined ? undefined : assertFee(input.fee);
+  const explicitFee = input.fee === undefined ? undefined : assertFee(input.fee);
+  // A partial update (the AI tool, any PUT without `fee`) that moves the
+  // entry to another account or date must take the existing fee with it, or
+  // the fee would stay booked against the old account.
+  const feeMoves = explicitFee === undefined && (!!input.date || input.accountId !== undefined);
 
   const e = await db.$transaction(async (tx) => {
+    let fee = explicitFee;
+    if (feeMoves) {
+      const existing = await tx.moneyEntry.aggregate({
+        where: { feeForTransferId: id },
+        _sum: { amount: true },
+      });
+      const sum = toNum(existing._sum.amount);
+      if (sum > 0) fee = sum;
+    }
     const updated = await tx.moneyEntry.update({
       where: { id },
       data: {

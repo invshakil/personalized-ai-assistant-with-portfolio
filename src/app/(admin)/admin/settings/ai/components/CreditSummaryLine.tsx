@@ -1,27 +1,8 @@
 import { Box, Chip, Typography } from "@mui/material";
 import type { CreditSummary } from "@/services/ai/types";
+import { expiryColor, expiryLabel, formatCreditDay as day } from "@/lib/aiCredit";
 
 const usd = (n: number) => `$${n.toFixed(2)}`;
-const day = (iso: string) =>
-  new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-
-/** "Remaining $X (est.) · expires 12 Mar 2027 (115 days)" with an urgency chip. */
-export function expiryLabel(c: CreditSummary): string | null {
-  if (!c.expiresAt || c.daysToExpiry === null) return null;
-  if (c.daysToExpiry < 0) return `expired ${day(c.expiresAt)}`;
-  if (c.daysToExpiry === 0) return `expires today (${day(c.expiresAt)})`;
-  return `expires ${day(c.expiresAt)} (${c.daysToExpiry} day${c.daysToExpiry === 1 ? "" : "s"})`;
-}
-
-export function expiryColor(c: CreditSummary): "error" | "warning" | "default" {
-  if (c.expired || c.remainingUsd <= 0) return "error";
-  if (c.daysToExpiry !== null && c.daysToExpiry <= 30) return "warning";
-  return "default";
-}
 
 export default function CreditSummaryLine({ credit }: { credit: CreditSummary | null }) {
   if (!credit) return null;

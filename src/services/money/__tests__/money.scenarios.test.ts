@@ -232,6 +232,45 @@ test("a DEBIT with a fee debits the account amount+fee and links the fee as its 
   assert.equal(await getAccountBalance(accB), before);
 });
 
+test("moving a payment to another account or date carries its fee along even when fee is not resent", async () => {
+  const entry = await createEntry({
+    date: "2024-02-10",
+    direction: "DEBIT",
+    amount: 1000,
+    fee: 15,
+    categoryId: expCat,
+    accountId: accB,
+  });
+  const aBefore = await getAccountBalance(accA);
+  const bBefore = await getAccountBalance(accB);
+  // The AI update tool (and any partial PUT) sends only the changed fields.
+  await updateEntry(entry.id, { accountId: accA, date: "2024-02-11" });
+  const fee = await db.moneyEntry.findFirstOrThrow({ where: { feeForTransferId: entry.id } });
+  assert.equal(fee.accountId, accA, "the fee follows the payment to its new account");
+  assert.equal(fee.date.toISOString().slice(0, 10), "2024-02-11");
+  assert.equal(Number(fee.amount), 15);
+  assert.equal(await getAccountBalance(accA), aBefore - 1015);
+  assert.equal(await getAccountBalance(accB), bBefore + 1015);
+  await deleteEntry(entry.id);
+});
+
+test("an account created as its type's default is stored that way and displaces the previous default", async () => {
+  const first = await createAccount({
+    name: `${TAG} Default 1`,
+    type: "BANK",
+    isTypeDefault: true,
+  });
+  assert.equal(first.isTypeDefault, true);
+  const second = await createAccount({
+    name: `${TAG} Default 2`,
+    type: "BANK",
+    isTypeDefault: true,
+  });
+  assert.equal(second.isTypeDefault, true);
+  const again = await db.moneyAccount.findUniqueOrThrow({ where: { id: first.id } });
+  assert.equal(again.isTypeDefault, false, "only one default per type");
+});
+
 test("a person payment with a fee books the fee against the paying account", async () => {
   const before = await getAccountBalance(accA);
   const entry = await recordPayment({

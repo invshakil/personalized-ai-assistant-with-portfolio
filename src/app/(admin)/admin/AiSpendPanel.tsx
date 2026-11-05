@@ -5,7 +5,7 @@ import { Box, Card, CardContent, Typography, Chip } from "@mui/material";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { aiApi } from "@/lib/api/ai";
 import type { UsageSummary } from "@/services/ai/types";
-import { expiryColor, expiryLabel } from "./settings/ai/components/CreditSummaryLine";
+import { expiryColor, expiryLabel } from "@/lib/aiCredit";
 
 const usd = (n: number) => `$${n.toFixed(n > 0 && n < 1 ? 4 : 2)}`;
 const dayLabel = (period: string) => {

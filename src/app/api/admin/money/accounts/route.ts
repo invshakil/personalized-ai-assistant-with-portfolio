@@ -17,8 +17,17 @@ export const POST = withApiError(async (req: NextRequest) => {
   if (!session) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json();
-  const { name, type, accountTypeId, currency, openingBalance, creditLimit, isActive, notes } =
-    body;
+  const {
+    name,
+    type,
+    accountTypeId,
+    currency,
+    openingBalance,
+    creditLimit,
+    isActive,
+    isTypeDefault,
+    notes,
+  } = body;
   if (!name || (!type && !accountTypeId)) {
     return Response.json({ error: "name and accountTypeId are required" }, { status: 400 });
   }
@@ -34,6 +43,7 @@ export const POST = withApiError(async (req: NextRequest) => {
     openingBalance: openingBalance != null ? Number(openingBalance) : 0,
     creditLimit: creditLimit != null ? Number(creditLimit) : null,
     isActive,
+    isTypeDefault: isTypeDefault === true,
     notes,
   });
   return Response.json({ data }, { status: 201 });
