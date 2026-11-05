@@ -35,6 +35,8 @@ type PaymentForm = {
   accountId: string;
   obligationId: string;
   direction: "DEBIT" | "CREDIT";
+  /** Fee the account charges on top (৳) — booked as a linked expense. */
+  fee: string;
 };
 const BLANK_PAYMENT: PaymentForm = {
   amount: "",
@@ -43,6 +45,7 @@ const BLANK_PAYMENT: PaymentForm = {
   accountId: "",
   obligationId: "",
   direction: "DEBIT",
+  fee: "",
 };
 
 type OpenConfirm = (
@@ -148,6 +151,7 @@ export function usePersonDetail(
         accountId: payForm.accountId || null,
         obligationId: payForm.obligationId || null,
         direction: payForm.direction,
+        fee: payForm.fee === "" ? undefined : parseFloat(payForm.fee),
       });
       defaults.remember(
         rememberAccountPair({ typeId: payForm.accountTypeId, accountId: payForm.accountId })

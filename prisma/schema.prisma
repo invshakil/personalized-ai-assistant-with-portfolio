@@ -226,11 +226,19 @@ model AiProposedAction {
 
 // Monthly AI spend cap (singleton). When `enforce` is on and the current
 // month's spend reaches `monthlyLimitUsd`, the chat route blocks new turns.
+//
+// Prepaid credit: Anthropic's API exposes no balance or expiry endpoint, so the
+// user records the Console's figures here. `creditBalanceUsd` is the balance as
+// of `creditAsOf`; the app subtracts its own recorded spend since that date to
+// show an estimated remaining credit and days until `creditExpiresAt`.
 model AiBudget {
-  id              String   @id @default("singleton")
-  monthlyLimitUsd Decimal? @db.Decimal(10, 2) // null = no limit
-  enforce         Boolean  @default(false)
-  updatedAt       DateTime @updatedAt
+  id               String    @id @default("singleton")
+  monthlyLimitUsd  Decimal?  @db.Decimal(10, 2) // null = no limit
+  enforce          Boolean   @default(false)
+  creditBalanceUsd Decimal?  @db.Decimal(10, 2) // null = not tracked
+  creditAsOf       DateTime? // the day the balance above was read from the Console
+  creditExpiresAt  DateTime? // when the prepaid credit expires
+  updatedAt        DateTime  @updatedAt
 }
 
 // Admin dashboard appearance preferences. Drives the MUI theme via
@@ -855,6 +863,9 @@ model MoneyAccount {
   type             MoneyAccountType // kind snapshot of accountType.kind (immutable per type) — behaviour switches read this
   accountType      AccountType      @relation(fields: [accountTypeId], references: [id])
   accountTypeId    String
+  // The account every picker pre-selects when this type is chosen (e.g. Bank →
+  // UCB Bank). At most one per type; the service clears the others on set.
+  isTypeDefault    Boolean          @default(false)
   currency         String           @default("BDT") // account currency: BDT | USD | EUR. All non-transfer entries are in this currency; balance is in this currency.
   openingBalance   Decimal          @default(0) @db.Decimal(12, 2) // real balance at setup, in `currency`; card: negative = owed
   creditLimit      Decimal?         @db.Decimal(12, 2) // CREDIT_CARD only; availableCredit = creditLimit + balance

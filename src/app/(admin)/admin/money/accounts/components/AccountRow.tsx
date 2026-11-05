@@ -20,6 +20,7 @@ interface Props {
   onToggleExpand: (id: string) => void;
   onEdit: (a: MoneyAccountRow) => void;
   onDelete: (a: MoneyAccountRow) => void;
+  onTransfer: (a: MoneyAccountRow) => void;
 }
 
 /** One account row plus its collapsible "recent transactions" panel. */
@@ -31,6 +32,7 @@ export default function AccountRow({
   onToggleExpand,
   onEdit,
   onDelete,
+  onTransfer,
 }: Props) {
   return (
     <Fragment>
@@ -77,7 +79,12 @@ export default function AccountRow({
           />
         </TableCell>
         <TableCell data-label="Actions">
-          <AccountRowActions account={a} onEdit={onEdit} onDelete={onDelete} />
+          <AccountRowActions
+            account={a}
+            onEdit={onEdit}
+            onDelete={onDelete}
+            onTransfer={onTransfer}
+          />
         </TableCell>
       </TableRow>
       <TableRow>

@@ -2,7 +2,7 @@ import { Box, IconButton, TextField, Tooltip } from "@mui/material";
 import { ArrowUpDown } from "lucide-react";
 import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
 import type { MoneyAccountRow } from "@/types";
-import { swapTransferDirection, type TransferForm } from "../types";
+import { swapTransferDirection, type TransferForm } from "../transferForm";
 
 interface TransferAccountFieldsProps {
   transfer: TransferForm;

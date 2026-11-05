@@ -82,6 +82,16 @@ export default function AccountFormFields({
         label="Active"
         sx={{ mb: 2, display: "block" }}
       />
+      <FormControlLabel
+        control={
+          <Switch
+            checked={form.isTypeDefault}
+            onChange={(e) => onChange((f) => ({ ...f, isTypeDefault: e.target.checked }))}
+          />
+        }
+        label="Default account for its type (pre-selected when the type is picked)"
+        sx={{ mb: 2, display: "block" }}
+      />
     </>
   );
 }

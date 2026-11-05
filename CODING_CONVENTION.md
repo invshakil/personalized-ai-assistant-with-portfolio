@@ -209,6 +209,10 @@ and don't add a "payment mode" / "method" dropdown: the account's type _is_ the 
 - **Only selectable accounts are offered:** the account is active **and** its `AccountType` is active
   (`isSelectable` in `src/lib/accountPicker.ts`). An existing record's current account stays visible
   even if archived since. Server-side writes by the AI resolve names through `selectableAccountByName`.
+- **Picking a type lands on its default account.** `MoneyAccount.isTypeDefault` marks the one account a
+  type pre-selects (set on the Accounts page: "Default account for its type"; e.g. Bank → UCB Bank).
+  `selectType` applies it whenever the current account is not under the chosen type; an account already
+  under that type is kept, and a form `filter` or an archived account still hides the default.
 - **Form-specific narrowing** (a currency, "not the destination wallet") goes in the `filter` prop.
 - **Defaults:** register the pair with `accountPair(scope, …)` in `src/lib/formDefaults/registry.ts`, seed
   with `seedAccountPair(accounts, defaults.seed(pairValidValues(accounts)))` on open-add, and remember

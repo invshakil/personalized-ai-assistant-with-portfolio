@@ -304,6 +304,8 @@ export interface RecordPaymentInput {
   categoryId?: string | null; // defaults to a "Payments to People" category
   description?: string | null;
   notes?: string | null;
+  /** Fee the source account charges for the payment — a linked expense on the same account. */
+  fee?: number | null;
 }
 
 export async function recordPayment(input: RecordPaymentInput) {
@@ -335,6 +337,7 @@ export async function recordPayment(input: RecordPaymentInput) {
         obligationId: input.obligationId ?? null,
         description: input.description ?? null,
         notes: input.notes ?? null,
+        fee: input.fee ?? undefined,
       },
       tx
     );

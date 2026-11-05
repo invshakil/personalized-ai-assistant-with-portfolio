@@ -3,7 +3,7 @@
 //   balance = openingBalance + Σ(CREDIT) − Σ(DEBIT) − Σ(TRANSFER-out) + Σ(TRANSFER-in)
 // Asset accounts: positive = money held. Credit card: negative = owed;
 // availableCredit = creditLimit + balance. Nothing is stored as a running total.
-import { db } from "@/lib/db";
+import { db, type DbClient } from "@/lib/db";
 import { MoneyAccountType } from "@prisma/client";
 import { toNum } from "./_serializers";
 import { resolveAccountType } from "./accountTypes";
@@ -85,6 +85,7 @@ export async function listAccountsWithBalances(): Promise<MoneyAccountRow[]> {
       openingBalance: opening,
       creditLimit: limit,
       isActive: a.isActive,
+      isTypeDefault: a.isTypeDefault,
       notes: a.notes,
       balance,
       availableCredit: a.type === "CREDIT_CARD" && limit != null ? limit + balance : null,
@@ -133,22 +134,39 @@ export interface CreateAccountInput {
   openingBalance?: number;
   creditLimit?: number | null;
   isActive?: boolean;
+  /** Pickers pre-select this account whenever its type is chosen. One per type. */
+  isTypeDefault?: boolean;
   notes?: string | null;
+}
+
+/**
+ * Keep "default for its type" unique: before an account becomes the default,
+ * drop the flag from every other account under that type.
+ */
+async function clearTypeDefault(tx: DbClient, accountTypeId: string, exceptId?: string) {
+  await tx.moneyAccount.updateMany({
+    where: { accountTypeId, isTypeDefault: true, ...(exceptId && { id: { not: exceptId } }) },
+    data: { isTypeDefault: false },
+  });
 }
 
 export async function createAccount(input: CreateAccountInput) {
   const t = await resolveAccountType({ accountTypeId: input.accountTypeId, kind: input.type });
-  return db.moneyAccount.create({
-    data: {
-      name: input.name,
-      type: t.kind,
-      accountTypeId: t.id,
-      currency: (input.currency ?? "BDT").toUpperCase(),
-      openingBalance: input.openingBalance ?? 0,
-      creditLimit: t.kind === "CREDIT_CARD" ? (input.creditLimit ?? null) : null,
-      isActive: input.isActive ?? true,
-      notes: input.notes ?? null,
-    },
+  return db.$transaction(async (tx) => {
+    if (input.isTypeDefault) await clearTypeDefault(tx, t.id);
+    return tx.moneyAccount.create({
+      data: {
+        name: input.name,
+        type: t.kind,
+        accountTypeId: t.id,
+        currency: (input.currency ?? "BDT").toUpperCase(),
+        openingBalance: input.openingBalance ?? 0,
+        creditLimit: t.kind === "CREDIT_CARD" ? (input.creditLimit ?? null) : null,
+        isActive: input.isActive ?? true,
+        isTypeDefault: input.isTypeDefault ?? false,
+        notes: input.notes ?? null,
+      },
+    });
   });
 }
 
@@ -161,6 +179,8 @@ export interface UpdateAccountInput {
   openingBalance?: number;
   creditLimit?: number | null;
   isActive?: boolean;
+  /** Pickers pre-select this account whenever its type is chosen. One per type. */
+  isTypeDefault?: boolean;
   notes?: string | null;
 }
 
@@ -203,17 +223,34 @@ export async function updateAccount(id: string, input: UpdateAccountInput) {
     }
   }
 
-  return db.moneyAccount.update({
-    where: { id },
-    data: {
-      ...(input.name && { name: input.name }),
-      ...retype,
-      ...(input.currency && { currency: input.currency.toUpperCase() }),
-      ...(input.openingBalance != null && { openingBalance: input.openingBalance }),
-      ...(input.creditLimit !== undefined && { creditLimit: input.creditLimit }),
-      ...(input.isActive != null && { isActive: input.isActive }),
-      ...(input.notes !== undefined && { notes: input.notes }),
-    },
+  return db.$transaction(async (tx) => {
+    if (input.isTypeDefault) {
+      const typeId =
+        retype?.accountTypeId ??
+        (
+          await tx.moneyAccount.findUniqueOrThrow({
+            where: { id },
+            select: { accountTypeId: true },
+          })
+        ).accountTypeId;
+      await clearTypeDefault(tx, typeId, id);
+    }
+    return tx.moneyAccount.update({
+      where: { id },
+      data: {
+        ...(input.name && { name: input.name }),
+        ...retype,
+        ...(input.currency && { currency: input.currency.toUpperCase() }),
+        ...(input.openingBalance != null && { openingBalance: input.openingBalance }),
+        ...(input.creditLimit !== undefined && { creditLimit: input.creditLimit }),
+        ...(input.isActive != null && { isActive: input.isActive }),
+        // A re-typed account cannot carry its old type's default across.
+        ...(input.isTypeDefault != null
+          ? { isTypeDefault: input.isTypeDefault }
+          : retype && { isTypeDefault: false }),
+        ...(input.notes !== undefined && { notes: input.notes }),
+      },
+    });
   });
 }
 

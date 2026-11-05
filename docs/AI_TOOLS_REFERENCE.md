@@ -301,7 +301,9 @@ and re-runs the service-layer validation (model input stays untrusted end-to-end
 
 ### Exposed write tools (create + update only)
 
-**Property** — `create_tenant`/`update_tenant` · `create_unit`/`update_unit` ·
+**Property** — `create_tenant`/`update_tenant` (`update_tenant` takes `advanceAccountName`: with a new
+total `advanceAmount`, only the difference from the advance currently held is posted to that Money
+account — a top-up credit or a refund debit) · `create_unit`/`update_unit` ·
 `record_rent_payment` (→ `addTransaction`) · `update_rent_payment` (→ `updatePayment`) ·
 `generate_rent_payments` (→ `generatePayments`) · `create_property_expense`/`update_property_expense` ·
 `create_rent_change`/`update_rent_change` · `create_payee`/`update_payee` ·
@@ -315,9 +317,10 @@ and re-runs the service-layer validation (model input stays untrusted end-to-end
 (→ income sources) · `create_expense_category`.
 
 **Money Manager** (`@/services/money`) — `create_money_entry`/`update_money_entry`/`delete_money_entry`
-(personal income/expense ledger; categories auto-created by kind) · `record_money_transfer`
+(personal income/expense ledger; categories auto-created by kind; optional `fee` books the account's
+charge as a linked "Transfer Fee" expense — on update, 0 removes it) · `record_money_transfer`
 (account→account, typed TRANSFER, excluded from income/expense) · `record_person_payment`
-(pay to/from a person; auto-applies to their lone open loan in the matching direction so its
+(pay to/from a person; optional `fee`; auto-applies to their lone open loan in the matching direction so its
 outstanding drops) · `create_money_account` · `create_person` · `create_person_loan`
 (a loan or running due, e.g. a shop credit tab) · `increase_person_loan` (grow that running balance
 for a new credit purchase / further lending — no cash moves). Accounts and people are resolved by

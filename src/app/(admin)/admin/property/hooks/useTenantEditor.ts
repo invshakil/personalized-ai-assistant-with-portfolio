@@ -1,9 +1,19 @@
 import { useState } from "react";
 import { propertyApi } from "@/lib/api/property";
-import type { UnitWithTenant } from "@/types";
+import type { MoneyAccountRow, UnitWithTenant } from "@/types";
+import { useFormDefaults } from "@/hooks/useFormDefaults";
+import {
+  EMPTY_SELECTION,
+  pairValidValues,
+  rememberAccountPair,
+  seedAccountPair,
+  withKindFallback,
+  type AccountSelection,
+} from "@/lib/accountPicker";
 import type { TenantForm } from "../types";
 
 export function useTenantEditor(
+  accounts: MoneyAccountRow[],
   onDataRefresh: (fresh: UnitWithTenant[]) => void,
   onSaved: () => Promise<void>
 ) {
@@ -16,7 +26,15 @@ export function useTenantEditor(
     advancePaid: false,
     advanceAmount: "0",
   });
+  // The advance held when the drawer opened; the edit posts only the change from it.
+  const [originalAdvance, setOriginalAdvance] = useState(0);
+  // Optional Money-Manager account to post that change to (same default as Add Tenant).
+  const [advanceAccount, setAdvanceAccount] = useState<AccountSelection>(EMPTY_SELECTION);
+  const defaults = useFormDefaults("property.advance");
   const [saving, setSaving] = useState(false);
+
+  const advanceDelta =
+    (tenantForm.advancePaid ? Number(tenantForm.advanceAmount) || 0 : 0) - originalAdvance;
 
   function openTenantEdit(row: UnitWithTenant) {
     const t = row.tenant!;
@@ -29,6 +47,14 @@ export function useTenantEditor(
       advancePaid: t.advancePaid,
       advanceAmount: String(t.advanceAmount),
     });
+    setOriginalAdvance(t.advancePaid ? Number(t.advanceAmount) || 0 : 0);
+    setAdvanceAccount(
+      withKindFallback(
+        accounts,
+        seedAccountPair(accounts, defaults.seed(pairValidValues(accounts))),
+        "CASH"
+      )
+    );
   }
 
   function closeTenantEdit() {
@@ -46,7 +72,14 @@ export function useTenantEditor(
         leaseEndDate: tenantForm.leaseEndDate || null,
         advancePaid: tenantForm.advancePaid,
         advanceAmount: Number(tenantForm.advanceAmount),
+        // Opt-in: post the difference in advance to the chosen account.
+        ...(advanceDelta !== 0 && advanceAccount.accountId
+          ? { advanceAccountId: advanceAccount.accountId }
+          : {}),
       });
+      if (advanceDelta !== 0 && advanceAccount.accountId) {
+        defaults.remember(rememberAccountPair(advanceAccount));
+      }
       setEditTenantRow(null);
       await onSaved();
     } finally {
@@ -66,6 +99,9 @@ export function useTenantEditor(
     editTenantRow,
     tenantForm,
     setTenantForm,
+    advanceDelta,
+    advanceAccount,
+    setAdvanceAccount,
     saving,
     openTenantEdit,
     closeTenantEdit,

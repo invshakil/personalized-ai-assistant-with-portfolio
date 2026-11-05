@@ -26,6 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       categoryId: body.categoryId ?? null,
       description: body.description ?? null,
       notes: body.notes ?? null,
+      fee: body.fee == null || body.fee === "" ? undefined : Number(body.fee),
     });
     return Response.json({ data }, { status: 201 });
   } catch (e) {

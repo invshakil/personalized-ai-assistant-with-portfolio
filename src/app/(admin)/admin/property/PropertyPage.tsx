@@ -48,7 +48,7 @@ export default function PropertyPage() {
   );
   const accounts = useMoneyAccounts();
 
-  const tenantEditor = useTenantEditor(unitsData.setUnits, unitsData.reload);
+  const tenantEditor = useTenantEditor(accounts, unitsData.setUnits, unitsData.reload);
   const rentChange = useRentChangeForm();
   const tenantServices = useTenantServices(
     tenantEditor.editTenantRow,
@@ -166,6 +166,10 @@ export default function PropertyPage() {
         onClose={tenantEditor.closeTenantEdit}
         form={tenantEditor.tenantForm}
         onFormChange={tenantEditor.setTenantForm}
+        advanceDelta={tenantEditor.advanceDelta}
+        accounts={accounts}
+        advanceAccount={tenantEditor.advanceAccount}
+        onAdvanceAccountChange={tenantEditor.setAdvanceAccount}
         saving={tenantEditor.saving}
         onSave={tenantEditor.saveTenant}
         serviceCatalog={serviceCatalog}

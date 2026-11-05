@@ -11,14 +11,14 @@ import { MONEY_RANGE_LABELS, type MoneyRange } from "../format";
 import { useEntryFilters } from "./hooks/useEntryFilters";
 import { useEntryData } from "./hooks/useEntryData";
 import { useEntryDrawer } from "./hooks/useEntryDrawer";
-import { useTransferDrawer } from "./hooks/useTransferDrawer";
+import { useTransferDrawer } from "../hooks/useTransferDrawer";
 import { useEntryActions } from "./hooks/useEntryActions";
 import type { DirFilter } from "./types";
 import EntryFilters from "./components/EntryFilters";
 import EntrySummary from "./components/EntrySummary";
 import EntryTable from "./components/EntryTable";
 import EntryDrawer from "./components/EntryDrawer";
-import TransferDrawer from "./components/TransferDrawer";
+import TransferDrawer from "../components/TransferDrawer";
 
 export default function EntriesPage() {
   const searchParams = useSearchParams();

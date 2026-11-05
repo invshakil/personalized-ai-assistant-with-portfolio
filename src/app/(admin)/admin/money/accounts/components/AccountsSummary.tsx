@@ -1,14 +1,15 @@
 import { Box, Card, Typography, Button } from "@mui/material";
-import { Plus } from "lucide-react";
+import { ArrowLeftRight, Plus } from "lucide-react";
 import { fmtCurrency } from "../../format";
 
 interface Props {
   cashRows: [string, number][];
   cardDebtRows: [string, number][];
   onAdd: () => void;
+  onTransfer: () => void;
 }
 
-export default function AccountsSummary({ cashRows, cardDebtRows, onAdd }: Props) {
+export default function AccountsSummary({ cashRows, cardDebtRows, onAdd, onTransfer }: Props) {
   return (
     <Box sx={{ display: "flex", gap: 2, mb: 3, flexWrap: "wrap" }}>
       <Card sx={{ bgcolor: "background.paper", px: 3, py: 1.5, minWidth: 150 }}>
@@ -39,14 +40,14 @@ export default function AccountsSummary({ cashRows, cardDebtRows, onAdd }: Props
           ))}
         </Card>
       )}
-      <Button
-        variant="contained"
-        startIcon={<Plus size={16} />}
-        onClick={onAdd}
-        sx={{ ml: "auto", alignSelf: "center" }}
-      >
-        Add Account
-      </Button>
+      <Box sx={{ ml: "auto", alignSelf: "center", display: "flex", gap: 1 }}>
+        <Button variant="outlined" startIcon={<ArrowLeftRight size={16} />} onClick={onTransfer}>
+          Transfer
+        </Button>
+        <Button variant="contained" startIcon={<Plus size={16} />} onClick={onAdd}>
+          Add Account
+        </Button>
+      </Box>
     </Box>
   );
 }

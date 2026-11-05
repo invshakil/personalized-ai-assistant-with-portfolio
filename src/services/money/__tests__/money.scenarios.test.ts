@@ -18,6 +18,8 @@ import {
   getBeneficiaries,
   getBeneficiaryDetail,
   createEntry,
+  updateEntry,
+  deleteEntry,
   recordTransfer,
   getEntries,
   parseCsv,
@@ -175,6 +177,87 @@ test("deleting a transfer cascades its fee entry away", async () => {
   // FK cascade removes the fee and the source balance is fully restored.
   assert.equal(await db.moneyEntry.findUnique({ where: { id: fee.id } }), null);
   assert.equal(await getAccountBalance(accA), aBefore);
+});
+
+test("a DEBIT with a fee debits the account amount+fee and links the fee as its own expense", async () => {
+  const before = await getAccountBalance(accB);
+  const entry = await createEntry({
+    date: "2024-02-08",
+    direction: "DEBIT",
+    amount: 5000,
+    fee: 10,
+    categoryId: expCat,
+    accountId: accB,
+    description: "Paid plumber",
+  });
+  assert.equal(entry.amount, 5000); // the payee's amount stays exact
+  assert.equal(entry.fee, 10);
+  assert.equal(await getAccountBalance(accB), before - 5010);
+
+  const fee = await db.moneyEntry.findFirstOrThrow({
+    where: { feeForTransferId: entry.id },
+    include: { category: true },
+  });
+  assert.equal(fee.direction, "DEBIT");
+  assert.equal(Number(fee.amount), 10);
+  assert.equal(fee.accountId, accB);
+  assert.equal(fee.category?.name, "Transfer Fee");
+  assert.equal(fee.description, "Transfer fee — Paid plumber");
+
+  // The fee row reports which entry it was charged for; the parent lists it.
+  const rows = await getEntries({ accountIds: [accB], from: "2024-02-08", to: "2024-02-08" });
+  assert.equal(rows.find((r) => r.id === fee.id)?.feeForEntryId, entry.id);
+  assert.equal(rows.find((r) => r.id === entry.id)?.fee, 10);
+
+  // Editing the fee rebuilds the linked expense; 0 removes it.
+  const bumped = await updateEntry(entry.id, { fee: 25, accountId: accA });
+  assert.equal(bumped.fee, 25);
+  const feeRows = await db.moneyEntry.findMany({ where: { feeForTransferId: entry.id } });
+  assert.equal(feeRows.length, 1);
+  assert.equal(Number(feeRows[0].amount), 25);
+  assert.equal(feeRows[0].accountId, accA, "the fee follows the parent's account");
+
+  const cleared = await updateEntry(entry.id, { fee: 0 });
+  assert.equal(cleared.fee, 0);
+  assert.equal(await db.moneyEntry.count({ where: { feeForTransferId: entry.id } }), 0);
+
+  // Leaving fee out of an update keeps whatever fee is there.
+  await updateEntry(entry.id, { fee: 15 });
+  await updateEntry(entry.id, { description: "Paid plumber (final)" });
+  assert.equal(await db.moneyEntry.count({ where: { feeForTransferId: entry.id } }), 1);
+
+  // Deleting the payment cascades its fee away.
+  await deleteEntry(entry.id);
+  assert.equal(await db.moneyEntry.count({ where: { feeForTransferId: entry.id } }), 0);
+  assert.equal(await getAccountBalance(accB), before);
+});
+
+test("a person payment with a fee books the fee against the paying account", async () => {
+  const before = await getAccountBalance(accA);
+  const entry = await recordPayment({
+    beneficiaryId: benId,
+    amount: 2000,
+    fee: 10,
+    date: "2024-02-09",
+    accountId: accA,
+  });
+  assert.equal(entry.fee, 10);
+  assert.equal(await getAccountBalance(accA), before - 2010);
+  await deleteEntry(entry.id);
+});
+
+test("fee must be non-negative", async () => {
+  await assert.rejects(
+    createEntry({
+      date: "2024-02-08",
+      direction: "DEBIT",
+      amount: 100,
+      fee: -1,
+      categoryId: expCat,
+      accountId: accA,
+    }),
+    /fee/
+  );
 });
 
 test("AI record_money_transfer passes a fee through as a linked expense", async () => {

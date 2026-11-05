@@ -11,6 +11,8 @@ type PaymentForm = {
   accountId: string;
   obligationId: string;
   direction: "DEBIT" | "CREDIT";
+  /** Fee the account charges on top (৳) — booked as a linked expense. */
+  fee: string;
 };
 
 interface Props {
@@ -50,6 +52,14 @@ export default function RecordPaymentForm({
           sx={{ width: 130 }}
           value={form.amount}
           onChange={(v) => onChange({ ...form, amount: v })}
+        />
+        <NumberField
+          label="Fee (৳)"
+          size="small"
+          min={0}
+          sx={{ width: 110 }}
+          value={form.fee}
+          onChange={(v) => onChange({ ...form, fee: v })}
         />
         <TextField
           label="Date"

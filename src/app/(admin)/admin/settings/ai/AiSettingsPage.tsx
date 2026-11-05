@@ -4,8 +4,10 @@ import { useState } from "react";
 import { Box, Alert, Stack } from "@mui/material";
 import PageHeader from "@/components/admin/PageHeader";
 import type { ProviderConfigView } from "@/services/ai/types";
-import ProviderCard from "./ProviderCard";
-import BudgetCard from "./BudgetCard";
+import ProviderCard from "./components/ProviderCard";
+import BudgetCard from "./components/BudgetCard";
+import CreditCard from "./components/CreditCard";
+import { useAiBudget } from "./hooks/useAiBudget";
 
 interface AiSettingsPageProps {
   initial: ProviderConfigView[];
@@ -14,6 +16,7 @@ interface AiSettingsPageProps {
 
 export default function AiSettingsPage({ initial, cryptoReady }: AiSettingsPageProps) {
   const [providers, setProviders] = useState<ProviderConfigView[]>(initial);
+  const budget = useAiBudget();
 
   const activeLabel = providers.find((p) => p.isActive && p.enabled)?.label;
 
@@ -39,7 +42,19 @@ export default function AiSettingsPage({ initial, cryptoReady }: AiSettingsPageP
       </Alert>
 
       <Stack spacing={2.5}>
-        <BudgetCard />
+        <CreditCard
+          credit={budget.usage?.credit ?? null}
+          form={budget.form}
+          onChange={budget.patch}
+        />
+        <BudgetCard
+          usage={budget.usage}
+          form={budget.form}
+          onChange={budget.patch}
+          saving={budget.saving}
+          msg={budget.msg}
+          onSave={budget.save}
+        />
         {providers.map((p) => (
           <ProviderCard
             key={p.provider}

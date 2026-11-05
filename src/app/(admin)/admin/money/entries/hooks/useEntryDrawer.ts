@@ -85,6 +85,7 @@ export function useEntryDrawer(
       notes: e.notes ?? "",
       beneficiaryId: e.beneficiaryId ?? "",
       obligationId: e.obligationId ?? "",
+      fee: e.fee > 0 ? String(e.fee) : "",
     });
     setError(null);
     setDrawerOpen(true);
@@ -137,6 +138,8 @@ export function useEntryDrawer(
         beneficiaryId: form.beneficiaryId || null,
         // Only keep the due link when a person is selected and it still matches.
         obligationId: form.beneficiaryId ? form.obligationId || null : null,
+        // An empty fee on edit removes a fee that was there (0 = none).
+        fee: form.fee === "" ? 0 : parseFloat(form.fee),
         // No `method`: the account's type now says how money moved. Leaving it
         // out (rather than sending null) keeps an old entry's recorded method.
       };

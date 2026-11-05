@@ -1,6 +1,6 @@
 import { Box, Drawer, Typography } from "@mui/material";
 import type { MoneyAccountRow } from "@/types";
-import type { TransferForm } from "../types";
+import type { TransferForm } from "../transferForm";
 import TransferDrawerFields from "./TransferDrawerFields";
 
 interface TransferDrawerProps {

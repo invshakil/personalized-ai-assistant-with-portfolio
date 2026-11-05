@@ -3,6 +3,7 @@ import SearchableSelect from "@/components/admin/SearchableSelect";
 import AccountTypeAccountSelect from "@/components/admin/AccountTypeAccountSelect";
 import type { MoneyAccountRow, MoneyCategoryRow } from "@/types";
 import type { EntryForm } from "../types";
+import EntryFeeField from "./EntryFeeField";
 
 interface EntryDrawerCategoryFieldsProps {
   form: EntryForm;
@@ -35,6 +36,7 @@ export default function EntryDrawerCategoryFields({
         optional
         sx={{ mb: 2 }}
       />
+      <EntryFeeField form={form} setForm={setForm} accounts={accounts} />
       <TextField
         label="Description"
         size="small"

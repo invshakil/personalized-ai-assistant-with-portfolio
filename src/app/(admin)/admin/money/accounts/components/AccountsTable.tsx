@@ -23,6 +23,7 @@ interface Props {
   onToggleExpand: (id: string) => void;
   onEdit: (a: MoneyAccountRow) => void;
   onDelete: (a: MoneyAccountRow) => void;
+  onTransfer: (a: MoneyAccountRow) => void;
 }
 
 export default function AccountsTable({
@@ -34,6 +35,7 @@ export default function AccountsTable({
   onToggleExpand,
   onEdit,
   onDelete,
+  onTransfer,
 }: Props) {
   if (loading) {
     return (
@@ -80,6 +82,7 @@ export default function AccountsTable({
                 onToggleExpand={onToggleExpand}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                onTransfer={onTransfer}
               />
             ))
           )}

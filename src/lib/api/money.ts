@@ -27,6 +27,8 @@ export interface AccountPayload {
   openingBalance?: number;
   creditLimit?: number | null;
   isActive?: boolean;
+  /** Make this the account pickers pre-select for its type (clears the type's previous default). */
+  isTypeDefault?: boolean;
   notes?: string | null;
 }
 
@@ -67,6 +69,8 @@ export interface EntryPayload {
   notes?: string | null;
   /** How a CREDIT arrived (cash/bank transfer/etc.); CREDIT-only. */
   method?: MoneyEntryMethod | null;
+  /** Fee the account charges for this entry — booked as a separate linked expense. 0/null removes it on update. */
+  fee?: number | null;
 }
 
 export interface TransferPayload {
@@ -102,6 +106,8 @@ export interface PaymentPayload {
   categoryId?: string | null;
   description?: string | null;
   notes?: string | null;
+  /** Fee the account charges for the payment — booked as a separate linked expense. */
+  fee?: number | null;
 }
 
 export interface EntryFilters {

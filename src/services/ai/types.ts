@@ -188,6 +188,25 @@ export interface ChatSessionDetail {
 export interface BudgetInput {
   monthlyLimitUsd: number | null;
   enforce: boolean;
+  /**
+   * Prepaid credit as read from the provider's Console (no API exposes it).
+   * `creditBalanceUsd` is the balance on `creditAsOf` (YYYY-MM-DD); the app
+   * subtracts its own recorded spend since then. All null = not tracked.
+   */
+  creditBalanceUsd: number | null;
+  creditAsOf: string | null;
+  creditExpiresAt: string | null;
+}
+
+/** Estimated prepaid credit position, derived from BudgetInput + recorded spend. */
+export interface CreditSummary {
+  balanceUsd: number; // balance entered, as of `asOf`
+  asOf: string; // YYYY-MM-DD
+  spentSince: number; // recorded spend since asOf (inclusive)
+  remainingUsd: number; // balanceUsd − spentSince, floored at 0
+  expiresAt: string | null; // YYYY-MM-DD
+  daysToExpiry: number | null; // negative once expired
+  expired: boolean;
 }
 
 export interface UsageSummary {
@@ -204,4 +223,6 @@ export interface UsageSummary {
   daily: { period: string; costUsd: number }[]; // "YYYY-MM-DD", last 30 days, oldest first
   /** Month-to-date spend split by product surface, biggest first. */
   byFeature: { feature: string; costUsd: number; calls: number }[];
+  /** Prepaid credit position, or null when no balance has been recorded. */
+  credit: CreditSummary | null;
 }

@@ -9,6 +9,8 @@ export type AccountForm = {
   openingBalance: string;
   creditLimit: string;
   isActive: boolean;
+  /** Pickers pre-select this account when its type is chosen. */
+  isTypeDefault: boolean;
   notes: string;
 };
 
@@ -19,6 +21,7 @@ const BLANK: AccountForm = {
   openingBalance: "0",
   creditLimit: "",
   isActive: true,
+  isTypeDefault: false,
   notes: "",
 };
 
@@ -56,6 +59,7 @@ export function useAccountForm(types: AccountTypeRow[], onSaved: () => void) {
       openingBalance: String(a.openingBalance),
       creditLimit: a.creditLimit != null ? String(a.creditLimit) : "",
       isActive: a.isActive,
+      isTypeDefault: a.isTypeDefault,
       notes: a.notes ?? "",
     });
     setError(null);
@@ -76,6 +80,7 @@ export function useAccountForm(types: AccountTypeRow[], onSaved: () => void) {
         creditLimit:
           kind === "CREDIT_CARD" && form.creditLimit !== "" ? parseFloat(form.creditLimit) : null,
         isActive: form.isActive,
+        isTypeDefault: form.isTypeDefault,
         notes: form.notes || null,
       };
       if (editing) await moneyApi.updateAccount(editing, body);

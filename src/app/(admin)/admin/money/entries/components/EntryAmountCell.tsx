@@ -16,8 +16,10 @@ export function amountColor(d: MoneyEntryRow["direction"]): string {
 }
 
 export default function EntryAmountCell({ entry: e }: EntryAmountCellProps) {
-  if (e.direction === "CREDIT") return <>{`+${fmtCurrency(e.amount, e.currency)}`}</>;
-  if (e.direction === "DEBIT") return <>{`−${fmtCurrency(e.amount, e.currency)}`}</>;
+  // A linked fee is its own row; flag the parent so the account's total debit is visible.
+  const fee = e.fee > 0 ? ` (+${fmtCurrency(e.fee, e.currency)} fee)` : "";
+  if (e.direction === "CREDIT") return <>{`+${fmtCurrency(e.amount, e.currency)}${fee}`}</>;
+  if (e.direction === "DEBIT") return <>{`−${fmtCurrency(e.amount, e.currency)}${fee}`}</>;
   // TRANSFER: show the cross-currency arrival amount when it differs.
   if (e.toAmount != null && e.toAmount !== e.amount) {
     return <>{`${fmtCurrency(e.amount, e.currency)} → ${e.toAmount.toLocaleString("en-US")}`}</>;

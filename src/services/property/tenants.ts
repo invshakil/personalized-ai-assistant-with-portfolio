@@ -185,7 +185,8 @@ export interface CreateTenantInput {
    * Optional Money-Manager account to credit with the advance. Opt-in: when set
    * (and advancePaid with advanceAmount > 0) a linked ledger CREDIT is posted at
    * create time so the deposit lands in that account's balance. No back-sync —
-   * editing the advance later via updateTenant does not touch the ledger entry.
+   * this entry is never edited; a later change to the advance posts its own
+   * delta entry when updateTenant is given an account (see UpdateTenantInput).
    */
   advanceAccountId?: string;
   notes?: string | null;
@@ -315,6 +316,15 @@ export interface UpdateTenantInput {
   advancePaid?: boolean;
   advanceAmount?: number;
   advanceSettled?: boolean;
+  /**
+   * Optional Money-Manager account to post the CHANGE in the advance to.
+   * Tenants often pay an advance in instalments (part at move-in, the rest with
+   * a later rent), so the edit posts only the difference between the advance
+   * held before this update and after it: an increase is a ledger CREDIT
+   * ("Tenant Advance"), a decrease a DEBIT ("Tenant Advance Refund"). Opt-in and
+   * never touches earlier entries; with no account, nothing is posted.
+   */
+  advanceAccountId?: string;
   notes?: string | null;
   unitId?: string | null;
   /**
@@ -324,6 +334,22 @@ export interface UpdateTenantInput {
    * move-in date.
    */
   outgoingMoveOutDate?: string | null;
+}
+
+/** The advance a tenant row effectively holds: nothing unless it is marked paid. */
+type AdvanceSnapshot = { advancePaid: boolean; advanceAmount: Parameters<typeof toNum>[0] };
+
+function heldAdvance(t: AdvanceSnapshot): number {
+  return t.advancePaid ? toNum(t.advanceAmount) : 0;
+}
+
+/**
+ * How much cash the latest edit says changed hands: positive when more advance
+ * was received, negative when some was handed back. Toggling "advance paid" off
+ * counts as returning the whole amount; toggling it on counts as receiving it.
+ */
+export function advanceDelta(before: AdvanceSnapshot, after: AdvanceSnapshot): number {
+  return Math.round((heldAdvance(after) - heldAdvance(before)) * 100) / 100;
 }
 
 export async function updateTenant(id: string, input: UpdateTenantInput) {
@@ -396,7 +422,37 @@ export async function updateTenant(id: string, input: UpdateTenantInput) {
         data: { moveOutDate: outgoingMoveOut, leaseEndDate: outgoingMoveOut },
       });
     }
-    return tx.tenant.update({ where: { id }, data });
+
+    // Advance held BEFORE this update, read inside the transaction so the delta
+    // is computed against the row we are about to overwrite.
+    const before = await tx.tenant.findUnique({
+      where: { id },
+      select: { name: true, advancePaid: true, advanceAmount: true },
+    });
+    if (!before) throw new Error("Tenant not found");
+
+    const updated = await tx.tenant.update({ where: { id }, data });
+
+    if (input.advanceAccountId) {
+      const delta = advanceDelta(before, updated);
+      if (delta !== 0) {
+        await recordLinkedEntry(
+          {
+            accountId: input.advanceAccountId,
+            direction: delta > 0 ? "CREDIT" : "DEBIT",
+            amount: Math.abs(delta),
+            date: new Date().toISOString().slice(0, 10),
+            categoryName: delta > 0 ? "Tenant Advance" : "Tenant Advance Refund",
+            description:
+              delta > 0
+                ? `Advance${heldAdvance(before) > 0 ? " (top-up)" : ""} — ${updated.name}`
+                : `Advance refund — ${updated.name}`,
+          },
+          tx
+        );
+      }
+    }
+    return updated;
   });
   return {
     ...tenant,

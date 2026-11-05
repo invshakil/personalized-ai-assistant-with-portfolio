@@ -28,6 +28,7 @@ export interface MoneyAccountRow {
   openingBalance: number;
   creditLimit: number | null;
   isActive: boolean;
+  isTypeDefault: boolean; // pickers pre-select this account when its type is chosen (one per type)
   notes: string | null;
   // Computed (service layer):
   balance: number; // openingBalance + Σ credits − Σ debits ± transfers (in `currency`)
@@ -85,6 +86,8 @@ export interface MoneyEntryRow {
   source: MoneyEntrySource;
   tripId: string | null; // set when this entry belongs to a trip
   tripCategory: TripCategory | null; // budget bucket for a trip-tagged expense
+  fee: number; // total of the fee entries linked to this entry (0 when none), in `currency`
+  feeForEntryId: string | null; // set on a fee entry: the TRANSFER/DEBIT/CREDIT it was charged for
 }
 
 // ─── People you pay (beneficiaries + obligations) ──────────────────────────────

@@ -1,10 +1,16 @@
-import { Box, Button, FormControlLabel, Switch, TextField } from "@mui/material";
+import { Box, Button, TextField } from "@mui/material";
+import type { MoneyAccountRow } from "@/types";
+import type { AccountSelection } from "@/lib/accountPicker";
 import type { TenantForm } from "../types";
-import NumberField from "@/components/admin/NumberField";
+import TenantEditAdvanceFields from "./TenantEditAdvanceFields";
 
 interface TenantEditFormProps {
   form: TenantForm;
   onFormChange: (form: TenantForm) => void;
+  advanceDelta: number;
+  accounts: MoneyAccountRow[];
+  advanceAccount: AccountSelection;
+  onAdvanceAccountChange: (sel: AccountSelection) => void;
   saving: boolean;
   onCancel: () => void;
   onSave: () => void;
@@ -13,6 +19,10 @@ interface TenantEditFormProps {
 export default function TenantEditForm({
   form,
   onFormChange,
+  advanceDelta,
+  accounts,
+  advanceAccount,
+  onAdvanceAccountChange,
   saving,
   onCancel,
   onSave,
@@ -51,24 +61,14 @@ export default function TenantEditForm({
         fullWidth
         slotProps={{ inputLabel: { shrink: true } }}
       />
-      <FormControlLabel
-        control={
-          <Switch
-            checked={form.advancePaid}
-            onChange={(e) => onFormChange({ ...form, advancePaid: e.target.checked })}
-          />
-        }
-        label="Advance Paid"
+      <TenantEditAdvanceFields
+        form={form}
+        onFormChange={onFormChange}
+        advanceDelta={advanceDelta}
+        accounts={accounts}
+        advanceAccount={advanceAccount}
+        onAdvanceAccountChange={onAdvanceAccountChange}
       />
-      {form.advancePaid && (
-        <NumberField
-          label="Advance Amount (৳)"
-          value={form.advanceAmount}
-          onChange={(v) => onFormChange({ ...form, advanceAmount: v })}
-          size="small"
-          fullWidth
-        />
-      )}
       <Box sx={{ display: "flex", gap: 1 }}>
         <Button variant="outlined" size="small" fullWidth onClick={onCancel} disabled={saving}>
           Cancel

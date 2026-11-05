@@ -78,6 +78,7 @@ export async function POST(req: NextRequest) {
       description: body.description ?? null,
       notes: body.notes ?? null,
       method: body.method ?? null,
+      fee: body.fee == null || body.fee === "" ? undefined : Number(body.fee),
     });
     return Response.json({ data }, { status: 201 });
   } catch (e) {

@@ -1,5 +1,6 @@
 import { Box, Drawer } from "@mui/material";
-import type { UnitWithTenant } from "@/types";
+import type { MoneyAccountRow, UnitWithTenant } from "@/types";
+import type { AccountSelection } from "@/lib/accountPicker";
 import type { RentChangeForm, TenantForm } from "../types";
 import TenantEditHeader from "./TenantEditHeader";
 import TenantEditForm from "./TenantEditForm";
@@ -10,6 +11,10 @@ interface TenantEditDrawerProps {
   onClose: () => void;
   form: TenantForm;
   onFormChange: (form: TenantForm) => void;
+  advanceDelta: number;
+  accounts: MoneyAccountRow[];
+  advanceAccount: AccountSelection;
+  onAdvanceAccountChange: (sel: AccountSelection) => void;
   saving: boolean;
   onSave: () => void;
   serviceCatalog: { id: string; name: string }[];
@@ -36,6 +41,10 @@ export default function TenantEditDrawer({
   onClose,
   form,
   onFormChange,
+  advanceDelta,
+  accounts,
+  advanceAccount,
+  onAdvanceAccountChange,
   saving,
   onSave,
   ...extras
@@ -55,6 +64,10 @@ export default function TenantEditDrawer({
           <TenantEditForm
             form={form}
             onFormChange={onFormChange}
+            advanceDelta={advanceDelta}
+            accounts={accounts}
+            advanceAccount={advanceAccount}
+            onAdvanceAccountChange={onAdvanceAccountChange}
             saving={saving}
             onCancel={onClose}
             onSave={onSave}

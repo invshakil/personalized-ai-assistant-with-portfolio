@@ -1,10 +1,15 @@
 import { useState } from "react";
 import { moneyApi } from "@/lib/api/money";
 import { useFormDefaults } from "@/hooks/useFormDefaults";
-import { pairValidValues, rememberAccountPair, seedAccountPair } from "@/lib/accountPicker";
+import {
+  pairValidValues,
+  rememberAccountPair,
+  seedAccountPair,
+  typeOfAccount,
+} from "@/lib/accountPicker";
 import type { MoneyAccountRow } from "@/types";
-import { todayInput } from "../../format";
-import { BLANK_TRANSFER, type TransferForm } from "../types";
+import { todayInput } from "../format";
+import { BLANK_TRANSFER, type TransferForm } from "../transferForm";
 
 /** Add-transfer drawer state (move money between two of the user's own accounts). */
 export function useTransferDrawer(
@@ -18,12 +23,15 @@ export function useTransferDrawer(
   const [transferSaving, setTransferSaving] = useState(false);
   const [transferError, setTransferError] = useState<string | null>(null);
 
-  const openTransfer = () => {
+  /** Open the drawer; `fromAccountId` pre-picks the source (e.g. from an account row). */
+  const openTransfer = (fromAccountId?: string) => {
     const seeded = defaults.seed({
       ...pairValidValues(accounts, { prefix: "from" }),
       ...pairValidValues(accounts, { prefix: "to" }),
     });
-    const from = seedAccountPair(accounts, seeded, { prefix: "from" });
+    const from = fromAccountId
+      ? { typeId: typeOfAccount(accounts, fromAccountId), accountId: fromAccountId }
+      : seedAccountPair(accounts, seeded, { prefix: "from" });
     const to = seedAccountPair(accounts, seeded, { prefix: "to" });
     setTransfer({
       ...BLANK_TRANSFER,

@@ -77,7 +77,7 @@ export default function AccountTypeAccountSelect<A extends PickerAccount>({
         value={value.typeId}
         options={typeOptions}
         disabled={disabled}
-        onChange={(typeId) => onChange(selectType(accounts, value, typeId))}
+        onChange={(typeId) => onChange(selectType(accounts, value, typeId, keep))}
       />
       <SearchableSelect
         label={accountLabel}

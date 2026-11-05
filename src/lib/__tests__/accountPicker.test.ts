@@ -17,6 +17,7 @@ import {
   selectableIds,
   selectableTypes,
   selectType,
+  typeDefaultAccount,
   typeOfAccount,
   withKindFallback,
   type PickerAccount,
@@ -277,5 +278,62 @@ test("no kind means no fallback", () => {
   assert.deepEqual(withKindFallback(ACCOUNTS, { typeId: "", accountId: "" }, null), {
     typeId: "",
     accountId: "",
+  });
+});
+
+// ─── per-type default account (the "Bank → UCB Bank" rule) ───────────────────
+
+const WITH_DEFAULT: PickerAccount[] = [
+  acct("wallet", "cash"),
+  acct("city", "bank"),
+  acct("ucb", "bank", { isTypeDefault: true }),
+  acct("usd", "bank", { currency: "USD" }),
+  acct("gone", "bkash", { isTypeDefault: true, isActive: false }),
+];
+
+test("picking a type lands on that type's default account", () => {
+  assert.deepEqual(selectType(WITH_DEFAULT, { typeId: "", accountId: "" }, "bank"), {
+    typeId: "bank",
+    accountId: "ucb",
+  });
+  // Switching type from another type's account also lands on the default.
+  assert.deepEqual(selectType(WITH_DEFAULT, { typeId: "cash", accountId: "wallet" }, "bank"), {
+    typeId: "bank",
+    accountId: "ucb",
+  });
+});
+
+test("an account already under the chosen type is kept over the default", () => {
+  assert.deepEqual(selectType(WITH_DEFAULT, { typeId: "bank", accountId: "city" }, "bank"), {
+    typeId: "bank",
+    accountId: "city",
+  });
+});
+
+test("a default that is not on offer (archived, or filtered out) is ignored", () => {
+  assert.equal(typeDefaultAccount(WITH_DEFAULT, "bkash"), undefined);
+  assert.deepEqual(selectType(WITH_DEFAULT, { typeId: "", accountId: "" }, "bkash"), {
+    typeId: "bkash",
+    accountId: "",
+  });
+  // A form filter (e.g. USD only) wins over the rule.
+  assert.deepEqual(
+    selectType(WITH_DEFAULT, { typeId: "", accountId: "" }, "bank", {
+      filter: (a) => a.currency === "USD",
+    }),
+    { typeId: "bank", accountId: "" }
+  );
+  assert.equal(typeDefaultAccount(WITH_DEFAULT, ""), undefined);
+});
+
+test("seeding a stored type with no stored account lands on the type's default", () => {
+  assert.deepEqual(seedSelection(WITH_DEFAULT, { typeId: "bank" }), {
+    typeId: "bank",
+    accountId: "ucb",
+  });
+  // A stored account still wins over the default.
+  assert.deepEqual(seedSelection(WITH_DEFAULT, { typeId: "bank", accountId: "city" }), {
+    typeId: "bank",
+    accountId: "city",
   });
 });

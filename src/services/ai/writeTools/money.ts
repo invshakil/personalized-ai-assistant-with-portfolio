@@ -78,6 +78,9 @@ export const moneyTools: WriteToolDef[] = [
       "accountName must match an existing account (use get_account_balances to list them); the amount is " +
       "in that account's currency (e.g. a USD account → amount is USD; BDT/no account → BDT). " +
       "How money moved is the account's type (Cash, Bank, bKash…), so pass accountName rather than a method. " +
+      "If the account charged a fee on top (e.g. a bank's 10 BDT transfer charge when paying 5,000), pass fee: " +
+      "the amount stays what the other side received and the fee is booked as a separate linked 'Transfer Fee' " +
+      "expense on the same account. " +
       "To move money between two of your own accounts (e.g. cash withdrawal) use record_money_transfer instead.",
     parameters: schema(
       {
@@ -86,6 +89,9 @@ export const moneyTools: WriteToolDef[] = [
         date: Str("Date YYYY-MM-DD"),
         categoryName: Str("Category name (created if needed, e.g. Groceries, Salary)"),
         accountName: Str("Account name, e.g. Cash, bKash (optional)"),
+        fee: Num(
+          "Fee the account charged on top of amount, in the account's currency (optional; booked as a linked expense)"
+        ),
         description: Str("Short description (optional)"),
         notes: Str("Notes (optional)"),
       },
@@ -97,6 +103,7 @@ export const moneyTools: WriteToolDef[] = [
       date: reqDate(i.date, "date"),
       categoryName: reqStr(i.categoryName, "categoryName"),
       accountName: optStr(i.accountName),
+      fee: optNum(i.fee),
       description: optStr(i.description) ?? null,
       notes: optStr(i.notes) ?? null,
     }),
@@ -105,7 +112,11 @@ export const moneyTools: WriteToolDef[] = [
       const ccy = account?.currency ?? "BDT";
       const acct = a.accountName ? ` from ${a.accountName}` : "";
       const verb = a.direction === "CREDIT" ? "Record income" : "Record expense";
-      return `${verb}: ${cur(a.amount, ccy)} — ${a.categoryName}${acct} on ${a.date}.`;
+      const feeNote =
+        a.fee != null && a.fee > 0
+          ? ` (+ ${cur(a.fee, ccy)} fee as expense; account debited ${cur(a.amount + a.fee, ccy)} in total)`
+          : "";
+      return `${verb}: ${cur(a.amount, ccy)} — ${a.categoryName}${acct} on ${a.date}${feeNote}.`;
     },
     commit: async (a) => {
       const kind = a.direction === "CREDIT" ? "INCOME" : "EXPENSE";
@@ -119,10 +130,13 @@ export const moneyTools: WriteToolDef[] = [
         accountId: account?.id ?? null,
         description: a.description,
         notes: a.notes,
+        fee: a.fee,
       });
       const acct = a.accountName ? ` → ${a.accountName}` : "";
+      const feeNote =
+        a.fee != null && a.fee > 0 ? ` + ${cur(a.fee, account?.currency ?? "BDT")} fee` : "";
       return {
-        summary: `Recorded ${cur(a.amount, account?.currency ?? "BDT")} ${a.direction === "CREDIT" ? "income" : "expense"} (${a.categoryName}${acct}).`,
+        summary: `Recorded ${cur(a.amount, account?.currency ?? "BDT")} ${a.direction === "CREDIT" ? "income" : "expense"} (${a.categoryName}${acct})${feeNote}.`,
         data: entry,
       };
     },
@@ -132,6 +146,7 @@ export const moneyTools: WriteToolDef[] = [
     name: "update_money_entry",
     description:
       "Correct an existing income or expense ledger entry. Pass the entry id (from list_money_entries) and only the fields to change. " +
+      "fee replaces the linked fee expense (0 removes it). " +
       "Cannot edit TRANSFER entries — delete and re-create those.",
     parameters: schema(
       {
@@ -141,6 +156,7 @@ export const moneyTools: WriteToolDef[] = [
         date: Str("New date YYYY-MM-DD (optional)"),
         categoryName: Str("New category name (optional)"),
         accountName: Str("New account name (optional — pass empty string to clear)"),
+        fee: Num("New fee charged by the account (optional; 0 removes the linked fee)"),
         description: Str("New description (optional)"),
         notes: Str("New notes (optional)"),
       },
@@ -155,6 +171,7 @@ export const moneyTools: WriteToolDef[] = [
         categoryName: optStr(i.categoryName),
         accountName: optStr(i.accountName),
         clearAccount: i.accountName === "",
+        fee: optNum(i.fee),
         description: optStr(i.description),
         notes: optStr(i.notes),
       };
@@ -165,6 +182,7 @@ export const moneyTools: WriteToolDef[] = [
         patch.categoryName === undefined &&
         patch.accountName === undefined &&
         !patch.clearAccount &&
+        patch.fee === undefined &&
         patch.description === undefined &&
         patch.notes === undefined
       ) {
@@ -206,6 +224,7 @@ export const moneyTools: WriteToolDef[] = [
         accountId,
         description: patch.description,
         notes: patch.notes,
+        fee: patch.fee,
       });
       return { summary: `Updated entry ${id}.`, data: entry };
     },
@@ -325,6 +344,8 @@ export const moneyTools: WriteToolDef[] = [
       "direction=DEBIT (default) = you paid them; direction=CREDIT = they paid you / repaid a loan. " +
       "personName must match an existing beneficiary (use get_people_balances to list them). " +
       "accountName is the source/destination account (optional). " +
+      "If the account charged a fee on top (e.g. a bank's 10 BDT charge on a 5,000 BDT transfer), pass fee: " +
+      "the person still gets amount and the fee is booked as a separate linked expense on that account. " +
       "If the person has exactly one open loan/due in the matching direction, the payment is " +
       "automatically applied to it so its outstanding balance goes down; if they have several open " +
       "loans it is left untagged (apply it to a specific loan in the People & Loans screen).",
@@ -338,6 +359,9 @@ export const moneyTools: WriteToolDef[] = [
           "DEBIT = you paid them, CREDIT = they paid you (default DEBIT)"
         ),
         accountName: Str("Account name (optional)"),
+        fee: Num(
+          "Fee the account charged on top of amount, in BDT (optional; booked as a linked expense)"
+        ),
         description: Str("Description (optional)"),
         notes: Str("Notes (optional)"),
       },
@@ -349,13 +373,15 @@ export const moneyTools: WriteToolDef[] = [
       date: reqDate(i.date, "date"),
       direction: (optEnum(i.direction, PAYMENT_DIRS, "direction") ?? "DEBIT") as "DEBIT" | "CREDIT",
       accountName: optStr(i.accountName),
+      fee: optNum(i.fee),
       description: optStr(i.description) ?? null,
       notes: optStr(i.notes) ?? null,
     }),
     preview: async (a) => {
       const verb = a.direction === "DEBIT" ? "Pay" : "Receive from";
       const acct = a.accountName ? ` via ${a.accountName}` : "";
-      return `${verb} ${a.personName}: ${taka(a.amount)} on ${a.date}${acct}.`;
+      const feeNote = a.fee != null && a.fee > 0 ? ` (+ ${taka(a.fee)} fee as expense)` : "";
+      return `${verb} ${a.personName}: ${taka(a.amount)} on ${a.date}${acct}${feeNote}.`;
     },
     commit: async (a) => {
       const person = await beneficiaryByName(a.personName);
@@ -381,6 +407,7 @@ export const moneyTools: WriteToolDef[] = [
         accountId,
         description: a.description,
         notes: a.notes,
+        fee: a.fee,
       });
       const verb = a.direction === "DEBIT" ? "Paid" : "Received from";
       const applied = obligationId

@@ -21,7 +21,10 @@ export type PickerAccount = Pick<
   | "accountTypeName"
   | "accountTypeActive"
   | "accountTypeSortOrder"
->;
+> & {
+  /** The rule "this type → this account": pickers pre-select it when the type is chosen. */
+  isTypeDefault?: boolean;
+};
 
 /** Both halves of the picker. "" means "all types" / "no account". */
 export interface AccountSelection {
@@ -83,6 +86,19 @@ export function selectableTypes<A extends PickerAccount>(
     .map(({ id, name }) => ({ id, name }));
 }
 
+/**
+ * The account a type pre-selects (e.g. Bank → UCB Bank), if it is on offer.
+ * The rule is set per account on the Accounts page ("default for its type").
+ */
+export function typeDefaultAccount<A extends PickerAccount>(
+  accounts: A[],
+  typeId: string,
+  opts: Opts<A> = {}
+): A | undefined {
+  if (!typeId) return undefined;
+  return selectableAccounts(accounts, typeId, opts).find((a) => a.isTypeDefault);
+}
+
 /** Picking an account: the type snaps to that account's, so the two never disagree. */
 export function selectAccount(accounts: PickerAccount[], accountId: string, currentTypeId = "") {
   if (!accountId) return { typeId: currentTypeId, accountId: "" };
@@ -91,17 +107,20 @@ export function selectAccount(accounts: PickerAccount[], accountId: string, curr
 }
 
 /**
- * Picking a type: the account survives only if it belongs to the new type.
- * Clearing the type ("all types") never clears the account.
+ * Picking a type: the account survives only if it belongs to the new type;
+ * otherwise the type's default account (if any) is pre-selected. Clearing the
+ * type ("all types") never clears the account.
  */
-export function selectType(
-  accounts: PickerAccount[],
+export function selectType<A extends PickerAccount>(
+  accounts: A[],
   current: AccountSelection,
-  typeId: string
+  typeId: string,
+  opts: Opts<A> = {}
 ): AccountSelection {
-  if (!typeId || !current.accountId) return { typeId, accountId: current.accountId };
+  if (!typeId) return { typeId, accountId: current.accountId };
   const a = accounts.find((x) => x.id === current.accountId);
-  return { typeId, accountId: a?.accountTypeId === typeId ? current.accountId : "" };
+  if (a && a.accountTypeId === typeId) return { typeId, accountId: current.accountId };
+  return { typeId, accountId: typeDefaultAccount(accounts, typeId, opts)?.id ?? "" };
 }
 
 /**
@@ -119,7 +138,12 @@ export function seedSelection<A extends PickerAccount>(
   const account = seeded.accountId ? pool.find((a) => a.id === seeded.accountId) : undefined;
   if (account) return { typeId: account.accountTypeId, accountId: account.id };
   const typeOk = !!seeded.typeId && pool.some((a) => a.accountTypeId === seeded.typeId);
-  return { typeId: typeOk ? seeded.typeId! : "", accountId: "" };
+  if (!typeOk) return { typeId: "", accountId: "" };
+  // A type with no stored account still lands on the type's default account.
+  return {
+    typeId: seeded.typeId!,
+    accountId: typeDefaultAccount(accounts, seeded.typeId!, { filter })?.id ?? "",
+  };
 }
 
 /** Ids for `useFormDefaults().seed()` validation — stale defaults are dropped. */

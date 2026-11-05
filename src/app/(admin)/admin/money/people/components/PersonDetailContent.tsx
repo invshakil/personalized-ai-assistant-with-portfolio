@@ -26,6 +26,8 @@ type PaymentForm = {
   accountId: string;
   obligationId: string;
   direction: "DEBIT" | "CREDIT";
+  /** Fee the account charges on top (৳) — booked as a linked expense. */
+  fee: string;
 };
 
 interface Props {

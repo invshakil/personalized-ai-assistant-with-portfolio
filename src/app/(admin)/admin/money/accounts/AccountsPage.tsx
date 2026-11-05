@@ -9,9 +9,11 @@ import { useAccountsData } from "./hooks/useAccountsData";
 import { useAccountForm } from "./hooks/useAccountForm";
 import { useAccountDelete } from "./hooks/useAccountDelete";
 import { useAccountTypeOptions } from "./hooks/useAccountTypeOptions";
+import { useTransferDrawer } from "../hooks/useTransferDrawer";
 import AccountsSummary from "./components/AccountsSummary";
 import AccountsTable from "./components/AccountsTable";
 import AccountFormDrawer from "./components/AccountFormDrawer";
+import TransferDrawer from "../components/TransferDrawer";
 
 export default function AccountsPage() {
   const [toast, setToast] = useState<string | null>(null);
@@ -22,6 +24,8 @@ export default function AccountsPage() {
   const accountTypes = useAccountTypeOptions(editingTypeId);
   const form = useAccountForm(accountTypes.types, data.load);
   const { deleteAccount } = useAccountDelete(confirm.openConfirm, data.load, setToast);
+  // Same drawer as the Ledger — moving money is easiest where the balances are.
+  const transfer = useTransferDrawer(data.load, data.accounts);
 
   return (
     <Box>
@@ -31,6 +35,7 @@ export default function AccountsPage() {
         cashRows={data.cashRows}
         cardDebtRows={data.cardDebtRows}
         onAdd={form.openAdd}
+        onTransfer={() => transfer.openTransfer()}
       />
 
       <AccountsTable
@@ -45,6 +50,18 @@ export default function AccountsPage() {
           form.openEdit(a);
         }}
         onDelete={deleteAccount}
+        onTransfer={(a) => transfer.openTransfer(a.id)}
+      />
+
+      <TransferDrawer
+        open={transfer.transferOpen}
+        transfer={transfer.transfer}
+        setTransfer={transfer.setTransfer}
+        accounts={data.accounts}
+        transferSaving={transfer.transferSaving}
+        transferError={transfer.transferError}
+        onClose={transfer.closeTransfer}
+        onSave={transfer.saveTransfer}
       />
 
       <AccountFormDrawer

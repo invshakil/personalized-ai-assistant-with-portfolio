@@ -276,7 +276,10 @@ export const propertyTools: WriteToolDef[] = [
     name: "update_tenant",
     description:
       "Update an existing tenant's details (name, contact, lease end, advance, notes, or unit). " +
-      "Resolve the tenant id via list_tenants first. Reassigning into an occupied unit queues this " +
+      "Resolve the tenant id via list_tenants first. Advances are often paid in instalments: to record " +
+      "a further advance payment set advanceAmount to the NEW TOTAL held and pass advanceAccountName — " +
+      "only the difference from the current advance is posted to that Money-Manager account (an increase " +
+      "as a Tenant Advance credit, a decrease as a refund debit). Reassigning into an occupied unit queues this " +
       "tenant as a future tenant and schedules the current tenant's move-out + lease-end (defaults to " +
       "the day before this tenant's move-in; override with outgoingMoveOutDate).",
     parameters: schema(
@@ -289,7 +292,11 @@ export const propertyTools: WriteToolDef[] = [
         moveInDate: Str("New move-in date YYYY-MM-DD (optional)"),
         leaseEndDate: Str("New lease end date YYYY-MM-DD (optional)"),
         advancePaid: Bool("Advance paid flag (optional)"),
-        advanceAmount: Num("Advance amount in BDT (optional)"),
+        advanceAmount: Num("New TOTAL advance held in BDT (optional)"),
+        advanceAccountName: Str(
+          "Money-Manager account to post the change in advance to, e.g. Cash, City Bank " +
+            "(optional; only the difference from the current advance is posted)"
+        ),
         unitId: Str("Reassign to this unit id (optional)"),
         notes: Str("Notes (optional)"),
         outgoingMoveOutDate: Str(
@@ -310,6 +317,7 @@ export const propertyTools: WriteToolDef[] = [
         leaseEndDate: optDate(i.leaseEndDate, "leaseEndDate"),
         advancePaid: optBool(i.advancePaid),
         advanceAmount: optNum(i.advanceAmount),
+        advanceAccountName: optStr(i.advanceAccountName),
         unitId: optStr(i.unitId),
         notes: optStr(i.notes),
         outgoingMoveOutDate: optDate(i.outgoingMoveOutDate, "outgoingMoveOutDate"),
@@ -323,10 +331,23 @@ export const propertyTools: WriteToolDef[] = [
         .filter(([, v]) => v !== undefined)
         .map(([k]) => k)
         .join(", ");
-      return `Update tenant ${field(t, "name")} (${field(t, "tenantCode")}) — change: ${fields}.`;
+      let advance = "";
+      if (patch.advanceAmount !== undefined && patch.advanceAccountName) {
+        const held = Number(field(t, "advanceAmount") ?? 0);
+        const delta = patch.advanceAmount - held;
+        advance =
+          delta === 0
+            ? " Advance unchanged — nothing posted."
+            : ` Advance ${taka(held)} → ${taka(patch.advanceAmount)}: ${delta > 0 ? "credit" : "refund"} ${taka(Math.abs(delta))} to ${patch.advanceAccountName}.`;
+      }
+      return `Update tenant ${field(t, "name")} (${field(t, "tenantCode")}) — change: ${fields}.${advance}`;
     },
     commit: async ({ id, patch }) => {
-      const t = await updateTenant(id, patch);
+      const { advanceAccountName, ...rest } = patch;
+      const advanceAccountId = advanceAccountName
+        ? (await moneyAccountByName(advanceAccountName)).id
+        : undefined;
+      const t = await updateTenant(id, { ...rest, advanceAccountId });
       return {
         summary: `Updated tenant ${field(t, "name")} (${field(t, "tenantCode")}).`,
         data: t,

@@ -1,7 +1,7 @@
 import { Alert, Button, TextField } from "@mui/material";
 import type { MoneyAccountRow } from "@/types";
-import { currencySymbol, fmtCurrency } from "../../format";
-import type { TransferForm } from "../types";
+import { currencySymbol, fmtCurrency } from "../format";
+import type { TransferForm } from "../transferForm";
 import TransferAccountFields from "./TransferAccountFields";
 import NumberField from "@/components/admin/NumberField";
 

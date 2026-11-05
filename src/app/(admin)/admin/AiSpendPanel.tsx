@@ -5,6 +5,7 @@ import { Box, Card, CardContent, Typography, Chip } from "@mui/material";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { aiApi } from "@/lib/api/ai";
 import type { UsageSummary } from "@/services/ai/types";
+import { expiryColor, expiryLabel } from "./settings/ai/components/CreditSummaryLine";
 
 const usd = (n: number) => `$${n.toFixed(n > 0 && n < 1 ? 4 : 2)}`;
 const dayLabel = (period: string) => {
@@ -94,6 +95,34 @@ export default function AiSpendPanel() {
             </Typography>
           </Box>
         </Box>
+
+        {usage.credit && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 2, flexWrap: "wrap" }}>
+            <Typography variant="caption" color="text.secondary">
+              Prepaid credit left (est.)
+            </Typography>
+            <Typography
+              variant="subtitle2"
+              sx={{
+                fontWeight: 700,
+                color: expiryColor(usage.credit) === "error" ? "error.main" : "success.main",
+              }}
+            >
+              {usd(usage.credit.remainingUsd)}
+            </Typography>
+            {expiryLabel(usage.credit) && (
+              <Chip
+                label={expiryLabel(usage.credit)}
+                size="small"
+                color={
+                  expiryColor(usage.credit) === "default" ? undefined : expiryColor(usage.credit)
+                }
+                variant={expiryColor(usage.credit) === "default" ? "outlined" : "filled"}
+                sx={{ height: 20, fontSize: "0.68rem" }}
+              />
+            )}
+          </Box>
+        )}
 
         {hasSpend ? (
           <ResponsiveContainer width="99%" height={200} debounce={50}>

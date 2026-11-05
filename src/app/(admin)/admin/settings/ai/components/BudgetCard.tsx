@@ -1,6 +1,3 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import {
   Box,
   Card,
@@ -15,46 +12,29 @@ import {
   InputAdornment,
 } from "@mui/material";
 import { Wallet } from "lucide-react";
-import { aiApi } from "@/lib/api/ai";
 import type { UsageSummary } from "@/services/ai/types";
 import NumberField from "@/components/admin/NumberField";
+import type { BudgetFormState } from "../hooks/useAiBudget";
 
 const usd = (n: number) => `$${n.toFixed(n > 0 && n < 1 ? 4 : 2)}`;
 
-export default function BudgetCard() {
-  const [usage, setUsage] = useState<UsageSummary | null>(null);
-  const [limit, setLimit] = useState("");
-  const [enforce, setEnforce] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+interface BudgetCardProps {
+  usage: UsageSummary | null;
+  form: BudgetFormState;
+  onChange: (patch: Partial<BudgetFormState>) => void;
+  saving: boolean;
+  msg: { kind: "ok" | "err"; text: string } | null;
+  onSave: () => void;
+}
 
-  const load = async () => {
-    const u = await aiApi.getUsage();
-    setUsage(u);
-    setLimit(u.monthlyLimitUsd === null ? "" : String(u.monthlyLimitUsd));
-    setEnforce(u.enforce);
-  };
-
-  useEffect(() => {
-    load().catch(() => setMsg({ kind: "err", text: "Failed to load usage." }));
-  }, []);
-
-  const save = async () => {
-    setSaving(true);
-    setMsg(null);
-    try {
-      await aiApi.saveBudget({
-        monthlyLimitUsd: limit.trim() === "" ? null : Number(limit),
-        enforce,
-      });
-      await load();
-      setMsg({ kind: "ok", text: "Budget saved." });
-    } catch (e) {
-      setMsg({ kind: "err", text: e instanceof Error ? e.message : "Failed to save." });
-    }
-    setSaving(false);
-  };
-
+export default function BudgetCard({
+  usage,
+  form,
+  onChange,
+  saving,
+  msg,
+  onSave,
+}: BudgetCardProps) {
   const pct = usage?.pctUsed ?? null;
   const barColor =
     pct === null ? "primary" : pct >= 100 ? "error" : pct >= 80 ? "warning" : "success";
@@ -103,8 +83,8 @@ export default function BudgetCard() {
             size="small"
             label="Monthly limit"
             min={0}
-            value={limit}
-            onChange={setLimit}
+            value={form.limit}
+            onChange={(limit) => onChange({ limit })}
             placeholder="No limit"
             helperText="Leave blank for no limit."
             slotProps={{
@@ -113,7 +93,11 @@ export default function BudgetCard() {
             sx={{ maxWidth: 240 }}
           />
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Switch checked={enforce} onChange={(e) => setEnforce(e.target.checked)} size="small" />
+            <Switch
+              checked={form.enforce}
+              onChange={(e) => onChange({ enforce: e.target.checked })}
+              size="small"
+            />
             <Typography variant="body2">Block the chat when the limit is reached</Typography>
           </Box>
         </Box>
@@ -127,7 +111,7 @@ export default function BudgetCard() {
         <Button
           variant="contained"
           size="small"
-          onClick={save}
+          onClick={onSave}
           disabled={saving}
           startIcon={saving ? <CircularProgress size={14} color="inherit" /> : undefined}
           sx={{ mt: 2.5 }}

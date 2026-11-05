@@ -16,6 +16,8 @@ const ENTRY_INCLUDE = {
   account: { select: { name: true, type: true, accountType: { select: { name: true } } } },
   transferAccount: { select: { name: true } },
   beneficiary: { select: { name: true } },
+  // Fee entries booked against this entry (a transfer's or a payment's charge).
+  transferFees: { select: { amount: true } },
 } satisfies Prisma.MoneyEntryInclude;
 
 type EntryWithRelations = Prisma.MoneyEntryGetPayload<{ include: typeof ENTRY_INCLUDE }>;
@@ -47,7 +49,49 @@ function serializeEntry(e: EntryWithRelations): MoneyEntryRow {
     source: e.source,
     tripId: e.tripId,
     tripCategory: e.tripCategory,
+    fee: e.transferFees.reduce((sum, f) => sum + toNum(f.amount), 0),
+    feeForEntryId: e.feeForTransferId,
   };
+}
+
+/**
+ * Book the charge an account levies for moving money out — a bank transfer
+ * fee, a mobile-wallet cash-out charge — as its own EXPENSE DEBIT on the same
+ * account, linked to the parent entry (TRANSFER or DEBIT/CREDIT) so deleting
+ * the parent cascades the fee away. The parent keeps the amount the other side
+ * actually received; the account is debited `amount + fee`.
+ */
+async function createFeeEntry(
+  tx: DbClient,
+  parent: {
+    id: string;
+    date: Date;
+    accountId: string | null;
+    currency: string;
+    description: string | null;
+  },
+  fee: number
+) {
+  const feeCategoryId = await ensureCategory("Transfer Fee", "EXPENSE", tx);
+  return tx.moneyEntry.create({
+    data: {
+      date: parent.date,
+      direction: MoneyEntryDirection.DEBIT,
+      amount: fee,
+      currency: parent.currency,
+      categoryId: feeCategoryId,
+      accountId: parent.accountId,
+      feeForTransferId: parent.id,
+      description: parent.description ? `Transfer fee — ${parent.description}` : "Transfer fee",
+      source: MoneyEntrySource.MANUAL,
+    },
+  });
+}
+
+function assertFee(fee: number | null | undefined): number {
+  const n = fee ?? 0;
+  if (!Number.isFinite(n) || n < 0) throw new Error("fee must be a finite, non-negative number");
+  return n;
 }
 
 export type EntrySortBy = "date" | "amount" | "category";
@@ -188,6 +232,13 @@ export interface CreateEntryInput {
   tripId?: string | null;
   /** Trip budget bucket for a trip-tagged expense. */
   tripCategory?: TripCategory | null;
+  /**
+   * Charge the account levies for this entry (e.g. a bank's transfer fee when
+   * paying someone), in the account's currency. Booked as a separate EXPENSE
+   * DEBIT on the same account and linked to this entry, so the payee's amount
+   * stays exact while the account is debited `amount + fee`.
+   */
+  fee?: number | null;
 }
 
 /**
@@ -209,27 +260,40 @@ export async function createEntry(
     throw new Error(`Entry currency ${currency} does not match account currency ${acctCurrency}`);
   }
   const fxRate = await resolveEntryFxRate(currency, input.fxRate);
+  const fee = assertFee(input.fee);
 
-  const e = await client.moneyEntry.create({
-    data: {
-      date: new Date(input.date),
-      direction: input.direction,
-      amount: input.amount,
-      currency,
-      fxRate,
-      categoryId: input.categoryId,
-      accountId: input.accountId ?? null,
-      beneficiaryId: input.beneficiaryId ?? null,
-      obligationId: input.obligationId ?? null,
-      description: input.description ?? null,
-      notes: input.notes ?? null,
-      method: input.method ?? null,
-      source: input.source ?? MoneyEntrySource.MANUAL,
-      tripId: input.tripId ?? null,
-      tripCategory: input.tripCategory ?? null,
-    },
-    include: ENTRY_INCLUDE,
-  });
+  const run = async (tx: DbClient) => {
+    const e = await tx.moneyEntry.create({
+      data: {
+        date: new Date(input.date),
+        direction: input.direction,
+        amount: input.amount,
+        currency,
+        fxRate,
+        categoryId: input.categoryId,
+        accountId: input.accountId ?? null,
+        beneficiaryId: input.beneficiaryId ?? null,
+        obligationId: input.obligationId ?? null,
+        description: input.description ?? null,
+        notes: input.notes ?? null,
+        method: input.method ?? null,
+        source: input.source ?? MoneyEntrySource.MANUAL,
+        tripId: input.tripId ?? null,
+        tripCategory: input.tripCategory ?? null,
+      },
+      include: ENTRY_INCLUDE,
+    });
+    if (fee > 0) {
+      await createFeeEntry(tx, e, fee);
+      return { ...e, transferFees: [{ amount: new Prisma.Decimal(fee) }] };
+    }
+    return e;
+  };
+
+  // The entry and its fee are one unit of work. A caller already inside a
+  // transaction (recordPayment, the cross-domain bridge) joins it; otherwise a
+  // fee opens one so a failed fee write cannot leave a half-booked payment.
+  const e = client !== db || fee === 0 ? await run(client) : await db.$transaction(run);
   return serializeEntry(e);
 }
 
@@ -249,6 +313,11 @@ export interface UpdateEntryInput {
   tripId?: string | null;
   /** Change the trip budget bucket. */
   tripCategory?: TripCategory | null;
+  /**
+   * Replace the linked fee: a positive number upserts the fee entry, 0/null
+   * removes it, undefined leaves it untouched.
+   */
+  fee?: number | null;
 }
 
 export async function updateEntry(id: string, input: UpdateEntryInput): Promise<MoneyEntryRow> {
@@ -269,24 +338,37 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
     await assertCategoryMatchesDirection(nextCategoryId, nextDirection);
   }
   if (input.method) assertMethodAllowed(input.method, nextDirection);
+  const fee = input.fee === undefined ? undefined : assertFee(input.fee);
 
-  const e = await db.moneyEntry.update({
-    where: { id },
-    data: {
-      ...(input.date && { date: new Date(input.date) }),
-      ...(input.direction && { direction: input.direction }),
-      ...(input.amount != null && { amount: input.amount }),
-      ...(input.categoryId && { categoryId: input.categoryId }),
-      ...(input.accountId !== undefined && { accountId: input.accountId }),
-      ...(input.beneficiaryId !== undefined && { beneficiaryId: input.beneficiaryId }),
-      ...(input.obligationId !== undefined && { obligationId: input.obligationId }),
-      ...(input.description !== undefined && { description: input.description }),
-      ...(input.notes !== undefined && { notes: input.notes }),
-      ...(input.method !== undefined && { method: input.method }),
-      ...(input.tripId !== undefined && { tripId: input.tripId }),
-      ...(input.tripCategory !== undefined && { tripCategory: input.tripCategory }),
-    },
-    include: ENTRY_INCLUDE,
+  const e = await db.$transaction(async (tx) => {
+    const updated = await tx.moneyEntry.update({
+      where: { id },
+      data: {
+        ...(input.date && { date: new Date(input.date) }),
+        ...(input.direction && { direction: input.direction }),
+        ...(input.amount != null && { amount: input.amount }),
+        ...(input.categoryId && { categoryId: input.categoryId }),
+        ...(input.accountId !== undefined && { accountId: input.accountId }),
+        ...(input.beneficiaryId !== undefined && { beneficiaryId: input.beneficiaryId }),
+        ...(input.obligationId !== undefined && { obligationId: input.obligationId }),
+        ...(input.description !== undefined && { description: input.description }),
+        ...(input.notes !== undefined && { notes: input.notes }),
+        ...(input.method !== undefined && { method: input.method }),
+        ...(input.tripId !== undefined && { tripId: input.tripId }),
+        ...(input.tripCategory !== undefined && { tripCategory: input.tripCategory }),
+      },
+      include: ENTRY_INCLUDE,
+    });
+    if (fee === undefined) return updated;
+
+    // Rebuild the fee from the parent's current date/account so an edited
+    // payment never leaves its fee on the old account or date.
+    await tx.moneyEntry.deleteMany({ where: { feeForTransferId: id } });
+    if (fee > 0) {
+      await createFeeEntry(tx, updated, fee);
+      return { ...updated, transferFees: [{ amount: new Prisma.Decimal(fee) }] };
+    }
+    return { ...updated, transferFees: [] };
   });
   return serializeEntry(e);
 }
@@ -370,8 +452,6 @@ export async function recordTransfer(
   // the caller already has a transaction open (e.g. convertEarnings), join it
   // rather than nesting — Prisma has no nested interactive transactions.
   const run = async (tx: DbClient) => {
-    const feeCategoryId = fee > 0 ? await ensureCategory("Transfer Fee", "EXPENSE", tx) : null;
-
     const transfer = await tx.moneyEntry.create({
       data: {
         date: new Date(input.date),
@@ -391,20 +471,9 @@ export async function recordTransfer(
       include: ENTRY_INCLUDE,
     });
 
-    if (fee > 0 && feeCategoryId) {
-      await tx.moneyEntry.create({
-        data: {
-          date: new Date(input.date),
-          direction: MoneyEntryDirection.DEBIT,
-          amount: fee,
-          currency: from.currency,
-          categoryId: feeCategoryId,
-          accountId: input.fromAccountId,
-          feeForTransferId: transfer.id,
-          description: input.description ? `Transfer fee — ${input.description}` : "Transfer fee",
-          source: MoneyEntrySource.MANUAL,
-        },
-      });
+    if (fee > 0) {
+      await createFeeEntry(tx, transfer, fee);
+      return { ...transfer, transferFees: [{ amount: new Prisma.Decimal(fee) }] };
     }
 
     return transfer;

@@ -16,6 +16,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const data = await updateEntry(id, {
       ...body,
       ...(body.amount != null && { amount: Number(body.amount) }),
+      ...(body.fee !== undefined && {
+        fee: body.fee === "" || body.fee === null ? 0 : Number(body.fee),
+      }),
     });
     return Response.json({ data });
   } catch (e) {
