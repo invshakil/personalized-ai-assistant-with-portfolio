@@ -75,8 +75,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   session: {
     strategy: "jwt",
-    // Cap the admin session lifetime (NextAuth defaults to 30 days). A bumped
+    // A sliding 24-hour window: with the JWT strategy every request that goes
+    // through `auth()` in proxy.ts re-signs the token and re-issues the cookie
+    // with `exp = now + maxAge`, so an active user is never logged out — only
+    // 24 hours of no admin page or API traffic ends the session. (`updateAge`
+    // only throttles database sessions; it does not apply here.) A bumped
     // APP_VERSION still force-expires sessions earlier (see jwt callback).
-    maxAge: 60 * 60 * 12, // 12 hours
+    maxAge: 60 * 60 * 24, // 24 hours of inactivity
   },
 });
