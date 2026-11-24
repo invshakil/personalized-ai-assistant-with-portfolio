@@ -3,7 +3,7 @@ import { Box, Chip, Collapse, TableCell, TableRow } from "@mui/material";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import EntityLink from "@/components/admin/EntityLink";
 import type { MoneyAccountRow, MoneyEntryRow } from "@/types";
-import { fmtCurrency } from "../../format";
+import { fmtCurrencyExact } from "../../format";
 import AccountTransactionsPanel from "./AccountTransactionsPanel";
 import AccountRowActions from "./AccountRowActions";
 
@@ -65,10 +65,10 @@ export default function AccountRow({
           data-label="Balance"
           sx={{ fontWeight: 700, color: balanceColor(a) }}
         >
-          {fmtCurrency(a.balance, a.currency)}
+          {fmtCurrencyExact(a.balance, a.currency)}
         </TableCell>
         <TableCell align="right" data-label="Available credit">
-          {a.availableCredit != null ? fmtCurrency(a.availableCredit, a.currency) : "—"}
+          {a.availableCredit != null ? fmtCurrencyExact(a.availableCredit, a.currency) : "—"}
         </TableCell>
         <TableCell data-label="Status">
           <Chip

@@ -21,6 +21,15 @@ export default function EarningAmountCell({ earning: e }: EarningAmountCellProps
           variant="outlined"
           sx={{ height: 18, fontSize: "0.65rem", mt: 0.25 }}
         />
+        {e.exchangedFromCurrency && e.exchangedFromAmount != null && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", fontWeight: 400 }}
+          >
+            exchanged from {fmtCurrency(e.exchangedFromAmount, e.exchangedFromCurrency)}
+          </Typography>
+        )}
       </Box>
     );
   }

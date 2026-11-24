@@ -13,6 +13,7 @@ interface EarningTableRowProps {
   onReverse: (id: string) => void;
   onEdit: (e: EarningRow) => void;
   onDelete: (id: string) => void;
+  onTypeClick: (type: EarningRow["remittance"]) => void;
 }
 
 export default function EarningTableRow({
@@ -22,6 +23,7 @@ export default function EarningTableRow({
   onReverse,
   onEdit,
   onDelete,
+  onTypeClick,
 }: EarningTableRowProps) {
   return (
     <TableRow hover>
@@ -35,6 +37,8 @@ export default function EarningTableRow({
           label={REMITTANCE_LABEL[e.remittance]}
           color={e.remittance === "REM" ? "success" : "default"}
           variant="outlined"
+          clickable
+          onClick={() => onTypeClick(e.remittance)}
         />
       </TableCell>
       <TableCell align="right" data-label="Amount" sx={{ fontWeight: 600 }}>

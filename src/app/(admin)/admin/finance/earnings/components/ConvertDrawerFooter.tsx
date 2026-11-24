@@ -3,6 +3,7 @@ import ConvertDrawerSummary from "./ConvertDrawerSummary";
 
 interface ConvertDrawerFooterProps {
   convCurrency: string;
+  toCurrency: string;
   convAmountNum: number;
   convRate: number;
   convToAmountNum: number;
@@ -14,6 +15,7 @@ interface ConvertDrawerFooterProps {
 
 export default function ConvertDrawerFooter({
   convCurrency,
+  toCurrency,
   convAmountNum,
   convRate,
   convToAmountNum,
@@ -26,6 +28,7 @@ export default function ConvertDrawerFooter({
     <>
       <ConvertDrawerSummary
         convCurrency={convCurrency}
+        toCurrency={toCurrency}
         convAmountNum={convAmountNum}
         convRate={convRate}
         convToAmountNum={convToAmountNum}
@@ -37,7 +40,13 @@ export default function ConvertDrawerFooter({
         </Alert>
       )}
       <Button variant="contained" fullWidth onClick={onConvert} disabled={convSaving || !convReady}>
-        {convSaving ? "Converting…" : "Convert to BDT"}
+        {convSaving
+          ? "Converting…"
+          : toCurrency === "BDT"
+            ? "Convert to BDT"
+            : toCurrency
+              ? `Exchange to ${toCurrency}`
+              : "Convert"}
       </Button>
     </>
   );

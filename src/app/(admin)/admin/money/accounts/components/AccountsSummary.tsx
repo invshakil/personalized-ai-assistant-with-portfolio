@@ -1,6 +1,6 @@
 import { Box, Card, Typography, Button } from "@mui/material";
 import { ArrowLeftRight, Plus } from "lucide-react";
-import { fmtCurrency } from "../../format";
+import { fmtCurrencyExact } from "../../format";
 
 interface Props {
   cashRows: [string, number][];
@@ -18,12 +18,12 @@ export default function AccountsSummary({ cashRows, cardDebtRows, onAdd, onTrans
         </Typography>
         {cashRows.length === 0 ? (
           <Typography variant="h6" sx={{ fontWeight: 700, color: "success.main" }}>
-            {fmtCurrency(0, "BDT")}
+            {fmtCurrencyExact(0, "BDT")}
           </Typography>
         ) : (
           cashRows.map(([cur, total]) => (
             <Typography key={cur} variant="h6" sx={{ fontWeight: 700, color: "success.main" }}>
-              {fmtCurrency(total, cur)}
+              {fmtCurrencyExact(total, cur)}
             </Typography>
           ))
         )}
@@ -35,7 +35,7 @@ export default function AccountsSummary({ cashRows, cardDebtRows, onAdd, onTrans
           </Typography>
           {cardDebtRows.map(([cur, total]) => (
             <Typography key={cur} variant="h6" sx={{ fontWeight: 700, color: "error.main" }}>
-              {fmtCurrency(total, cur)}
+              {fmtCurrencyExact(total, cur)}
             </Typography>
           ))}
         </Card>

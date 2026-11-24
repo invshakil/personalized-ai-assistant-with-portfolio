@@ -255,7 +255,8 @@ Decisions: **Subscription entity + monthly auto-charge**; **confirm dialog on de
   `db execute`); captured in the Settings employee form, shown in the employees list, and printed on the
   salary receipt ("Employee phone").
 - **Bulk "Download all" PDF** for every list that has per-row downloads, honoring the active filters:
-  - `GET /api/admin/finance/earnings/pdf` (Earnings Statement)
+  - `GET /api/admin/finance/earnings/export?format=csv|pdf` (Earnings Statement — CSV or PDF, every list
+    filter incl. income type; the old `/earnings/pdf` path still answers with the PDF)
   - `GET /api/admin/finance/payments/pdf` (Salary Payments Statement)
   - `GET /api/admin/finance/expenses/pdf` (Business Expenses Statement)
   - `GET /api/admin/property/payments/pdf` (Rent Collection Statement)

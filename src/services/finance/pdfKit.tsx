@@ -2,6 +2,7 @@
    Uses @react-pdf/renderer (server-side). Standard PDF fonts lack the ৳ glyph,
    so amounts are rendered as "BDT 1,23,456" (en-IN grouping). */
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import { safeFilename } from "@/services/_shared/csv";
 
 // Business identity shown on every document header. Managed in admin settings
 // (Financial Tracker → Settings → Business Profile) and passed in per render.
@@ -19,6 +20,19 @@ export function pdfMoney(n: number): string {
 
 // Foreign symbols ($/€) exist in the standard PDF fonts (unlike ৳).
 const PDF_CURRENCY_SYMBOL: Record<string, string> = { USD: "$", EUR: "€" };
+
+/**
+ * An exact amount in its own currency for statements that must reconcile to the
+ * paisa/cent: "BDT 1,23,456.50", "$1,000.00", "MYR 91.80".
+ */
+export function pdfAmount(n: number, currency = "BDT"): string {
+  const value = n.toLocaleString(currency === "BDT" ? "en-IN" : "en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const sym = PDF_CURRENCY_SYMBOL[currency];
+  return sym ? `${sym}${value}` : `${currency} ${value}`;
+}
 
 /** "$1,000.00 @ 121.5 BDT/USD" — the original foreign amount + the rate used. */
 export function pdfForeign(currency: string, originalAmount: number, fxRate: number): string {
@@ -82,6 +96,7 @@ export const s = StyleSheet.create({
   tr: { flexDirection: "row", paddingVertical: 4, borderBottom: "0.5 solid #eee" },
   trText: { fontSize: 8 },
   totalRow: { flexDirection: "row", paddingTop: 6, marginTop: 2, borderTop: "1 solid #ccc" },
+  totalRowNext: { flexDirection: "row", paddingTop: 3 },
   totalText: { fontFamily: "Helvetica-Bold", fontSize: 9 },
   sectionTitle: {
     fontSize: 10,
@@ -169,8 +184,18 @@ export function ListDocument(props: {
   rows: string[][];
   totalLabel?: string;
   totalValue?: string;
+  /** Several total lines (e.g. income / expense / net per currency), after `totalValue`. */
+  totals?: { label: string; value: string }[];
+  /** Wide statements (many columns) read better on a landscape page. */
+  orientation?: "portrait" | "landscape";
   footerNote?: string;
 }) {
+  const totals = [
+    ...(props.totalValue != null
+      ? [{ label: props.totalLabel ?? "Total", value: props.totalValue }]
+      : []),
+    ...(props.totals ?? []),
+  ];
   const cell = (text: string, col: ListColumn, key: number, bold = false) => (
     <Text
       key={key}
@@ -184,7 +209,7 @@ export function ListDocument(props: {
   );
   return (
     <Document>
-      <Page size="A4" style={s.page}>
+      <Page size="A4" orientation={props.orientation ?? "portrait"} style={s.page}>
         <BusinessHeader business={props.business} />
         <Text style={s.docType}>{props.docType}</Text>
         <Text style={s.meta}>
@@ -200,12 +225,12 @@ export function ListDocument(props: {
           </View>
         ))}
 
-        {props.totalValue != null && (
-          <View style={s.totalRow}>
-            <Text style={[s.totalText, { flex: 1 }]}>{props.totalLabel ?? "Total"}</Text>
-            <Text style={[s.totalText, { textAlign: "right" }]}>{props.totalValue}</Text>
+        {totals.map((t, i) => (
+          <View style={i === 0 ? s.totalRow : s.totalRowNext} key={i} wrap={false}>
+            <Text style={[s.totalText, { flex: 1 }]}>{t.label}</Text>
+            <Text style={[s.totalText, { textAlign: "right", paddingRight: 4 }]}>{t.value}</Text>
           </View>
-        )}
+        ))}
 
         <Text style={s.footer}>
           {props.footerNote ?? `Computer-generated — ${props.business.name}`}
@@ -220,7 +245,10 @@ export function pdfResponse(buffer: Buffer | Uint8Array, filename: string): Resp
   return new Response(buffer as BodyInit, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="${filename}"`,
+      // The name can carry request input (a fiscal year, a date) — keep it header-safe.
+      "Content-Disposition": `inline; filename="${safeFilename(filename)}"`,
+      // Financial documents: never store in a shared or browser cache.
+      "Cache-Control": "no-store",
     },
   });
 }

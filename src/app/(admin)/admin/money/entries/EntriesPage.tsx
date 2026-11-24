@@ -6,6 +6,8 @@ import { Box, CircularProgress } from "@mui/material";
 import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import type { SelectOption } from "@/components/admin/SearchableSelect";
+import type { ExportFormat } from "@/components/admin/ExportMenuButton";
+import { moneyApi } from "@/lib/api/money";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import { MONEY_RANGE_LABELS, type MoneyRange } from "../format";
 import { useEntryFilters } from "./hooks/useEntryFilters";
@@ -54,6 +56,10 @@ export default function EntriesPage() {
   const handleTypeChange = (next: DirFilter) => filters.onTypeChange(next, data.categories);
   const handleCategoryClick = (categoryId: string) => filters.setParams({ category: categoryId });
   const handleAccountClick = (accountId: string) => filters.setParams({ account: accountId });
+
+  // Export downloads exactly what the table shows — same filters, same sort.
+  const exportHrefFor = (format: ExportFormat) =>
+    moneyApi.entriesExportUrl(data.activeFilters, format);
 
   const periodSelectOptions: SelectOption[] = [
     ...(Object.keys(MONEY_RANGE_LABELS) as MoneyRange[]).map((r) => ({
@@ -105,6 +111,8 @@ export default function EntriesPage() {
         onOpenTransfer={transferDrawer.openTransfer}
         onOpenAdd={entryDrawer.openAdd}
         actionsDisabled={!formsReady}
+        exportHrefFor={exportHrefFor}
+        exportDisabled={data.loading || data.entries.length === 0}
       />
 
       {!data.loading && (

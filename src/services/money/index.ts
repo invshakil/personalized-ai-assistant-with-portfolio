@@ -10,3 +10,5 @@ export * from "./dashboard";
 export * from "./reports";
 export * from "./import";
 export * from "./categorize";
+export * from "./entryQuery";
+export * from "./ledgerExport";

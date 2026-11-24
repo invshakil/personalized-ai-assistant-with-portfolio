@@ -8,6 +8,7 @@ export {
   fmtDate,
   fmtMonth,
   fmtCurrency,
+  fmtCurrencyExact,
   currencySymbol,
   fmtForeign,
   todayInput,

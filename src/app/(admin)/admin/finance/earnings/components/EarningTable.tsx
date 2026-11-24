@@ -20,6 +20,8 @@ interface EarningTableProps {
   onReverse: (id: string) => void;
   onEdit: (e: EarningRow) => void;
   onDelete: (id: string) => void;
+  /** Click a row's type chip to filter the list to that income type. */
+  onTypeClick: (type: EarningRow["remittance"]) => void;
 }
 
 export default function EarningTable({
@@ -30,6 +32,7 @@ export default function EarningTable({
   onReverse,
   onEdit,
   onDelete,
+  onTypeClick,
 }: EarningTableProps) {
   return (
     <TableContainer component={Card} sx={{ bgcolor: "background.paper" }}>
@@ -66,6 +69,7 @@ export default function EarningTable({
                 onReverse={onReverse}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                onTypeClick={onTypeClick}
               />
             ))
           )}

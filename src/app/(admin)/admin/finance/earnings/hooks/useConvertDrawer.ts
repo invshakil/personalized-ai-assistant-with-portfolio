@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { financeApi } from "@/lib/api/finance";
 import type { MoneyAccountRow } from "@/types";
 import { useFormDefaults } from "@/hooks/useFormDefaults";
@@ -14,6 +14,18 @@ import {
 } from "@/lib/accountPicker";
 import type { EarningRow } from "../../types";
 import { todayInput } from "../../format";
+import {
+  conversionCheck,
+  convertibleCurrencies,
+  pendingByCurrency as groupPending,
+} from "../convertForm";
+import { useConvertQuote } from "./useConvertQuote";
+
+/** The first selectable account in `pool`, or nothing. */
+function firstOf(pool: MoneyAccountRow[]): AccountSelection {
+  const [first] = selectableAccounts(pool, "");
+  return first ? selectAccount(pool, first.id) : EMPTY_SELECTION;
+}
 
 export function useConvertDrawer(
   accounts: MoneyAccountRow[],
@@ -25,75 +37,46 @@ export function useConvertDrawer(
   const [convAmount, setConvAmount] = useState("");
   const defaults = useFormDefaults("finance.convert");
   const [convFrom, setConvFrom] = useState<AccountSelection>(EMPTY_SELECTION);
-  const [convTo, setConvTo] = useState<AccountSelection>(EMPTY_SELECTION);
+  const [convTo, setConvToState] = useState<AccountSelection>(EMPTY_SELECTION);
   const [convDate, setConvDate] = useState(todayInput());
-  const [convToAmount, setConvToAmount] = useState("");
+  const {
+    toAmount: convToAmount,
+    setToAmount: setConvToAmount,
+    loading: convRateLoading,
+    quote: prefillReceived,
+  } = useConvertQuote();
   const [convSaving, setConvSaving] = useState(false);
   const [convError, setConvError] = useState<string | null>(null);
-  const [convRateLoading, setConvRateLoading] = useState(false);
 
-  const pendingByCurrency = (() => {
-    const m = new Map<string, { original: number; count: number }>();
-    for (const e of pendingEarnings) {
-      const c = m.get(e.currency) ?? { original: 0, count: 0 };
-      c.original += e.originalAmount;
-      c.count += 1;
-      m.set(e.currency, c);
-    }
-    // A pending earning's income may have already been partly spent (e.g. an
-    // employee payment posted directly against the same account) — surface
-    // the real ledger balance alongside the unrealized-income total so the
-    // two don't get conflated as "cash on hand."
-    return [...m.entries()].map(([currency, v]) => ({
-      currency,
-      ...v,
-      availableBalance: accounts
-        .filter((a) => a.currency === currency)
-        .reduce((s, a) => s + a.balance, 0),
-    }));
-  })();
-  const pendingCurrencies = pendingByCurrency.map((p) => p.currency);
+  const pendingByCurrency = groupPending(pendingEarnings, accounts);
+  const currencyOptions = convertibleCurrencies(pendingByCurrency, accounts);
   const pendingTotalForCurrency =
     pendingByCurrency.find((p) => p.currency === convCurrency)?.original ?? 0;
 
+  // "" until a destination account is picked — never assume BDT, or an amount
+  // quoted for one currency could end up labelled (and saved) as another.
+  const currencyOf = (accountId: string) =>
+    accounts.find((a) => a.id === accountId)?.currency ?? "";
+  const toCurrency = currencyOf(convTo.accountId);
   const convAmountNum = parseFloat(convAmount) || 0;
   const convToAmountNum = parseFloat(convToAmount);
   const convRate = convAmountNum > 0 && convToAmountNum > 0 ? convToAmountNum / convAmountNum : 0;
   // The currency pools each picker draws from; the picker applies the active rules.
   const fromAccountOptions = accounts.filter((a) => a.currency === convCurrency);
-  const toAccountOptions = accounts.filter((a) => a.currency === "BDT");
+  const toAccountOptions = accounts.filter((a) => a.currency !== convCurrency);
   const fromAccountBalance = accounts.find((a) => a.id === convFrom.accountId)?.balance ?? 0;
-  const exceedsBalance = convAmountNum > fromAccountBalance + 0.01;
-  const exceedsPending = convAmountNum > pendingTotalForCurrency + 0.01;
+  const check = conversionCheck({
+    amount: convAmountNum,
+    balance: fromAccountBalance,
+    pendingTotal: pendingTotalForCurrency,
+  });
   const convReady =
     convAmountNum > 0 &&
     !!convFrom.accountId &&
     !!convTo.accountId &&
     convToAmountNum > 0 &&
-    !exceedsBalance &&
-    !exceedsPending;
+    !check.exceedsBalance;
 
-  // Prefill the BDT-received field from the live rate × the amount to convert.
-  const prefillConvAmount = useCallback(async (currency: string, amount: number) => {
-    if (currency === "" || amount <= 0) return;
-    setConvRateLoading(true);
-    try {
-      const res = await financeApi.getFxRate(currency);
-      if (res && res.rate > 0) {
-        setConvToAmount(String(Math.round(amount * res.rate * 100) / 100));
-      }
-    } catch {
-      /* leave blank — user enters the actual amount */
-    } finally {
-      setConvRateLoading(false);
-    }
-  }, []);
-
-  /** The first selectable account in `pool`, or nothing. */
-  const firstOf = (pool: MoneyAccountRow[]): AccountSelection => {
-    const [first] = selectableAccounts(pool, "");
-    return first ? selectAccount(pool, first.id) : EMPTY_SELECTION;
-  };
   // The foreign money can only come from an account holding that currency.
   const firstFrom = (currency: string) => firstOf(accounts.filter((a) => a.currency === currency));
 
@@ -101,36 +84,47 @@ export function useConvertDrawer(
   // with that earning's original amount — still just a starting suggestion,
   // not a locked selection.
   const openConvert = (currency?: string, presetEarningId?: string) => {
-    const cur = currency ?? pendingCurrencies[0] ?? "";
+    const cur = currency ?? currencyOptions[0] ?? "";
     const preset = presetEarningId
       ? pendingEarnings.find((e) => e.id === presetEarningId)?.originalAmount
       : undefined;
     setConvCurrency(cur);
     setConvFrom(firstFrom(cur));
-    // A stored default wins; with none, the first BDT bank account (as before).
+    // Realizing to BDT is the common case, so the destination starts on a BDT
+    // account: a stored default wins; with none, the first BDT bank account.
     const bdt = accounts.filter((a) => a.currency === "BDT");
     const seeded = seedAccountPair(bdt, defaults.seed(pairValidValues(bdt, { prefix: "to" })), {
       prefix: "to",
     });
     const bank = withKindFallback(bdt, seeded, "BANK");
-    setConvTo(bank.accountId || bank.typeId ? bank : firstOf(bdt));
+    const dest = bank.accountId || bank.typeId ? bank : firstOf(bdt);
+    setConvToState(dest);
     setConvDate(todayInput());
     setConvAmount(preset ? String(preset) : "");
     setConvToAmount("");
     setConvError(null);
     setConvertOpen(true);
-    if (preset) prefillConvAmount(cur, preset);
+    if (preset) prefillReceived(cur, currencyOf(dest.accountId), preset);
   };
 
   const onConvCurrencyChange = (cur: string) => {
     setConvCurrency(cur);
     setConvFrom(firstFrom(cur));
+    // A destination in the new source currency would be a transfer, not a conversion.
+    if (toCurrency === cur) setConvToState(EMPTY_SELECTION);
     setConvAmount("");
     setConvToAmount("");
   };
 
-  const onConvAmountBlur = () => {
-    prefillConvAmount(convCurrency, convAmountNum);
+  // The received amount belongs to ONE destination currency. Whenever that
+  // changes — another currency, or no account at all — it is cleared, and
+  // re-quoted once there is a destination to quote for.
+  const setConvTo = (sel: AccountSelection) => {
+    setConvToState(sel);
+    const next = currencyOf(sel.accountId);
+    if (next === toCurrency) return;
+    setConvToAmount("");
+    prefillReceived(convCurrency, next, convAmountNum);
   };
 
   const doConvert = async () => {
@@ -145,7 +139,8 @@ export function useConvertDrawer(
         date: convDate,
         toAmount: convToAmountNum,
       });
-      defaults.remember(rememberAccountPair(convTo, "to"));
+      // Only a BDT destination is remembered: the default seeds from BDT accounts.
+      if (toCurrency === "BDT") defaults.remember(rememberAccountPair(convTo, "to"));
       setConvertOpen(false);
       await onSuccess();
     } catch (e: unknown) {
@@ -161,11 +156,12 @@ export function useConvertDrawer(
     convCurrency,
     convAmount,
     setConvAmount,
-    onConvAmountBlur,
+    onConvAmountBlur: () => prefillReceived(convCurrency, toCurrency, convAmountNum),
     convFrom,
     setConvFrom,
     convTo,
     setConvTo,
+    toCurrency,
     convDate,
     setConvDate,
     convToAmount,
@@ -174,7 +170,7 @@ export function useConvertDrawer(
     convError,
     convRateLoading,
     pendingByCurrency,
-    pendingCurrencies,
+    currencyOptions,
     pendingTotalForCurrency,
     convAmountNum,
     convRate,
@@ -182,11 +178,14 @@ export function useConvertDrawer(
     fromAccountOptions,
     toAccountOptions,
     fromAccountBalance,
-    exceedsBalance,
-    exceedsPending,
+    exceedsBalance: check.exceedsBalance,
+    uncoveredAmount: check.uncovered,
     convReady,
     openConvert,
     onConvCurrencyChange,
     doConvert,
   };
 }
+
+/** Everything the Convert drawer's components render from. */
+export type ConvertDrawerState = ReturnType<typeof useConvertDrawer>;

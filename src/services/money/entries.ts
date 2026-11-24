@@ -387,6 +387,18 @@ export async function updateEntry(id: string, input: UpdateEntryInput): Promise<
 }
 
 export async function deleteEntry(id: string) {
+  // A conversion/exchange transfer is one half of a pair: earnings were realized
+  // or re-denominated against it. Deleting it here would put the money back while
+  // leaving those earnings settled — it has to be undone from Earnings instead.
+  const settled = await db.earning.count({
+    where: { OR: [{ transferEntryId: id }, { exchangeEntryId: id }] },
+  });
+  if (settled > 0) {
+    throw new Error(
+      `This transfer converted ${settled} earning${settled === 1 ? "" : "s"}. Reverse it from ` +
+        `Financial Tracker → Earnings (the ↺ action on one of them) so the income is restored too.`
+    );
+  }
   await db.moneyEntry.delete({ where: { id } });
   return { deleted: true };
 }

@@ -1,39 +1,34 @@
 import { Box, Button } from "@mui/material";
-import { Plus, Download, ArrowLeftRight } from "lucide-react";
+import { Plus, ArrowLeftRight } from "lucide-react";
+import ExportMenuButton, { type ExportFormat } from "@/components/admin/ExportMenuButton";
 
 interface EarningFilterActionsProps {
   hasEarnings: boolean;
-  hasPendingEarnings: boolean;
-  downloadHref: string;
+  /** A foreign balance or pending foreign income exists to convert. */
+  canConvert: boolean;
+  exportHrefFor: (format: ExportFormat) => string;
   onOpenConvert: () => void;
   onOpenAdd: () => void;
 }
 
 export default function EarningFilterActions({
   hasEarnings,
-  hasPendingEarnings,
-  downloadHref,
+  canConvert,
+  exportHrefFor,
   onOpenConvert,
   onOpenAdd,
 }: EarningFilterActionsProps) {
   return (
     <Box sx={{ ml: "auto", display: "flex", gap: 1 }}>
-      <Button
-        variant="outlined"
-        startIcon={<Download size={16} />}
-        disabled={!hasEarnings}
-        onClick={() => window.open(downloadHref, "_blank")}
-      >
-        Download all
-      </Button>
+      <ExportMenuButton hrefFor={exportHrefFor} disabled={!hasEarnings} />
       <Button
         variant="outlined"
         color="warning"
         startIcon={<ArrowLeftRight size={16} />}
-        disabled={!hasPendingEarnings}
+        disabled={!canConvert}
         onClick={onOpenConvert}
       >
-        Convert to BDT
+        Convert
       </Button>
       <Button variant="contained" startIcon={<Plus size={16} />} onClick={onOpenAdd}>
         Add Earning

@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { financeApi, type EarningFilters } from "@/lib/api/finance";
 import { moneyApi } from "@/lib/api/money";
 import type { MoneyAccountRow } from "@/types";
 import type { EarningRow, SourceRow } from "../../types";
+import type { TypeFilter } from "../types";
 import { currentFiscalYear } from "../../format";
 
 interface Filters {
   fyFilter: string[];
   sourceFilter: string[];
+  typeFilter: TypeFilter;
   hasCustomRange: boolean;
   from?: string;
   to?: string;
@@ -18,6 +20,7 @@ interface Filters {
 export function useEarningData({
   fyFilter,
   sourceFilter,
+  typeFilter,
   hasCustomRange,
   from,
   to,
@@ -34,20 +37,27 @@ export function useEarningData({
   // All-time pending foreign earnings (for the convert flow + summary), independent of filters.
   const [pendingEarnings, setPendingEarnings] = useState<EarningRow[]>([]);
 
+  // The API query for the current filters — also what an export downloads, so
+  // the file always matches the table.
+  const activeFilters = useMemo<EarningFilters>(
+    () => ({
+      fiscalYears: fyFilter,
+      sourceIds: sourceFilter,
+      ...(typeFilter !== "ALL" && { remittance: typeFilter }),
+      ...(hasCustomRange ? { from, to } : { period: period ?? "this_month" }),
+      ...(q && { q }),
+    }),
+    [fyFilter, sourceFilter, typeFilter, hasCustomRange, from, to, period, q]
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const filters: EarningFilters = {
-        fiscalYears: fyFilter,
-        sourceIds: sourceFilter,
-        ...(hasCustomRange ? { from, to } : { period: period ?? "this_month" }),
-        ...(q && { q }),
-      };
-      setEarnings((await financeApi.listEarnings(filters)) ?? []);
+      setEarnings((await financeApi.listEarnings(activeFilters)) ?? []);
     } finally {
       setLoading(false);
     }
-  }, [fyFilter, sourceFilter, hasCustomRange, from, to, period, q]);
+  }, [activeFilters]);
 
   const loadRefData = useCallback(async () => {
     const [clientsData, accountsData, allEarnings] = await Promise.all([
@@ -79,6 +89,7 @@ export function useEarningData({
     allFiscalYears,
     loading,
     pendingEarnings,
+    activeFilters,
     reload: load,
     reloadRefData: loadRefData,
   };

@@ -94,21 +94,24 @@ export async function listAccountsWithBalances(): Promise<MoneyAccountRow[]> {
   });
 }
 
-/** Single-account balance (used by tools/CLI). */
-export async function getAccountBalance(id: string): Promise<number> {
-  const account = await db.moneyAccount.findUnique({
+/**
+ * Single-account balance (used by tools/CLI). Pass `client` to read inside the
+ * caller's transaction, so a balance check and the write it guards see one state.
+ */
+export async function getAccountBalance(id: string, client: DbClient = db): Promise<number> {
+  const account = await client.moneyAccount.findUnique({
     where: { id },
     select: { openingBalance: true },
   });
   if (!account) throw new Error("Account not found");
 
   const [byDir, transferIn] = await Promise.all([
-    db.moneyEntry.groupBy({
+    client.moneyEntry.groupBy({
       by: ["direction"],
       where: { accountId: id },
       _sum: { amount: true },
     }),
-    db.moneyEntry.aggregate({
+    client.moneyEntry.aggregate({
       where: { direction: "TRANSFER", transferAccountId: id },
       _sum: { toAmount: true },
     }),

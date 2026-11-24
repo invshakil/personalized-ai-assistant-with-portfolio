@@ -5,6 +5,8 @@ import PageHeader from "@/components/admin/PageHeader";
 import ConfirmDialog from "@/components/admin/ConfirmDialog";
 import { useConfirmDialog } from "@/hooks/useConfirmDialog";
 import type { SelectOption } from "@/components/admin/SearchableSelect";
+import type { ExportFormat } from "@/components/admin/ExportMenuButton";
+import { financeApi } from "@/lib/api/finance";
 import { FILTER_RANGE_PRESETS, FILTER_RANGE_LABELS } from "../format";
 import { useEarningFilters } from "./hooks/useEarningFilters";
 import { useEarningData } from "./hooks/useEarningData";
@@ -47,11 +49,9 @@ export default function EarningsPage() {
     label: s.name,
   }));
 
-  // Download mirrors the active fiscal-year filter (the PDF route filters by FY).
-  // Use the first selected FY if exactly one is chosen; otherwise no FY param.
-  const downloadHref = `/api/admin/finance/earnings/pdf${
-    filters.fyFilter.length === 1 ? `?fiscalYear=${filters.fyFilter[0]}` : ""
-  }`;
+  // Export downloads exactly what the table shows — same filters, same rows.
+  const exportHrefFor = (format: ExportFormat) =>
+    financeApi.earningsExportUrl(data.activeFilters, format);
 
   const hasEarnings = data.earnings.length > 0;
 
@@ -64,6 +64,7 @@ export default function EarningsPage() {
         fySelectOptions={fySelectOptions}
         sourceFilter={filters.sourceFilter}
         sourceSelectOptions={sourceSelectOptions}
+        typeFilter={filters.typeFilter}
         activePreset={filters.activePreset}
         periodSelectOptions={periodSelectOptions}
         from={filters.from}
@@ -71,11 +72,12 @@ export default function EarningsPage() {
         searchInput={filters.searchInput}
         hasActiveFilters={filters.hasActiveFilters}
         hasEarnings={hasEarnings}
-        hasPendingEarnings={data.pendingEarnings.length > 0}
-        downloadHref={downloadHref}
+        canConvert={convertDrawer.currencyOptions.length > 0}
+        exportHrefFor={exportHrefFor}
         setParams={filters.setParams}
         onPresetChange={filters.onPresetChange}
         onSearchInputChange={filters.setSearchInput}
+        onClearFilters={filters.clearFilters}
         onOpenConvert={() => convertDrawer.openConvert()}
         onOpenAdd={earningDrawer.openAdd}
       />
@@ -108,6 +110,7 @@ export default function EarningsPage() {
           onReverse={actions.doReverse}
           onEdit={earningDrawer.openEdit}
           onDelete={actions.requestDelete}
+          onTypeClick={(type) => filters.setParams({ type })}
         />
       )}
 
@@ -130,38 +133,7 @@ export default function EarningsPage() {
         onSave={earningDrawer.save}
       />
 
-      <ConvertDrawer
-        open={convertDrawer.convertOpen}
-        onClose={convertDrawer.closeConvert}
-        pendingCurrencies={convertDrawer.pendingCurrencies}
-        convCurrency={convertDrawer.convCurrency}
-        onConvCurrencyChange={convertDrawer.onConvCurrencyChange}
-        convAmount={convertDrawer.convAmount}
-        onConvAmountChange={convertDrawer.setConvAmount}
-        onConvAmountBlur={convertDrawer.onConvAmountBlur}
-        convFrom={convertDrawer.convFrom}
-        onConvFromChange={convertDrawer.setConvFrom}
-        convTo={convertDrawer.convTo}
-        onConvToChange={convertDrawer.setConvTo}
-        convDate={convertDrawer.convDate}
-        onConvDateChange={convertDrawer.setConvDate}
-        convToAmount={convertDrawer.convToAmount}
-        onConvToAmountChange={convertDrawer.setConvToAmount}
-        convRateLoading={convertDrawer.convRateLoading}
-        fromAccountOptions={convertDrawer.fromAccountOptions}
-        toAccountOptions={convertDrawer.toAccountOptions}
-        fromAccountBalance={convertDrawer.fromAccountBalance}
-        exceedsBalance={convertDrawer.exceedsBalance}
-        pendingTotalForCurrency={convertDrawer.pendingTotalForCurrency}
-        exceedsPending={convertDrawer.exceedsPending}
-        convAmountNum={convertDrawer.convAmountNum}
-        convRate={convertDrawer.convRate}
-        convToAmountNum={convertDrawer.convToAmountNum}
-        convError={convertDrawer.convError}
-        convSaving={convertDrawer.convSaving}
-        convReady={convertDrawer.convReady}
-        onConvert={convertDrawer.doConvert}
-      />
+      <ConvertDrawer state={convertDrawer} />
 
       <ConfirmDialog
         open={!!confirm.dialog}

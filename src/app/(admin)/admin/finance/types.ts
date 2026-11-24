@@ -19,6 +19,9 @@ export interface EarningRow {
   realizedAmount: number | null; // actual BDT booked on conversion
   realizedRate: number | null; // actual BDT per 1 unit at conversion
   pendingConversion: boolean; // foreign && not yet converted
+  // Set when a foreign→foreign exchange (e.g. EUR→USD) re-denominated this earning.
+  exchangedFromCurrency: string | null;
+  exchangedFromAmount: number | null;
   fiscalYear: string;
   notes: string | null;
 }

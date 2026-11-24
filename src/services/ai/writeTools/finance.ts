@@ -5,6 +5,8 @@ import {
   createEarning,
   updateEarning,
   convertEarnings,
+  describeReversal,
+  getPendingForeignIncome,
   reverseConversion,
   createEmployeePayment,
   updateEmployeePayment,
@@ -206,21 +208,25 @@ export const financeTools: WriteToolDef[] = [
   write({
     name: "convert_earnings",
     description:
-      "Convert PENDING foreign income to BDT at the ACTUAL rate, booking it as income in the " +
-      "conversion period. Give an amount in the foreign currency — it's consumed oldest-first " +
-      "across pending earnings in that currency, splitting the boundary earning if the amount " +
-      "doesn't land exactly on one. Posts ONE cross-currency Money transfer (foreign account → " +
-      "BDT account). Use list_earnings (pendingConversion=true) to see how much pending income is " +
-      "available first. fromAccountName must be a matching-currency account with enough balance; " +
-      "toAccountName must be a BDT account. toAmount is the actual total BDT received.",
+      "Convert money out of a foreign-currency account at the ACTUAL rate. Posts ONE cross-currency " +
+      "Money transfer. Give an amount in the foreign currency — pending earnings in that currency are " +
+      "consumed oldest-first, splitting the boundary earning if the amount doesn't land exactly on one. " +
+      "toAccountName decides what happens: a BDT account REALIZES those earnings (booked as BDT income in " +
+      "the conversion period); another foreign account (e.g. Wise EUR → Wise USD) is an EXCHANGE — the " +
+      "earnings are re-denominated into that currency and stay pending. The amount is capped by the " +
+      "source account's real balance, not by the pending total: anything beyond the pending income is " +
+      "moved as a plain currency exchange and booked as no income. fromAccountName must hold `currency`; " +
+      "toAmount is the actual total received, in the DESTINATION account's currency.",
     parameters: schema(
       {
         currency: Str("Foreign currency to convert, e.g. EUR or USD"),
         amount: Num("Amount in `currency` to convert (oldest pending earnings consumed first)"),
-        fromAccountName: Str("Foreign Money account holding the balance, e.g. Wise"),
-        toAccountName: Str("Destination BDT account, e.g. City Bank"),
+        fromAccountName: Str("Foreign Money account holding the balance, e.g. Wise - Euro"),
+        toAccountName: Str(
+          "Destination account: a BDT account (realize income) or another foreign account (exchange)"
+        ),
         date: Str("Conversion date YYYY-MM-DD (the income's booking period)"),
-        toAmount: Num("Actual total BDT received"),
+        toAmount: Num("Actual total received, in the destination account's currency"),
         notes: Str("Notes (optional)"),
       },
       ["currency", "amount", "fromAccountName", "toAccountName", "date", "toAmount"]
@@ -235,11 +241,28 @@ export const financeTools: WriteToolDef[] = [
       notes: optStr(i.notes) ?? null,
     }),
     preview: async (a) => {
-      await moneyAccountByName(a.fromAccountName);
-      await moneyAccountByName(a.toAccountName); // validate the destination exists
+      const from = await moneyAccountByName(a.fromAccountName);
+      const to = await moneyAccountByName(a.toAccountName); // validate the destination exists
+      if (from.currency !== a.currency) {
+        throw new Error(`${a.fromAccountName} holds ${from.currency}, not ${a.currency}`);
+      }
+      const toBdt = to.currency === "BDT";
+      // Say up front how much of the amount is NOT pending income — that part
+      // moves as a plain exchange and the approver should know before agreeing.
+      const pendingTotal =
+        (await getPendingForeignIncome()).find((p) => p.currency === a.currency)?.original ?? 0;
+      const excess = Math.round((a.amount - pendingTotal) * 100) / 100;
+      const excessNote =
+        excess > 0.005
+          ? ` ${cur(excess, a.currency)} of it is beyond the pending ${a.currency} income and moves as a plain exchange (no income booked).`
+          : "";
       return (
-        `Convert ${cur(a.amount, a.currency)} from ${a.fromAccountName} → ${a.toAccountName} as ` +
-        `${taka(a.toAmount)} on ${a.date} (booked as BDT income).`
+        `${toBdt ? "Convert" : "Exchange"} ${cur(a.amount, a.currency)} from ${a.fromAccountName} → ` +
+        `${a.toAccountName} as ${cur(a.toAmount, to.currency)} on ${a.date} ` +
+        (toBdt
+          ? "(pending income it covers is booked as BDT income)."
+          : `(pending income it covers stays pending, now in ${to.currency}).`) +
+        excessNote
       );
     },
     commit: async (a) => {
@@ -256,10 +279,18 @@ export const financeTools: WriteToolDef[] = [
         toAmount: a.toAmount,
         notes: a.notes,
       });
+      const touched = `${r.converted} earning${r.converted === 1 ? "" : "s"} touched`;
+      const outcome = r.realized
+        ? `booked as income on ${a.date}`
+        : `still pending, now in ${r.toCurrency}`;
+      const excess =
+        r.uncoveredAmount > 0
+          ? ` ${cur(r.uncoveredAmount, r.currency)} of it was beyond the pending income and moved as a plain exchange.`
+          : "";
       return {
         summary:
-          `Converted ${cur(r.totalOriginal, r.currency)} (${r.converted} earning${r.converted > 1 ? "s" : ""} touched): ` +
-          `→ ${taka(r.toAmount)} @ ${r.rate} (booked as income on ${a.date}; ${a.fromAccountName} → ${a.toAccountName}).`,
+          `Converted ${cur(r.totalOriginal, r.currency)} (${touched}) → ${cur(r.toAmount, r.toCurrency)} ` +
+          `@ ${r.rate} (${outcome}; ${a.fromAccountName} → ${a.toAccountName}).${excess}`,
         data: r,
       };
     },
@@ -268,20 +299,25 @@ export const financeTools: WriteToolDef[] = [
   write({
     name: "reverse_conversion",
     description:
-      "Undo a foreign-earning conversion: return every earning realized by the same conversion to PENDING " +
-      "and remove the conversion transfer from the Money ledger. Pass any one earning id from the converted " +
-      "batch (find converted earnings via list_earnings — pendingConversion=false with a realizedAt).",
-    parameters: schema({ earningId: Str("Any earning id from the converted batch") }, [
+      "Undo a foreign-earning conversion or exchange and remove its transfer from the Money ledger. " +
+      "For a converted earning (pendingConversion=false with a realizedAt) every earning realized by the " +
+      "same conversion returns to PENDING. For a pending earning that an exchange re-denominated " +
+      "(exchangedFromCurrency set, e.g. EUR→USD) the batch returns to its original currency and amount. " +
+      "Pass any one earning id from the batch (find them via list_earnings).",
+    parameters: schema({ earningId: Str("Any earning id from the converted/exchanged batch") }, [
       "earningId",
     ]),
     parse: (i) => ({ earningId: reqStr(i.earningId, "earningId") }),
-    preview: async (a) =>
-      `Reverse the conversion for earning ${a.earningId} — returns the whole batch to pending and removes the ledger transfer.`,
+    // Resolve the earning so the approval card names the client, amounts and batch size.
+    preview: async (a) => describeReversal(a.earningId),
     commit: async (a) => {
-      await reverseConversion(a.earningId);
+      const r = await reverseConversion(a.earningId);
       return {
-        summary: `Reversed the conversion — earnings returned to pending and the conversion transfer was removed.`,
-        data: { reversed: true },
+        summary:
+          r.kind === "exchange"
+            ? "Undid the exchange — earnings are back in their original currency and the exchange transfer was removed."
+            : "Reversed the conversion — earnings returned to pending and the conversion transfer was removed.",
+        data: r,
       };
     },
   }),
