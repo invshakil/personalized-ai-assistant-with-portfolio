@@ -12,8 +12,8 @@ Every planned module except Renovation is built and deployed. The site runs on t
 | ------------------ | --------- | ----------------------------------------------------------- |
 | Prisma models      | 63        | `grep -c '^model ' prisma/schema.prisma`                    |
 | Prisma enums       | 22        | `grep -c '^enum ' prisma/schema.prisma`                     |
-| Migrations         | 36        | `ls prisma/migrations`                                      |
-| API route handlers | 139       | `find src/app/api -name route.ts`                           |
+| Migrations         | 35        | `ls -d prisma/migrations/*/`                                |
+| API route handlers | 147       | `find src/app/api -name 'route.ts*'`                        |
 | Test files         | 25        | `find src -name '*.test.ts'`                                |
 | AI tools           | about 100 | `src/services/ai/tools.ts` (read) and `writeTools/` (write) |
 

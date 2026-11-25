@@ -10,7 +10,7 @@ things live is in [ARCHITECTURE.md](ARCHITECTURE.md). This file has the detail.
 - **TypeScript strict mode** — no `any` (use `unknown` and narrow), no `@ts-ignore` without a comment explaining why
 - **No default exports from lib files** — named exports only in `src/lib/`
 - **Server components by default** — only add `"use client"` when you actually need interactivity or browser APIs
-- Keep components **small and single-purpose** — if a component exceeds ~150 lines, split it
+- Keep components **small and single-purpose** — if a component exceeds its limit below (100 lines, or 150 for a shared admin component), split it
 
 ## Component structure & decomposition
 
@@ -76,7 +76,7 @@ export default function FeaturePage() {
 }
 ```
 
-**Canonical reference** — `src/app/(admin)/admin/ai-assistant/`: 7 hooks + 11 components, orchestrator 276 lines.
+**Canonical reference** — `src/app/(admin)/admin/ai-assistant/`: 7 hooks + 11 components, orchestrator 284 lines.
 
 **DO NOTs (decomposition-specific):**
 

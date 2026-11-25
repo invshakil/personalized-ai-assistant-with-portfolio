@@ -50,19 +50,19 @@ The two styling systems do not mix. The rule is in AGENTS.md; this is how it is 
 
 Defined as CSS variables in `src/styles/_base.scss` (SCSS sources in `_variables.scss`).
 
-| Token                  | Value                       | Use                               |
-| ---------------------- | --------------------------- | --------------------------------- |
-| `--color-linen`        | `#f5f0e8`                   | Hero background                   |
-| `--color-sage`         | `#8faa8b`                   | Sage green accent                 |
-| `--color-sage-light`   | `#e8f0e7`                   | Skills section background         |
-| `--color-sage-dark`    | `#2d5a27`                   | Dark sage text and borders        |
-| `--color-slate`        | `#3d5a80`                   | Experience section accent         |
-| `--color-slate-light`  | `#e8eef5`                   | Experience section background     |
-| `--color-purple`       | `#6b4d8f`                   | Projects section accent           |
-| `--color-purple-light` | `#f0eaf8`                   | Projects section background       |
-| `--color-forest`       | `#1a3a2a`                   | Contact section background        |
-| `--color-forest-light` | `#2d5a3d`                   | Contact section secondary         |
-| `--px`                 | `clamp(1.25rem, 5vw, 5rem)` | Horizontal padding, every section |
+| Token                  | Value                    | Use                               |
+| ---------------------- | ------------------------ | --------------------------------- |
+| `--color-linen`        | `#f5f0e8`                | Hero background                   |
+| `--color-sage`         | `#8faa8b`                | Sage green accent                 |
+| `--color-sage-light`   | `#e8f0e7`                | Skills section background         |
+| `--color-sage-dark`    | `#2d5a27`                | Dark sage text and borders        |
+| `--color-slate`        | `#3d5a80`                | Experience section accent         |
+| `--color-slate-light`  | `#e8eef5`                | Experience section background     |
+| `--color-purple`       | `#6b4d8f`                | Projects section accent           |
+| `--color-purple-light` | `#f0eaf8`                | Projects section background       |
+| `--color-forest`       | `#1a3a2a`                | Contact section background        |
+| `--color-forest-light` | `#2d5a3d`                | Contact section secondary         |
+| `--px`                 | `40px`, `20px` on mobile | Horizontal padding, every section |
 
 ### Admin theme tokens
 
@@ -88,7 +88,7 @@ Dark defaults (light mode supplies its own paper, text and divider values under 
 ```
 prisma/
   schema.prisma            single source of truth for the database
-  migrations/              36 migrations
+  migrations/              35 migrations
   seed.ts                  upserts the admin user (runs on every deploy)
   seed-financial.ts, seed-money.ts, seed-solar.ts, data/
 scripts/                   money.ts (CLI), db-restore.ts, apply-migration.ts, solis-test.ts,
@@ -108,7 +108,7 @@ src/
     admin/login/           login page, outside the (admin) group
     api/
       auth/[...nextauth]/  NextAuth
-      admin/               session-guarded route handlers (139 route files in total under api/)
+      admin/               session-guarded route handlers (147 route files in total under api/)
       booking/             public booking routes: config, slots, create, cancel
   components/
     portfolio/             Hero, Skills, Experience (+ experience/), Projects, Testimonials,
@@ -120,9 +120,9 @@ src/
                            formDefaults, backup, backupScheduler, googleDrive, logs, logRetention
     property/              units, tenants, payments, paymentGeneration, transactions, expenses,
                            addOnServices, serviceTypes, payees, rentChanges, oneOffCharges,
-                           vouchers, documents, propertySettings, dashboard, reports
+                           vouchers, tenantDocuments, payeeDocuments, propertySettings, dashboard, reports
     finance/               earnings, conversion, conversionPlan, _realized, payments, bizExpenses,
-                           subscriptions, config, dashboard, reports, exports, pdfKit
+                           subscriptions, config, dashboard, reports, earningsExport, pdfKit
     money/                 accounts, accountTypes, entries, entryQuery, beneficiaries, categories,
                            categorize, import, link, ledgerExport, dashboard, reports
     trips/                 trips, participants, expenses, settlements, fund, report, public, _split
@@ -206,7 +206,7 @@ Conventions for a service file are written up, with Property as the example, in 
 `src/instrumentation.ts` runs once when the Node.js server boots. It sets the server time zone to `Asia/Dhaka` unless `TZ` is set, and starts three in-process schedulers:
 
 - **Backup scheduler** (`services/admin/backupScheduler.ts`): a 30-minute tick that runs a backup when one is due.
-- **Solis scheduler** (`services/solis/scheduler.ts`): about every two hours, refreshes today and backfills missing days.
+- **Solis scheduler** (`services/solis/scheduler.ts`): ticks hourly and syncs when due (about every two hours): refreshes today and backfills missing days.
 - **Log retention** (`services/admin/logRetention.ts`): every six hours, deletes log rows older than `LOG_RETENTION_DAYS`.
 
 ## Database

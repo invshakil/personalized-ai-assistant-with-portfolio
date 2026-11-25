@@ -42,7 +42,7 @@ This version has breaking changes: APIs, conventions and file structure may all 
 - **`main` is production.** Every push to it deploys. There is no `dev` branch.
 - **One branch per piece of work, from `main`, then one PR into `main`.** Never push to `main` directly.
 - **Every PR needs green CI and a code review, and a PR that changes code also needs a security audit.** A docs-only PR needs the review only.
-- **The review and the audit each run in a fresh session,** never the one that wrote the code: `/review` and `/audit` in Claude Code. With another tool, ask Shakil to run them. The agent that wrote a PR doesn't run them itself, and leaves the branch alone while they run.
+- **The review and the audit each run in a fresh session,** never the one that wrote the code: `/review` and `/audit` in Claude Code, once a later PR adds this repo's versions of them. With another tool, ask Shakil to run them. The agent that wrote a PR doesn't run them itself, and leaves the branch alone while they run.
 - **Every PR reported ready has "Manual test steps for Shakil":** the URL path, which local login, numbered steps, what he should see, what must not happen, and the records to use: only `zz-test-` records for anything that saves. Steps that stay useful go in a new file in [docs/manual-tests/](docs/manual-tests/), in the same PR.
 - **A docs or tooling PR with no change under `src/` gets terminal steps instead.**
 - **Shakil merges a PR only after** CI, the review, and the audit for code, pass, and he has run the manual test and said OK. He merges with a **merge commit**.
@@ -57,7 +57,7 @@ The format of the steps and the path from push to merge are in [docs/CONTRIBUTIN
 
 - **Add a new file:** a decision in [docs/decisions/](docs/decisions/), a manual test in [docs/manual-tests/](docs/manual-tests/). The naming rules and templates are in [docs/DECISIONS.md](docs/DECISIONS.md) and [docs/MANUAL_TESTS.md](docs/MANUAL_TESTS.md).
 - **Never edit someone else's entry.** To change one, add a new file that names the one it replaces.
-- **Never append to `docs/DECISIONS.md` or `docs/MANUAL_TESTS.md`.** They are short READMEs with fixed text, and the `check:docs-entries` check fails if either one changes.
+- **Never append to `docs/DECISIONS.md` or `docs/MANUAL_TESTS.md`.** They are short READMEs with fixed text, and once the tooling PR adds the `check:docs-entries` check, it fails if either one changes.
 - **Current state goes in [docs/STATUS.md](docs/STATUS.md),** kept current when your change affects it. It is not a log: history goes in decision files.
 - **Change `prisma/schema.prisma` only together with [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),** which has the schema summary.
 
