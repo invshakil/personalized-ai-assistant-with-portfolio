@@ -39,7 +39,7 @@ carry the actual BDT received, booked in the conversion period. BDT earnings are
 historical numbers are unchanged. Income aggregations route through `src/services/finance/_realized.ts`
 (sum `realizedAmount` by `realizedAt`); a `pendingForeign` panel shows unconverted foreign income in its
 original currency. Salary payments stay counted at pay-date. The live rate is auto-fetched
-(`open.er-api.com`) + editable; see PROJECT_PLANNING.md "Database schema summary" for the full FX +
+(`open.er-api.com`) + editable; see ARCHITECTURE.md "Database schema summary" for the full FX +
 realization seam. The remittance flag is still captured for tax context.
 
 ---
@@ -212,16 +212,16 @@ committed so the import is reproducible without the .xlsx.
 
 ## 7. Phase plan & progress tracker
 
-| Phase | Deliverable                                                                                  | Status                                                                                                          |
-| ----- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| 0     | Excel analysis + plan + this doc                                                             | ✅ done (2026-06-13)                                                                                            |
-| 1     | Prisma models + migration + `fiscalYear.ts` helper + update PROJECT_PLANNING.md schema table | ✅ done (2026-06-13)                                                                                            |
-| 2     | Export Excel → `financial-tracker.json` + seeder (212 rows + config)                         | ✅ done (2026-06-13) — all 9 verification targets reconcile                                                     |
-| 3     | API routes — earnings, payments, expenses, config, dashboard                                 | ✅ done (2026-06-13) — service layer `src/services/finance/` + 13 route handlers; dashboard reconciles to Excel |
-| 4     | Dashboard page (P&L, margins, charts, per-employee, remittance split)                        | ✅ done (2026-06-13) — `FinanceDashboardPage` + `FinanceCharts` (recharts)                                      |
-| 5     | CRUD pages — earnings, payments, expenses                                                    | ✅ done (2026-06-13) — Drawer add/edit, FY filter, create+delete verified via API                               |
-| 6     | Settings page — employees / sources / categories config                                      | ✅ done (2026-06-13) — `FinanceSettingsPage`; delete guarded when referenced                                    |
-| 7     | Wire AI assistant tools (optional); final polish                                             | 🔲 — see notes below                                                                                            |
+| Phase | Deliverable                                                                                           | Status                                                                                                          |
+| ----- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 0     | Excel analysis + plan + this doc                                                                      | ✅ done (2026-06-13)                                                                                            |
+| 1     | Prisma models + migration + `fiscalYear.ts` helper + update the schema table (now in ARCHITECTURE.md) | ✅ done (2026-06-13)                                                                                            |
+| 2     | Export Excel → `financial-tracker.json` + seeder (212 rows + config)                                  | ✅ done (2026-06-13) — all 9 verification targets reconcile                                                     |
+| 3     | API routes — earnings, payments, expenses, config, dashboard                                          | ✅ done (2026-06-13) — service layer `src/services/finance/` + 13 route handlers; dashboard reconciles to Excel |
+| 4     | Dashboard page (P&L, margins, charts, per-employee, remittance split)                                 | ✅ done (2026-06-13) — `FinanceDashboardPage` + `FinanceCharts` (recharts)                                      |
+| 5     | CRUD pages — earnings, payments, expenses                                                             | ✅ done (2026-06-13) — Drawer add/edit, FY filter, create+delete verified via API                               |
+| 6     | Settings page — employees / sources / categories config                                               | ✅ done (2026-06-13) — `FinanceSettingsPage`; delete guarded when referenced                                    |
+| 7     | Wire AI assistant tools (optional); final polish                                                      | 🔲 — see notes below                                                                                            |
 
 ### Phase 7 candidates (optional)
 
@@ -241,7 +241,7 @@ Decisions: **Subscription entity + monthly auto-charge**; **confirm dialog on de
 | 9     | `Subscription` model + migration; monthly auto-charge generation (idempotent, like property rent); APIs; Subscriptions page — start, **stop from a month**, per-month spend history, start date + Active/Ended status; generated charges flow into reports automatically | ✅ done (2026-06-13) — migration `20260613100000_add_subscriptions`; `services/finance/subscriptions.ts`; `/admin/finance/subscriptions` page; generation also runs on expenses/dashboard reads; verified create→4 charges, stop, resume, delete cascade |
 | 10    | Dashboard **date-range filter** — This month / Last 3 / Last 6 / Last 1yr / Last 2yr / This FY (default) / All                                                                                                                                                           | ✅ done (2026-06-13) — `getFinanceDashboard({from,to})`; verified June-2026=৳0, FY=৳9,750,000, All=৳29,350,000                                                                                                                                           |
 | 11    | **PDF downloads** — per-row salary receipt, earning receipt, expense receipt + dashboard report PDF (`@react-pdf/renderer`, mirrors property receipt route)                                                                                                              | ✅ done (2026-06-13) — `services/finance/pdfKit.tsx` + 4 routes; per-row Download buttons; report PDF honors the active date range. BDT rendered as "BDT n" (standard fonts lack ৳)                                                                      |
-| 12    | Verify (build/lint/typecheck + reconcile); update this doc + PROJECT_PLANNING                                                                                                                                                                                            | ✅ done (2026-06-13) — build/lint/tsc clean; authenticated HTTP smoke tests for ranges, PDFs, and full subscription lifecycle all pass                                                                                                                   |
+| 12    | Verify (build/lint/typecheck + reconcile); update this doc + the planning doc (now STATUS.md)                                                                                                                                                                            | ✅ done (2026-06-13) — build/lint/tsc clean; authenticated HTTP smoke tests for ranges, PDFs, and full subscription lifecycle all pass                                                                                                                   |
 
 ## 12. Enhancement round 4 (2026-06-14 — bulk PDF export, richer headers, employee phone) ✅ complete
 

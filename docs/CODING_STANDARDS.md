@@ -1,14 +1,13 @@
-# CODING_CONVENTION.md — sshakil.com
+# Coding standards
 
-Coding conventions for this repo. Referenced from `CLAUDE.md` — read that file first for
-project context, stack, file locations, and DO NOTs. This file covers **how** to write code;
-`CLAUDE.md` covers **what/where**.
+How to write code in this repo. The rules themselves are in [AGENTS.md](../AGENTS.md); what the project is and where
+things live is in [ARCHITECTURE.md](ARCHITECTURE.md). This file has the detail.
 
 ---
 
 ## General
 
-- **TypeScript strict mode** — no `any`, no `@ts-ignore` without a comment explaining why
+- **TypeScript strict mode** — no `any` (use `unknown` and narrow), no `@ts-ignore` without a comment explaining why
 - **No default exports from lib files** — named exports only in `src/lib/`
 - **Server components by default** — only add `"use client"` when you actually need interactivity or browser APIs
 - Keep components **small and single-purpose** — if a component exceeds ~150 lines, split it
@@ -147,8 +146,8 @@ src/store/
 **Portfolio** (`src/app/(portfolio)/`, `src/components/portfolio/`, `src/components/shared/`):
 
 - Tailwind utility classes only
-- No inline styles — use Tailwind or CSS variables from `globals.css`
-- Match colour tokens from `globals.css` exactly — do not introduce new colour values
+- No inline styles — use Tailwind or CSS variables from `src/styles/_base.scss`
+- Match colour tokens from `src/styles/_base.scss` exactly — do not introduce new colour values
 - The design reference is the original `portfolio.html`
 
 **Admin** (`src/app/(admin)/`, `src/components/admin/`):

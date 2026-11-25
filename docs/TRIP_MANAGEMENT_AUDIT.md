@@ -131,7 +131,7 @@ Adding `export const revalidate = <seconds>` addresses both the FX-amplification
 
 ## 4. Code Standards & Architecture
 
-**Fully compliant** with `AGENTS.md` / `CODING_CONVENTION.md`:
+**Fully compliant** with `AGENTS.md` / `docs/CODING_STANDARDS.md`:
 
 - ✅ **Decomposition limits respected.** Largest orchestrator `TripDetailPage.tsx` = 245 lines (< 300); largest hook `useTripExpenseDrawer.ts` = 178 (< 200); all components under their limits.
 - ✅ **Layering clean.** Routes are thin and delegate to `src/services/trips/`. No `fetch()`, `useState` business state, `useEffect`, or Redux selectors in any `components/` file. Client code uses the typed `tripsApi`, never inline `fetch`.
