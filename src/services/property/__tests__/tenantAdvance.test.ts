@@ -20,7 +20,11 @@ async function purge() {
     where: { name: { startsWith: "__advtest_" } },
     select: { id: true },
   });
-  await db.tenant.deleteMany({ where: { id: { in: tenants.map((t) => t.id) } } });
+  const tenantIds = tenants.map((t) => t.id);
+  // A leftover test tenant can have had rent rows generated for it (the payments
+  // page creates them on view) — those block the tenant delete, so they go first.
+  await db.payment.deleteMany({ where: { tenantId: { in: tenantIds } } });
+  await db.tenant.deleteMany({ where: { id: { in: tenantIds } } });
   const accts = await db.moneyAccount.findMany({
     where: { name: { startsWith: "__advtest_" } },
     select: { id: true },

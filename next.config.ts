@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // AGENTS.md is written by hand. Without this, `next dev` inserts its own
+  // managed block into it whenever it detects an AI coding agent.
+  agentRules: false,
+
   // TypeScript is checked in CI (verify job) before deploy; skip the expensive
   // re-check during next build so it doesn't OOM on the constrained droplet.
   typescript: {
