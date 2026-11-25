@@ -1,8 +1,9 @@
 import { Box, Divider, Typography } from "@mui/material";
-import { fmtCurrency } from "../../format";
+import { currencySymbol, fmtCurrency } from "../../format";
 
 interface ConvertDrawerSummaryProps {
   convCurrency: string;
+  toCurrency: string;
   convAmountNum: number;
   convRate: number;
   convToAmountNum: number;
@@ -10,6 +11,7 @@ interface ConvertDrawerSummaryProps {
 
 export default function ConvertDrawerSummary({
   convCurrency,
+  toCurrency,
   convAmountNum,
   convRate,
   convToAmountNum,
@@ -24,8 +26,8 @@ export default function ConvertDrawerSummary({
           Converting {fmtCurrency(convAmountNum, convCurrency || "BDT")}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {convRate > 0 && convToAmountNum > 0
-            ? `@ ${convRate.toLocaleString("en-US", { maximumFractionDigits: 4 })} ৳/${convCurrency}`
+          {toCurrency && convRate > 0 && convToAmountNum > 0
+            ? `@ ${convRate.toLocaleString("en-US", { maximumFractionDigits: 4 })} ${currencySymbol(toCurrency)}/${convCurrency}`
             : ""}
         </Typography>
       </Box>

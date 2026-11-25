@@ -1,61 +1,31 @@
 import { Box, Drawer, Typography } from "@mui/material";
-import type { MoneyAccountRow } from "@/types";
+import type { ConvertDrawerState } from "../hooks/useConvertDrawer";
 import ConvertDrawerBody from "./ConvertDrawerBody";
-import type { AccountSelection } from "@/lib/accountPicker";
 
 interface ConvertDrawerProps {
-  open: boolean;
-  onClose: () => void;
-  pendingCurrencies: string[];
-  convCurrency: string;
-  onConvCurrencyChange: (cur: string) => void;
-  convAmount: string;
-  onConvAmountChange: (v: string) => void;
-  onConvAmountBlur: () => void;
-  convFrom: AccountSelection;
-  onConvFromChange: (sel: AccountSelection) => void;
-  convTo: AccountSelection;
-  onConvToChange: (sel: AccountSelection) => void;
-  convDate: string;
-  onConvDateChange: (v: string) => void;
-  convToAmount: string;
-  onConvToAmountChange: (v: string) => void;
-  convRateLoading: boolean;
-  fromAccountOptions: MoneyAccountRow[];
-  toAccountOptions: MoneyAccountRow[];
-  fromAccountBalance: number;
-  exceedsBalance: boolean;
-  pendingTotalForCurrency: number;
-  exceedsPending: boolean;
-  convAmountNum: number;
-  convRate: number;
-  convToAmountNum: number;
-  convError: string | null;
-  convSaving: boolean;
-  convReady: boolean;
-  onConvert: () => void;
+  state: ConvertDrawerState;
 }
 
-export default function ConvertDrawer(props: ConvertDrawerProps) {
-  const { open, onClose, ...bodyProps } = props;
-
+export default function ConvertDrawer({ state }: ConvertDrawerProps) {
   return (
     <Drawer
       anchor="right"
-      open={open}
-      onClose={onClose}
+      open={state.convertOpen}
+      onClose={state.closeConvert}
       slotProps={{ paper: { sx: { width: { xs: "100%", sm: 460 } } } }}
     >
       <Box sx={{ width: "100%", p: 3 }}>
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>
-          Convert to BDT
+          Convert currency
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: "block" }}>
-          Realize pending foreign income at the actual rate. Posts one transfer (foreign account →
-          BDT account); the received BDT is booked as income on the conversion date.
+          Move money out of a foreign account at the actual rate — one transfer in the ledger. Into
+          a BDT account, the pending income it covers is booked as income on the conversion date.
+          Into another foreign account (e.g. EUR → USD), that income stays pending in the new
+          currency.
         </Typography>
 
-        <ConvertDrawerBody {...bodyProps} />
+        <ConvertDrawerBody state={state} />
       </Box>
     </Drawer>
   );

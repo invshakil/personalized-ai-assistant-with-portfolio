@@ -31,6 +31,22 @@ export function fmtCurrency(n: number, code: string): string {
   return `${sym}${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+/**
+ * Amount in its own currency, ALWAYS to 2 decimals: ৳7,26,118.45 / €3,154.00.
+ * For balances and statements, where rounding BDT to the taka (as `fmtCurrency`
+ * does for compact lists) would hide the paisa an account actually holds.
+ */
+export function fmtCurrencyExact(n: number, code: string): string {
+  // A float sum can land on -0.00 (e.g. 0.1 + 0.2 - 0.3): show it as zero.
+  const value = Math.abs(n) < 0.005 ? 0 : n;
+  const digits = Math.abs(value).toLocaleString(code === "BDT" ? "en-IN" : "en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  // The sign leads the symbol (-৳1,500.50), as an owed credit-card balance reads.
+  return `${value < 0 ? "-" : ""}${currencySymbol(code)}${digits}`;
+}
+
 /** "€500.00 @ 132.40" — the original foreign amount and rate (no BDT). */
 export function fmtForeign(currency: string, originalAmount: number, fxRate: number): string {
   return `${fmtCurrency(originalAmount, currency)} @ ${fxRate.toLocaleString("en-US", {

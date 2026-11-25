@@ -1,6 +1,6 @@
 // Typed client for the Money Manager API. Components call these instead of
 // inlining fetch + URLs. Returns the unwrapped `data` payload; throws on error.
-import { apiGet, apiPost, apiPut, apiDelete, apiUpload } from "./client";
+import { apiGet, apiPost, apiPut, apiDelete, apiUpload, downloadUrl } from "./client";
 import type {
   MoneyAccountRow,
   MoneyAccountType,
@@ -241,6 +241,9 @@ export const moneyApi = {
   // Entries (ledger)
   listEntries: (filters: EntryFilters = {}) =>
     apiGet<MoneyEntryRow[]>(`/money/entries${qs({ ...filters })}`),
+  /** Download URL for the filtered ledger as CSV or PDF (open with window.open). */
+  entriesExportUrl: (filters: EntryFilters, format: "csv" | "pdf") =>
+    downloadUrl("/money/entries/export", { ...filters, format }),
   createEntry: (body: EntryPayload) => apiPost<MoneyEntryRow>("/money/entries", body),
   updateEntry: (id: string, body: Partial<EntryPayload>) =>
     apiPut<MoneyEntryRow>(`/money/entries/${id}`, body),

@@ -1,6 +1,6 @@
 // Typed client for the Financial Tracker API. Components call these instead of
 // inlining fetch + URLs. Returns the unwrapped `data` payload; throws on error.
-import { apiGet, apiPost, apiPut, apiDelete } from "./client";
+import { apiGet, apiPost, apiPut, apiDelete, downloadUrl } from "./client";
 import type {
   EarningRow,
   PaymentRow,
@@ -73,6 +73,7 @@ export interface ConvertEarningsPayload {
   fromAccountId: string;
   toAccountId: string;
   date: string;
+  /** Actual amount received, in the destination account's currency. */
   toAmount: number;
   notes?: string | null;
 }
@@ -96,6 +97,8 @@ export interface EarningFilters {
   to?: string;
   /** Case-insensitive search over notes + the remittance type label. */
   q?: string;
+  /** Income type: REM (remittance) or NON_REM. */
+  remittance?: RemittanceType;
 }
 
 export interface PaymentFilters {
@@ -147,16 +150,25 @@ export const financeApi = {
 
   // ── Earnings ───────────────────────────────────────────────────────────
   listEarnings: (params?: EarningFilters) => apiGet<EarningRow[]>("/finance/earnings", { params }),
+  /** Download URL for the filtered earnings as CSV or PDF (open with window.open). */
+  earningsExportUrl: (filters: EarningFilters, format: "csv" | "pdf") =>
+    downloadUrl("/finance/earnings/export", { ...filters, format }),
   createEarning: (body: EarningPayload) => apiPost<EarningRow>("/finance/earnings", body),
   updateEarning: (id: string, body: Partial<EarningPayload>) =>
     apiPut<EarningRow>(`/finance/earnings/${id}`, body),
   deleteEarning: (id: string) => apiDelete(`/finance/earnings/${id}`),
-  // Realize pending foreign earnings → BDT (one cross-currency transfer for the batch).
+  // Convert out of a foreign account (one cross-currency transfer): → BDT realizes
+  // the pending earnings it covers; → another foreign currency keeps them pending.
   convertEarnings: (body: ConvertEarningsPayload) =>
-    apiPost<{ converted: number; currency: string; toAmount: number; rate: number }>(
-      "/finance/earnings/convert",
-      body
-    ),
+    apiPost<{
+      converted: number;
+      currency: string;
+      toCurrency: string;
+      toAmount: number;
+      rate: number;
+      realized: boolean;
+      uncoveredAmount: number;
+    }>("/finance/earnings/convert", body),
   reverseConversion: (id: string) =>
     apiPost<{ reversed: boolean }>(`/finance/earnings/${id}/reverse-conversion`, {}),
 

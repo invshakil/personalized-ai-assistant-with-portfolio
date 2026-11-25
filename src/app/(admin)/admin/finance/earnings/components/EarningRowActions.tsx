@@ -22,7 +22,7 @@ export default function EarningRowActions({
   return (
     <Box sx={{ display: "flex" }}>
       {e.pendingConversion && (
-        <Tooltip title="Convert to BDT">
+        <Tooltip title="Convert">
           <IconButton size="small" color="warning" onClick={() => onConvert(e.currency, e.id)}>
             <ArrowLeftRight size={14} />
           </IconButton>
@@ -30,6 +30,13 @@ export default function EarningRowActions({
       )}
       {e.currency !== "BDT" && e.realizedAt && (
         <Tooltip title="Reverse conversion (back to pending)">
+          <IconButton size="small" disabled={reversingId === e.id} onClick={() => onReverse(e.id)}>
+            <RotateCcw size={14} />
+          </IconButton>
+        </Tooltip>
+      )}
+      {e.pendingConversion && e.exchangedFromCurrency && (
+        <Tooltip title={`Undo exchange (back to ${e.exchangedFromCurrency})`}>
           <IconButton size="small" disabled={reversingId === e.id} onClick={() => onReverse(e.id)}>
             <RotateCcw size={14} />
           </IconButton>

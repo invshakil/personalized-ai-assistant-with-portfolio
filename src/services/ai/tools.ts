@@ -103,7 +103,10 @@ const financeReadTools: AiToolDef[] = [
       "`originalAmount`, `fxRate` give the original foreign amount. Realized-basis: a foreign earning " +
       "is `pendingConversion=true` (not yet BDT income) until converted, when `realizedAt`/`realizedAmount`/" +
       "`realizedRate` carry the actual BDT booked. BDT earnings are realized on earn. " +
-      "Filter by one or more fiscal years / source ids, a date range (period or from/to), and search " +
+      "A pending row with `exchangedFromCurrency` set was re-denominated by a foreign→foreign exchange " +
+      "(e.g. EUR→USD) and is still pending. " +
+      "Filter by one or more fiscal years / source ids (clients), by income type with remittance " +
+      "(REM = remittance, NON_REM = non-remittance), a date range (period or from/to), and search " +
       "notes + the remittance type label with q (e.g. q='remittance').",
     parameters: obj({
       fiscalYears: {
@@ -115,6 +118,11 @@ const financeReadTools: AiToolDef[] = [
         type: "array",
         items: { type: "string" },
         description: "One or more income source / client ids (optional)",
+      },
+      remittance: {
+        type: "string",
+        enum: ["REM", "NON_REM"],
+        description: "Only this income type: REM (remittance) or NON_REM (optional)",
       },
       ...RANGE,
       q: {
@@ -256,7 +264,8 @@ const financeReadTools: AiToolDef[] = [
       "Returns count and total original amount per currency, plus availableBalance — the " +
       "real ledger balance still held in that currency's account(s), which can be lower than " +
       "the pending total if some of it was already spent elsewhere (e.g. a salary payment). " +
-      "convert_earnings' amount is capped by availableBalance, not the pending total — use " +
+      "convert_earnings' amount is capped by availableBalance, not the pending total (balance beyond " +
+      "the pending income converts as a plain exchange, booked as no income) — use " +
       "this before convert_earnings to see what's actually convertible.",
     parameters: obj({}),
   },
@@ -742,6 +751,10 @@ async function moneyAccountId(name: string): Promise<string> {
   return found.id;
 }
 
+/** A model-supplied remittance filter, or undefined when absent/unknown. */
+const remittanceOf = (v: unknown): "REM" | "NON_REM" | undefined =>
+  v === "REM" || v === "NON_REM" ? v : undefined;
+
 const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
   // Finance — lists & dashboard
   get_finance_summary: (i) => getFinanceDashboard({ from: str(i.from), to: str(i.to) }),
@@ -749,6 +762,7 @@ const handlers: Record<string, (input: ToolInput) => Promise<unknown>> = {
     getEarnings({
       fiscalYears: arr(i.fiscalYears),
       sourceIds: arr(i.sourceIds),
+      remittance: remittanceOf(i.remittance),
       ...range(i),
       q: str(i.q),
     }),

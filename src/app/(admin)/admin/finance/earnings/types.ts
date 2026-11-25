@@ -7,6 +7,15 @@ export const REMITTANCE_LABEL: Record<RemittanceType, string> = {
   NON_REM: "Non-rem",
 };
 
+/** The income-type filter: one remittance type, or everything. */
+export type TypeFilter = RemittanceType | "ALL";
+
+export const TYPE_FILTER_OPTIONS: { value: TypeFilter; label: string }[] = [
+  { value: "ALL", label: "All types" },
+  { value: "REM", label: "Remittance" },
+  { value: "NON_REM", label: "Non-remittance" },
+];
+
 // Sentinel for "don't post a ledger entry" in the optional account dropdown.
 export const NO_ACCOUNT = "";
 

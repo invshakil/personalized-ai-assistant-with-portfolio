@@ -1,17 +1,17 @@
 import NextLink from "next/link";
 import { Box, Button, CircularProgress, Typography } from "@mui/material";
 import type { MoneyEntryRow } from "@/types";
-import { fmtCurrency, fmtDate } from "../../format";
+import { fmtCurrencyExact, fmtDate } from "../../format";
 
 const amountColor = (d: MoneyEntryRow["direction"]) =>
   d === "CREDIT" ? "success.main" : d === "DEBIT" ? "error.main" : "text.secondary";
 
 const amountText = (e: MoneyEntryRow) =>
   e.direction === "CREDIT"
-    ? `+${fmtCurrency(e.amount, e.currency)}`
+    ? `+${fmtCurrencyExact(e.amount, e.currency)}`
     : e.direction === "DEBIT"
-      ? `−${fmtCurrency(e.amount, e.currency)}`
-      : fmtCurrency(e.amount, e.currency);
+      ? `−${fmtCurrencyExact(e.amount, e.currency)}`
+      : fmtCurrencyExact(e.amount, e.currency);
 
 const entryLabel = (e: MoneyEntryRow) =>
   e.direction === "TRANSFER"

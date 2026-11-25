@@ -39,36 +39,42 @@ export function useEntryData(filters: Filters) {
   const [beneficiaries, setBeneficiaries] = useState<BeneficiaryRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // The API query for the current filters — also what an export downloads, so
+  // the file always matches the table.
+  const activeFilters = useMemo<EntryFilters>(
+    () => ({
+      ...(hasCustomRange ? { from, to } : { period: period ?? DEFAULT_PERIOD }),
+      ...(dirFilter !== "ALL" && { direction: dirFilter }),
+      ...(categoryFilter.length && { categoryIds: categoryFilter }),
+      ...(accountFilter.length && { accountIds: accountFilter }),
+      ...(currencyFilter.length && { currencies: currencyFilter }),
+      ...(q && { q }),
+      sortBy,
+      sortDir,
+    }),
+    [
+      hasCustomRange,
+      from,
+      to,
+      period,
+      dirFilter,
+      categoryFilter,
+      accountFilter,
+      currencyFilter,
+      q,
+      sortBy,
+      sortDir,
+    ]
+  );
+
   const loadEntries = useCallback(async () => {
     setLoading(true);
     try {
-      const f: EntryFilters = {
-        ...(hasCustomRange ? { from, to } : { period: period ?? DEFAULT_PERIOD }),
-        ...(dirFilter !== "ALL" && { direction: dirFilter }),
-        ...(categoryFilter.length && { categoryIds: categoryFilter }),
-        ...(accountFilter.length && { accountIds: accountFilter }),
-        ...(currencyFilter.length && { currencies: currencyFilter }),
-        ...(q && { q }),
-        sortBy,
-        sortDir,
-      };
-      setEntries((await moneyApi.listEntries(f)) ?? []);
+      setEntries((await moneyApi.listEntries(activeFilters)) ?? []);
     } finally {
       setLoading(false);
     }
-  }, [
-    hasCustomRange,
-    from,
-    to,
-    period,
-    dirFilter,
-    categoryFilter,
-    accountFilter,
-    currencyFilter,
-    q,
-    sortBy,
-    sortDir,
-  ]);
+  }, [activeFilters]);
 
   const loadRefData = useCallback(async () => {
     const [acc, cat, ppl] = await Promise.all([
@@ -120,6 +126,7 @@ export function useEntryData(filters: Filters) {
     loading,
     accountName,
     totalsByCurrency,
+    activeFilters,
     reload: loadEntries,
     reloadRefData: loadRefData,
   };

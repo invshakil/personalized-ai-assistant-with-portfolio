@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { FILTER_RANGE_TOKEN, TOKEN_TO_FILTER_RANGE, type FilterRangePreset } from "../../format";
+import type { TypeFilter } from "../types";
 
 /** Filter state lives entirely in the URL (deep-linkable, restored on reload). */
 export function useEarningFilters() {
@@ -12,6 +13,9 @@ export function useEarningFilters() {
   const fyFilter = useMemo(() => fyParam.split(",").filter(Boolean), [fyParam]);
   const sourceParam = searchParams.get("source") ?? "";
   const sourceFilter = useMemo(() => sourceParam.split(",").filter(Boolean), [sourceParam]);
+  // Income type (?type=REM|NON_REM); anything else means "all types".
+  const typeParam = searchParams.get("type");
+  const typeFilter: TypeFilter = typeParam === "REM" || typeParam === "NON_REM" ? typeParam : "ALL";
   const period = searchParams.get("period") ?? undefined;
   const from = searchParams.get("from") ?? undefined;
   const to = searchParams.get("to") ?? undefined;
@@ -58,13 +62,27 @@ export function useEarningFilters() {
   const hasActiveFilters =
     fyFilter.length > 0 ||
     sourceFilter.length > 0 ||
+    typeFilter !== "ALL" ||
     hasCustomRange ||
     Boolean(period) ||
     Boolean(q);
 
+  const clearFilters = () =>
+    setParams({
+      fy: undefined,
+      source: undefined,
+      type: undefined,
+      period: undefined,
+      from: undefined,
+      to: undefined,
+      q: undefined,
+    });
+
   return {
     fyFilter,
     sourceFilter,
+    typeFilter,
+    clearFilters,
     period,
     from,
     to,

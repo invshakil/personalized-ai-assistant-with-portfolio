@@ -11,26 +11,40 @@
 
 import axios, { type AxiosRequestConfig } from "axios";
 
+/**
+ * Serialize query params: arrays become comma-joined strings (categoryIds=["a","b"]
+ * → ?categoryIds=a,b) so API routes can parse with .split(","). Axios's default
+ * repeats the key (categoryIds[]=a&categoryIds[]=b) which Next.js doesn't parse.
+ */
+export function serializeParams(params: Record<string, unknown>): string {
+  const sp = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v == null || v === "") continue;
+    if (Array.isArray(v)) {
+      if (v.length > 0) sp.set(k, v.join(","));
+    } else {
+      sp.set(k, String(v));
+    }
+  }
+  return sp.toString();
+}
+
+export const API_BASE = "/api/admin";
+
+/**
+ * URL of a file-download route (CSV / PDF export), for `window.open`. Uses the
+ * same param serialization as the Axios client, so an export built from a list
+ * page's filters asks the server for exactly the rows that page shows.
+ */
+export function downloadUrl(path: string, params: Record<string, unknown> = {}): string {
+  const query = serializeParams(params);
+  return `${API_BASE}${path}${query ? `?${query}` : ""}`;
+}
+
 export const apiClient = axios.create({
-  baseURL: "/api/admin",
+  baseURL: API_BASE,
   headers: { "Content-Type": "application/json" },
-  // Serialize array params as comma-joined strings (e.g. categoryIds=["a","b"] →
-  // ?categoryIds=a,b) so API routes can parse with .split(","). Axios's default
-  // repeats the key (categoryIds[]=a&categoryIds[]=b) which Next.js doesn't parse.
-  paramsSerializer: {
-    serialize: (params: Record<string, unknown>) => {
-      const sp = new URLSearchParams();
-      for (const [k, v] of Object.entries(params)) {
-        if (v == null || v === "") continue;
-        if (Array.isArray(v)) {
-          if (v.length > 0) sp.set(k, v.join(","));
-        } else {
-          sp.set(k, String(v));
-        }
-      }
-      return sp.toString();
-    },
-  },
+  paramsSerializer: { serialize: serializeParams },
 });
 
 apiClient.interceptors.response.use(
