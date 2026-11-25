@@ -159,7 +159,7 @@ The repo is being brought to the standard of Shakil's CT Admin project, in seven
 
 | PR                      | What it brings                                                                                                                                                                                | State       |
 | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------- |
-| 1. Security fix (#18)   | Dependencies upgraded until the audit shows 0 high or critical; tests run one file at a time                                                                                                  | Open        |
+| 1. Security fix (#18)   | Dependencies upgraded until the audit shows 0 high or critical; tests run one file at a time                                                                                                  | Merged      |
 | 2. Rules and docs (#19) | `AGENTS.md` as the single source, the docs in this folder, decision and manual test files, PR template, licence                                                                               | This PR     |
 | 3. Tooling              | Yarn 1, `.nvmrc`, `engines`, husky and lint-staged, and the scripts `typecheck`, `check:no-js`, `check:docs-entries`, `audit:high`, `clean`, `worktree:cleanup`, `heavy-run`, `cleanup:local` | Not started |
 | 4. CI and deploy        | One checks job with tests, build and audit; pinned actions; CodeQL and Dependabot; the seed out of the deploy; branch protection, once Shakil approves the settings                           | Not started |
