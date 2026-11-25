@@ -2,7 +2,7 @@
 
 **Written:** 2026-09-02 · **Owner:** Syful Islam Shakil
 **Status:** phases 1–3 shipped (2026-09-02). Reconciled with the shipped code 2026-09-03 — see
-`IMPLEMENTATION_LOG.md` D1–D6 for what changed during implementation and why.
+the form-defaults decision files in `docs/decisions/` (2 and 3 Sep 2026) for what changed during implementation and why.
 
 Let every dropdown in the admin remember what it should be set to, configurable per field,
 reviewable in one place.

@@ -265,7 +265,7 @@ and the foreign trip-wallet. Read-only in the assistant — **no trip write tool
 > **Status (2026-06-18): live.** Create + update tools are exposed to the assistant behind an
 > **enforced UI approval gate**. The model can _propose_ a write but **cannot commit it** — the user
 > must click **Approve** on a card. Deletes/deactivations are intentionally **not** exposed (do them
-> from the dashboard UI). Source: [`src/services/ai/writeTools/`](src/services/ai/writeTools/) (one
+> from the dashboard UI). Source: [`src/services/ai/writeTools/`](../src/services/ai/writeTools/) (one
 > file per domain, merged in `index.ts`).
 
 ### How it works (two phases, model out of the loop at commit time)
@@ -380,7 +380,7 @@ The services still exist — they're simply not wired as tools.
   isolated in a `try/catch` that returns an `is_error` `tool_result` so one failing tool can't break
   the turn. The chat route (`src/app/api/admin/ai/route.ts`) resolves the active provider via
   `getActiveProvider()` and streams text deltas. The read tools wired today are listed in
-  PROJECT_PLANNING → AI Assistant. **Write/action tools (§4) are now wired** behind an enforced
+  ARCHITECTURE.md → AI Assistant. **Write/action tools (§4) are now wired** behind an enforced
   propose→approve→commit gate (`writeTools/` + `/ai/actions/execute`): the model proposes, the user
   approves a card, and only then does the service run. Deletes remain UI-only.
 

@@ -160,20 +160,26 @@ See [docs/AI_TOOLS_REFERENCE.md](docs/AI_TOOLS_REFERENCE.md) for the full tool l
 
 ## Documentation
 
+Start with [`AGENTS.md`](AGENTS.md): it holds the rules for working in this repo, for people and coding agents.
+
 Deeper docs live in [`docs/`](docs/):
 
-- [PROJECT_PLANNING.md](docs/PROJECT_PLANNING.md) — architecture, implementation status, decisions (read this first when contributing)
-- [PROJECT_STATUS_REPORT.md](docs/PROJECT_STATUS_REPORT.md) — current-state snapshot: what's built, what's open, doc↔code health
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — the stack, file locations, data layers, schema summary and environment variables
+- [STATUS.md](docs/STATUS.md) — what is built, what is open, and which rules a tool enforces today
+- [CODING_STANDARDS.md](docs/CODING_STANDARDS.md) — how to write code here
+- [CONTRIBUTING.md](docs/CONTRIBUTING.md) — the PR workflow, checks and commit messages
+- [SECURITY.md](docs/SECURITY.md) — security rules, known risks and how to report a problem
+- [TESTING.md](docs/TESTING.md) — the tests, the local database and manual testing
+- [DECISIONS.md](docs/DECISIONS.md) — decisions, one file each in [`docs/decisions/`](docs/decisions/)
+- [MANUAL_TESTS.md](docs/MANUAL_TESTS.md) — manual tests, one file each in [`docs/manual-tests/`](docs/manual-tests/)
 - [SERVICE_LAYER.md](docs/SERVICE_LAYER.md) — service-layer conventions and data access
 - [AI_TOOLS_REFERENCE.md](docs/AI_TOOLS_REFERENCE.md) — AI tool catalog & tool-selection strategy
 - [FINANCIAL_TRACKER.md](docs/FINANCIAL_TRACKER.md) — finance module domain model
-- [TRIP_MANAGEMENT_AUDIT.md](docs/TRIP_MANAGEMENT_AUDIT.md) — Trip module security/optimization/standards audit
+- [TRIP_MANAGEMENT_AUDIT.md](docs/TRIP_MANAGEMENT_AUDIT.md) — Trip module audit and its resolutions
 - [AI_ENGINEERING_LEARNING_PROGRESS.md](docs/AI_ENGINEERING_LEARNING_PROGRESS.md) — AI-engineering learning notes
-
-For agent/contributor instructions and the full coding standards, see [`CLAUDE.md`](CLAUDE.md), [`AGENTS.md`](AGENTS.md), and [`CODING_CONVENTION.md`](CODING_CONVENTION.md).
 
 ---
 
 ## License
 
-Personal project — all rights reserved.
+Personal project — all rights reserved. See [LICENSE](LICENSE): the source is public to be read, not to be reused.
